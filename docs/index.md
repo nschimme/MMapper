@@ -1,6 +1,5 @@
 ---
 layout: default
-title: Play MUME with MMapper
 ---
 
 <div id="index-screenshot-flex" style="display: flex; justify-content: space-between; align-items: center;">

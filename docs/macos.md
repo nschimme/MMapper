@@ -3,7 +3,6 @@ layout: default
 title: Download MMapper for macOS
 ---
 
-## Download MMapper for macOS
 {% for asset in site.github.latest_release.assets %}
 {% if asset.name contains 'sha256' %}
 {% elsif asset.name contains 'dmg' %}

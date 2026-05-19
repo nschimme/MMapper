@@ -24,7 +24,7 @@
             <header style="display: flex; flex-direction: column; align-items: center;">
                 <div style="display: flex; align-items: center;">
 			<img src="{{ '/assets/img/logo.svg' | relative_url }}" alt="" aria-hidden="true" style="height: 50px; margin-right: 10px;">
-                    <h1><a href="{{ '/' | relative_url }}">{{ page.title | default: site.title }}</a></h1>
+                    <a href="{{ '/' | relative_url }}" style="font-size: 2em; font-family: 'Trebuchet MS', sans-serif; color: #eee; font-weight: bold; text-decoration: none;">MMapper</a>
                 </div>
             </header>
             <nav aria-label="Main Navigation">
@@ -37,6 +37,9 @@
         </div>
 
         <main id="main-content">
+            {% if page.title %}
+            <h2>{{ page.title }}</h2>
+            {% endif %}
             {{ content }}
         </main>
 

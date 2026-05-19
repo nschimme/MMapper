@@ -3,7 +3,6 @@ layout: default
 title: Download MMapper for Windows
 ---
 
-## Download MMapper for Windows
 
 <a href="https://apps.microsoft.com/detail/9p6f2b68rf7g?referrer=appbadge&mode=direct">
      <img src="https://get.microsoft.com/images/en-us%20dark.svg" width="200" style="vertical-align: middle;"/>

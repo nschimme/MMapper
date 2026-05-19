@@ -3,7 +3,6 @@ layout: default
 title: Download MMapper for Linux
 ---
 
-## Download MMapper for Linux
 
 <a href='https://flathub.org/apps/org.mume.MMapper'>
     <img width='200' alt='Get it on Flathub' src='https://flathub.org/api/badge?locale=en' style="vertical-align: middle;"/>

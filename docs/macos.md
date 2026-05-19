@@ -1,7 +1,11 @@
 ---
 layout: default
-title: Download MMapper for macOS
+title: Get MMapper for macOS
 ---
+
+To install MMapper on macOS, download the **Disk Image (DMG)** file provided below.
+
+MMapper is a universal binary, meaning it runs natively on both older **Intel-based Macs** and the latest **Apple Silicon (M1, M2, and M3)** models. After downloading, simply open the DMG file and drag MMapper to your Applications folder.
 
 {% for asset in site.github.latest_release.assets %}
 {% if asset.name contains 'sha256' %}
@@ -12,19 +16,17 @@ title: Download MMapper for macOS
 {% endif %}
 {% endfor %}
 
-<div class="notice-box" id="mac-notice">
+<div class="notice-box" id="macos-notice">
   <strong style="color: #d9534f;">Important Notice for macOS Users:</strong><br>
-  This application is not notarized by Apple, so macOS might prevent it from opening directly.<br>
-  <strong>To run the application the first time:</strong>
+  On newer versions of macOS (Sequoia and later), you might see a message stating that the app "cannot be opened because it is from an unidentified developer."<br>
+  <strong>To allow MMapper to run:</strong>
   <ol>
-    <li>Locate the downloaded <code>.dmg</code> file and open it.</li>
-    <li>Drag the MMapper application to your Applications folder (or another location).</li>
-    <li>Right-click (or Control-click) the MMapper application icon.</li>
-    <li>Select "Open" from the context menu.</li>
-    <li>A dialog box will appear warning you about the developer. Click "Open" again.</li>
+    <li>Open <strong>System Settings</strong>.</li>
+    <li>Navigate to <strong>Privacy & Security</strong>.</li>
+    <li>Scroll down to the "Security" section.</li>
+    <li>You should see a message about MMapper being blocked. Click <strong>Open Anyway</strong>.</li>
+    <li>Enter your password or use Touch ID when prompted.</li>
   </ol>
-  <small>Alternatively, you can go to System Settings > Privacy & Security, scroll down to the "Security" section, and look for an "Open Anyway" button related to MMapper after trying to open it the first time.</small><br>
-  <small>You only need to do this the first time you run this version.</small>
 </div>
 
 {% include download.md %}

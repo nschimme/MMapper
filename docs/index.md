@@ -14,20 +14,20 @@ title: Play MUME with MMapper
 Choose your preferred platform to start using MMapper {{ site.github.latest_release.tag_name }}:
 
 <div class="platform-links">
-    <a href="{{ '/demo/' | relative_url }}" class="platform-link">
-        <i class="fas fa-globe"></i>
+    <a href="{{ '/demo/' | relative_url }}" class="platform-link" aria-label="Use MMapper in your Web Browser">
+        <i class="fas fa-globe" aria-hidden="true"></i>
         <span>Web</span>
     </a>
-    <a href="{{ '/windows.html' | relative_url }}" class="platform-link">
-        <i class="fab fa-windows"></i>
+    <a href="{{ '/windows.html' | relative_url }}" class="platform-link" aria-label="Get MMapper for Windows">
+        <i class="fab fa-windows" aria-hidden="true"></i>
         <span>Windows</span>
     </a>
-    <a href="{{ '/macos.html' | relative_url }}" class="platform-link">
-        <i class="fab fa-apple"></i>
+    <a href="{{ '/macos.html' | relative_url }}" class="platform-link" aria-label="Get MMapper for macOS">
+        <i class="fab fa-apple" aria-hidden="true"></i>
         <span>macOS</span>
     </a>
-    <a href="{{ '/linux.html' | relative_url }}" class="platform-link">
-        <i class="fab fa-linux"></i>
+    <a href="{{ '/linux.html' | relative_url }}" class="platform-link" aria-label="Get MMapper for Linux">
+        <i class="fab fa-linux" aria-hidden="true"></i>
         <span>Linux</span>
     </a>
 </div>

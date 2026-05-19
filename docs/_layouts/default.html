@@ -18,15 +18,16 @@
     <script src="{{ '/assets/js/download-highlight.js' | relative_url }}"></script>
 </head>
 <body>
+    <a href="#main-content" class="skip-link">Skip to content</a>
     <div class="content-wrapper">
         <div style="display: flex; justify-content: space-between; align-items: center;">
             <header style="display: flex; flex-direction: column; align-items: center;">
                 <div style="display: flex; align-items: center;">
-			<img src="{{ '/assets/img/logo.svg' | relative_url }}" alt="MMapper" style="height: 50px; margin-right: 10px;">
+			<img src="{{ '/assets/img/logo.svg' | relative_url }}" alt="" aria-hidden="true" style="height: 50px; margin-right: 10px;">
                     <h1><a href="{{ '/' | relative_url }}">{{ page.title | default: site.title }}</a></h1>
                 </div>
             </header>
-            <nav>
+            <nav aria-label="Main Navigation">
                 <ul style="list-style: none; padding: 0; margin: 0;">
                     <li style="display: inline; margin-left: 10px;"><a href="{{ '/#get-mmapper' | relative_url }}">Get</a></li>
                     <li style="display: inline; margin-left: 10px;"><a href="{{ '/changelog.html' | relative_url }}">Changelog</a></li>
@@ -35,7 +36,7 @@
             </nav>
         </div>
 
-        <main>
+        <main id="main-content">
             {{ content }}
         </main>
 

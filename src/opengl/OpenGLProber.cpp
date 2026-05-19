@@ -54,7 +54,7 @@ OpenGLProber::ProbeResult OpenGLProber::probe()
 #ifdef Q_OS_WASM
     MMLOG_DEBUG() << "Probing for OpenGL support (Wasm/WebGL 2.0)...";
     ProbeResult result;
-    result.backendType = BackendType::GLES;
+    result.backendType = BackendType::ES;
     result.format.setRenderableType(QSurfaceFormat::OpenGLES);
     result.format.setVersion(3, 0);
     result.format.setDepthBufferSize(24);
@@ -103,8 +103,14 @@ OpenGLProber::ProbeResult OpenGLProber::parseSurveyResult(const QByteArray &json
 
     QJsonObject obj = doc.object();
     QString backend = obj["backend"].toString();
+    const bool debugSupported = obj["debug"].toBool();
 
     ProbeResult result;
+    result.debugSupported = debugSupported;
+    if (debugSupported) {
+        result.format.setOption(QSurfaceFormat::DebugContext);
+    }
+
     if (backend == "GL") {
         result.backendType = BackendType::GL;
         int major = obj["major"].toInt();
@@ -116,8 +122,8 @@ OpenGLProber::ProbeResult OpenGLProber::parseSurveyResult(const QByteArray &json
         result.highestVersionString = mmqt::toStdStringUtf8(
             QString("GL%1.%2").arg(major).arg(minor));
         OpenGLConfig::setGLVersionString(result.highestVersionString);
-    } else if (backend == "GLES") {
-        result.backendType = BackendType::GLES;
+    } else if (backend == "ES") {
+        result.backendType = BackendType::ES;
         int major = obj["major"].toInt();
         int minor = obj["minor"].toInt();
         result.format.setRenderableType(QSurfaceFormat::OpenGLES);
@@ -152,12 +158,13 @@ int OpenGLProber::runSurveyMode(int argc, char **argv)
     const std::vector<GLVersion> coreVersions
         = {{4, 6}, {4, 5}, {4, 4}, {4, 3}, {4, 2}, {4, 1}, {4, 0}, {3, 3}};
 
-    bool foundGL = false;
+    bool foundBackend = false;
     for (const auto &v : coreVersions) {
         QSurfaceFormat format;
         format.setRenderableType(QSurfaceFormat::OpenGL);
         format.setVersion(v.major, v.minor);
         format.setProfile(QSurfaceFormat::CoreProfile);
+        format.setOption(QSurfaceFormat::DebugContext);
 
         QOpenGLContext context;
         context.setFormat(format);
@@ -169,26 +176,30 @@ int OpenGLProber::runSurveyMode(int argc, char **argv)
                 result["backend"] = "GL";
                 result["major"] = actual.majorVersion();
                 result["minor"] = actual.minorVersion();
-                foundGL = true;
+                result["debug"] = actual.testOption(QSurfaceFormat::DebugContext);
+                foundBackend = true;
                 break;
             }
         }
     }
 
-    if (!foundGL) {
+    if (!foundBackend) {
         const std::vector<GLVersion> glesVersions = {{3, 2}, {3, 1}, {3, 0}};
         for (const auto &v : glesVersions) {
             QSurfaceFormat format;
             format.setRenderableType(QSurfaceFormat::OpenGLES);
             format.setVersion(v.major, v.minor);
+            format.setOption(QSurfaceFormat::DebugContext);
 
             QOpenGLContext context;
             context.setFormat(format);
             if (context.create()) {
                 const QSurfaceFormat actual = context.format();
-                result["backend"] = "GLES";
+                result["backend"] = "ES";
                 result["major"] = actual.majorVersion();
                 result["minor"] = actual.minorVersion();
+                result["debug"] = actual.testOption(QSurfaceFormat::DebugContext);
+                foundBackend = true;
                 break;
             }
         }

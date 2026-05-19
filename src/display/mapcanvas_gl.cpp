@@ -186,7 +186,7 @@ void MapCanvas::reportGLVersion()
         logMsg("Highest OpenGL:", mmqt::toQByteArrayUtf8(OpenGLConfig::getGLVersionString()));
     }
     if constexpr (!NO_GLES) {
-        logMsg("Highest GLES:", mmqt::toQByteArrayUtf8(OpenGLConfig::getESVersionString()));
+        logMsg("Highest ES:", mmqt::toQByteArrayUtf8(OpenGLConfig::getESVersionString()));
     }
 
     logMsg("Display:", QString("%1 DPI").arg(QPaintDevice::devicePixelRatioF()).toUtf8());

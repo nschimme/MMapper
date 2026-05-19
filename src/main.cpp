@@ -144,7 +144,7 @@ static bool setSurfaceFormat()
             if constexpr (CURRENT_PLATFORM == PlatformEnum::Wasm) {
                 msg += "WebGL 2.0";
             } else {
-                msg += "GLES 3.0";
+                msg += "ES 3.0";
             }
         }
         msg += " support to run.";

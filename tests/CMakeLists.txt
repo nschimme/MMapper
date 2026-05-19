@@ -335,3 +335,18 @@ set_target_properties(
         COMPILE_FLAGS "${WARNING_FLAGS}"
 )
 add_test(NAME TestHotkeyManager COMMAND TestHotkeyManager)
+
+# OpenGL
+set(TestOpenGL_SRCS testopengl.cpp)
+add_executable(TestOpenGL ${TestOpenGL_SRCS} ../src/opengl/OpenGLProber.cpp ../src/opengl/OpenGLConfig.cpp)
+target_include_directories(TestOpenGL PRIVATE ../src)
+add_dependencies(TestOpenGL mm_global)
+target_link_libraries(TestOpenGL mm_global Qt6::Test Qt6::Gui Qt6::OpenGL coverage_config)
+set_target_properties(
+    TestOpenGL PROPERTIES
+    CXX_STANDARD 17
+    CXX_STANDARD_REQUIRED ON
+    CXX_EXTENSIONS OFF
+    COMPILE_FLAGS "${WARNING_FLAGS}"
+)
+add_test(NAME TestOpenGL COMMAND TestOpenGL)

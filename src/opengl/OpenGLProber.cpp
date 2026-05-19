@@ -25,6 +25,9 @@
 
 extern "C" {
 // Prefer discrete nVidia and AMD GPUs by default on Windows
+__declspec(dllexport) extern DWORD NvOptimusEnablement;
+__declspec(dllexport) extern int AmdPowerXpressRequestHighPerformance;
+
 __declspec(dllexport) DWORD NvOptimusEnablement = 0x00000001;
 __declspec(dllexport) int AmdPowerXpressRequestHighPerformance = 1;
 }
@@ -85,8 +88,8 @@ OpenGLProber::ProbeResult OpenGLProber::probe()
 
 OpenGLProber::ProbeResult OpenGLProber::parseSurveyResult(const QByteArray &json)
 {
-    const int start = json.indexOf('{');
-    const int end = json.lastIndexOf('}');
+    const qsizetype start = json.indexOf('{');
+    const qsizetype end = json.lastIndexOf('}');
 
     QJsonDocument doc;
     if (start != -1 && end != -1 && end > start) {

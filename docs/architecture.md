@@ -19,7 +19,7 @@ The `Proxy` class (`src/proxy/proxy.h`) manages the connection between the MUD s
 
 *   **MudSocket**: Raw connection to MUME.
 *   **MudTelnet**: Handles Telnet protocol and GMCP (Game Master Client Protocol).
-*   **MpiFilter**: Detects special "MPI" sequences for remote editing or viewing.
+*   **MpiFilter**: Historically used for the legacy MPI protocol; now handles out-of-band "MUME.Client" GMCP messages for remote editing or viewing.
 *   **MumeXmlParser**: Parses game data (vitals, room info, exits) to update the map and internal state.
 
 ## 2. Key Components
@@ -28,14 +28,14 @@ The `Proxy` class (`src/proxy/proxy.h`) manages the connection between the MUD s
 The core auto-mapping algorithm. It reconciles game events with the map database.
 *   **States**:
     *   **APPROVED**: Confident of location; uses "matching tolerance" for room descriptions.
-    *   **EXPERIMENTING**: Ambiguous location; tracks multiple hypothesis paths and prunes them based on "penalties" and "bonuses" (distance, new rooms, etc.).
+    *   **EXPERIMENTING**: Ambiguous location; tracks multiple hypothesis paths and prunes them based on "penalties" and "bonuses".
     *   **SYNCING**: Lost track; performs a global search of room descriptions to find a match.
 
 ### Map and World State (`src/map/`, `src/mapdata/`)
 *   **MapData**: Primary owner of the map state, including the `World` graph and `MarkerList`.
 *   **World**: Graph representation of rooms and exits. Supports multiple "layers" for pseudo-3D representation.
-*   **SpatialDb**: R-Tree for fast spatial lookups and collision detection.
-*   **ShortestPath**: Parallel Delta-Stepping algorithm for navigation and pathfinding.
+*   **SpatialDb**: R-Tree for fast spatial lookups.
+*   **ShortestPath**: Parallel Delta-Stepping algorithm for navigation.
 *   **MapHistory**: Manages undo/redo operations by tracking `Change` objects.
 
 ### Map Storage (`src/mapstorage/`)
@@ -47,7 +47,7 @@ The core auto-mapping algorithm. It reconciles game events with the map database
 MMapper uses a modern rendering pipeline focused on cross-platform compatibility (Desktop OpenGL & WebGL).
 *   **MapCanvas**: A `QOpenGLWindow` that renders to an internal Framebuffer Object (FBO).
 *   **FBO & Blitting**: Rendering is done to an FBO (optionally multisampled), which is then resolved and blitted to the default framebuffer via a full-screen triangle blit shader (`Functions::blitFboToDefault`).
-*   **OpenGLProber**: To prevent driver crashes from affecting the main app, probing is done via a standalone executable `mmapper-hardware-survey` (`src/opengl/SurveyMain.cpp`).
+*   **OpenGLProber**: Multi-process hardware survey (`mmapper-hardware-survey`) to select OpenGL 3.3, GLES 3.0, or WebGL 2.0 without crashing the main app.
 *   **Unified Shaders**: Shaders (`src/resources/shaders/`) are written in a unified format for GL 3.3 and GLES 3.0/WebGL 2.0. The appropriate `#version` and precision headers are prepended at runtime via `Functions::getShaderVersion()`.
 *   **Shared Buffers**: Uses Uniform Buffer Objects (UBOs) for efficient sharing of global state (colors, projection matrices) across shaders.
 
@@ -56,7 +56,7 @@ MMapper uses a modern rendering pipeline focused on cross-platform compatibility
 *   **Syntax Tree**: Uses a dedicated syntax parser (`src/syntax/`) to define and validate complex command structures.
 
 ### MUD Integration & World Tracking
-*   **MPI (Remote Edit/View)**: Special protocol handled by `MpiFilter` to open dedicated editor or viewer windows for content like maps or room descriptions.
+*   **Remote Edit/View**: Special functionality handled by `MpiFilter` to open dedicated editor or viewer windows for content like maps or room descriptions. This uses the `MUME.Client` GMCP namespace.
 *   **Group Management**: Tracks group member vitals and map positions via GMCP.
 *   **Adventure Tracker**: Monitors XP gains, session duration, and character status.
 *   **MumeClock**: Tracks Middle-earth time, moon phases, and seasons.
@@ -93,8 +93,8 @@ The `Proxy` uses nested `Outputs` structs (e.g., `AbstractParserOutputs`) to dec
 
 ## 5. Glossary
 
-*   **GMCP**: Game Master Client Protocol. A JSON-based protocol over Telnet used for out-of-band data. See [MUME's GMCP documentation](https://mume.org/help/generic_mud_communication_protocol) for supported modules (Char, Group, Room, etc.).
-*   **MPI**: Multi-Purpose Interface (or MUME Protocol Interface). Used for out-of-band content transmission like remote editing.
+*   **GMCP**: Game Master Client Protocol. A JSON-based protocol over Telnet used for out-of-band data. See [MUME's GMCP documentation](https://mume.org/help/generic_mud_communication_protocol) for supported modules.
+*   **MPI**: MUME Protocol Interface. A legacy protocol used for out-of-band content transmission; its functionality is largely superseded by the `MUME.Client` GMCP namespace, but the `MpiFilter` class name remains in the codebase.
 *   **IAC**: Interpret As Command. Telnet escape character (`0xFF`).
 *   **Vitals**: Character status data (HP, Mana, Moves).
 *   **FBO**: Framebuffer Object. An off-screen rendering target.

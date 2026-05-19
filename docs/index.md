@@ -16,7 +16,7 @@ MMapper is now available directly in your browser! The Web version works as a Pr
 Choose your preferred platform to start using MMapper {{ site.github.latest_release.tag_name }}:
 
 <div class="platform-links">
-    <a href="{{ '/demo/' | relative_url }}" class="platform-link" aria-label="Use MMapper in your Web Browser">
+    <a href="{{ '/demo/' | relative_url }}" class="platform-link" aria-label="Use MMapper in your Web Browser" data-platform="web">
         <i class="fas fa-globe" aria-hidden="true"></i>
         <span>Web</span>
     </a>

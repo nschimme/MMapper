@@ -38,6 +38,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     downloadLinks.forEach(link => {
         const href = link.href.toLowerCase();
+        const platform = link.getAttribute('data-platform');
 
         // Do not recommend Windows .exe installers
         if (href.includes('.exe')) {
@@ -46,7 +47,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // For ChromeOS, only recommend the Web version
         if (isChromeOS) {
-            if (href.includes('/demo/')) {
+            if (platform === 'web') {
                 addRecommendation(link);
             }
             return; // Don't recommend anything else on ChromeOS

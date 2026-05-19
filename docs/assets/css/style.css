@@ -189,10 +189,10 @@ hr {
     text-transform: uppercase;
 }
 
-.platform-recommendation {
-    display: block !important;
-    margin-left: 0 !important;
-    margin-top: 0.5em !important;
+.platform-link .platform-recommendation {
+    display: block;
+    margin-left: 0;
+    margin-top: 0.5em;
     font-size: 0.9em;
 }
 

@@ -24,28 +24,55 @@ The `Proxy` class (`src/proxy/proxy.h`) manages the connection between the MUD s
 
 ## 2. Key Components
 
+### PathMachine (`src/pathmachine/`)
+The core auto-mapping algorithm. It reconciles game events with the map database.
+*   **States**:
+    *   **APPROVED**: Confident of location; uses "matching tolerance" for room descriptions.
+    *   **EXPERIMENTING**: Ambiguous location; tracks multiple hypothesis paths and prunes them based on "penalties" and "bonuses" (distance, new rooms, etc.).
+    *   **SYNCING**: Lost track; performs a global search of room descriptions to find a match.
+
 ### Map and World State (`src/map/`, `src/mapdata/`)
-*   **MapData**: The primary owner of the map state.
-*   **World**: Represents the game world (rooms, exits, areas).
-*   **SpatialDb**: An R-Tree based database for fast spatial queries (e.g., "what room is at these coordinates?").
+*   **MapData**: Primary owner of the map state, including the `World` graph and `MarkerList`.
+*   **World**: Graph representation of rooms and exits. Supports multiple "layers" for pseudo-3D representation.
+*   **SpatialDb**: R-Tree for fast spatial lookups and collision detection.
+*   **ShortestPath**: Parallel Delta-Stepping algorithm for navigation and pathfinding.
+*   **MapHistory**: Manages undo/redo operations by tracking `Change` objects.
+
+### Map Storage (`src/mapstorage/`)
+*   **Formats**: Supports MMP (binary), JSON, XML, and Pandora.
+*   **Load/Save**: Uses `MapSource` and `MapDestination` abstractions.
+*   **Atomic Save**: Uses `FileSaver` to ensure data integrity via flush/sync/rename.
 
 ### Rendering (`src/display/`, `src/opengl/`)
-*   **MapCanvas**: A `QOpenGLWindow` that performs the actual rendering using an internal FBO.
-*   **OpenGLProber**: Detects hardware capabilities to select the best rendering backend (OpenGL Core 3.3, GLES 3.0, or WebGL 2.0).
-*   **Functions**: A wrapper around OpenGL calls to provide cross-backend compatibility.
+*   **MapCanvas**: `QOpenGLWindow` rendering to an FBO, resolved for multisampling, and blitted to the default framebuffer.
+*   **OpenGLProber**: Multi-process hardware survey (`mmapper-hardware-survey`) to select OpenGL 3.3, GLES 3.0, or WebGL 2.0 without crashing the main app.
+*   **ThemeManager**: Manages application-wide styles, colors, and icon sets.
 
-### Observer Pattern (`src/observer/`)
-*   **GameObserver**: A centralized hub for world state changes (time, weather, ticks). Components connect to its `Signal2` signals to react to game events.
+### Command & Syntax System (`src/syntax/`, `src/parser/`)
+*   **AbstractParser**: The central dispatcher for user commands.
+*   **Syntax Tree**: Uses a dedicated syntax parser (`src/syntax/`) to define and validate complex command structures and arguments.
 
-### Group Management (`src/group/`)
-*   **Mmapper2Group**: Manages group members, their vitals, and their positions on the map.
+### Built-in Client & UI (`src/client/`, `src/mainwindow/`)
+*   **ClientWidget**: Integrates the terminal (`DisplayWidget`) and input area.
+*   **RoomPanel**: Displays detailed room information and currently present mobs.
+*   **Preferences**: Centralized management of application settings.
+
+### MUD Integration & World Tracking
+*   **MPI (Remote Edit/View)**: Special protocol handled by `MpiFilter` to open dedicated editor or viewer windows.
+*   **Group Management**: Tracks group member vitals and map positions via GMCP.
+*   **Adventure Tracker**: Monitors XP gains, session duration, and character status.
+*   **MumeClock**: Tracks game-specific time (Middle-earth time) and moon phases.
+*   **GameObserver**: Centralized hub for world-state signals (time, weather, ticks).
 
 ## 3. Core Design Patterns
 
 ### Signal2 System (`src/global/Signal2.h`)
-The project uses a custom, lightweight `Signal2` system instead of standard Qt signals in many performance-critical or non-`QObject` contexts.
-*   **Signal2Lifetime**: Used to automatically disconnect signals when an object is destroyed.
-*   **WeakHandle**: Provides a safe way to reference objects that might be destroyed.
+A lightweight, high-performance alternative to Qt signals for core logic.
+*   **Signal2Lifetime**: Required for safe disconnection.
+*   **WeakHandle**: Prevents crashes when referencing objects across threads or lifetimes.
+
+### Strategy Pattern
+Used in `PathProcessor` (pathmachine), `MapStorage` (formats), and `Functions` (rendering backends) to provide interchangeable implementations.
 
 ### Pipeline Interfaces
-Many components define their interactions through nested `Outputs` structs (e.g., `AbstractParserOutputs`, `MudTelnetOutputs`). This decouples the components and makes the data flow explicit in the `Proxy`.
+The `Proxy` uses nested `Outputs` structs (e.g., `AbstractParserOutputs`) to decouple components and enforce explicit data flow.

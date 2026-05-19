@@ -43,21 +43,24 @@ The core auto-mapping algorithm. It reconciles game events with the map database
 *   **Load/Save**: Uses `MapSource` and `MapDestination` abstractions.
 *   **Atomic Save**: Uses `FileSaver` to ensure data integrity via flush/sync/rename.
 
-### Rendering (`src/display/`, `src/opengl/`)
-*   **MapCanvas**: `QOpenGLWindow` rendering to an FBO, resolved for multisampling, and blitted to the default framebuffer.
-*   **OpenGLProber**: Multi-process hardware survey (`mmapper-hardware-survey`) to select OpenGL 3.3, GLES 3.0, or WebGL 2.0.
-*   **ThemeManager**: Manages application-wide styles, colors, and icon sets.
+### Rendering Architecture (`src/display/`, `src/opengl/`)
+MMapper uses a modern rendering pipeline focused on cross-platform compatibility (Desktop OpenGL & WebGL).
+*   **MapCanvas**: A `QOpenGLWindow` that renders to an internal Framebuffer Object (FBO).
+*   **FBO & Blitting**: Rendering is done to an FBO (optionally multisampled), which is then resolved and blitted to the default framebuffer via a full-screen triangle blit shader (`Functions::blitFboToDefault`).
+*   **OpenGLProber**: To prevent driver crashes from affecting the main app, probing is done via a standalone executable `mmapper-hardware-survey` (`src/opengl/SurveyMain.cpp`).
+*   **Unified Shaders**: Shaders (`src/resources/shaders/`) are written in a unified format for GL 3.3 and GLES 3.0/WebGL 2.0. The appropriate `#version` and precision headers are prepended at runtime via `Functions::getShaderVersion()`.
+*   **Shared Buffers**: Uses Uniform Buffer Objects (UBOs) for efficient sharing of global state (colors, projection matrices) across shaders.
 
 ### Command & Syntax System (`src/syntax/`, `src/parser/`)
 *   **AbstractParser**: The central dispatcher for user commands.
 *   **Syntax Tree**: Uses a dedicated syntax parser (`src/syntax/`) to define and validate complex command structures.
 
 ### MUD Integration & World Tracking
-*   **MPI (Remote Edit/View)**: Special protocol handled by `MpiFilter` to open dedicated editor or viewer windows.
+*   **MPI (Remote Edit/View)**: Special protocol handled by `MpiFilter` to open dedicated editor or viewer windows for content like maps or room descriptions.
 *   **Group Management**: Tracks group member vitals and map positions via GMCP.
 *   **Adventure Tracker**: Monitors XP gains, session duration, and character status.
-*   **MumeClock**: Tracks game-specific time (Middle-earth time) and moon phases.
-*   **GameObserver**: Centralized hub for world-state signals (time, weather, ticks).
+*   **MumeClock**: Tracks Middle-earth time, moon phases, and seasons.
+*   **GameObserver**: Centralized hub for world-state signals.
 
 ## 3. Core Design Patterns
 
@@ -67,7 +70,7 @@ A lightweight, high-performance alternative to Qt signals for core logic.
 *   **WeakHandle**: Prevents crashes when referencing objects across threads or lifetimes.
 
 ### Strategy Pattern
-Used in `PathProcessor` (pathmachine), `MapStorage` (formats), and `Functions` (rendering backends) to provide interchangeable implementations.
+Used in `PathProcessor` (pathmachine), `MapStorage` (formats), and `Functions` (rendering backends).
 
 ### Pipeline Interfaces
 The `Proxy` uses nested `Outputs` structs (e.g., `AbstractParserOutputs`) to decouple components and enforce explicit data flow.
@@ -77,22 +80,22 @@ The `Proxy` uses nested `Outputs` structs (e.g., `AbstractParserOutputs`) to dec
 ### Adding a User Command
 1.  Define the command syntax in `src/parser/AbstractParser.cpp`.
 2.  Add a callback in `AbstractParser::initSpecialCommandMap`.
-3.  Implement the logic in a new or existing `AbstractParser` method.
+3.  Implement the logic in `AbstractParser`.
 
 ### Handling a New GMCP Message
-1.  Identify the module in `src/proxy/GmcpModule.h`.
-2.  Add parsing logic to `MumeXmlParser::slot_parseGmcpInput` or `Mmapper2Group::slot_parseGmcpInput`.
-3.  Emit a signal or update state via `GameObserver`.
+1.  Add the message module to `src/proxy/GmcpModule.h`.
+2.  Implement parsing in `MumeXmlParser::slot_parseGmcpInput` or `Mmapper2Group::slot_parseGmcpInput`.
 
-### Adding a Map Change Type
-1.  Define the change in `src/map/ChangeTypes.h`.
-2.  Implement `apply` and `revert` logic in `Change.cpp`.
-3.  Update the visitor in `AbstractChangeVisitor.h`.
+### Creating a New Shader
+1.  Add `.glsl` files to `src/resources/shaders/`.
+2.  Declare the shader program struct in `src/opengl/legacy/Shaders.h`.
+3.  Implement uniform setup and loading in `src/opengl/legacy/Shaders.cpp`.
 
 ## 5. Glossary
 
-*   **GMCP**: Game Master Client Protocol. A JSON-based protocol over Telnet used for structured data (vitals, room info).
-*   **MPI**: A custom protocol for "Remote Edit" and "Remote View" functionality.
-*   **IAC**: Interpret As Command. The escape character (`0xFF`) in the Telnet protocol.
-*   **Arda**: The name of the game world in MUME.
+*   **GMCP**: Game Master Client Protocol. A JSON-based protocol over Telnet used for out-of-band data. See [MUME's GMCP documentation](https://mume.org/help/generic_mud_communication_protocol) for supported modules (Char, Group, Room, etc.).
+*   **MPI**: Multi-Purpose Interface (or MUME Protocol Interface). Used for out-of-band content transmission like remote editing.
+*   **IAC**: Interpret As Command. Telnet escape character (`0xFF`).
 *   **Vitals**: Character status data (HP, Mana, Moves).
+*   **FBO**: Framebuffer Object. An off-screen rendering target.
+*   **UBO**: Uniform Buffer Object. A buffer for sharing uniform data between shaders.

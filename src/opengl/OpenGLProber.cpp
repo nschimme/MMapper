@@ -67,7 +67,12 @@ OpenGLProber::ProbeResult OpenGLProber::probe()
 
     const QString selfPath = QCoreApplication::applicationFilePath();
     QProcess process;
-    process.start(selfPath, {"--probe"});
+
+    QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
+    env.insert("ASAN_OPTIONS", "detect_leaks=0");
+    process.setProcessEnvironment(env);
+
+    process.start(selfPath, {"--probe", "-platform", "offscreen"});
     if (!process.waitForFinished(5000)) {
         MMLOG_ERROR() << "OpenGL probe subprocess timed out or failed to start. Using fallback.";
         process.kill();
@@ -80,7 +85,14 @@ OpenGLProber::ProbeResult OpenGLProber::probe()
 
 OpenGLProber::ProbeResult OpenGLProber::parseSurveyResult(const QByteArray &json)
 {
-    QJsonDocument doc = QJsonDocument::fromJson(json);
+    const int start = json.indexOf('{');
+    const int end = json.lastIndexOf('}');
+
+    QJsonDocument doc;
+    if (start != -1 && end != -1 && end > start) {
+        doc = QJsonDocument::fromJson(json.mid(start, end - start + 1));
+    }
+
     if (doc.isNull() || !doc.isObject()) {
         MMLOG_ERROR() << "OpenGL survey returned invalid JSON. Using fallback.";
         return getFallbackResult();
@@ -99,7 +111,7 @@ OpenGLProber::ProbeResult OpenGLProber::parseSurveyResult(const QByteArray &json
         result.format.setProfile(QSurfaceFormat::CoreProfile);
         result.format.setDepthBufferSize(24);
         result.highestVersionString = mmqt::toStdStringUtf8(
-            QString("GL%1.%2core").arg(major).arg(minor));
+            QString("GL%1.%2").arg(major).arg(minor));
         OpenGLConfig::setGLVersionString(result.highestVersionString);
     } else if (backend == "GLES") {
         result.backendType = BackendType::GLES;
@@ -150,8 +162,7 @@ int OpenGLProber::runSurveyMode(int argc, char **argv)
             const QSurfaceFormat actual = context.format();
             if (actual.profile() == QSurfaceFormat::CoreProfile
                 && (actual.majorVersion() > v.major
-                    || (actual.majorVersion() == v.major
-                        && actual.minorVersion() >= v.minor))) {
+                    || (actual.majorVersion() == v.major && actual.minorVersion() >= v.minor))) {
                 result["backend"] = "GL";
                 result["major"] = actual.majorVersion();
                 result["minor"] = actual.minorVersion();
@@ -185,7 +196,8 @@ int OpenGLProber::runSurveyMode(int argc, char **argv)
     }
 
     const QByteArray output = QJsonDocument(result).toJson(QJsonDocument::Compact);
-    fprintf(stdout, "%s\n", output.constData());
+    fprintf(stdout, "\n%s\n", output.constData());
+    fflush(stdout);
     return 0;
 }
 #endif

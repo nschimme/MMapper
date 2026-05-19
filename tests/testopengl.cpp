@@ -18,9 +18,9 @@ private slots:
         QCOMPARE(result.format.majorVersion(), 4);
         QCOMPARE(result.format.minorVersion(), 5);
         QCOMPARE(result.format.profile(), QSurfaceFormat::CoreProfile);
-        QCOMPARE(result.highestVersionString, std::string("GL4.5core"));
+        QCOMPARE(result.highestVersionString, std::string("GL4.5"));
 
-        QCOMPARE(OpenGLConfig::getGLVersionString(), std::string("GL4.5core"));
+        QCOMPARE(OpenGLConfig::getGLVersionString(), std::string("GL4.5"));
     }
 
     void testParseSurveyResult_GLES()
@@ -50,6 +50,23 @@ private slots:
         // Fallback is GL 3.3 Core
         QCOMPARE(result.backendType, OpenGLProber::BackendType::GL);
         QCOMPARE(result.highestVersionString, std::string("Fallback"));
+    }
+
+    void testParseSurveyResult_Robustness()
+    {
+        OpenGLProber prober;
+        QByteArray json = R"(
+Some random log message
+More noise
+{"backend": "GL", "major": 4, "minor": 6}
+Sanitizer output: leak detected
+)";
+        auto result = prober.parseSurveyResult(json);
+
+        QCOMPARE(result.backendType, OpenGLProber::BackendType::GL);
+        QCOMPARE(result.format.majorVersion(), 4);
+        QCOMPARE(result.format.minorVersion(), 6);
+        QCOMPARE(result.highestVersionString, std::string("GL4.6"));
     }
 
     void testGetBackendType()

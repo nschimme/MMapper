@@ -45,17 +45,12 @@ The core auto-mapping algorithm. It reconciles game events with the map database
 
 ### Rendering (`src/display/`, `src/opengl/`)
 *   **MapCanvas**: `QOpenGLWindow` rendering to an FBO, resolved for multisampling, and blitted to the default framebuffer.
-*   **OpenGLProber**: Multi-process hardware survey (`mmapper-hardware-survey`) to select OpenGL 3.3, GLES 3.0, or WebGL 2.0 without crashing the main app.
+*   **OpenGLProber**: Multi-process hardware survey (`mmapper-hardware-survey`) to select OpenGL 3.3, GLES 3.0, or WebGL 2.0.
 *   **ThemeManager**: Manages application-wide styles, colors, and icon sets.
 
 ### Command & Syntax System (`src/syntax/`, `src/parser/`)
 *   **AbstractParser**: The central dispatcher for user commands.
-*   **Syntax Tree**: Uses a dedicated syntax parser (`src/syntax/`) to define and validate complex command structures and arguments.
-
-### Built-in Client & UI (`src/client/`, `src/mainwindow/`)
-*   **ClientWidget**: Integrates the terminal (`DisplayWidget`) and input area.
-*   **RoomPanel**: Displays detailed room information and currently present mobs.
-*   **Preferences**: Centralized management of application settings.
+*   **Syntax Tree**: Uses a dedicated syntax parser (`src/syntax/`) to define and validate complex command structures.
 
 ### MUD Integration & World Tracking
 *   **MPI (Remote Edit/View)**: Special protocol handled by `MpiFilter` to open dedicated editor or viewer windows.
@@ -76,3 +71,28 @@ Used in `PathProcessor` (pathmachine), `MapStorage` (formats), and `Functions` (
 
 ### Pipeline Interfaces
 The `Proxy` uses nested `Outputs` structs (e.g., `AbstractParserOutputs`) to decouple components and enforce explicit data flow.
+
+## 4. Common Developer Tasks
+
+### Adding a User Command
+1.  Define the command syntax in `src/parser/AbstractParser.cpp`.
+2.  Add a callback in `AbstractParser::initSpecialCommandMap`.
+3.  Implement the logic in a new or existing `AbstractParser` method.
+
+### Handling a New GMCP Message
+1.  Identify the module in `src/proxy/GmcpModule.h`.
+2.  Add parsing logic to `MumeXmlParser::slot_parseGmcpInput` or `Mmapper2Group::slot_parseGmcpInput`.
+3.  Emit a signal or update state via `GameObserver`.
+
+### Adding a Map Change Type
+1.  Define the change in `src/map/ChangeTypes.h`.
+2.  Implement `apply` and `revert` logic in `Change.cpp`.
+3.  Update the visitor in `AbstractChangeVisitor.h`.
+
+## 5. Glossary
+
+*   **GMCP**: Game Master Client Protocol. A JSON-based protocol over Telnet used for structured data (vitals, room info).
+*   **MPI**: A custom protocol for "Remote Edit" and "Remote View" functionality.
+*   **IAC**: Interpret As Command. The escape character (`0xFF`) in the Telnet protocol.
+*   **Arda**: The name of the game world in MUME.
+*   **Vitals**: Character status data (HP, Mana, Moves).

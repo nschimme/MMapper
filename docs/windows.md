@@ -3,9 +3,7 @@ layout: default
 title: Get MMapper for Windows
 ---
 
-MMapper provides two main ways to install on Windows. The **Microsoft Store** version is the recommended choice as it offers the easiest installation process and handles updates automatically. If you prefer a traditional installation, you can download the **standalone .exe installer** below.
-
-Please note that the standalone version may trigger a security warning from Windows because it is not digitally signed; instructions for unblocking it are provided at the bottom of this page.
+MMapper can be installed from the Microsoft Store for a seamless experience, including automatic updates. Alternatively, you can download the standalone installer below.
 
 <a href="https://apps.microsoft.com/detail/9p6f2b68rf7g?referrer=appbadge&mode=direct">
      <img src="https://get.microsoft.com/images/en-us%20dark.svg" width="200" style="vertical-align: middle;"/>

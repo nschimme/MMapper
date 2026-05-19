@@ -1,7 +1,7 @@
 document.addEventListener('DOMContentLoaded', function() {
     let detectedArch = null;
     let isChromeOS = false;
-    const downloadLinks = document.querySelectorAll('.download-link');
+    const downloadLinks = document.querySelectorAll('.download-link, .platform-link');
 
     // --- Architecture Detection (Best Effort) ---
     if (navigator.userAgentData && navigator.userAgentData.architecture) {
@@ -23,6 +23,21 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // --- Highlight Download Link ---
+    function addRecommendation(link) {
+        link.classList.add('recommended-download');
+        const recommendation = document.createElement('span');
+        recommendation.textContent = ' Recommended';
+        recommendation.classList.add('recommendation-text');
+
+        if (link.classList.contains('platform-link')) {
+            // For homepage icons, put it inside so it doesn't break flex layout
+            recommendation.classList.add('platform-recommendation');
+            link.appendChild(recommendation);
+        } else {
+            link.parentNode.insertBefore(recommendation, link.nextSibling);
+        }
+    }
+
     downloadLinks.forEach(link => {
         const href = link.href.toLowerCase();
 
@@ -31,8 +46,9 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
 
-        // Only recommend .deb for ChromeOS
-        if (isChromeOS && (href.includes('appimage') || href.includes('flatpak'))) {
+        // Recommend Web/PWA for ChromeOS
+        if (isChromeOS && href.includes('/demo/')) {
+            addRecommendation(link);
             return;
         }
 
@@ -44,11 +60,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         if (detectedArch && linkArch === detectedArch) {
-            link.classList.add('recommended-download');
-            const recommendation = document.createElement('span');
-            recommendation.textContent = ' Recommended';
-            recommendation.classList.add('recommendation-text');
-            link.parentNode.insertBefore(recommendation, link.nextSibling);
+            addRecommendation(link);
         }
     });
 });

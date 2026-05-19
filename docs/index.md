@@ -8,11 +8,16 @@ title: Play MUME with MMapper
     MMapper is a game client and graphical mapping tool that enhances the MUME (Multi-Users in Middle Earth) experience. It acts as a bridge between the MUME server and your mud client, analyzing real-time game data and visually displaying your character’s position on the map.
 </div>
 
-## Download MMapper
+## Get MMapper
+{: #get-mmapper}
 
-Choose your operating system to download the latest version {{ site.github.latest_release.tag_name }}:
+Choose your preferred platform to start using MMapper {{ site.github.latest_release.tag_name }}:
 
 <div class="platform-links">
+    <a href="{{ '/demo/' | relative_url }}" class="platform-link">
+        <i class="fas fa-globe"></i>
+        <span>Web</span>
+    </a>
     <a href="{{ '/windows.html' | relative_url }}" class="platform-link">
         <i class="fab fa-windows"></i>
         <span>Windows</span>

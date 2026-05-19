@@ -12,13 +12,14 @@
 class NODISCARD OpenGLProber final
 {
 public:
-    enum class BackendType { None, GL, GLES };
+    enum class BackendType { None, GL, ES };
 
     struct ProbeResult
     {
         BackendType backendType = BackendType::None;
         QSurfaceFormat format;
         std::string highestVersionString = "Unknown";
+        bool debugSupported = false;
     };
 
 public:

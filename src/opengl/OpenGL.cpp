@@ -35,7 +35,7 @@ OpenGL::OpenGL()
     case OpenGLProber::BackendType::GL:
         m_opengl = Legacy::Functions::alloc<Legacy::FunctionsGL33>(m_uboManager);
         break;
-    case OpenGLProber::BackendType::GLES:
+    case OpenGLProber::BackendType::ES:
         m_opengl = Legacy::Functions::alloc<Legacy::FunctionsES30>(m_uboManager);
         break;
     case OpenGLProber::BackendType::None:

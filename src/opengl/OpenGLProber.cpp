@@ -23,14 +23,9 @@
 #ifdef WIN32
 #include <windows.h>
 
-extern "C" {
 // Prefer discrete nVidia and AMD GPUs by default on Windows
-__declspec(dllexport) extern DWORD NvOptimusEnablement;
-__declspec(dllexport) extern int AmdPowerXpressRequestHighPerformance;
-
-__declspec(dllexport) DWORD NvOptimusEnablement = 0x00000001;
-__declspec(dllexport) int AmdPowerXpressRequestHighPerformance = 1;
-}
+extern "C" __declspec(dllexport) DWORD NvOptimusEnablement = 0x00000001;
+extern "C" __declspec(dllexport) int AmdPowerXpressRequestHighPerformance = 1;
 #endif
 
 namespace {

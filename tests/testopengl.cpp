@@ -24,7 +24,7 @@ private slots:
         QCOMPARE(OpenGLConfig::getGLVersionString(), std::string("GL4.5"));
     }
 
-    void testParseSurveyResult_GLES()
+    void testParseSurveyResult_ES()
     {
         OpenGLProber prober;
         QByteArray json = R"({"backend": "ES", "major": 3, "minor": 1, "debug": false})";

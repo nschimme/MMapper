@@ -260,15 +260,6 @@ public:
     using Base::glVertexAttribPointer;
 
 public:
-    void glLineWidth(const GLfloat lineWidth)
-    {
-        // REVISIT: Only width 1 is guaranteed to be supported for core profiles
-        if (OpenGLConfig::getIsCompat()) {
-            Base::glLineWidth(lineWidth);
-        }
-    }
-
-public:
     void glViewport(const GLint x, const GLint y, const GLsizei width, const GLsizei height)
     {
         m_viewport = Viewport{{x, y}, {width, height}};
@@ -331,7 +322,6 @@ public:
     NODISCARD const char *getShaderVersion() const { return virt_getShaderVersion(); }
 
 protected:
-    NODISCARD virtual bool virt_canRenderQuads() = 0;
     NODISCARD virtual std::optional<GLenum> virt_toGLenum(DrawModeEnum mode) = 0;
     virtual void virt_enableProgramPointSize(bool enable) = 0;
     NODISCARD virtual const char *virt_getShaderVersion() const = 0;
@@ -339,9 +329,6 @@ protected:
 
 public:
     NODISCARD static const char *getUniformBlockName(SharedVboEnum block);
-
-    /// platform-specific (ES vs GL)
-    NODISCARD bool canRenderQuads() { return virt_canRenderQuads(); }
 
     /// platform-specific (ES vs GL)
     NODISCARD std::optional<GLenum> toGLenum(DrawModeEnum mode) { return virt_toGLenum(mode); }
@@ -412,7 +399,7 @@ public:
         const std::vector<T, A> &batch,
         const BufferUsageEnum usage = BufferUsageEnum::DYNAMIC_DRAW)
     {
-        if (mode == DrawModeEnum::QUADS && !canRenderQuads()) {
+        if (mode == DrawModeEnum::QUADS) {
             return std::pair(DrawModeEnum::TRIANGLES,
                              setVbo(GL_ARRAY_BUFFER, vbo, convertQuadsToTris(batch), usage));
         }
@@ -428,6 +415,8 @@ public:
 
 public:
     NODISCARD UniqueMesh createPointBatch(const std::vector<ColorVert> &batch);
+    NODISCARD UniqueMesh createPlainLineBatch(const std::vector<glm::vec3> &batch);
+    NODISCARD UniqueMesh createColoredLineBatch(const std::vector<ColorVert> &batch);
 
 public:
     NODISCARD UniqueMesh createPlainBatch(DrawModeEnum mode, const std::vector<glm::vec3> &batch);
@@ -450,6 +439,8 @@ public:
 
 public:
     void renderPoints(const std::vector<ColorVert> &verts, const GLRenderState &state);
+    void renderPlainLines(const std::vector<glm::vec3> &verts, const GLRenderState &state);
+    void renderColoredLines(const std::vector<ColorVert> &verts, const GLRenderState &state);
 
     void renderPlain(DrawModeEnum mode,
                      const std::vector<glm::vec3> &verts,

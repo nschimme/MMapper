@@ -38,10 +38,14 @@ set(APPX_PDB_SOURCE_PATH "${CPACK_TEMPORARY_DIRECTORY}/${APPX_PDB_FILE_NAME}")
 
 ## Prepare Staging Directory
 
-# Flatten all subdirectories in the staging root for MakeAppx.
+# Flatten all subdirectories in the staging root for MakeAppx, EXCEPT Assets.
 file(GLOB staging_items "${CPACK_TEMPORARY_DIRECTORY}/*")
 foreach(item ${staging_items})
     if(IS_DIRECTORY "${item}")
+        get_filename_component(item_name "${item}" NAME)
+        if(item_name STREQUAL "Assets")
+            continue()
+        endif()
         message(STATUS "Flattening directory: ${item}")
         file(GLOB subdir_contents "${item}/*")
         foreach(subitem ${subdir_contents})

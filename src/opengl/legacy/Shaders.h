@@ -23,6 +23,21 @@ private:
     }
 };
 
+struct NODISCARD AnimAColorPlainShader final : public AbstractShaderProgram
+{
+public:
+    using AbstractShaderProgram::AbstractShaderProgram;
+
+    ~AnimAColorPlainShader() final;
+
+private:
+    void virt_setUniforms(const glm::mat4 &mvp, const GLRenderState::Uniforms &uniforms) final
+    {
+        setColor("uColor", uniforms.color);
+        setMatrix("uMVP", mvp);
+    }
+};
+
 struct NODISCARD UColorPlainShader final : public AbstractShaderProgram
 {
 public:
@@ -44,6 +59,24 @@ public:
     using AbstractShaderProgram::AbstractShaderProgram;
 
     ~AColorTexturedShader() final;
+
+private:
+    void virt_setUniforms(const glm::mat4 &mvp, const GLRenderState::Uniforms &uniforms) final
+    {
+        assert(uniforms.textures[0] != INVALID_MM_TEXTURE_ID);
+
+        setColor("uColor", uniforms.color);
+        setMatrix("uMVP", mvp);
+        setTexture("uTexture", 0);
+    }
+};
+
+struct NODISCARD AnimAColorTexturedShader final : public AbstractShaderProgram
+{
+public:
+    using AbstractShaderProgram::AbstractShaderProgram;
+
+    ~AnimAColorTexturedShader() final;
 
 private:
     void virt_setUniforms(const glm::mat4 &mvp, const GLRenderState::Uniforms &uniforms) final
@@ -218,8 +251,10 @@ private:
 
 private:
     std::shared_ptr<AColorPlainShader> m_aColorShader;
+    std::shared_ptr<AnimAColorPlainShader> m_animAColorShader;
     std::shared_ptr<UColorPlainShader> m_uColorShader;
     std::shared_ptr<AColorTexturedShader> m_aTexturedShader;
+    std::shared_ptr<AnimAColorTexturedShader> m_animATexturedShader;
     std::shared_ptr<UColorTexturedShader> m_uTexturedShader;
 
 private:
@@ -251,10 +286,14 @@ public:
 public:
     // attribute color (aka "Colored")
     NODISCARD const std::shared_ptr<AColorPlainShader> &getPlainAColorShader();
+    // animated attribute color
+    NODISCARD const std::shared_ptr<AnimAColorPlainShader> &getAnimPlainAColorShader();
     // uniform color (aka "Plain")
     NODISCARD const std::shared_ptr<UColorPlainShader> &getPlainUColorShader();
     // attribute color + textured (aka "ColoredTextured")
     NODISCARD const std::shared_ptr<AColorTexturedShader> &getTexturedAColorShader();
+    // animated attribute color + textured
+    NODISCARD const std::shared_ptr<AnimAColorTexturedShader> &getAnimTexturedAColorShader();
     // uniform color + textured (aka "Textured")
     NODISCARD const std::shared_ptr<UColorTexturedShader> &getTexturedUColorShader();
 

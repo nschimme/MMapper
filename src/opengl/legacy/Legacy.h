@@ -457,12 +457,18 @@ public:
     void renderColored(DrawModeEnum mode,
                        const std::vector<ColorVert> &verts,
                        const GLRenderState &state);
+    void renderAnimColored(DrawModeEnum mode,
+                           const std::vector<AnimColorVert> &verts,
+                           const GLRenderState &state);
     void renderTextured(DrawModeEnum mode,
                         const std::vector<TexVert> &verts,
                         const GLRenderState &state);
     void renderColoredTextured(DrawModeEnum mode,
                                const std::vector<ColoredTexVert> &verts,
                                const GLRenderState &state);
+    void renderAnimColoredTextured(DrawModeEnum mode,
+                                   const std::vector<AnimColoredTexVert> &verts,
+                                   const GLRenderState &state);
     void renderFont3d(const SharedMMTexture &texture, const std::vector<FontVert3d> &verts);
 
 public:

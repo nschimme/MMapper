@@ -102,6 +102,14 @@ public:
                                         DrawModeEnum mode,
                                         const std::vector<FontVert3d> &batch);
 
+public:
+    void renderAnimColored(DrawModeEnum type,
+                           const std::vector<AnimColorVert> &verts,
+                           const GLRenderState &state);
+    void renderAnimColoredTextured(DrawModeEnum type,
+                                   const std::vector<AnimColoredTexVert> &verts,
+                                   const GLRenderState &state);
+
 protected:
     void renderPlain(DrawModeEnum type,
                      const std::vector<glm::vec3> &verts,
@@ -159,8 +167,11 @@ public:
     {
         renderColoredTextured(DrawModeEnum::QUADS, verts, state);
     }
-
-public:
+    void renderAnimColoredTexturedQuads(const std::vector<AnimColoredTexVert> &verts,
+                                        const GLRenderState &state)
+    {
+        renderAnimColoredTextured(DrawModeEnum::QUADS, verts, state);
+    }
     void renderFont3d(const SharedMMTexture &texture, const std::vector<FontVert3d> &verts);
 
 public:

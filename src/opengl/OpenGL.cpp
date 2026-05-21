@@ -175,6 +175,13 @@ void OpenGL::renderColored(const DrawModeEnum type,
     getFunctions().renderColored(type, verts, state);
 }
 
+void OpenGL::renderAnimColored(const DrawModeEnum type,
+                               const std::vector<AnimColorVert> &verts,
+                               const GLRenderState &state)
+{
+    getFunctions().renderAnimColored(type, verts, state);
+}
+
 void OpenGL::renderPoints(const std::vector<ColorVert> &verts, const GLRenderState &state)
 {
     getFunctions().renderPoints(verts, state);
@@ -192,6 +199,13 @@ void OpenGL::renderColoredTextured(const DrawModeEnum type,
                                    const GLRenderState &state)
 {
     getFunctions().renderColoredTextured(type, verts, state);
+}
+
+void OpenGL::renderAnimColoredTextured(const DrawModeEnum type,
+                                       const std::vector<AnimColoredTexVert> &verts,
+                                       const GLRenderState &state)
+{
+    getFunctions().renderAnimColoredTextured(type, verts, state);
 }
 
 void OpenGL::renderPlainFullScreenQuad(const GLRenderState &renderState)

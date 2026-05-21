@@ -30,6 +30,7 @@
 #include <cstdint>
 #include <memory>
 #include <stdexcept>
+#include <unordered_set>
 #include <utility>
 #include <vector>
 
@@ -77,9 +78,48 @@ MapCanvas::MapCanvas(MapData &mapData,
     syncViewportConfig();
 
     m_frameManager.registerCallback(m_lifetime, [this]() {
-        return m_batches.remeshCookie.isPending() ? FrameManager::AnimationStatusEnum::Continue
-                                                  : FrameManager::AnimationStatusEnum::Stop;
+        if (m_batches.remeshCookie.isPending()) {
+            return FrameManager::AnimationStatusEnum::Continue;
+        }
+
+        const float now = m_frameManager.getElapsedTime();
+        auto isAnimating = [now](const CharacterAnimationState &state) {
+            return state.startTime >= 0.0f && (now - state.startTime) < 0.060f;
+        };
+
+        if (isAnimating(m_playerState)) {
+            return FrameManager::AnimationStatusEnum::Continue;
+        }
+
+        for (const auto &[id, state] : m_groupCharStates) {
+            if (isAnimating(state)) {
+                return FrameManager::AnimationStatusEnum::Continue;
+            }
+        }
+
+        return FrameManager::AnimationStatusEnum::Stop;
     });
+
+    connect(&m_groupManager, &Mmapper2Group::sig_characterRemoved, this, [this](GroupId id) {
+        m_groupCharStates.erase(id.asUint32());
+    });
+
+    connect(&m_groupManager,
+            &Mmapper2Group::sig_groupReset,
+            this,
+            [this](const GroupVector &newCharacterList) {
+                std::unordered_set<uint32_t> currentIds;
+                for (const auto &ch : newCharacterList) {
+                    currentIds.insert(ch->getId().asUint32());
+                }
+                for (auto it = m_groupCharStates.begin(); it != m_groupCharStates.end();) {
+                    if (currentIds.find(it->first) == currentIds.end()) {
+                        it = m_groupCharStates.erase(it);
+                    } else {
+                        ++it;
+                    }
+                }
+            });
     NonOwningPointer &pmc = primaryMapCanvas();
     if (pmc == nullptr) {
         pmc = this;

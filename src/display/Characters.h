@@ -74,6 +74,8 @@ private:
 
     class NODISCARD CharFakeGL final
     {
+        friend class CharacterBatch;
+
     private:
         struct NODISCARD CoordCompare final
         {
@@ -100,10 +102,10 @@ private:
     private:
         Color m_color;
         MatrixStack m_stack;
-        std::vector<ColorVert> m_charTris;
-        std::vector<ColorVert> m_charBeaconQuads;
-        std::vector<ColorVert> m_charLines;
-        std::vector<ColoredTexVert> m_charRoomQuads;
+        std::vector<AnimColorVert> m_charTris;
+        std::vector<AnimColorVert> m_charBeaconQuads;
+        std::vector<AnimColorVert> m_charLines;
+        std::vector<AnimColoredTexVert> m_charRoomQuads;
         std::vector<ColorVert> m_pathPoints;
         std::vector<ColorVert> m_pathLineQuads;
         std::vector<FontVert3d> m_screenSpaceArrows;
@@ -151,8 +153,13 @@ private:
             auto &m = m_stack.top().modelView;
             m = glm::translate(m, v);
         }
-        void drawArrow(bool fill, bool beacon);
-        void drawBox(const Coordinate &coord, bool fill, bool beacon, bool isFar);
+        void drawArrow(bool fill, bool beacon, const glm::vec3 &oldPos, float startTime);
+        void drawBox(const Coordinate &coord,
+                     bool fill,
+                     bool beacon,
+                     bool isFar,
+                     const glm::vec3 &oldPos,
+                     float startTime);
         void addScreenSpaceArrow(const glm::vec3 &pos, float degrees, const Color color, bool fill);
         void addName(const Coordinate &c,
                      const std::string &name,
@@ -187,7 +194,9 @@ private:
                             const glm::vec2 &b,
                             const glm::vec2 &c,
                             const glm::vec2 &d,
-                            QuadOptsEnum options);
+                            QuadOptsEnum options,
+                            const glm::vec3 &oldPos,
+                            float startTime);
     };
 
 private:
@@ -214,7 +223,11 @@ public:
     NODISCARD bool isVisible(const Coordinate &c, float margin) const;
 
 public:
-    void drawCharacter(const Coordinate &coordinate, const Color color, bool fill = true);
+    void drawCharacter(const Coordinate &coordinate,
+                       const Color color,
+                       bool fill = true,
+                       const glm::vec3 &oldPos = glm::vec3{0.f},
+                       float startTime = -1.0f);
 
     void drawName(const Coordinate &c, const std::string &name, const Color color)
     {

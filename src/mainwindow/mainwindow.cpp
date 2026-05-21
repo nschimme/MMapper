@@ -535,6 +535,12 @@ void MainWindow::wireConnections()
             &FindRoomsDlg::sig_editSelection,
             this,
             &MainWindow::slot_onEditRoomSelection);
+
+    setConfig().audio.registerChangeCallback(m_lifetime, [this]() {
+        const auto &audio = getConfig().audio;
+        muteMusicAct->setChecked(audio.isMusicMuted());
+        muteSoundAct->setChecked(audio.isSoundMuted());
+    });
 }
 
 void MainWindow::slot_log(const QString &mod, const QString &message)
@@ -1041,6 +1047,26 @@ void MainWindow::createActions()
     rebuildMeshesAct->setStatusTip(tr("Reconstruct the world mesh to fix graphical rendering bugs"));
     rebuildMeshesAct->setCheckable(false);
     connect(rebuildMeshesAct, &QAction::triggered, getCanvas(), &MapCanvas::slot_rebuildMeshes);
+
+    muteMusicAct = new QAction(QIcon::fromTheme("audio-volume-muted", QIcon(":/icons/audiocfg.png")),
+                               tr("Mute Music"),
+                               this);
+    muteMusicAct->setShortcut(tr("Ctrl+M"));
+    muteMusicAct->setCheckable(true);
+    muteMusicAct->setStatusTip(tr("Mute/Unmute Music"));
+    connect(muteMusicAct, &QAction::triggered, this, [](bool checked) {
+        setConfig().audio.setMusicMuted(checked);
+    });
+
+    muteSoundAct = new QAction(QIcon::fromTheme("audio-volume-muted", QIcon(":/icons/audiocfg.png")),
+                               tr("Mute Sound"),
+                               this);
+    muteSoundAct->setShortcut(tr("Ctrl+Shift+M"));
+    muteSoundAct->setCheckable(true);
+    muteSoundAct->setStatusTip(tr("Mute/Unmute Sound"));
+    connect(muteSoundAct, &QAction::triggered, this, [](bool checked) {
+        setConfig().audio.setSoundMuted(checked);
+    });
 }
 
 static void setConfigMapMode(const MapModeEnum mode)
@@ -1226,6 +1252,10 @@ void MainWindow::setupMenuBar()
         viewMenu->addAction(showMenuBarAct);
     }
     viewMenu->addAction(alwaysOnTopAct);
+
+    QMenu *audioMenu = menuBar()->addMenu(tr("&Audio"));
+    audioMenu->addAction(muteMusicAct);
+    audioMenu->addAction(muteSoundAct);
 
     settingsMenu = menuBar()->addMenu(tr("&Tools"));
     QMenu *clientMenu = settingsMenu->addMenu(QIcon(":/icons/terminal.png"),

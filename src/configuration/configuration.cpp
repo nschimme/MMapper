@@ -268,7 +268,9 @@ ConstString KEY_LINES_OF_SCROLLBACK = "Lines of scrollback";
 ConstString KEY_PROXY_LOCAL_PORT = "Local port number";
 ConstString KEY_MAP_MODE = "Map Mode";
 ConstString KEY_MUSIC_VOLUME = "Music volume";
+ConstString KEY_MUSIC_MUTED = "Music muted";
 ConstString KEY_SOUND_VOLUME = "Sound volume";
+ConstString KEY_SOUND_MUTED = "Sound muted";
 ConstString KEY_AUDIO_OUTPUT_DEVICE = "Audio output device";
 ConstString KEY_AUDIO_UNLOCKED = "Audio unlocked";
 ConstString KEY_MAXIMUM_NUMBER_OF_PATHS = "maximum number of paths";
@@ -777,7 +779,9 @@ void Configuration::AudioSettings::read(const QSettings &conf)
                      ? false
                      : conf.value(KEY_AUDIO_UNLOCKED, false).toBool();
     m_musicVolume = std::clamp(conf.value(KEY_MUSIC_VOLUME, 50).toInt(), 0, 100);
+    m_musicMuted = conf.value(KEY_MUSIC_MUTED, false).toBool();
     m_soundVolume = std::clamp(conf.value(KEY_SOUND_VOLUME, 50).toInt(), 0, 100);
+    m_soundMuted = conf.value(KEY_SOUND_MUTED, false).toBool();
     m_outputDeviceId = conf.value(KEY_AUDIO_OUTPUT_DEVICE).toByteArray();
 }
 
@@ -964,7 +968,9 @@ void Configuration::AudioSettings::write(QSettings &conf) const
         conf.setValue(KEY_AUDIO_UNLOCKED, m_unlocked);
     }
     conf.setValue(KEY_MUSIC_VOLUME, m_musicVolume);
+    conf.setValue(KEY_MUSIC_MUTED, m_musicMuted);
     conf.setValue(KEY_SOUND_VOLUME, m_soundVolume);
+    conf.setValue(KEY_SOUND_MUTED, m_soundMuted);
     conf.setValue(KEY_AUDIO_OUTPUT_DEVICE, m_outputDeviceId);
 }
 

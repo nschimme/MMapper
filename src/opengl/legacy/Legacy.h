@@ -443,6 +443,8 @@ public:
     NODISCARD UniqueMesh createRoomQuadTexBatch(const std::vector<RoomQuadTexVert> &batch,
                                                 MMTextureId texture);
 
+    NODISCARD UniqueMesh createDoorBatch(const std::vector<DoorVert> &batch);
+
 public:
     NODISCARD UniqueMesh createFontMesh(const SharedMMTexture &texture,
                                         DrawModeEnum mode,

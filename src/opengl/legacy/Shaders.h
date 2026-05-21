@@ -210,6 +210,21 @@ private:
     {}
 };
 
+struct NODISCARD DoorShader final : public AbstractShaderProgram
+{
+public:
+    using AbstractShaderProgram::AbstractShaderProgram;
+
+    ~DoorShader() final;
+
+private:
+    void virt_setUniforms(const glm::mat4 &mvp, const GLRenderState::Uniforms &uniforms) final
+    {
+        setColor("uColor", uniforms.color);
+        setMatrix("uMVP", mvp);
+    }
+};
+
 /* owned by Functions */
 struct NODISCARD ShaderPrograms final
 {
@@ -234,6 +249,7 @@ private:
     std::shared_ptr<TimeOfDayShader> m_timeOfDay;
     std::shared_ptr<ParticleSimulationShader> m_particleSimulation;
     std::shared_ptr<ParticleRenderShader> m_particleRender;
+    std::shared_ptr<DoorShader> m_door;
 
 public:
     explicit ShaderPrograms(Functions &functions)
@@ -270,6 +286,7 @@ public:
     NODISCARD const std::shared_ptr<TimeOfDayShader> &getTimeOfDayShader();
     NODISCARD const std::shared_ptr<ParticleSimulationShader> &getParticleSimulationShader();
     NODISCARD const std::shared_ptr<ParticleRenderShader> &getParticleRenderShader();
+    NODISCARD const std::shared_ptr<DoorShader> &getDoorShader();
 
 public:
     void early_init();

@@ -106,4 +106,5 @@ private:
     void parseGmcpCharVitals(const JsonObj &obj);
     void parseGmcpEventMoved(const JsonObj &obj);
     void parseGmcpRoomInfo(const JsonObj &obj);
+    void parseGmcpUpdateExits(const JsonObj &obj);
 };

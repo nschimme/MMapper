@@ -42,6 +42,19 @@ struct NODISCARD TexVert final
     {}
 };
 
+struct NODISCARD DoorVert final
+{
+    glm::vec3 vert{};
+    uint32_t roomId = 0;
+    uint32_t direction = 0;
+
+    explicit DoorVert(const glm::vec3 &vert_, uint32_t roomId_, uint32_t direction_)
+        : vert{vert_}
+        , roomId{roomId_}
+        , direction{direction_}
+    {}
+};
+
 using TexVertVector = std::vector<TexVert>;
 
 struct NODISCARD ColoredTexVert final

@@ -63,6 +63,66 @@ private:
     }
 };
 
+// Door markers
+template<typename VertexType_>
+class NODISCARD DoorMesh final : public SimpleMesh<VertexType_, DoorShader>
+{
+public:
+    using Base = SimpleMesh<VertexType_, DoorShader>;
+    using Base::Base;
+
+private:
+    struct NODISCARD Attribs final
+    {
+        GLuint vertPos = INVALID_ATTRIB_LOCATION;
+        GLuint roomIdPos = INVALID_ATTRIB_LOCATION;
+        GLuint directionPos = INVALID_ATTRIB_LOCATION;
+
+        NODISCARD static Attribs getLocations(DoorShader &shader)
+        {
+            Attribs result;
+            result.vertPos = shader.getAttribLocation("aVert");
+            result.roomIdPos = shader.getAttribLocation("aRoomId");
+            result.directionPos = shader.getAttribLocation("aDirection");
+            return result;
+        }
+    };
+
+    std::optional<Attribs> m_boundAttribs;
+
+    void virt_bind() override
+    {
+        const auto vertSize = static_cast<GLsizei>(sizeof(VertexType_));
+        static_assert(sizeof(std::declval<VertexType_>().vert) == 3 * sizeof(GLfloat));
+        static_assert(sizeof(std::declval<VertexType_>().roomId) == sizeof(uint32_t));
+        static_assert(sizeof(std::declval<VertexType_>().direction) == sizeof(uint32_t));
+
+        Functions &gl = Base::m_functions;
+        const auto attribs = Attribs::getLocations(Base::m_program);
+        gl.glBindBuffer(GL_ARRAY_BUFFER, Base::m_vbo.get());
+        gl.enableAttrib(attribs.vertPos, 3, GL_FLOAT, GL_FALSE, vertSize, VPO(vert));
+        gl.enableAttribI(attribs.roomIdPos, 1, GL_UNSIGNED_INT, vertSize, VPO(roomId));
+        gl.enableAttribI(attribs.directionPos, 1, GL_UNSIGNED_INT, vertSize, VPO(direction));
+        m_boundAttribs = attribs;
+    }
+
+    void virt_unbind() override
+    {
+        if (!m_boundAttribs) {
+            assert(false);
+            return;
+        }
+
+        auto &attribs = m_boundAttribs.value();
+        Functions &gl = Base::m_functions;
+        gl.glDisableVertexAttribArray(attribs.vertPos);
+        gl.glDisableVertexAttribArray(attribs.roomIdPos);
+        gl.glDisableVertexAttribArray(attribs.directionPos);
+        gl.glBindBuffer(GL_ARRAY_BUFFER, 0);
+        m_boundAttribs.reset();
+    }
+};
+
 // Per-vertex color
 // flat-shaded in MMapper, due to glShadeModel(GL_FLAT)
 template<typename VertexType_>

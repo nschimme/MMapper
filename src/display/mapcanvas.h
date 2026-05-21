@@ -12,6 +12,7 @@
 #include "../mapdata/roomselection.h"
 #include "../opengl/Font.h"
 #include "../opengl/FontFormatFlags.h"
+#include "../opengl/GLDoors.h"
 #include "../opengl/OpenGL.h"
 #include "../opengl/Weather.h"
 #include "FrameManager.h"
@@ -147,6 +148,7 @@ private:
     std::unique_ptr<QOpenGLDebugLogger> m_logger;
     Signal2Lifetime m_lifetime;
     GLWeather m_weather;
+    GLDoors m_doors;
 
 public:
     explicit MapCanvas(MapData &mapData,

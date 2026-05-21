@@ -175,6 +175,11 @@ void OpenGL::renderColored(const DrawModeEnum type,
     getFunctions().renderColored(type, verts, state);
 }
 
+UniqueMesh OpenGL::createDoorBatch(const std::vector<DoorVert> &batch)
+{
+    return getFunctions().createDoorBatch(batch);
+}
+
 void OpenGL::renderPoints(const std::vector<ColorVert> &verts, const GLRenderState &state)
 {
     getFunctions().renderPoints(verts, state);

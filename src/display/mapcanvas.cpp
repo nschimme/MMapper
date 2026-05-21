@@ -73,6 +73,7 @@ MapCanvas::MapCanvas(MapData &mapData,
     , m_groupManager{groupManager}
     , m_frameManager{static_cast<QOpenGLWindow &>(*this), m_opengl.getUboManager()}
     , m_weather{m_opengl, m_data, m_textures, observer, m_frameManager}
+    , m_doors{observer, m_opengl.getUboManager()}
 {
     syncViewportConfig();
 

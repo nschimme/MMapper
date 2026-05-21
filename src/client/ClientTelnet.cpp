@@ -6,6 +6,7 @@
 #include "ClientTelnet.h"
 
 #include "../configuration/configuration.h"
+#include "../global/Version.h"
 #include "../global/io.h"
 #include "../global/utils.h"
 #include "../proxy/TextCodec.h"
@@ -117,4 +118,48 @@ void ClientTelnet::virt_sendToMapper(const RawBytes &data, bool /*goAhead*/)
 void ClientTelnet::virt_receiveEchoMode(const bool mode)
 {
     m_output.echoModeChanged(mode);
+}
+
+void ClientTelnet::virt_receiveNewEnvironSend(const QList<RawBytes> &vars,
+                                              const QList<RawBytes> &userVars)
+{
+    const bool sendAll = vars.isEmpty() && userVars.isEmpty();
+
+    QMap<RawBytes, RawBytes> myVars;
+    QMap<RawBytes, RawBytes> myUserVars;
+
+    bool clientNameRequested = sendAll;
+    bool clientVersionRequested = sendAll;
+    bool charsetRequested = sendAll;
+    bool mttsRequested = sendAll;
+
+    for (const auto &v : vars) {
+        if (v == RawBytes("CLIENT_NAME")) {
+            clientNameRequested = true;
+        } else if (v == RawBytes("CLIENT_VERSION")) {
+            clientVersionRequested = true;
+        } else if (v == RawBytes("CHARSET")) {
+            charsetRequested = true;
+        } else if (v == RawBytes("MTTS")) {
+            mttsRequested = true;
+        }
+    }
+
+    if (clientNameRequested) {
+        myVars[RawBytes("CLIENT_NAME")] = RawBytes("MMapper");
+    }
+    if (clientVersionRequested) {
+        myVars[RawBytes("CLIENT_VERSION")] = RawBytes(getMMapperVersion());
+    }
+    if (charsetRequested) {
+        myVars[RawBytes("CHARSET")] = RawBytes("UTF-8");
+    }
+    if (mttsRequested) {
+        // bitvector = ANSI(1) | UTF-8(4) | 256 COLORS(8) | MNES(512) = 525
+        myVars[RawBytes("MTTS")] = RawBytes("525");
+    }
+
+    if (!myVars.isEmpty() || !myUserVars.isEmpty()) {
+        sendNewEnvironIs(myVars, myUserVars);
+    }
 }

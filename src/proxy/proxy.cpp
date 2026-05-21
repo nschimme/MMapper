@@ -411,6 +411,22 @@ void Proxy::allocUserTelnet()
             // forwarded (to mud)
             getMudTelnet().onRelayTermType(bytes);
         }
+        void virt_onRelayNewEnvironIsFromUserToMud(const QMap<RawBytes, RawBytes> &vars,
+                                                   const QMap<RawBytes, RawBytes> &userVars) final
+        {
+            // forwarded (to mud)
+            getMudTelnet().onRelayNewEnvironIs(vars, userVars);
+        }
+        void virt_onRelayNewEnvironInfoFromUserToMud(const QMap<RawBytes, RawBytes> &vars,
+                                                     const QMap<RawBytes, RawBytes> &userVars) final
+        {
+            // forwarded (to mud)
+            getMudTelnet().onRelayNewEnvironInfo(vars, userVars);
+        }
+        void virt_onNewEnvironNegotiated(bool supported) final
+        {
+            getMudTelnet().onUserNewEnvironNegotiated(supported);
+        }
     };
 
     auto &pipe = getPipeline();
@@ -443,7 +459,7 @@ void Proxy::allocMudTelnet()
         {}
 
     private:
-        NODISCARD Proxy &getProxy() { return m_proxy; }
+        NODISCARD Proxy &getProxy() const { return m_proxy; }
         NODISCARD TelnetLineFilter &getMudTelnetFilter() { return getProxy().getMudTelnetFilter(); }
         NODISCARD UserTelnet &getUserTelnet() { return getProxy().getUserTelnet(); }
         NODISCARD MumeXmlParser &getMudParser() { return getProxy().getMudParser(); }
@@ -527,6 +543,17 @@ void Proxy::allocMudTelnet()
             qInfo() << errmsg;
             getProxy().sendToUser(SendToUserSourceEnum::FromMMapper,
                                   QString("MUME.Client protocol error: %1").arg(errmsg));
+        }
+
+        void virt_onRelayNewEnvironSendFromMudToUser(const QList<RawBytes> &vars,
+                                                     const QList<RawBytes> &userVars) final
+        {
+            getUserTelnet().onRelayNewEnvironSend(vars, userVars);
+        }
+
+        NODISCARD QString virt_onGetPeerAddress() const final
+        {
+            return getProxy().getUserSocketAddress();
         }
     };
 
@@ -1184,4 +1211,9 @@ void Proxy::log(const QString &msg)
 RemoteEdit &Proxy::getRemoteEdit()
 {
     return deref(m_remoteEdit);
+}
+
+QString Proxy::getUserSocketAddress() const
+{
+    return m_userSocket->peerAddress();
 }

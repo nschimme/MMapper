@@ -21,11 +21,13 @@ public:
     void flush() { virt_flush(); }
     void disconnectFromHost() { virt_disconnectFromHost(); }
     NODISCARD bool isConnected() const { return virt_isConnected(); }
+    NODISCARD QString peerAddress() const { return virt_peerAddress(); }
 
 private:
     virtual void virt_flush() = 0;
     virtual void virt_disconnectFromHost() = 0;
     NODISCARD virtual bool virt_isConnected() const = 0;
+    NODISCARD virtual QString virt_peerAddress() const = 0;
 
 signals:
     void sig_connected();

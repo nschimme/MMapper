@@ -21,6 +21,7 @@ public:
     void virt_flush() override;
     void virt_disconnectFromHost() override;
     NODISCARD bool virt_isConnected() const override;
+    NODISCARD QString virt_peerAddress() const override;
 
     NODISCARD qint64 bytesAvailable() const override;
 

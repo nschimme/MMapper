@@ -7,8 +7,8 @@ title: Get MMapper for Windows
 
 <a href="https://apps.microsoft.com/detail/9p6f2b68rf7g?referrer=appbadge&mode=direct" style="display: inline-flex; align-items: center; text-decoration: none;">
      <img src="https://get.microsoft.com/images/en-us%20dark.svg" width="200" style="vertical-align: middle;"/>
-     <span class="recommendation-text"> Recommended</span>
 </a>
+<span class="recommendation-text"> Recommended</span>
 
 {% for asset in site.github.latest_release.assets %}
 {% if asset.name contains 'sha256' %}

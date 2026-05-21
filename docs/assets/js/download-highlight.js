@@ -29,11 +29,11 @@ document.addEventListener('DOMContentLoaded', function() {
         recommendation.textContent = ' Recommended';
         recommendation.classList.add('recommendation-text');
 
-        // Always place recommendation inside the link for consistent semantics and focus behavior
+        // Place recommendation outside the link as per user preference
         if (link.classList.contains('platform-link')) {
             recommendation.classList.add('platform-recommendation');
         }
-        link.appendChild(recommendation);
+        link.parentNode.insertBefore(recommendation, link.nextSibling);
     }
 
     downloadLinks.forEach(link => {

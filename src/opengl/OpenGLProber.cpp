@@ -70,29 +70,39 @@ OpenGLProber::ProbeResult OpenGLProber::probe()
     env.insert("ASAN_OPTIONS", "detect_leaks=0");
     process.setProcessEnvironment(env);
 
-    process.start(selfPath, {"--probe", "-platform", "offscreen"});
+    QStringList args = {"--probe"};
+    const QString platform = QGuiApplication::platformName();
+    if (!platform.isEmpty()) {
+        args << "-platform" << platform;
+    }
+    process.start(selfPath, args);
     if (!process.waitForFinished(5000)) {
         MMLOG_ERROR() << "OpenGL probe subprocess timed out or failed to start. Using fallback.";
         process.kill();
         return getFallbackResult();
     }
 
-    return parseSurveyResult(process.readAllStandardOutput());
+    const QByteArray stdoutData = process.readAllStandardOutput();
+    const QByteArray stderrData = process.readAllStandardError();
+    return parseSurveyResult(stdoutData, stderrData);
 #endif
 }
 
-OpenGLProber::ProbeResult OpenGLProber::parseSurveyResult(const QByteArray &json)
+OpenGLProber::ProbeResult OpenGLProber::parseSurveyResult(const QByteArray &stdoutData,
+                                                          const QByteArray &stderrData)
 {
-    const qsizetype start = json.indexOf('{');
-    const qsizetype end = json.lastIndexOf('}');
+    const qsizetype start = stdoutData.indexOf('{');
+    const qsizetype end = stdoutData.lastIndexOf('}');
 
     QJsonDocument doc;
     if (start != -1 && end != -1 && end > start) {
-        doc = QJsonDocument::fromJson(json.mid(start, end - start + 1));
+        doc = QJsonDocument::fromJson(stdoutData.mid(start, end - start + 1));
     }
 
     if (doc.isNull() || !doc.isObject()) {
-        MMLOG_ERROR() << "OpenGL survey returned invalid JSON. Using fallback.";
+        MMLOG_WARNING() << "OpenGL survey returned invalid JSON. Using fallback."
+                        << "\n  stdout:" << stdoutData.toStdString()
+                        << "\n  stderr:" << stderrData.toStdString();
         return getFallbackResult();
     }
 

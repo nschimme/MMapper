@@ -7,6 +7,7 @@
 
 #include <string>
 
+#include <QByteArray>
 #include <QSurfaceFormat>
 
 class NODISCARD OpenGLProber final
@@ -29,7 +30,8 @@ public:
 
     NODISCARD ProbeResult probe();
 
-    NODISCARD ProbeResult parseSurveyResult(const QByteArray &json);
+    NODISCARD ProbeResult parseSurveyResult(const QByteArray &stdoutData,
+                                            const QByteArray &stderrData = {});
 
 #ifndef Q_OS_WASM
     NODISCARD static int runSurveyMode(int argc, char **argv);

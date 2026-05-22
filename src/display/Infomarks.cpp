@@ -196,8 +196,7 @@ void InfomarksBatch::renderImmediate(const GLRenderState &state)
         gl.renderColoredTris(m_tris, state);
     }
     if (!m_lines.empty()) {
-        gl.renderColoredLines(m_lines,
-                              state.withLineParams(LineParams{INFOMARK_ARROW_LINE_WIDTH}));
+        gl.renderColoredLines(m_lines, state.withLineParams(LineParams{INFOMARK_ARROW_LINE_WIDTH}));
     }
     if (!m_quads.empty()) {
         gl.renderColoredQuads(m_quads, state);

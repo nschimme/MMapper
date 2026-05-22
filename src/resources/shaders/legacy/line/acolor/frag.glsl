@@ -14,7 +14,7 @@ void main()
     // Calculate distance to the segment
     float dx = max(-vUv.x, 0.0) + max(vUv.x - vLineLength, 0.0);
     float dy = vUv.y;
-    float dist = sqrt(dx*dx + dy*dy);
+    float dist = sqrt(dx * dx + dy * dy);
 
     // Anti-aliasing
     // Smoothstep creates a nice alpha ramp over 1 pixel

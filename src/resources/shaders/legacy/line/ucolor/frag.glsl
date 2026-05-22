@@ -1,8 +1,26 @@
 uniform vec4 uColor;
 
+in vec2 vUv;
+in float vLineLength;
+in float vWidth;
+
 out vec4 vFragmentColor;
 
 void main()
 {
+    float halfWidth = vWidth * 0.5;
+
+    float dx = max(-vUv.x, 0.0) + max(vUv.x - vLineLength, 0.0);
+    float dy = vUv.y;
+    float dist = sqrt(dx*dx + dy*dy);
+
+    float feather = 1.0;
+    float alpha = 1.0 - smoothstep(halfWidth - feather, halfWidth + feather, dist);
+
+    if (alpha <= 0.0) {
+        discard;
+    }
+
     vFragmentColor = uColor;
+    vFragmentColor.a *= alpha;
 }

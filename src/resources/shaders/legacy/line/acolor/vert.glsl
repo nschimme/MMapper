@@ -7,6 +7,9 @@ layout(location = 1) in vec3 aVert1;
 layout(location = 2) in vec3 aVert2;
 
 out vec4 vColor;
+out vec2 vUv;
+out float vLineLength;
+out float vWidth;
 
 void main()
 {
@@ -15,9 +18,11 @@ void main()
     vec4 clip1 = uMVP * vec4(aVert1, 1.0);
     vec4 clip2 = uMVP * vec4(aVert2, 1.0);
 
+    // Standard perspective divide
     vec2 ndc1 = clip1.xy / clip1.w;
     vec2 ndc2 = clip2.xy / clip2.w;
 
+    // Screen coordinates
     vec2 screen1 = (ndc1 + 1.0) * 0.5 * vec2(uViewport.zw);
     vec2 screen2 = (ndc2 + 1.0) * 0.5 * vec2(uViewport.zw);
 
@@ -30,14 +35,38 @@ void main()
     }
     vec2 normal = vec2(-dir.y, dir.x);
 
-    vec2 offset = normal * uLineWidth * 0.5;
+    // Padding for anti-aliasing (e.g. 1 pixel)
+    float feather = 1.0;
+    float halfWidth = uLineWidth * 0.5;
+    float totalHalfWidth = halfWidth + feather;
+
+    vLineLength = len;
+    vWidth = uLineWidth;
 
     vec2 pos;
     float z;
-    if (gl_VertexID == 0) { pos = screen1 + offset; z = clip1.z / clip1.w; }
-    else if (gl_VertexID == 1) { pos = screen1 - offset; z = clip1.z / clip1.w; }
-    else if (gl_VertexID == 2) { pos = screen2 - offset; z = clip2.z / clip2.w; }
-    else { pos = screen2 + offset; z = clip2.z / clip2.w; }
+
+    // Expand longitudinally to allow for round caps
+    vec2 offsetL = dir * totalHalfWidth;
+    vec2 offsetP = normal * totalHalfWidth;
+
+    if (gl_VertexID == 0) {
+        pos = screen1 - offsetL + offsetP;
+        z = clip1.z / clip1.w;
+        vUv = vec2(-totalHalfWidth, totalHalfWidth);
+    } else if (gl_VertexID == 1) {
+        pos = screen1 - offsetL - offsetP;
+        z = clip1.z / clip1.w;
+        vUv = vec2(-totalHalfWidth, -totalHalfWidth);
+    } else if (gl_VertexID == 2) {
+        pos = screen2 + offsetL - offsetP;
+        z = clip2.z / clip2.w;
+        vUv = vec2(len + totalHalfWidth, -totalHalfWidth);
+    } else { // gl_VertexID == 3
+        pos = screen2 + offsetL + offsetP;
+        z = clip2.z / clip2.w;
+        vUv = vec2(len + totalHalfWidth, totalHalfWidth);
+    }
 
     vec2 final_ndc = (pos / vec2(uViewport.zw)) * 2.0 - 1.0;
     gl_Position = vec4(final_ndc, z, 1.0);

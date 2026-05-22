@@ -144,7 +144,8 @@ void InfomarksBatch::drawLine(const glm::vec3 &a, const glm::vec3 &b)
     const glm::vec3 start_v = a + m_offset;
     const glm::vec3 end_v = b + m_offset;
 
-    mmgl::generateLineQuadsSafe(m_quads, start_v, end_v, INFOMARK_ARROW_LINE_WIDTH, m_color);
+    m_lines.emplace_back(m_color, start_v);
+    m_lines.emplace_back(m_color, end_v);
 }
 
 void InfomarksBatch::drawTriangle(const glm::vec3 &a, const glm::vec3 &b, const glm::vec3 &c)
@@ -172,6 +173,7 @@ InfomarksMeshes InfomarksBatch::getMeshes()
     auto &gl = m_realGL;
     result.points = gl.createPointBatch(m_points);
     result.tris = gl.createColoredTriBatch(m_tris);
+    result.lines = gl.createColoredLineBatch(m_lines);
     result.quads = gl.createColoredQuadBatch(m_quads);
 
     {
@@ -192,6 +194,9 @@ void InfomarksBatch::renderImmediate(const GLRenderState &state)
 
     if (!m_tris.empty()) {
         gl.renderColoredTris(m_tris, state);
+    }
+    if (!m_lines.empty()) {
+        gl.renderColoredLines(m_lines, state.withLineParams(LineParams{INFOMARK_ARROW_LINE_WIDTH}));
     }
     if (!m_quads.empty()) {
         gl.renderColoredQuads(m_quads, state);
@@ -215,6 +220,7 @@ void InfomarksMeshes::render()
 
     points.render(common_state.withPointSize(INFOMARK_POINT_SIZE));
     tris.render(common_state);
+    lines.render(common_state.withLineParams(LineParams{INFOMARK_ARROW_LINE_WIDTH}));
     quads.render(common_state);
     textMesh.render(common_state);
 }

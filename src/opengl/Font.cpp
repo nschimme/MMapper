@@ -524,7 +524,7 @@ private:
     {
         glm::ivec2 maxVertPos{};
         glm::ivec2 minVertPos{};
-        void include(const glm::ivec2 &vertPos)
+        void include(const glm::ivec2 vertPos)
         {
             minVertPos = glm::min(vertPos, minVertPos);
             maxVertPos = glm::max(vertPos, maxVertPos);
@@ -554,14 +554,14 @@ public:
         , m_verts3d{output}
     {}
 
-    NODISCARD glm::vec2 getTexCoord(const glm::ivec2 &iTexCoord) const
+    NODISCARD glm::vec2 getTexCoord(const glm::ivec2 iTexCoord) const
     {
         return glm::vec2(iTexCoord) / glm::vec2(m_iTexSize);
     }
 
     // REVISIT: This could be done in the shader,
     // at the cost of transmitting italics bit and rotation angle.
-    NODISCARD glm::vec2 transformVert(const glm::ivec2 &ipos) const
+    NODISCARD glm::vec2 transformVert(const glm::ivec2 ipos) const
     {
         glm::vec2 pos(ipos);
 
@@ -576,12 +576,12 @@ public:
     }
 
     void emitGlyphQuad(const bool isEmpty,
-                       const glm::ivec2 &iVertex00,
-                       const glm::ivec2 &iTexCoord00,
-                       const glm::ivec2 &iglyphSize)
+                       const glm::ivec2 iVertex00,
+                       const glm::ivec2 iTexCoord00,
+                       const glm::ivec2 iglyphSize)
     {
         const auto emitWithOffset =
-            [this, isEmpty, &iVertex00, &iTexCoord00](const glm::ivec2 &pixelOffset) -> void {
+            [this, isEmpty, &iVertex00, &iTexCoord00](const glm::ivec2 pixelOffset) -> void {
             const glm::ivec2 relativeVertPos = iVertex00 + pixelOffset;
             if (!isEmpty) {
                 // side-effect: updates bounds; this must come before return
@@ -644,7 +644,7 @@ public:
 
         // measurement, background color, and underline.
         {
-            const auto add = [this](const Color c, const glm::ivec2 &ivert, const glm::ivec2 &itc) {
+            const auto add = [this](const Color c, const glm::ivec2 ivert, const glm::ivec2 itc) {
                 const glm::vec2 tc = getTexCoord(itc);
                 const glm::vec2 vert = transformVert(ivert);
                 m_verts3d.emplace_back(m_opts.pos, c, tc, vert);
@@ -840,7 +840,7 @@ void FontMetrics::getFontBatchRawData(const GLText *const text,
     assert(output.size() == before + expectedVerts);
 }
 
-void GLFont::render2dTextImmediate(const std::vector<GLText> &text)
+void GLFont::render2dTextImmediate(const View<GLText> text)
 {
     if (text.empty()) {
         return;
@@ -861,7 +861,7 @@ void GLFont::render2dTextImmediate(const std::vector<GLText> &text)
     m_gl.setProjectionMatrix(oldProj);
 }
 
-void GLFont::render3dTextImmediate(const std::vector<FontVert3d> &rawVerts)
+void GLFont::render3dTextImmediate(const View<FontVert3d> rawVerts)
 {
     if (rawVerts.empty()) {
         return;
@@ -870,7 +870,7 @@ void GLFont::render3dTextImmediate(const std::vector<FontVert3d> &rawVerts)
     m_gl.renderFont3d(m_texture, rawVerts);
 }
 
-void GLFont::render3dTextImmediate(const std::vector<GLText> &text)
+void GLFont::render3dTextImmediate(const View<GLText> text)
 {
     if (text.empty()) {
         return;
@@ -880,14 +880,14 @@ void GLFont::render3dTextImmediate(const std::vector<GLText> &text)
     render3dTextImmediate(rawVerts);
 }
 
-std::vector<FontVert3d> GLFont::getFontMeshIntermediate(const std::vector<GLText> &text)
+std::vector<FontVert3d> GLFont::getFontMeshIntermediate(const View<GLText> text)
 {
     std::vector<FontVert3d> output;
     getFontMetrics().getFontBatchRawData(text.data(), text.size(), output);
     return output;
 }
 
-UniqueMesh GLFont::getFontMesh(const std::vector<FontVert3d> &rawVerts)
+UniqueMesh GLFont::getFontMesh(const View<FontVert3d> rawVerts)
 {
     return m_gl.createFontMesh(m_texture, DrawModeEnum::QUADS, rawVerts);
 }

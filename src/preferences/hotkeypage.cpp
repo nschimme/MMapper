@@ -19,6 +19,7 @@
 #include <QLineEdit>
 #include <QMessageBox>
 #include <QPushButton>
+#include <QStyle>
 #include <QVBoxLayout>
 
 HotkeyModel::HotkeyModel(QObject *parent)
@@ -33,10 +34,33 @@ void HotkeyModel::refresh()
 {
     beginResetModel();
     m_hotkeys.clear();
+
     const QVariantMap &data = getConfig().hotkeys.data();
+    QVariantMap normalizedData;
+    bool changed = false;
+
     for (auto it = data.begin(); it != data.end(); ++it) {
+        Hotkey hk(mmqt::toStdStringUtf8(it.key()));
+        if (hk.isValid()) {
+            QString normalizedKey = mmqt::toQStringUtf8(hk.to_string());
+            if (normalizedKey != it.key()) {
+                changed = true;
+            }
+            normalizedData[normalizedKey] = it.value();
+        } else {
+            changed = true;
+        }
+    }
+
+    if (changed) {
+        setConfig().hotkeys.setData(std::move(normalizedData));
+    }
+
+    const QVariantMap &finalData = getConfig().hotkeys.data();
+    for (auto it = finalData.begin(); it != finalData.end(); ++it) {
         m_hotkeys.append({Hotkey(mmqt::toStdStringUtf8(it.key())), it.value().toString()});
     }
+
     // Sort by key string for consistency
     std::sort(m_hotkeys.begin(), m_hotkeys.end(), [](const auto &a, const auto &b) {
         return a.first.to_string() < b.first.to_string();
@@ -197,11 +221,11 @@ HotkeyPage::HotkeyPage(QWidget *parent)
     ui->hotkeyTableView->horizontalHeader()->setSectionResizeMode(0, QHeaderView::ResizeToContents);
     ui->hotkeyTableView->horizontalHeader()->setSectionResizeMode(1, QHeaderView::Stretch);
 
-    ui->addButton->setIcon(QIcon(":/icons/new.png"));
+    ui->addButton->setIcon(style()->standardIcon(QStyle::SP_FileDialogNewFolder));
     ui->addButton->setAccessibleName(tr("Add Hotkey"));
-    ui->removeButton->setIcon(QIcon(":/icons/connectiondelete.png"));
+    ui->removeButton->setIcon(style()->standardIcon(QStyle::SP_DialogDiscardButton));
     ui->removeButton->setAccessibleName(tr("Remove Hotkey"));
-    ui->editButton->setIcon(QIcon(":/icons/reload.png"));
+    ui->editButton->setIcon(style()->standardIcon(QStyle::SP_BrowserReload));
     ui->editButton->setAccessibleName(tr("Change Key"));
 
     connect(ui->addButton, &QToolButton::clicked, this, &HotkeyPage::slot_onAdd);

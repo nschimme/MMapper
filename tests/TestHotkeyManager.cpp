@@ -437,4 +437,43 @@ void TestHotkeyManager::editHotkeyDialogTest()
     QVERIFY(!dlg.hotkey().has_value());
 }
 
+void TestHotkeyManager::hotkeyModelNormalizationTest()
+{
+    HotkeyManager manager;
+    manager.clear();
+
+    // Directly manipulate config with un-normalized keys
+    QVariantMap data;
+    data["f1"] = "look";
+    data["  ctrl + f2  "] = "flee";
+    data["INVALID"] = "something";
+    setConfig().hotkeys.setData(data);
+
+    HotkeyModel model;
+    // refresh() is called in constructor, which should normalize the config
+
+    // Verify config was normalized
+    QVariantMap normalizedData = getConfig().hotkeys.data();
+    QVERIFY(normalizedData.contains("F1"));
+    QVERIFY(normalizedData.contains("CTRL+F2"));
+    QVERIFY(!normalizedData.contains("f1"));
+    QVERIFY(!normalizedData.contains("  ctrl + f2  "));
+    QVERIFY(!normalizedData.contains("INVALID"));
+    QCOMPARE(normalizedData.size(), 2);
+
+    // Verify model data
+    QCOMPARE(model.rowCount(), 2);
+    QCOMPARE(model.data(model.index(0, 0)).toString(), QString("CTRL+F2"));
+    QCOMPARE(model.data(model.index(1, 0)).toString(), QString("F1"));
+
+    // Verify deletion works now
+    QVariantMap toRemove = getConfig().hotkeys.data();
+    toRemove.remove("F1");
+    setConfig().hotkeys.setData(toRemove);
+    model.refresh();
+
+    QCOMPARE(model.rowCount(), 1);
+    QCOMPARE(model.data(model.index(0, 0)).toString(), QString("CTRL+F2"));
+}
+
 QTEST_MAIN(TestHotkeyManager)

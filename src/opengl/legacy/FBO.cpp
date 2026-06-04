@@ -3,8 +3,12 @@
 
 #include "FBO.h"
 
+#include "../../global/ConfigConsts-Computed.h"
 #include "../../global/logging.h"
 #include "../OpenGLConfig.h"
+
+#include <QOpenGLContext>
+#include <QOpenGLExtraFunctions>
 
 namespace Legacy {
 
@@ -36,6 +40,18 @@ void FBO::configure(const Viewport &physicalViewport, int requestedSamples)
     if (!m_resolvedFbo->isValid()) {
         m_resolvedFbo.reset();
         throw std::runtime_error("Failed to create resolved FBO");
+    }
+
+    if constexpr (CURRENT_PLATFORM != PlatformEnum::Wasm) {
+        // Fix Wayland ghosting by forcing the alpha channel of the blit target to 1.0.
+        // We use texture swizzling for better performance than doing it in the shader.
+        if (auto *ctx = QOpenGLContext::currentContext()) {
+            if (auto *f = ctx->extraFunctions()) {
+                f->glBindTexture(GL_TEXTURE_2D, m_resolvedFbo->texture());
+                f->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_A, GL_ONE);
+                f->glBindTexture(GL_TEXTURE_2D, 0);
+            }
+        }
     }
 
     // Only create the multisampling FBO if requested.

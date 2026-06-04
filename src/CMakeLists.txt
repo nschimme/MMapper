@@ -726,17 +726,22 @@ set(mmapper_DATA
 
 set(mmapper_map_SRCS ${mmapper_SRCS})
 set(mmapper_global_SRCS ${mmapper_SRCS})
+set(mmapper_opengl_SRCS ${mmapper_SRCS})
 list(FILTER mmapper_map_SRCS INCLUDE REGEX "map/")
 list(FILTER mmapper_global_SRCS INCLUDE REGEX "global/")
+list(FILTER mmapper_opengl_SRCS INCLUDE REGEX "opengl/")
 list(FILTER mmapper_SRCS EXCLUDE REGEX "map/")
 list(FILTER mmapper_SRCS EXCLUDE REGEX "global/")
+list(FILTER mmapper_SRCS EXCLUDE REGEX "opengl/")
 
 message("mmapper_SRCS=[${mmapper_SRCS}]")
 message("mmapper_global_SRCS=[${mmapper_global_SRCS}]")
 message("mmapper_map_SRCS=[${mmapper_map_SRCS}]")
+message("mmapper_opengl_SRCS=[${mmapper_opengl_SRCS}]")
 
 add_library(mm_global STATIC ${mmapper_global_SRCS})
 add_library(mm_map STATIC ${mmapper_map_SRCS})
+add_library(mm_opengl STATIC ${mmapper_opengl_SRCS})
 
 # Build the executable
 set(mmapper_EXECUTABLE_ARGS
@@ -761,7 +766,7 @@ else()
     add_executable(mmapper WIN32 MACOSX_BUNDLE ${mmapper_EXECUTABLE_ARGS})
 endif()
 
-set(mm_libs mm_map mm_global)
+set(mm_libs mm_opengl mm_map mm_global)
 
 target_link_libraries(mmapper PUBLIC
     Qt6::Core
@@ -837,13 +842,22 @@ target_link_libraries(mm_map PUBLIC
     Qt6::Widgets
     coverage_config
 )
-add_dependencies(mmapper mm_global mm_map)
+target_link_libraries(mm_opengl PUBLIC
+    Qt6::Core
+    Qt6::Gui
+    Qt6::OpenGL
+    mm_global
+    coverage_config
+)
+add_dependencies(mmapper mm_global mm_map mm_opengl)
 add_dependencies(mm_map mm_global)
+add_dependencies(mm_opengl mm_global)
 
 if(NOT GLM_FOUND)
     add_dependencies(mmapper glm)
     add_dependencies(mm_map glm)
     add_dependencies(mm_global glm)
+    add_dependencies(mm_opengl glm)
 endif()
 if(NOT IMMER_FOUND)
     add_dependencies(mmapper immer)

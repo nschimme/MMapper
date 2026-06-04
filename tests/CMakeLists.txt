@@ -335,3 +335,17 @@ set_target_properties(
         COMPILE_FLAGS "${WARNING_FLAGS}"
 )
 add_test(NAME TestHotkeyManager COMMAND TestHotkeyManager)
+
+# FBO
+set(TestFBO_SRCS TestFBO.cpp TestFBO.h)
+add_executable(TestFBO ${TestFBO_SRCS})
+add_dependencies(TestFBO mm_opengl mm_global)
+target_link_libraries(TestFBO mm_opengl mm_global Qt6::Test Qt6::OpenGL Qt6::Gui coverage_config)
+set_target_properties(
+        TestFBO PROPERTIES
+        CXX_STANDARD 17
+        CXX_STANDARD_REQUIRED ON
+        CXX_EXTENSIONS OFF
+        COMPILE_FLAGS "${WARNING_FLAGS}"
+)
+add_test(NAME TestFBO COMMAND TestFBO)

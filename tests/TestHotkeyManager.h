@@ -32,6 +32,8 @@ private Q_SLOTS:
     void hotkeyModelTest();
     void hotkeyRecorderDialogTest();
     void editHotkeyDialogTest();
+    void hotkeyModelNormalizationTest();
+    void hotkeyPageTest();
 
 private:
     void checkHk(const HotkeyManager &manager, const Hotkey &hk, std::string_view expected);

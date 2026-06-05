@@ -18,8 +18,8 @@
 #include <QLabel>
 #include <QLineEdit>
 #include <QMessageBox>
-#include <QStyle>
 #include <QPushButton>
+#include <QStyle>
 #include <QVBoxLayout>
 
 HotkeyModel::HotkeyModel(QObject *parent)

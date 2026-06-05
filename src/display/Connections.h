@@ -4,6 +4,7 @@
 
 #include "../global/Array.h"
 #include "../global/RuleOf5.h"
+#include "../global/View.h"
 #include "../global/utils.h"
 #include "../map/ExitDirection.h"
 #include "../map/RoomHandle.h"
@@ -35,11 +36,11 @@ struct NODISCARD RoomNameBatchIntermediate final
     void clear() { verts.clear(); }
 
     template<typename T>
-    static void append(std::vector<T> &v, const std::vector<T> &other)
+    static void append(std::vector<T> &v, const View<T> other)
     {
         v.insert(v.end(), other.begin(), other.end());
     }
-    void append(const std::vector<FontVert3d> &other) { append(verts, other); }
+    void append(const View<FontVert3d> other) { append(verts, other); }
 };
 
 struct NODISCARD RoomNameBatch final
@@ -137,14 +138,17 @@ private:
         DELETE_CTORS_AND_ASSIGN_OPS(ConnectionFakeGL);
 
     public:
-        void setOffset(float x, float y, float z) { m_offset = glm::vec3{x, y, z}; }
+        void setOffset(const float x, const float y, const float z)
+        {
+            m_offset = glm::vec3{x, y, z};
+        }
         void setRed() { m_currentBuffer = &m_buffers.red; }
         void setNormal() { m_currentBuffer = &m_buffers.normal; }
         NODISCARD bool isNormal() const { return m_currentBuffer == &m_buffers.normal; }
 
     public:
-        void drawTriangle(const glm::vec3 &a, const glm::vec3 &b, const glm::vec3 &c);
-        void drawLineStrip(const std::vector<glm::vec3> &points);
+        void drawTriangle(glm::vec3 a, glm::vec3 b, glm::vec3 c);
+        void drawLineStrip(View<glm::vec3> points);
     };
 
 private:
@@ -182,7 +186,7 @@ public:
                           const RoomHandle &targetRoom,
                           ExitDirEnum targetDir);
 
-    void drawLineStrip(const std::vector<glm::vec3> &points);
+    void drawLineStrip(View<glm::vec3> points);
 
     void drawConnection(const RoomHandle &leftRoom,
                         const RoomHandle &rightRoom,

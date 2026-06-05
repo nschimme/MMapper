@@ -118,7 +118,7 @@ void transformInfomarkOnLoad(const uint32_t version, RawInfomark &mark)
     mark.setPosition2(convertESUtoENU(mark.getPosition2()));
 }
 
-void writeCoordinate(QDataStream &stream, const Coordinate &c)
+void writeCoordinate(QDataStream &stream, const Coordinate c)
 {
     stream << static_cast<int32_t>(c.x);
     stream << static_cast<int32_t>(c.y);
@@ -218,7 +218,7 @@ NODISCARD std::optional<MM2FileVersion> getMM2FileVersion(LoadRoomHelper &helper
     }
 
     const auto version = helper.read_u32();
-    using R = MM2FileVersion::Relative;
+    using R = MM2FileVersion::RelativeEnum;
     const R relative = (version == schema::CURRENT)
                            ? R::Current
                            : ((version < schema::CURRENT) ? R::Older : R::Newer);

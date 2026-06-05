@@ -182,6 +182,7 @@ set(mmapper_SRCS
     global/Timer.cpp
     global/Timer.h
     global/Version.h
+    global/View.h
     global/WeakHandle.cpp
     global/WeakHandle.h
     global/WinSock.cpp
@@ -521,8 +522,6 @@ set(mmapper_SRCS
     preferences/generalpage.h
     preferences/graphicspage.cpp
     preferences/graphicspage.h
-    preferences/hotkeypage.cpp
-    preferences/hotkeypage.h
     preferences/grouppage.cpp
     preferences/grouppage.h
     preferences/mumeprotocolpage.cpp
@@ -673,7 +672,6 @@ set(mmapper_UIS
     preferences/clientpage.ui
     preferences/generalpage.ui
     preferences/graphicspage.ui
-    preferences/hotkeypage.ui
     preferences/grouppage.ui
     preferences/mumeprotocolpage.ui
     preferences/ManagePasswordDialog.ui

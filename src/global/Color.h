@@ -17,11 +17,11 @@ class QString;
 struct NODISCARD Color final
 {
 private:
-    static constexpr uint32_t TRANSPARENT_BLACK = 0u;
-    static constexpr uint32_t OPAQUE_WHITE = ~TRANSPARENT_BLACK;
-    static constexpr uint32_t MASK_RGB = 0x00ffffffu;
-    static constexpr uint32_t MASK_ALPHA = ~MASK_RGB;
-    static constexpr int SHIFT_ALPHA = 24;
+    static constexpr const uint32_t TRANSPARENT_BLACK = 0u;
+    static constexpr const uint32_t OPAQUE_WHITE = ~TRANSPARENT_BLACK;
+    static constexpr const uint32_t MASK_RGB = 0x00ffffffu;
+    static constexpr const uint32_t MASK_ALPHA = ~MASK_RGB;
+    static constexpr const int SHIFT_ALPHA = 24;
     static_assert(MASK_RGB == ((1u << SHIFT_ALPHA) - 1u));
     static_assert(MASK_ALPHA == (255u << SHIFT_ALPHA));
     static_assert(OPAQUE_WHITE == (MASK_RGB | MASK_ALPHA));
@@ -38,7 +38,7 @@ public:
     DEFAULT_CTORS_AND_ASSIGN_OPS(Color);
 
 public:
-    explicit Color(const glm::vec4 color)
+    explicit Color(const glm::vec4 &color)
         : m_color{glm::packUnorm4x8(color)}
     {}
 
@@ -91,7 +91,7 @@ public:
 
 public:
     // note: this is not done in linear color space.
-    NODISCARD static Color multiplyAsVec4(Color a, Color b);
+    NODISCARD static Color multiplyAsVec4(const Color a, const Color b);
 };
 
 static_assert(sizeof(Color) == sizeof(uint32_t));

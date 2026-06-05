@@ -41,7 +41,7 @@ ServerRoomId RoomHandle::getServerId() const
     return deref(m_room).getServerId();
 }
 
-Coordinate RoomHandle::getPosition() const
+const Coordinate &RoomHandle::getPosition() const
 {
     return deref(m_room).getPosition();
 }

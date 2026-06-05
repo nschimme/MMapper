@@ -1,10 +1,9 @@
 ---
 layout: default
-title: Get MMapper for macOS
+title: Download MMapper for macOS
 ---
 
-To install MMapper on macOS, download the Disk Image (DMG) file provided below. MMapper is compatible with both Intel and Apple Silicon processors.
-
+## Download MMapper for macOS
 {% for asset in site.github.latest_release.assets %}
 {% if asset.name contains 'sha256' %}
 {% elsif asset.name contains 'dmg' %}
@@ -16,16 +15,17 @@ To install MMapper on macOS, download the Disk Image (DMG) file provided below. 
 
 <div class="notice-box" id="mac-notice">
   <strong style="color: #d9534f;">Important Notice for macOS Users:</strong><br>
-  This application is not notarized by Apple, so macOS will prevent it from opening directly.<br>
+  This application is not notarized by Apple, so macOS might prevent it from opening directly.<br>
   <strong>To run the application the first time:</strong>
   <ol>
-    <li>Drag the MMapper application to your <strong>Applications</strong> folder.</li>
-    <li>Try to open MMapper from your Applications folder. When a warning appears, click <strong>Done</strong> or <strong>Cancel</strong> (this registers the app with macOS).</li>
-    <li>Go to <strong>System Settings > Privacy & Security</strong> and scroll down to the <strong>Security</strong> section.</li>
-    <li>Look for the message "MMapper was blocked..." and click the <strong>Open Anyway</strong> button.</li>
-    <li>Enter your password if prompted, then click <strong>Open</strong> on the final dialog box.</li>
+    <li>Locate the downloaded <code>.dmg</code> file and open it.</li>
+    <li>Drag the MMapper application to your Applications folder (or another location).</li>
+    <li>Right-click (or Control-click) the MMapper application icon.</li>
+    <li>Select "Open" from the context menu.</li>
+    <li>A dialog box will appear warning you about the developer. Click "Open" again.</li>
   </ol>
-  <small>You only need to do this the first time you run a new version of MMapper.</small>
+  <small>Alternatively, you can go to System Settings > Privacy & Security, scroll down to the "Security" section, and look for an "Open Anyway" button related to MMapper after trying to open it the first time.</small><br>
+  <small>You only need to do this the first time you run this version.</small>
 </div>
 
 {% include download.md %}

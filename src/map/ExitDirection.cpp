@@ -187,13 +187,13 @@ NODISCARD static ExitCoordinates initExitCoordinates()
     return exitDirs;
 }
 
-Coordinate exitDir(const ExitDirEnum dir)
+const Coordinate &exitDir(const ExitDirEnum dir)
 {
     static const auto exitDirs = initExitCoordinates();
     return exitDirs[dir];
 }
 
-std::string_view to_string_view(const ExitDirEnum dir)
+const std::string_view to_string_view(const ExitDirEnum dir)
 {
     return lowercaseDirection(dir);
 }

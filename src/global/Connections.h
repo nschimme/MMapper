@@ -39,7 +39,7 @@ public:
     Connections &operator=(const Connections &) = delete;
 
 public:
-    ALLOW_DISCARD Connections &operator+=(QMetaObject::Connection c);
+    Connections &operator+=(QMetaObject::Connection c);
     void disconnectAll();
 };
 

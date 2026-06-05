@@ -16,10 +16,6 @@ extern bool LOG_FBO_ALLOCATIONS;
 
 class FBO final
 {
-private:
-    std::unique_ptr<QOpenGLFramebufferObject> m_multisamplingFbo;
-    std::unique_ptr<QOpenGLFramebufferObject> m_resolvedFbo;
-
 public:
     FBO() = default;
     ~FBO() = default;
@@ -32,6 +28,10 @@ public:
     void resolve();
 
     NODISCARD GLuint resolvedTextureId() const;
+
+private:
+    std::unique_ptr<QOpenGLFramebufferObject> m_multisamplingFbo;
+    std::unique_ptr<QOpenGLFramebufferObject> m_resolvedFbo;
 };
 
 } // namespace Legacy

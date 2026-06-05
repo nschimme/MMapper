@@ -7,7 +7,6 @@
 #include "../src/adventure/adventuretracker.h"
 #include "../src/global/Charset.h"
 #include "../src/global/HideQDebug.h"
-#include "../src/global/View.h"
 #include "../src/global/tests.h"
 #include "../src/observer/gameobserver.h"
 
@@ -274,7 +273,7 @@ void TestAdventure::testE2E()
         killedMobs.push_back(x);
     });
 
-    auto pump = [&observer](const View<TestLine> lines) {
+    auto pump = [&observer](const std::vector<TestLine> &lines) {
         mmqt::HideQDebug forThisFunction;
         for (const TestLine &tl : lines) {
             observer.observeSentToUser(tl.line);

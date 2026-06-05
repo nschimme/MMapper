@@ -45,12 +45,12 @@ private:
 private:
     void emitUndoRedoAvailability();
 
-    struct NODISCARD HistoryCoordinator final
+    struct HistoryCoordinator
     {
         MapHistory undo_stack;
         MapHistory redo_stack;
 
-        explicit HistoryCoordinator(size_t max_depth)
+        HistoryCoordinator(size_t max_depth)
             : undo_stack(true, max_depth)
             , redo_stack(false)
         {}
@@ -63,7 +63,7 @@ private:
             }
         }
 
-        NODISCARD std::optional<Map> undo(Map current_map_state_for_redo)
+        std::optional<Map> undo(Map current_map_state_for_redo)
         {
             if (undo_stack.isEmpty()) {
                 return std::nullopt;
@@ -72,7 +72,7 @@ private:
             return undo_stack.pop();
         }
 
-        NODISCARD std::optional<Map> redo(Map current_map_state_for_undo)
+        std::optional<Map> redo(Map current_map_state_for_undo)
         {
             if (redo_stack.isEmpty()) {
                 return std::nullopt;
@@ -81,8 +81,8 @@ private:
             return redo_stack.pop();
         }
 
-        NODISCARD bool isUndoAvailable() const { return !undo_stack.isEmpty(); }
-        NODISCARD bool isRedoAvailable() const { return !redo_stack.isEmpty(); }
+        bool isUndoAvailable() const { return !undo_stack.isEmpty(); }
+        bool isRedoAvailable() const { return !redo_stack.isEmpty(); }
 
         void clearAll()
         {
@@ -136,13 +136,13 @@ public:
     void unblock();
     void checkSize();
 
-    NODISCARD bool createEmptyRoom(Coordinate);
+    NODISCARD bool createEmptyRoom(const Coordinate &);
     NODISCARD bool hasTemporaryRoom(RoomId id) const;
     NODISCARD bool tryRemoveTemporary(RoomId id);
     NODISCARD bool tryMakePermanent(RoomId id);
 
     NODISCARD RoomHandle findRoomHandle(RoomId) const;
-    NODISCARD RoomHandle findRoomHandle(Coordinate) const;
+    NODISCARD RoomHandle findRoomHandle(const Coordinate &) const;
     NODISCARD RoomHandle findRoomHandle(ExternalRoomId id) const;
     NODISCARD RoomHandle findRoomHandle(ServerRoomId id) const;
 
@@ -150,10 +150,10 @@ public:
     NODISCARD const RawRoom &getRawRoom(RoomId id) const;
 
     // Will technically be 0 or 1
-    NODISCARD RoomIdSet findAllRooms(Coordinate) const;
+    NODISCARD RoomIdSet findAllRooms(const Coordinate &) const;
     NODISCARD RoomIdSet findAllRooms(const SigParseEvent &) const;
     // bounding box
-    NODISCARD RoomIdSet findAllRooms(Coordinate, Coordinate) const;
+    NODISCARD RoomIdSet findAllRooms(const Coordinate &, const Coordinate &) const;
 
 public:
     void scheduleAction(const Change &change);
@@ -164,7 +164,7 @@ public:
 signals:
     // this signal is also sent out if a room is deleted. So any clients still
     // working on this room can start some emergency action.
-    void sig_mapSizeChanged(Coordinate, Coordinate);
+    void sig_mapSizeChanged(const Coordinate &, const Coordinate &);
     void sig_clearingMap();
     void sig_undoAvailable(bool available);
     void sig_redoAvailable(bool available);
@@ -172,7 +172,7 @@ signals:
 public slots:
     // createRoom creates a room without a lock
     // it will get deleted if no one looks for it for a certain time
-    void slot_createRoom(const SigParseEvent &, Coordinate);
+    void slot_createRoom(const SigParseEvent &, const Coordinate &);
     void slot_undo();
     void slot_redo();
 };

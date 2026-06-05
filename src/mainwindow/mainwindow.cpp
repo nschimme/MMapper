@@ -465,7 +465,7 @@ void MainWindow::wireConnections()
     connect(canvas, &MapCanvas::sig_newRoomSelection, this, &MainWindow::slot_newRoomSelection);
     connect(canvas, &MapCanvas::sig_selectionChanged, this, [this]() {
         if (m_roomSelection != nullptr && m_roomSelection->size()) {
-            auto anyRoomAtOffset = [this](const Coordinate offset) -> bool {
+            auto anyRoomAtOffset = [this](const Coordinate &offset) -> bool {
                 const auto &sel = deref(m_roomSelection);
                 for (const RoomId id : sel) {
                     const Coordinate here = m_mapData->getRoomHandle(id).getPosition();
@@ -1046,7 +1046,6 @@ void MainWindow::createActions()
 static void setConfigMapMode(const MapModeEnum mode)
 {
     setConfig().general.mapMode = mode;
-    getConfig().write();
 }
 
 void MainWindow::slot_onPlayMode()
@@ -1977,7 +1976,7 @@ void MainWindow::slot_onDeleteConnectionSelection()
         ChangeTypeEnum::Remove, id1, dir1, id2, WaysEnum::TwoWay}});
 }
 
-bool MainWindow::slot_moveRoomSelection(const Coordinate offset)
+bool MainWindow::slot_moveRoomSelection(const Coordinate &offset)
 {
     if (m_roomSelection == nullptr) {
         return false;
@@ -2007,7 +2006,7 @@ void MainWindow::slot_onMoveDownRoomSelection()
     slot_onLayerDown();
 }
 
-bool MainWindow::slot_mergeRoomSelection(const Coordinate offset)
+bool MainWindow::slot_mergeRoomSelection(const Coordinate &offset)
 {
     if (m_roomSelection == nullptr) {
         return false;

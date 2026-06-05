@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // Copyright (C) 2021 The MMapper Authors
 
-#include "../global/View.h"
 #include "../global/macros.h"
 #include "DoorFlags.h"
 #include "ExitDirection.h"
@@ -70,7 +69,7 @@ public:
     NODISCARD RoomHandle findRoomHandle(RoomId id) const;
     NODISCARD RoomHandle findRoomHandle(ExternalRoomId id) const;
     NODISCARD RoomHandle findRoomHandle(ServerRoomId id) const;
-    NODISCARD RoomHandle findRoomHandle(Coordinate coord) const;
+    NODISCARD RoomHandle findRoomHandle(const Coordinate &coord) const;
 
 public:
     // Semantics: "getRoomHandle()" functions throw if the handle is invalid;
@@ -90,7 +89,7 @@ public:
     NODISCARD bool operator!=(const Map &other) const { return !operator==(other); }
 
 public:
-    NODISCARD MapApplyResult apply(ProgressCounter &pc, View<Change> changes) const;
+    NODISCARD MapApplyResult apply(ProgressCounter &pc, const std::vector<Change> &changes) const;
     NODISCARD MapApplyResult apply(ProgressCounter &pc, const ChangeList &changes) const;
     NODISCARD MapApplyResult applySingleChange(ProgressCounter &pc, const Change &change) const;
 
@@ -142,7 +141,7 @@ public:
                                const Map &currentMap,
                                std::vector<ExternalRawRoom> newRooms,
                                std::vector<RawInfomark> newMarks,
-                               Coordinate mapOffset);
+                               const Coordinate &mapOffset);
 
     static void foreachChangedRoom(ProgressCounter &pc,
                                    const Map &saved,
@@ -150,20 +149,24 @@ public:
                                    const std::function<void(const RawRoom &room)> &callback);
 
 public:
-    NODISCARD bool wouldAllowRelativeMove(const RoomIdSet &set, Coordinate offset) const;
+    NODISCARD bool wouldAllowRelativeMove(const RoomIdSet &set, const Coordinate &offset) const;
 
 public:
     void printChange(AnsiOstream &aos, const Change &change) const;
-    void printChanges(AnsiOstream &aos, View<Change> changes, std::string_view sep) const;
+    void printChanges(AnsiOstream &aos,
+                      const std::vector<Change> &changes,
+                      std::string_view sep) const;
 
 public:
     void printChange(std::ostream &os, const Change &change) const;
-    void printChanges(std::ostream &os, View<Change> changes, std::string_view sep) const;
+    void printChanges(std::ostream &os,
+                      const std::vector<Change> &changes,
+                      std::string_view sep) const;
 
 public:
     void printChange(mm::AbstractDebugOStream &os, const Change &change) const;
     void printChanges(mm::AbstractDebugOStream &os,
-                      View<Change> changes,
+                      const std::vector<Change> &changes,
                       std::string_view sep) const;
 
 public:
@@ -189,7 +192,7 @@ struct NODISCARD BasicDiffStats final
     size_t numRoomsAdded = 0;
     size_t numRoomsChanged = 0;
 
-    ALLOW_DISCARD BasicDiffStats &operator+=(const BasicDiffStats &other)
+    BasicDiffStats &operator+=(const BasicDiffStats &other)
     {
         numRoomsRemoved += other.numRoomsRemoved;
         numRoomsAdded += other.numRoomsAdded;

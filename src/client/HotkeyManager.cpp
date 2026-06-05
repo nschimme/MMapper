@@ -10,54 +10,6 @@
 #include <QDebug>
 #include <QSettings>
 
-namespace {
-
-NODISCARD constexpr bool is_valid_hotkey(const std::string_view hotkey_str)
-{
-    // Find the base key (the part after the last '+')
-    const size_t last_plus = hotkey_str.rfind('+');
-    const std::string_view base_part = (last_plus == std::string_view::npos)
-                                           ? hotkey_str
-                                           : hotkey_str.substr(last_plus + 1);
-
-    // Determine which modifiers are present
-    const bool has_ctrl = hotkey_str.find("CTRL") != std::string_view::npos;
-    const bool has_alt = hotkey_str.find("ALT") != std::string_view::npos;
-    const bool has_shift = hotkey_str.find("SHIFT") != std::string_view::npos;
-    const bool has_meta = hotkey_str.find("META") != std::string_view::npos;
-    const bool has_any_mod = has_ctrl || has_alt || has_shift || has_meta;
-
-    // Match against the base key and check policy
-#define CHECK_POLICY(id, name, key, policy) \
-    if (base_part == name) { \
-        if (policy == HotkeyPolicyEnum::ModifierRequired) \
-            return has_any_mod; \
-        if (policy == HotkeyPolicyEnum::ModifierNotShift) \
-            return (has_ctrl || has_alt || has_meta); \
-        return true; \
-    }
-
-    XFOREACH_HOTKEY_BASE_KEYS(CHECK_POLICY)
-#undef CHECK_POLICY
-
-    // Key name not found
-    return false;
-}
-
-// This template trick ensures the compiler evaluates the expression for every macro entry
-template<bool V>
-struct Validate
-{
-    static_assert(V, "Hotkey policy violation detected!");
-};
-
-#define APPLY_VALIDATION(SerializedKey, Command) \
-    static_assert(is_valid_hotkey(SerializedKey), "Invalid Hotkey Policy for: " SerializedKey);
-XFOREACH_DEFAULT_HOTKEYS(APPLY_VALIDATION)
-#undef APPLY_VALIDATION
-
-} // namespace
-
 HotkeyManager::HotkeyManager()
 {
     setConfig().hotkeys.registerChangeCallback(m_configLifetime,
@@ -86,7 +38,7 @@ void HotkeyManager::syncFromConfig()
     }
 }
 
-bool HotkeyManager::setHotkey(const Hotkey &hk, const std::string_view command)
+bool HotkeyManager::setHotkey(const Hotkey &hk, std::string command)
 {
     if (!hk.isValid()) {
         return false;
@@ -95,7 +47,6 @@ bool HotkeyManager::setHotkey(const Hotkey &hk, const std::string_view command)
     QVariantMap data = getConfig().hotkeys.data();
     data[mmqt::toQStringUtf8(hk.to_string())] = mmqt::toQStringUtf8(command);
     setConfig().hotkeys.setData(std::move(data));
-    getConfig().write();
     return true;
 }
 
@@ -111,7 +62,6 @@ bool HotkeyManager::removeHotkey(const Hotkey &hk)
     }
     data.remove(key);
     setConfig().hotkeys.setData(std::move(data));
-    getConfig().write();
     return true;
 }
 
@@ -131,7 +81,6 @@ std::optional<std::string> HotkeyManager::getCommand(const Hotkey &hk) const
 std::vector<std::pair<Hotkey, std::string>> HotkeyManager::getAllHotkeys() const
 {
     std::vector<std::pair<Hotkey, std::string>> result;
-    result.reserve(m_hotkeys.size());
     for (const auto &[hk, cmd] : m_hotkeys) {
         result.emplace_back(hk, cmd);
     }
@@ -145,11 +94,9 @@ void HotkeyManager::resetToDefaults()
     XFOREACH_DEFAULT_HOTKEYS(X_DEFAULT)
 #undef X_DEFAULT
     setConfig().hotkeys.setData(std::move(data));
-    getConfig().write();
 }
 
 void HotkeyManager::clear()
 {
     setConfig().hotkeys.setData(QVariantMap());
-    getConfig().write();
 }

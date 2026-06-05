@@ -322,11 +322,20 @@ set(hotkey_manager_SRCS
         ../src/client/Hotkey.h
         ../src/client/HotkeyManager.cpp
         ../src/client/HotkeyManager.h
+        ../src/preferences/hotkeypage.cpp
+        ../src/preferences/hotkeypage.h
 )
 set(TestHotkeyManager_SRCS TestHotkeyManager.cpp TestHotkeyManager.h)
 add_executable(TestHotkeyManager ${TestHotkeyManager_SRCS} ${hotkey_manager_SRCS})
 add_dependencies(TestHotkeyManager mm_test mm_global mm_map)
-target_link_libraries(TestHotkeyManager mm_map mm_test mm_global Qt6::Test Qt6::Network coverage_config)
+target_link_libraries(TestHotkeyManager
+        mm_map
+        mm_test
+        mm_global
+        Qt6::Test
+        Qt6::Network
+        Qt6::Widgets
+        coverage_config)
 set_target_properties(
         TestHotkeyManager PROPERTIES
         CXX_STANDARD 17

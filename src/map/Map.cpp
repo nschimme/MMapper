@@ -123,7 +123,7 @@ RoomHandle Map::findRoomHandle(const ServerRoomId serverId) const
     return RoomHandle{};
 }
 
-RoomHandle Map::findRoomHandle(const Coordinate coord) const
+RoomHandle Map::findRoomHandle(const Coordinate &coord) const
 {
     if (auto optRoom = getWorld().findRoom(coord)) {
         return getRoomHandle(*optRoom);
@@ -308,7 +308,7 @@ Map Map::filterBaseMap(ProgressCounter &pc) const
     return mar.map;
 }
 
-MapApplyResult Map::apply(ProgressCounter &pc, const View<Change> changes) const
+MapApplyResult Map::apply(ProgressCounter &pc, const std::vector<Change> &changes) const
 {
     if (changes.empty()) {
         throw InvalidMapOperation("Changes are empty");
@@ -318,7 +318,7 @@ MapApplyResult Map::apply(ProgressCounter &pc, const View<Change> changes) const
         const auto count = changes.size();
         MMLOG() << "[map] Applying " << count << " change" << ((count == 1) ? "" : "s") << "...\n";
     }
-    return update(m_world, pc, [changes](ProgressCounter &pc2, World &w) {
+    return update(m_world, pc, [&changes](ProgressCounter &pc2, World &w) {
         w.applyAll(pc2, changes);
     });
 }
@@ -508,7 +508,7 @@ void Map::diff(ProgressCounter &pc, AnsiOstream &os, const Map &a, const Map &b)
             to.insert(from.begin(), from.end());
         }
 
-        ALLOW_DISCARD Sets &operator+=(const Sets &other)
+        Sets &operator+=(const Sets &other)
         {
             add_all(removedSet, other.removedSet);
             add_all(addedSet, other.addedSet);
@@ -686,7 +686,7 @@ void Map::diff(ProgressCounter &pc, AnsiOstream &os, const Map &a, const Map &b)
     }
 }
 
-static void print_coordinate(AnsiOstream &os, const RawAnsi &ansi, const Coordinate where)
+static void print_coordinate(AnsiOstream &os, const RawAnsi &ansi, const Coordinate &where)
 {
     os << "(";
     os.writeWithColor(ansi, where.x);
@@ -1099,7 +1099,7 @@ Map Map::merge(ProgressCounter &pc,
                const Map &currentMap,
                std::vector<ExternalRawRoom> newRooms,
                std::vector<RawInfomark> newMarks,
-               const Coordinate mapOffset)
+               const Coordinate &mapOffset)
 {
     if (newRooms.empty()) {
         throw std::runtime_error("no rooms to merge");
@@ -1248,7 +1248,7 @@ void Map::foreachChangedRoom(ProgressCounter &pc,
     });
 }
 
-NODISCARD bool Map::wouldAllowRelativeMove(const RoomIdSet &set, const Coordinate offset) const
+NODISCARD bool Map::wouldAllowRelativeMove(const RoomIdSet &set, const Coordinate &offset) const
 {
     return getWorld().wouldAllowRelativeMove(set, offset);
 }
@@ -1258,7 +1258,7 @@ void Map::printChange(AnsiOstream &aos, const Change &change) const
     getWorld().printChange(aos, change);
 }
 void Map::printChanges(AnsiOstream &aos,
-                       const View<Change> changes,
+                       const std::vector<Change> &changes,
                        const std::string_view sep) const
 {
     getWorld().printChanges(aos, changes, sep);
@@ -1270,7 +1270,7 @@ void Map::printChange(std::ostream &os, const Change &change) const
     printChange(aos, change);
 }
 void Map::printChanges(std::ostream &os,
-                       const View<Change> changes,
+                       const std::vector<Change> &changes,
                        const std::string_view sep) const
 {
     AnsiOstream aos{os};
@@ -1284,7 +1284,7 @@ void Map::printChange(mm::AbstractDebugOStream &os, const Change &change) const
     os.writeUtf8(oss.str());
 }
 void Map::printChanges(mm::AbstractDebugOStream &os,
-                       const View<Change> changes,
+                       const std::vector<Change> &changes,
                        std::string_view sep) const
 {
     std::ostringstream oss;

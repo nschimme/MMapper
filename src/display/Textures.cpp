@@ -599,8 +599,7 @@ void MapCanvas::initTextures()
                                              Qt::IgnoreAspectRatio,
                                              Qt::SmoothTransformation);
                     }
-
-                    opengl.uploadArrayLayer(pArrayTex, pos, std::array{std::move(image)});
+                    opengl.uploadArrayLayer(pArrayTex, pos, {image});
                 }
                 x->setArrayPosition(MMTexArrayPosition{id, pos});
                 pos += 1;

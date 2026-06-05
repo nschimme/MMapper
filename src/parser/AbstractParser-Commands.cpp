@@ -10,7 +10,6 @@
 #include "../global/LineUtils.h"
 #include "../global/StringView.h"
 #include "../global/TextUtils.h"
-#include "../global/View.h"
 #include "../global/progresscounter.h"
 #include "../map/CommandId.h"
 #include "../map/DoorFlags.h"
@@ -916,7 +915,7 @@ void AbstractParser::initSpecialCommandMap()
 
     add(
         cmdHelp,
-        [this](const View<StringView> /*s*/, StringView rest) {
+        [this](const std::vector<StringView> & /*s*/, StringView rest) {
             this->parseHelp(rest);
             return true;
         },
@@ -928,7 +927,7 @@ void AbstractParser::initSpecialCommandMap()
         if (auto cmd = getParserCommandName(x)) {
             add(
                 cmd,
-                [this, x](const View<StringView> /*s*/, StringView rest) {
+                [this, x](const std::vector<StringView> & /*s*/, StringView rest) {
                     return parseDoorAction(x, rest);
                 },
                 makeSimpleHelp("Sets door action: " + std::string{cmd.getCommand()}));
@@ -939,7 +938,7 @@ void AbstractParser::initSpecialCommandMap()
 
     add(
         cmdBack,
-        [this](const View<StringView> /*s*/, StringView rest) {
+        [this](const std::vector<StringView> & /*s*/, StringView rest) {
             if (!rest.isEmpty()) {
                 return false;
             }
@@ -949,35 +948,35 @@ void AbstractParser::initSpecialCommandMap()
         makeSimpleHelp("Delete prespammed commands from queue."));
     add(
         cmdConfig,
-        [this](const View<StringView> /*s*/, StringView rest) {
+        [this](const std::vector<StringView> & /*s*/, StringView rest) {
             this->doConfig(rest);
             return true;
         },
         makeSimpleHelp("Configuration commands."));
     add(
         cmdConnect,
-        [this](const View<StringView> /*s*/, StringView /*rest*/) {
+        [this](const std::vector<StringView> & /*s*/, StringView /*rest*/) {
             this->doConnectToHost();
             return true;
         },
         makeSimpleHelp("Connect to the MUD."));
     add(
         cmdDirections,
-        [this](const View<StringView> /*s*/, StringView rest) {
+        [this](const std::vector<StringView> & /*s*/, StringView rest) {
             this->parseDirections(rest);
             return true;
         },
         makeSimpleHelp("Prints directions to matching rooms."));
     add(
         cmdDisconnect,
-        [this](const View<StringView> /*s*/, StringView /*rest*/) {
+        [this](const std::vector<StringView> & /*s*/, StringView /*rest*/) {
             this->doDisconnectFromHost();
             return true;
         },
         makeSimpleHelp("Disconnect from the MUD."));
     add(
         cmdRemoveDoorNames,
-        [this](const View<StringView> /*s*/, StringView rest) {
+        [this](const std::vector<StringView> & /*s*/, StringView rest) {
             if (!rest.isEmpty()) {
                 return false;
             }
@@ -987,7 +986,7 @@ void AbstractParser::initSpecialCommandMap()
         makeSimpleHelp("Remove hidden door names."));
     add(
         cmdGenerateBaseMap,
-        [this](const View<StringView> /*s*/, StringView rest) {
+        [this](const std::vector<StringView> & /*s*/, StringView rest) {
             if (!rest.isEmpty()) {
                 return false;
             }
@@ -997,21 +996,21 @@ void AbstractParser::initSpecialCommandMap()
         makeSimpleHelp("Generate the base map."));
     add(
         cmdMap,
-        [this](const View<StringView> /*s*/, StringView rest) {
+        [this](const std::vector<StringView> & /*s*/, StringView rest) {
             doMapCommand(rest);
             return true;
         },
         makeSimpleHelp("Print the changes changes since the last save"));
     add(
         cmdSearch,
-        [this](const View<StringView> /*s*/, StringView rest) {
+        [this](const std::vector<StringView> & /*s*/, StringView rest) {
             this->parseSearch(rest);
             return true;
         },
         makeSimpleHelp("Highlight matching rooms on the map."));
     add(
         cmdSet,
-        [this](const View<StringView> /*s*/, StringView rest) {
+        [this](const std::vector<StringView> & /*s*/, StringView rest) {
             this->parseSetCommand(rest);
             return true;
         },
@@ -1047,7 +1046,7 @@ void AbstractParser::initSpecialCommandMap()
         });
     add(
         cmdTime,
-        [this](const View<StringView> /*s*/, StringView rest) {
+        [this](const std::vector<StringView> & /*s*/, StringView rest) {
             if (!rest.isEmpty()) {
                 return false;
             }
@@ -1057,7 +1056,7 @@ void AbstractParser::initSpecialCommandMap()
         makeSimpleHelp("Displays the current MUME time."));
     add(
         cmdVote,
-        [this](const View<StringView> /*s*/, StringView rest) {
+        [this](const std::vector<StringView> & /*s*/, StringView rest) {
             if (!rest.isEmpty()) {
                 return false;
             }
@@ -1069,7 +1068,7 @@ void AbstractParser::initSpecialCommandMap()
     /* mark commands */
     add(
         cmdMark,
-        [this](const View<StringView> /*s*/, StringView rest) {
+        [this](const std::vector<StringView> & /*s*/, StringView rest) {
             parseMark(rest);
             return true;
         },
@@ -1078,7 +1077,7 @@ void AbstractParser::initSpecialCommandMap()
     /* room commands */
     add(
         cmdRoom,
-        [this](const View<StringView> /*s*/, StringView rest) {
+        [this](const std::vector<StringView> & /*s*/, StringView rest) {
             parseRoom(rest);
             return true;
         },
@@ -1087,7 +1086,7 @@ void AbstractParser::initSpecialCommandMap()
     /* group commands */
     add(
         cmdGroup,
-        [this](const View<StringView> /*s*/, StringView rest) {
+        [this](const std::vector<StringView> & /*s*/, StringView rest) {
             parseGroup(rest);
             return true;
         },
@@ -1096,7 +1095,7 @@ void AbstractParser::initSpecialCommandMap()
     /* hpotkey commands */
     add(
         cmdHotkey,
-        [this](const View<StringView> /*s*/, StringView rest) {
+        [this](const std::vector<StringView> & /*s*/, StringView rest) {
             parseHotkey(rest);
             return true;
         },
@@ -1105,7 +1104,7 @@ void AbstractParser::initSpecialCommandMap()
     /* timers command */
     add(
         cmdTimer,
-        [this](const View<StringView> /*s*/, StringView rest) {
+        [this](const std::vector<StringView> & /*s*/, StringView rest) {
             parseTimer(rest);
             return true;
         },

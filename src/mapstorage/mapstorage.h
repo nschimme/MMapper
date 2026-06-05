@@ -50,10 +50,10 @@ private:
 
 struct NODISCARD MM2FileVersion final
 {
-    enum class NODISCARD RelativeEnum : uint8_t { Older, Current, Newer };
+    enum class NODISCARD Relative : uint8_t { Older, Current, Newer };
 
     uint32_t version = 0;
-    RelativeEnum relative = RelativeEnum::Older;
+    Relative relative = Relative::Older;
 };
 
 NODISCARD extern std::optional<MM2FileVersion> getMM2FileVersion(QIODevice &file);

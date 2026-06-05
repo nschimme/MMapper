@@ -21,10 +21,10 @@ enum class NODISCARD ExitDirEnum : uint8_t {
     NONE
 };
 
-static constexpr uint32_t NUM_EXITS_NESW = 4u;
-static constexpr uint32_t NUM_EXITS_NESWUD = 6u;
-static constexpr uint32_t NUM_EXITS = 7u;
-static constexpr uint32_t NUM_EXITS_INCLUDING_NONE = 8u;
+static constexpr const uint32_t NUM_EXITS_NESW = 4u;
+static constexpr const uint32_t NUM_EXITS_NESWUD = 6u;
+static constexpr const uint32_t NUM_EXITS = 7u;
+static constexpr const uint32_t NUM_EXITS_INCLUDING_NONE = 8u;
 
 namespace enums {
 NODISCARD const MMapper::Array<ExitDirEnum, NUM_EXITS_NESW> &getAllExitsNESW();
@@ -60,5 +60,5 @@ NODISCARD ExitDirEnum dirForChar(QChar dir);
 NODISCARD char charForDir(ExitDirEnum dir);
 } // namespace Mmapper2Exit
 
-NODISCARD extern Coordinate exitDir(ExitDirEnum dir);
-NODISCARD extern std::string_view to_string_view(ExitDirEnum dir);
+NODISCARD extern const Coordinate &exitDir(ExitDirEnum dir);
+NODISCARD extern const std::string_view to_string_view(ExitDirEnum dir);

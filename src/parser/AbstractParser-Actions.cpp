@@ -128,9 +128,7 @@ bool MumeXmlParserBase::evalActionMap(StringView line)
         return false;
     }
 
-    m_scriptEngine.setExecuteCallback([this](const std::string &cmd) {
-        this->executeScript(cmd);
-    });
+    m_scriptEngine.setExecuteCallback([this](const std::string &cmd) { this->executeScript(cmd); });
     m_scriptEngine.processServerFeed(line);
 
     auto &map = m_actionMap;

@@ -1126,14 +1126,45 @@ void AbstractParser::initSpecialCommandMap()
         [this](const std::vector<StringView> & /*s*/, StringView rest) {
             auto args = m_scriptEngine.parseArguments(rest);
             if (args.empty()) {
-                // List actions
-                auto actions = m_scriptEngine.getAllActions(); // TODO: Add to ScriptEngine
+                QString result = "Active actions:\n";
+                for (const auto *action : m_scriptEngine.getAllActions()) {
+                    result += QString("  {%1} -> {%2}\n")
+                                  .arg(mmqt::toQStringUtf8(action->pattern))
+                                  .arg(mmqt::toQStringUtf8(action->command));
+                }
+                sendToUser(SendToUserSourceEnum::FromMMapper, result);
                 return true;
             } else if (args.size() == 1) {
-                m_scriptEngine.removeAction(args[0]);
+                if (m_scriptEngine.removeAction(args[0])) {
+                    sendToUser(SendToUserSourceEnum::FromMMapper,
+                               QString("Action removed: %1\n").arg(mmqt::toQStringUtf8(args[0])));
+                } else {
+                    sendToUser(SendToUserSourceEnum::FromMMapper,
+                               QString("Action not found: %1\n").arg(mmqt::toQStringUtf8(args[0])));
+                }
                 return true;
             } else {
-                m_scriptEngine.setAction(args[0], args[1]);
+                ScriptActionType type = ScriptActionType::Regex;
+                std::string pattern = args[0];
+                std::string command = args[1];
+
+                if (args[0] == "-regex" && args.size() >= 3) {
+                    type = ScriptActionType::Regex;
+                    pattern = args[1];
+                    command = args[2];
+                } else if (args[0] == "-starts" && args.size() >= 3) {
+                    type = ScriptActionType::Starts;
+                    pattern = args[1];
+                    command = args[2];
+                } else if (args[0] == "-ends" && args.size() >= 3) {
+                    type = ScriptActionType::Ends;
+                    pattern = args[1];
+                    command = args[2];
+                } else if (pattern.find_first_of("^$.()[]{}?+|") == std::string::npos) {
+                    type = ScriptActionType::Wildcard;
+                }
+
+                m_scriptEngine.setAction(pattern, command, type);
                 return true;
             }
         },
@@ -1171,10 +1202,24 @@ void AbstractParser::initSpecialCommandMap()
         cmdVar,
         [this](const std::vector<StringView> & /*s*/, StringView rest) {
             auto args = m_scriptEngine.parseArguments(rest);
-            if (args.size() >= 2) {
+            if (args.empty()) {
+                QString result = "Active variables:\n";
+                for (const auto &pair : m_scriptEngine.getAllVariables()) {
+                    result += QString("  $%1 = %2\n")
+                                  .arg(mmqt::toQStringUtf8(pair.first))
+                                  .arg(mmqt::toQStringUtf8(pair.second));
+                }
+                sendToUser(SendToUserSourceEnum::FromMMapper, result);
+            } else if (args.size() >= 2) {
                 m_scriptEngine.setVariable(args[0], args[1]);
             } else if (args.size() == 1) {
-                m_scriptEngine.removeVariable(args[0]);
+                if (m_scriptEngine.removeVariable(args[0])) {
+                    sendToUser(SendToUserSourceEnum::FromMMapper,
+                               QString("Variable removed: %1\n").arg(mmqt::toQStringUtf8(args[0])));
+                } else {
+                    sendToUser(SendToUserSourceEnum::FromMMapper,
+                               QString("Variable not found: %1\n").arg(mmqt::toQStringUtf8(args[0])));
+                }
             }
             return true;
         },
@@ -1185,10 +1230,24 @@ void AbstractParser::initSpecialCommandMap()
         cmdAli,
         [this](const std::vector<StringView> & /*s*/, StringView rest) {
             auto args = m_scriptEngine.parseArguments(rest);
-            if (args.size() >= 2) {
+            if (args.empty()) {
+                QString result = "Active aliases:\n";
+                for (const auto &pair : m_scriptEngine.getAllAliases()) {
+                    result += QString("  %1 -> %2\n")
+                                  .arg(mmqt::toQStringUtf8(pair.first))
+                                  .arg(mmqt::toQStringUtf8(pair.second));
+                }
+                sendToUser(SendToUserSourceEnum::FromMMapper, result);
+            } else if (args.size() >= 2) {
                 m_scriptEngine.setAlias(args[0], args[1]);
             } else if (args.size() == 1) {
-                m_scriptEngine.removeAlias(args[0]);
+                if (m_scriptEngine.removeAlias(args[0])) {
+                    sendToUser(SendToUserSourceEnum::FromMMapper,
+                               QString("Alias removed: %1\n").arg(mmqt::toQStringUtf8(args[0])));
+                } else {
+                    sendToUser(SendToUserSourceEnum::FromMMapper,
+                               QString("Alias not found: %1\n").arg(mmqt::toQStringUtf8(args[0])));
+                }
             }
             return true;
         },

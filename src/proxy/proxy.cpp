@@ -708,7 +708,7 @@ void Proxy::allocParser()
         void virt_onSetMode(const MapModeEnum mode) final { getMainWindow().slot_setMode(mode); }
         void virt_onExecuteCommand(const QString &cmd) final
         {
-            getProxy().getUserParser().parseUserCommands(cmd);
+            (void) getProxy().getUserParser().parseUserCommands(cmd);
         }
     };
 

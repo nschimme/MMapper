@@ -6,7 +6,6 @@
 
 #include "abstractparser.h"
 
-#include "ScriptEngine.h"
 #include "../clock/mumeclock.h"
 #include "../global/Consts.h"
 #include "../global/LineUtils.h"
@@ -33,6 +32,7 @@
 #include "AbstractParser-Utils.h"
 #include "CommandQueue.h"
 #include "DoorAction.h"
+#include "ScriptEngine.h"
 
 #include <algorithm>
 #include <cassert>

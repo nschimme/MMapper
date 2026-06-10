@@ -21,7 +21,7 @@
 #include <QString>
 #include <QVariantMap>
 
-enum class ScriptActionType { Regex, Wildcard };
+enum class ScriptActionType { Auto, Regex, Wildcard, Starts, Ends };
 
 struct ScriptAction
 {
@@ -50,14 +50,15 @@ public:
 private:
     std::unordered_map<std::string, std::string> m_variables;
     std::unordered_map<std::string, std::string> m_aliases;
-    std::unordered_map<std::string, std::shared_ptr<CompiledScriptAction>> m_actions;
+    std::map<std::string, std::shared_ptr<CompiledScriptAction>> m_actions;
     std::unordered_multimap<char, std::shared_ptr<CompiledScriptAction>> m_actionMap;
 
-    std::vector<std::string> m_captures; // %1..%9 for the current action
+    std::vector<std::string> m_captures; // %0..%9 for the current action
 
     ChangeMonitor::Lifetime m_configLifetime;
     ExecuteCallback m_executeCallback;
     LogCallback m_logCallback;
+    bool m_isSaving = false;
 
 public:
     explicit ScriptEngine(QObject *parent = nullptr);
@@ -72,13 +73,17 @@ public:
     // Core commands
     void setVariable(const std::string &name, const std::string &value);
     void setAlias(const std::string &name, const std::string &command);
-    void setAction(const std::string &pattern, const std::string &command);
+    void setAction(const std::string &pattern,
+                   const std::string &command,
+                   ScriptActionType type = ScriptActionType::Auto);
 
     bool removeVariable(const std::string &name);
     bool removeAlias(const std::string &name);
     bool removeAction(const std::string &pattern);
 
     NODISCARD std::vector<const ScriptAction *> getAllActions() const;
+    NODISCARD std::map<std::string, std::string> getAllVariables() const;
+    NODISCARD std::map<std::string, std::string> getAllAliases() const;
 
     // Evaluation
     void processServerFeed(StringView line);
@@ -88,6 +93,9 @@ public:
     std::vector<std::string> parseArguments(StringView &input);
     std::string expandVariables(const std::string &input);
     void executeScript(const std::string &script);
+
+    // Internal command handling
+    bool executePrimitive(const std::string &fullCommand);
 
     // Expression evaluation for #IF
     bool evaluateExpression(const std::string &expr);

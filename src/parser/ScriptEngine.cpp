@@ -18,7 +18,11 @@ CompiledScriptAction::CompiledScriptAction(ScriptAction a)
     using namespace char_consts;
     std::string regexPattern;
     if (action.type == ScriptActionType::Wildcard) {
-        regexPattern = ScriptEngine::wildcardToRegex(action.pattern);
+        regexPattern = "^" + ScriptEngine::wildcardToRegex(action.pattern) + "$";
+    } else if (action.type == ScriptActionType::Starts) {
+        regexPattern = "^" + ScriptEngine::wildcardToRegex(action.pattern);
+    } else if (action.type == ScriptActionType::Ends) {
+        regexPattern = ScriptEngine::wildcardToRegex(action.pattern) + "$";
     } else {
         regexPattern = action.pattern;
     }
@@ -39,7 +43,11 @@ CompiledScriptAction::CompiledScriptAction(ScriptAction a)
 ScriptEngine::ScriptEngine(QObject *parent)
     : QObject(parent)
 {
-    auto sync = [this]() { syncFromConfig(); };
+    auto sync = [this]() {
+        if (!m_isSaving) {
+            syncFromConfig();
+        }
+    };
     setConfig().variables.registerChangeCallback(m_configLifetime, sync);
     setConfig().aliases.registerChangeCallback(m_configLifetime, sync);
     setConfig().actions.registerChangeCallback(m_configLifetime, sync);
@@ -66,12 +74,30 @@ void ScriptEngine::syncFromConfig()
     const QVariantMap &actionData = getConfig().actions.data();
     for (auto it = actionData.begin(); it != actionData.end(); ++it) {
         std::string pattern = mmqt::toStdStringUtf8(it.key());
-        std::string command = mmqt::toStdStringUtf8(it.value().toString());
+        std::string command;
+        ScriptActionType type = ScriptActionType::Auto;
 
-        // Simple heuristic to distinguish wildcard vs regex
-        ScriptActionType type = ScriptActionType::Wildcard;
-        if (pattern.find_first_of("^$.()[]{}?+|") != std::string::npos) {
-            type = ScriptActionType::Regex;
+        QString val = it.value().toString();
+        qsizetype pipeIdx = val.indexOf('|');
+        if (pipeIdx != -1) {
+            bool ok = false;
+            int t = val.left(static_cast<int>(pipeIdx)).toInt(&ok);
+            if (ok) {
+                type = static_cast<ScriptActionType>(t);
+                command = mmqt::toStdStringUtf8(val.mid(static_cast<int>(pipeIdx) + 1));
+            } else {
+                command = mmqt::toStdStringUtf8(val);
+            }
+        } else {
+            command = mmqt::toStdStringUtf8(val);
+        }
+
+        if (type == ScriptActionType::Auto) {
+            if (pattern.find_first_of("^$.()[]{}?+|") != std::string::npos) {
+                type = ScriptActionType::Regex;
+            } else {
+                type = ScriptActionType::Wildcard;
+            }
         }
 
         auto compiled = std::make_shared<CompiledScriptAction>(ScriptAction{type, pattern, command});
@@ -100,14 +126,20 @@ void ScriptEngine::setAlias(const std::string &name, const std::string &command)
     saveAliases();
 }
 
-void ScriptEngine::setAction(const std::string &pattern, const std::string &command)
+void ScriptEngine::setAction(const std::string &pattern,
+                             const std::string &command,
+                             ScriptActionType type)
 {
     if (pattern.empty()) {
         return;
     }
-    ScriptActionType type = ScriptActionType::Wildcard;
-    if (pattern.find_first_of("^$.()[]{}?+|") != std::string::npos) {
-        type = ScriptActionType::Regex;
+
+    if (type == ScriptActionType::Auto) {
+        if (pattern.find_first_of("^$.()[]{}?+|") != std::string::npos) {
+            type = ScriptActionType::Regex;
+        } else {
+            type = ScriptActionType::Wildcard;
+        }
     }
 
     auto compiled = std::make_shared<CompiledScriptAction>(ScriptAction{type, pattern, command});
@@ -160,36 +192,54 @@ std::vector<const ScriptAction *> ScriptEngine::getAllActions() const
     return result;
 }
 
+std::map<std::string, std::string> ScriptEngine::getAllVariables() const
+{
+    return std::map<std::string, std::string>(m_variables.begin(), m_variables.end());
+}
+
+std::map<std::string, std::string> ScriptEngine::getAllAliases() const
+{
+    return std::map<std::string, std::string>(m_aliases.begin(), m_aliases.end());
+}
+
 void ScriptEngine::saveVariables()
 {
+    m_isSaving = true;
     QVariantMap data;
     for (const auto &pair : m_variables) {
         data[mmqt::toQStringUtf8(pair.first)] = mmqt::toQStringUtf8(pair.second);
     }
     setConfig().variables.setData(data);
+    m_isSaving = false;
 }
 
 void ScriptEngine::saveAliases()
 {
+    m_isSaving = true;
     QVariantMap data;
     for (const auto &pair : m_aliases) {
         data[mmqt::toQStringUtf8(pair.first)] = mmqt::toQStringUtf8(pair.second);
     }
     setConfig().aliases.setData(data);
+    m_isSaving = false;
 }
 
 void ScriptEngine::saveActions()
 {
+    m_isSaving = true;
     QVariantMap data;
     for (const auto &pair : m_actions) {
-        data[mmqt::toQStringUtf8(pair.first)] = mmqt::toQStringUtf8(pair.second->action.command);
+        QString val = QString::number(static_cast<int>(pair.second->action.type)) + "|"
+                      + mmqt::toQStringUtf8(pair.second->action.command);
+        data[mmqt::toQStringUtf8(pair.first)] = val;
     }
     setConfig().actions.setData(data);
+    m_isSaving = false;
 }
 
 std::string ScriptEngine::wildcardToRegex(const std::string &wildcard)
 {
-    std::string result = "^";
+    std::string result;
     for (size_t i = 0; i < wildcard.size(); ++i) {
         char c = wildcard[i];
         if (c == '*') {
@@ -201,7 +251,6 @@ std::string ScriptEngine::wildcardToRegex(const std::string &wildcard)
             result += c;
         }
     }
-    result += "$";
     return result;
 }
 
@@ -230,6 +279,8 @@ void ScriptEngine::processServerFeed(StringView line)
         return;
     }
 
+    m_captures.clear();
+
     auto runMatch = [&](const std::shared_ptr<CompiledScriptAction> &compiled) {
         if (!compiled->regex) {
             return;
@@ -239,14 +290,15 @@ void ScriptEngine::processServerFeed(StringView line)
         const std::string_view sv = line.getStdStringView();
         if (std::regex_search(sv.data(), sv.data() + sv.size(), match, *compiled->regex)) {
             std::vector<std::string> captures;
-            captures.reserve(match.size());
-            for (size_t i = 0; i < match.size(); ++i) {
+            captures.reserve(match.size() + 1);
+            captures.emplace_back(std::string(sv));
+            for (size_t i = 1; i < match.size(); ++i) {
                 captures.emplace_back(match[i].str());
             }
 
             m_captures = captures;
             logScriptInfo("[TRIGGERED: " + compiled->action.pattern + "]");
-            executeScript(substitute(compiled->action.command, captures));
+            executeScript(compiled->action.command);
         }
     };
 
@@ -270,25 +322,27 @@ bool ScriptEngine::processUserInput(std::string &input)
         return false;
     }
 
-    // Check for aliases first
     StringView sv{input};
+    sv.trim();
+    if (sv.isEmpty()) {
+        return false;
+    }
     std::string firstWord = sv.takeFirstWord().toStdString();
     auto it = m_aliases.find(firstWord);
     if (it != m_aliases.end()) {
         std::string rest = sv.toStdString();
         std::vector<std::string> args = {input};
-        // Simple split for alias arguments %1..%9
         StringView restSv{rest};
         while (!restSv.isEmpty()) {
             args.push_back(restSv.takeFirstWord().toStdString());
         }
 
-        std::string expanded = substitute(it->second, args);
+        std::string substituted = substitute(it->second, args);
+        std::string expanded = expandVariables(substituted);
         input = expanded;
         return true;
     }
 
-    // Variable expansion
     std::string expanded = expandVariables(input);
     if (expanded != input) {
         input = expanded;
@@ -365,16 +419,13 @@ std::vector<std::string> ScriptEngine::parseArguments(StringView &input)
 
 void ScriptEngine::executeScript(const std::string &script)
 {
-    std::string expanded = expandVariables(script);
-
-    // Split by unescaped semicolon
     std::vector<std::string> commands;
     std::string currentCmd;
     bool escaped = false;
     int braceDepth = 0;
 
-    for (size_t i = 0; i < expanded.size(); ++i) {
-        char c = expanded[i];
+    for (size_t i = 0; i < script.size(); ++i) {
+        char c = script[i];
         if (escaped) {
             currentCmd += c;
             escaped = false;
@@ -404,8 +455,11 @@ void ScriptEngine::executeScript(const std::string &script)
     }
 
     for (const auto &cmd : commands) {
-        if (m_executeCallback) {
-            m_executeCallback(cmd);
+        std::string expanded = expandVariables(cmd);
+        if (!executePrimitive(expanded)) {
+            if (m_executeCallback) {
+                m_executeCallback(expanded);
+            }
         }
     }
 }
@@ -413,7 +467,6 @@ void ScriptEngine::executeScript(const std::string &script)
 bool ScriptEngine::evaluateExpression(const std::string &expr)
 {
     std::string expanded = expandVariables(expr);
-    // Simple evaluation: non-empty, non-zero
     if (expanded.empty()) {
         return false;
     }
@@ -421,7 +474,6 @@ bool ScriptEngine::evaluateExpression(const std::string &expr)
         return false;
     }
 
-    // Basic math comparison
     std::regex relOp(R"(\s*(.+?)\s*(==|!=|>=|<=|>|<)\s*(.+)\s*)");
     std::smatch match;
     if (std::regex_match(expanded, match, relOp)) {
@@ -451,7 +503,6 @@ bool ScriptEngine::evaluateExpression(const std::string &expr)
                 return lVal < rVal;
             }
         } catch (...) {
-            // String comparison
             if (op == "==") {
                 return left == right;
             }
@@ -462,6 +513,94 @@ bool ScriptEngine::evaluateExpression(const std::string &expr)
     }
 
     return true;
+}
+
+bool ScriptEngine::executePrimitive(const std::string &fullCommand)
+{
+    StringView rest{fullCommand};
+    rest.trim();
+    if (rest.isEmpty()) {
+        return false;
+    }
+    std::string cmd = rest.takeFirstWord().toStdString();
+
+    if (!cmd.empty() && cmd[0] == '#') {
+        cmd = cmd.substr(1);
+    }
+    std::transform(cmd.begin(), cmd.end(), cmd.begin(), [](unsigned char c) {
+        return std::tolower(c);
+    });
+
+    auto args = parseArguments(rest);
+
+    if (cmd == "var" || cmd == "variable") {
+        if (args.empty()) {
+            std::string result = "Active variables:\n";
+            for (const auto &pair : getAllVariables()) {
+                result += "  $" + pair.first + " = " + pair.second + "\n";
+            }
+            logScriptInfo(result);
+        } else if (args.size() >= 2) {
+            setVariable(args[0], args[1]);
+        } else if (args.size() == 1) {
+            removeVariable(args[0]);
+        }
+        return true;
+    } else if (cmd == "ali" || cmd == "alias") {
+        if (args.empty()) {
+            std::string result = "Active aliases:\n";
+            for (const auto &pair : getAllAliases()) {
+                result += "  " + pair.first + " -> " + pair.second + "\n";
+            }
+            logScriptInfo(result);
+        } else if (args.size() >= 2) {
+            setAlias(args[0], args[1]);
+        } else if (args.size() == 1) {
+            removeAlias(args[0]);
+        }
+        return true;
+    } else if (cmd == "act" || cmd == "action") {
+        if (args.empty()) {
+            std::string result = "Active actions:\n";
+            for (const auto *action : getAllActions()) {
+                result += "  {" + action->pattern + "} -> {" + action->command + "}\n";
+            }
+            logScriptInfo(result);
+        } else if (args.size() == 1) {
+            removeAction(args[0]);
+        } else {
+            ScriptActionType type = ScriptActionType::Auto;
+            std::string pattern = args[0];
+            std::string command = args[1];
+
+            if (args[0] == "-regex" && args.size() >= 3) {
+                type = ScriptActionType::Regex;
+                pattern = args[1];
+                command = args[2];
+            } else if (args[0] == "-starts" && args.size() >= 3) {
+                type = ScriptActionType::Starts;
+                pattern = args[1];
+                command = args[2];
+            } else if (args[0] == "-ends" && args.size() >= 3) {
+                type = ScriptActionType::Ends;
+                pattern = args[1];
+                command = args[2];
+            }
+            setAction(pattern, command, type);
+        }
+        return true;
+    } else if (cmd == "if") {
+        if (args.size() >= 2) {
+            if (evaluateExpression(args[0])) {
+                executeScript(args[1]);
+            } else if (args.size() >= 3) {
+                executeScript(args[2]);
+            }
+        }
+        return true;
+    }
+
+    return false;
 }
 
 void ScriptEngine::logScriptError(const std::string &error)

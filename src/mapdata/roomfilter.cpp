@@ -4,9 +4,9 @@
 
 #include "roomfilter.h"
 
+#include "../global/Abbrev.h"
 #include "../global/StringView.h"
 #include "../global/TextUtils.h"
-#include "../parser/Abbrev.h"
 
 #include <optional>
 

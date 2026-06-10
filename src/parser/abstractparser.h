@@ -410,10 +410,6 @@ private:
     void doSearchCommand(StringView view);
     void doGetDirectionsCommand(StringView view);
 
-public:
-    void doGetDirectionsToRoom(const RoomHandle &target);
-
-private:
     void initSpecialCommandMap();
     void addSpecialCommand(const char *s,
                            int minLen,

@@ -3,29 +3,12 @@
 // Copyright (C) 2019 The MMapper Authors
 // Author: Nils Schimmelmann <nschimme@gmail.com> (Jahara)
 
-#include "../global/Flags.h"
+#include "../global/Abbrev.h"
 #include "../map/DoorFlags.h"
 #include "../map/ExitFlags.h"
+#include "../map/enums.h"
 #include "../map/infomark.h"
-#include "../map/mmapper2room.h"
-#include "../global/Abbrev.h"
-#include "DoorAction.h"
-
-#include <QByteArray>
-
-extern const Abbrev cmdBack;
-extern const Abbrev cmdDirections;
-extern const Abbrev cmdDoorHelp;
-extern const Abbrev cmdGroupTell;
-extern const Abbrev cmdHelp;
-extern const Abbrev cmdMap;
-extern const Abbrev cmdSearch;
-extern const Abbrev cmdSet;
-extern const Abbrev cmdTime;
-extern const Abbrev cmdTrollExit;
-extern const Abbrev cmdVote;
-
-NODISCARD QByteArray getCommandName(DoorActionEnum action);
+#include "../parser/DoorAction.h"
 
 NODISCARD Abbrev getParserCommandName(DoorActionEnum action);
 NODISCARD Abbrev getParserCommandName(DoorFlagEnum x);

@@ -7,6 +7,7 @@
 #include "abstractparser.h"
 
 #include "../clock/mumeclock.h"
+#include "../global/Abbrev.h"
 #include "../global/Consts.h"
 #include "../global/LineUtils.h"
 #include "../global/RAII.h"
@@ -27,7 +28,6 @@
 #include "../syntax/Accept.h"
 #include "../syntax/SyntaxArgs.h"
 #include "../syntax/TreeParser.h"
-#include "Abbrev.h"
 #include "AbstractParser-Commands.h"
 #include "AbstractParser-Utils.h"
 #include "CommandQueue.h"
@@ -440,12 +440,7 @@ void AbstractParser::dirsCommand(const RoomFilter &f)
 {
     ShortestPathEmitter sp_emitter(*this);
     if (const auto r = m_mapData.findRoomHandle(getTailPosition())) {
-        const RoomIdSet targets = m_mapData.genericFind(f);
-        if (targets.size() > 0 && targets.size() < 500) {
-            MapData::shortestPathSearchToSet(r, targets, sp_emitter, 10);
-        } else {
-            MapData::shortestPathSearch(r, sp_emitter, f, 10, 0);
-        }
+        MapData::shortestPathSearch(r, sp_emitter, f, 10, 0);
     }
 }
 
@@ -504,14 +499,6 @@ void AbstractParser::doSearchCommand(const StringView view)
         searchCommand(optFilter.value());
     } else {
         sendToUser(SendToUserSourceEnum::FromMMapper, RoomFilter::parse_help);
-    }
-}
-
-void AbstractParser::doGetDirectionsToRoom(const RoomHandle &target)
-{
-    ShortestPathEmitter sp_emitter(*this);
-    if (const auto r = m_mapData.findRoomHandle(getTailPosition())) {
-        MapData::shortestPathSearchPointToPoint(r, target, sp_emitter);
     }
 }
 

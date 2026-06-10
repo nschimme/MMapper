@@ -457,8 +457,12 @@ set(mmapper_SRCS
     opengl/legacy/VBO.h
     opengl/legacy/WeatherMeshes.cpp
     opengl/legacy/WeatherMeshes.h
-    parser/Abbrev.cpp
-    parser/Abbrev.h
+    global/Abbrev.cpp
+    global/Abbrev.h
+    global/CompareVersion.cpp
+    global/CompareVersion.h
+    map-utils/CommandNames.cpp
+    map-utils/CommandNames.h
     parser/AbstractParser-Actions.cpp
     parser/AbstractParser-Commands.cpp
     parser/AbstractParser-Commands.h
@@ -726,10 +730,10 @@ set(mmapper_DATA
 
 set(mmapper_map_SRCS ${mmapper_SRCS})
 set(mmapper_global_SRCS ${mmapper_SRCS})
-list(FILTER mmapper_map_SRCS INCLUDE REGEX "map/")
-list(FILTER mmapper_global_SRCS INCLUDE REGEX "global/")
-list(FILTER mmapper_SRCS EXCLUDE REGEX "map/")
-list(FILTER mmapper_SRCS EXCLUDE REGEX "global/")
+list(FILTER mmapper_map_SRCS INCLUDE REGEX "^(map(data|frontend|storage)?/|map-utils/)")
+list(FILTER mmapper_global_SRCS INCLUDE REGEX "^global/")
+list(FILTER mmapper_SRCS EXCLUDE REGEX "^(map(data|frontend|storage)?/|map-utils/)")
+list(FILTER mmapper_SRCS EXCLUDE REGEX "^global/")
 
 message("mmapper_SRCS=[${mmapper_SRCS}]")
 message("mmapper_global_SRCS=[${mmapper_global_SRCS}]")
@@ -819,6 +823,8 @@ target_include_directories(mm_global SYSTEM PUBLIC
         #${Qt6OpenGLWidgets_INCLUDE_DIRS}
 )
 target_include_directories(mm_map SYSTEM PUBLIC
+        ${Qt6Network_INCLUDE_DIRS}
+        ${Qt6OpenGL_INCLUDE_DIRS}
         ${GLM_INCLUDE_DIR}
         ${IMMER_INCLUDE_DIR}
         ${Qt6Core_INCLUDE_DIRS}
@@ -833,6 +839,8 @@ target_link_libraries(mm_global PUBLIC
     coverage_config
 )
 target_link_libraries(mm_map PUBLIC
+    Qt6::Network
+    Qt6::OpenGL
     Qt6::Core
     Qt6::Widgets
     coverage_config

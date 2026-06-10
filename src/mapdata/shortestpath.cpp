@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-// Copyright (C) 2019 The MMapper Authors
-// Author: 'Elval' <ethorondil@gmail.com> (Elval)
+// Copyright (C) 2024 The MMapper Authors
 
 #include "shortestpath.h"
 
@@ -24,6 +23,7 @@
 #include <QSet>
 #include <QVector>
 #include <queue>
+#include <unordered_map>
 
 // Movement costs per terrain type.
 // Same order as the RoomTerrainEnum enum.
@@ -116,6 +116,10 @@ void MapData::shortestPathSearch(const RoomHandle &origin,
 
     const Map &map = origin.getMap();
 
+    // If max_hits is small, we can try to find all targets first and use A*
+    // For now, let's keep Dijkstra for multiple targets as it's efficient for finding many closest nodes.
+    // However, if we only want 1 hit, A* is better IF we can find the target quickly.
+
     QVector<SPNode> sp_nodes;
     RoomIdSet visited;
     std::priority_queue<std::pair<double, int>> future_paths;
@@ -174,6 +178,79 @@ void MapData::shortestPathSearch(const RoomHandle &origin,
             const double length = getLength(e, thisr, nextr);
             sp_nodes.push_back(SPNode{nextr, spindex, thisdist + length, dir});
             future_paths.emplace(-(thisdist + length), sp_nodes.size() - 1);
+        }
+    }
+}
+
+NODISCARD static double euclidean_distance(const Coordinate &a, const Coordinate &b)
+{
+    const double dx = a.x - b.x;
+    const double dy = a.y - b.y;
+    const double dz = (a.z - b.z) * 4.0; // Vertical distance is often more expensive in MUDs
+    return std::sqrt(dx * dx + dy * dy + dz * dz);
+}
+
+void MapData::shortestPathSearchPointToPoint(const RoomHandle &origin,
+                                             const RoomHandle &target,
+                                             ShortestPathRecipient &recipient)
+{
+    if (origin.getId() == target.getId()) {
+        QVector<SPNode> sp_nodes;
+        sp_nodes.push_back(SPNode{origin, -1, 0, ExitDirEnum::UNKNOWN});
+        recipient.receiveShortestPath(sp_nodes, 0);
+        return;
+    }
+
+    const Map &map = origin.getMap();
+    const Coordinate targetPos = target.getPosition();
+
+    QVector<SPNode> sp_nodes;
+    std::unordered_map<RoomId, double> visited_g;
+    std::priority_queue<std::pair<double, int>> open_set;
+
+    sp_nodes.push_back(SPNode{origin, -1, 0, ExitDirEnum::UNKNOWN});
+    visited_g[origin.getId()] = 0.0;
+    open_set.emplace(-euclidean_distance(origin.getPosition(), targetPos), 0);
+
+    while (!open_set.empty()) {
+        const int spindex = utils::pop_top(open_set).second;
+        const auto &currNode = sp_nodes[spindex];
+        const auto thisr = currNode.r;
+        const auto thisdist = currNode.dist;
+        const auto room_id = thisr.getId();
+
+        if (room_id == target.getId()) {
+            recipient.receiveShortestPath(sp_nodes, spindex);
+            return;
+        }
+
+        if (thisdist > visited_g[room_id]) {
+            continue;
+        }
+
+        for (const ExitDirEnum dir : ALL_EXITS7) {
+            const auto &e = thisr.getExit(dir);
+            if (!e.outIsUnique() || !e.exitIsExit()) {
+                continue;
+            }
+
+            const RoomId nextrId = e.getOutgoingSet().first();
+            const auto &nextr = map.getRoomHandle(nextrId);
+            if (!nextr) {
+                continue;
+            }
+
+            const double length = getLength(e, thisr, nextr);
+            const double new_g = thisdist + length;
+
+            auto it = visited_g.find(nextrId);
+            if (it == visited_g.end() || new_g < it->second) {
+                visited_g[nextrId] = new_g;
+                const double h = euclidean_distance(nextr.getPosition(), targetPos);
+                const int nextIndex = sp_nodes.size();
+                sp_nodes.push_back(SPNode{nextr, spindex, new_g, dir});
+                open_set.emplace(-(new_g + h), nextIndex);
+            }
         }
     }
 }

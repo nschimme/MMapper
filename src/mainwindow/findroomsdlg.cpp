@@ -33,6 +33,7 @@ FindRoomsDlg::FindRoomsDlg(MapData &md, QWidget *const parent)
     m_showSelectedRoom->setContext(Qt::WidgetShortcut);
 
     selectButton->setEnabled(false);
+    directionsButton->setEnabled(false);
     editButton->setEnabled(false);
 
     findButton->setDefault(true);
@@ -51,6 +52,7 @@ FindRoomsDlg::FindRoomsDlg(MapData &md, QWidget *const parent)
     connect(resultTable, &QTreeWidget::itemSelectionChanged, this, [this]() {
         const bool enabled = !resultTable->selectedItems().isEmpty();
         selectButton->setEnabled(enabled);
+        directionsButton->setEnabled(enabled);
         editButton->setEnabled(enabled);
     });
     connect(selectButton, &QAbstractButton::clicked, this, [this]() {
@@ -74,6 +76,15 @@ FindRoomsDlg::FindRoomsDlg(MapData &md, QWidget *const parent)
 
         auto shared = RoomSelection::createSelection(std::move(tmpSet));
         emit sig_newRoomSelection(SigRoomSelection{std::move(shared)});
+    });
+    connect(directionsButton, &QAbstractButton::clicked, this, [this]() {
+        const auto &map = m_mapData.getCurrentMap();
+        for (const auto &selectedItem : resultTable->selectedItems()) {
+            const auto id = ExternalRoomId{selectedItem->text(0).toUInt()};
+            if (const auto room = map.findRoomHandle(id)) {
+                emit sig_getDirections(room.getId());
+            }
+        }
     });
     connect(editButton, &QAbstractButton::clicked, this, [this]() {
         const auto &map = m_mapData;
@@ -148,6 +159,8 @@ void FindRoomsDlg::slot_findClicked()
         RoomFilter filter(text, cs, regex, kind);
         const Map &map = m_mapData.getCurrentMap();
         auto found = m_mapData.genericFind(filter);
+        const auto playerPos = m_mapData.tryGetPosition();
+
         for (const auto roomId : found) {
             const auto &room = map.getRoomHandle(roomId);
             QString id = QString("%1").arg(room.getIdExternal().asUint32());
@@ -157,8 +170,19 @@ void FindRoomsDlg::slot_findClicked()
             item = new QTreeWidgetItem(resultTable);
             item->setText(0, id);
             item->setText(1, roomName);
+
+            if (playerPos) {
+                const double dist = std::sqrt(std::pow(room.getPosition().x - playerPos->x, 2)
+                                              + std::pow(room.getPosition().y - playerPos->y, 2)
+                                              + std::pow(room.getPosition().z - playerPos->z, 2));
+                item->setText(2, QString::number(dist, 'f', 1));
+            } else {
+                item->setText(2, "-");
+            }
+
             item->setToolTip(0, toolTip);
             item->setToolTip(1, toolTip);
+            item->setToolTip(2, toolTip);
         }
     } catch (const std::exception &ex) {
         qWarning() << "Exception: " << ex.what();
@@ -204,8 +228,8 @@ void FindRoomsDlg::slot_itemDoubleClicked(QTreeWidgetItem *const inputItem)
 
 void FindRoomsDlg::adjustResultTable()
 {
-    resultTable->setColumnCount(2);
-    resultTable->setHeaderLabels(QStringList() << tr("Room ID") << tr("Room Name"));
+    resultTable->setColumnCount(3);
+    resultTable->setHeaderLabels(QStringList() << tr("Room ID") << tr("Room Name") << tr("Distance"));
     resultTable->header()->setSectionResizeMode(QHeaderView::ResizeToContents);
     resultTable->setRootIsDecorated(false);
     resultTable->setAlternatingRowColors(true);
@@ -226,6 +250,7 @@ void FindRoomsDlg::closeEvent(QCloseEvent *event)
     lineEdit->clear();
     lineEdit->setFocus();
     selectButton->setEnabled(false);
+    directionsButton->setEnabled(false);
     editButton->setEnabled(false);
     event->accept();
 }

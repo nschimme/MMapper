@@ -117,6 +117,10 @@ public:
                                    int max_hits = -1,
                                    double max_dist = 0);
 
+    static void shortestPathSearchPointToPoint(const RoomHandle &origin,
+                                               const RoomHandle &target,
+                                               ShortestPathRecipient &recipient);
+
     // Used in Console Commands
     void removeDoorNames(ProgressCounter &pc);
     void generateBaseMap(ProgressCounter &pc);

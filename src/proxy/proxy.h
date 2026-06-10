@@ -64,6 +64,7 @@ struct UserTelnetOutputs;
 class NODISCARD_QOBJECT Proxy final : public QObject
 {
     Q_OBJECT
+    friend class ConnectionListener;
 
 private:
     io::buffer<(1 << 13)> m_buffer;

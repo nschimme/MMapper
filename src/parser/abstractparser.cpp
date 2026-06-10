@@ -502,6 +502,14 @@ void AbstractParser::doSearchCommand(const StringView view)
     }
 }
 
+void AbstractParser::doGetDirectionsToRoom(const RoomHandle &target)
+{
+    ShortestPathEmitter sp_emitter(*this);
+    if (const auto r = m_mapData.findRoomHandle(getTailPosition())) {
+        MapData::shortestPathSearchPointToPoint(r, target, sp_emitter);
+    }
+}
+
 void AbstractParser::doGetDirectionsCommand(const StringView view)
 {
     if (std::optional<RoomFilter> optFilter = RoomFilter::parseRoomFilter(view.getStdStringView())) {

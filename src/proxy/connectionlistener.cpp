@@ -132,3 +132,11 @@ void ConnectionListener::startClient(std::unique_ptr<AbstractSocket> socket)
         socket->disconnectFromHost();
     }
 }
+
+AbstractParser *ConnectionListener::getUserParser() const
+{
+    if (m_proxy == nullptr) {
+        return nullptr;
+    }
+    return &m_proxy->getUserParser();
+}

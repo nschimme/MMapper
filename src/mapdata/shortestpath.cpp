@@ -75,19 +75,19 @@ NODISCARD static double getLength(const RawExit &e, const RoomHandle &curr, cons
     double cost = terrain_cost(nextr.getTerrainType());
     auto flags = e.getExitFlags();
     if (flags.isRandom() || flags.isDamage() || flags.isFall()) {
-        cost += 30;
+        cost += 30.0;
     }
     if (flags.isDoor()) {
-        cost += 1;
+        cost += 1.0;
     }
     if (flags.isClimb()) {
-        cost += 2;
+        cost += 2.0;
     }
     if (nextr.getRidableType() == RoomRidableEnum::NOT_RIDABLE) {
-        cost += 3;
+        cost += 3.0;
         // One non-ridable room means walking two rooms, plus dismount/mount.
         if (curr.getRidableType() != RoomRidableEnum::NOT_RIDABLE) {
-            cost += 4;
+            cost += 4.0;
         }
     }
     if (flags.isRoad()) { // Not sure if this is appropriate.

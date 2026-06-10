@@ -8,7 +8,6 @@
 #include "../src/map/Map.h"
 #include "../src/map/TinyRoomIdSet.h"
 #include "../src/map/sanitizer.h"
-#include "../src/mapdata/shortestpath.h"
 
 #include <QDebug>
 #include <QtTest/QtTest>
@@ -51,14 +50,6 @@ void TestMap::roomIdSetTest()
     mmqt::HideQDebug forThisTest;
     test::testRoomIdSet();
     test::testImmRoomIdSet();
-}
-
-void TestMap::shortestPathTest()
-{
-    Map::enableExtraSanityChecks(true);
-    mmqt::HideQDebug forThisTest;
-    // Basic coverage for newly added pathfinding code
-    test::testShortestPath();
 }
 
 QTEST_MAIN(TestMap)

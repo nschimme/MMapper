@@ -60,9 +60,7 @@ private slots:
     {
         ScriptEngine engine;
         std::vector<std::string> cmds;
-        engine.setExecuteCallback([&](const std::string &cmd) {
-            cmds.push_back(cmd);
-        });
+        engine.setExecuteCallback([&](const std::string &cmd) { cmds.push_back(cmd); });
 
         engine.setAction("start", "one", ScriptActionType::Starts);
         engine.setAction("end", "two", ScriptActionType::Ends);
@@ -80,9 +78,7 @@ private slots:
     {
         ScriptEngine engine;
         std::vector<std::string> cmds;
-        engine.setExecuteCallback([&](const std::string &cmd) {
-            cmds.push_back(cmd);
-        });
+        engine.setExecuteCallback([&](const std::string &cmd) { cmds.push_back(cmd); });
 
         engine.setVariable("x", "old");
         engine.executeScript("#VAR {x} {new}; say $x");
@@ -106,9 +102,7 @@ private slots:
     {
         ScriptEngine engine;
         std::vector<std::string> cmds;
-        engine.setExecuteCallback([&](const std::string &cmd) {
-            cmds.push_back(cmd);
-        });
+        engine.setExecuteCallback([&](const std::string &cmd) { cmds.push_back(cmd); });
 
         engine.executeScript("north; south; #VAR {x} {1}");
         // #VAR is a primitive, not echoed.

@@ -7,7 +7,6 @@
 #include "proxy.h"
 
 #include "../client/HotkeyManager.h"
-#include "../client/UserActionManager.h"
 #include "../clock/mumeclock.h"
 #include "../configuration/PasswordConfig.h"
 #include "../configuration/configuration.h"
@@ -25,6 +24,7 @@
 #include "../mpi/remoteedit.h"
 #include "../mpi/remoteeditwidget.h"
 #include "../observer/gameobserver.h"
+#include "../parser/ScriptEngine.h"
 #include "../parser/abstractparser.h"
 #include "../parser/mumexmlparser.h"
 #include "../pathmachine/mmapper2pathmachine.h"
@@ -706,6 +706,10 @@ void Proxy::allocParser()
 
         // (via user command)
         void virt_onSetMode(const MapModeEnum mode) final { getMainWindow().slot_setMode(mode); }
+        void virt_onExecuteCommand(const QString &cmd) final
+        {
+            (void) getProxy().getUserParser().parseUserCommands(cmd);
+        }
     };
 
     auto &pipe = getPipeline();
@@ -725,7 +729,7 @@ void Proxy::allocParser()
                                                          m_groupManager.getGroupManagerApi(),
                                                          m_gameObserver,
                                                          m_mainWindow.getHotkeyManager(),
-                                                         m_mainWindow.getUserActionManager(),
+                                                         m_mainWindow.getScriptEngine(),
                                                          this,
                                                          deref(out),
                                                          deref(parserCommon));
@@ -735,7 +739,7 @@ void Proxy::allocParser()
                                                             deref(gmcp),
                                                             m_groupManager.getGroupManagerApi(),
                                                             m_mainWindow.getHotkeyManager(),
-                                                            m_mainWindow.getUserActionManager(),
+                                                            m_mainWindow.getScriptEngine(),
                                                             this,
                                                             deref(out),
                                                             deref(parserCommon));

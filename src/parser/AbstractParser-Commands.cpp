@@ -25,6 +25,7 @@
 #include "Abbrev.h"
 #include "AbstractParser-Utils.h"
 #include "DoorAction.h"
+#include "ScriptEngine.h"
 #include "abstractparser.h"
 
 #include <algorithm>
@@ -56,6 +57,9 @@ const Abbrev cmdRemoveDoorNames{"remove-secret-door-names"};
 const Abbrev cmdRoom{"room", 2};
 const Abbrev cmdSearch{"search", 3};
 const Abbrev cmdSet{"set", 2};
+const Abbrev cmdVar{"var", 3};
+const Abbrev cmdAli{"ali", 3};
+const Abbrev cmdIf{"if", 2};
 const Abbrev cmdTime{"time", 2};
 const Abbrev cmdTimer{"timer", 5};
 const Abbrev cmdVote{"vote", 2};
@@ -411,9 +415,23 @@ NODISCARD static bool isCommand(const std::string &str, const CommandEnum cmd)
 
 bool AbstractParser::parseUserCommands(const QString &input)
 {
+    std::string s = mmqt::toStdStringUtf8(input);
+    if (m_scriptEngine.processUserInput(s)) {
+        // Intercepted or modified by alias/variables
+        // If it still starts with prefix, handle as special command
+        if (!s.empty() && s[0] == getPrefixChar()) {
+            StringView view{s};
+            (void) view.takeFirstLetter();
+            parseSpecialCommand(view);
+            sendPromptToUser();
+            return false;
+        }
+        return parseSimpleCommand(mmqt::toQStringUtf8(s));
+    }
+
     if (input.startsWith(getPrefixChar())) {
-        std::string s = mmqt::toStdStringUtf8(input);
-        auto view = StringView{s}.trim();
+        StringView view{s};
+        view.trim();
         if (view.isEmpty() || view.takeFirstLetter() != getPrefixChar()) {
             sendToUser(SendToUserSourceEnum::FromMMapper, "Internal error. Sorry.\n");
         } else {
@@ -1106,29 +1124,69 @@ void AbstractParser::initSpecialCommandMap()
     add(
         cmdAction,
         [this](const std::vector<StringView> & /*s*/, StringView rest) {
-            parseUserAction(rest);
-            return true;
+            auto args = m_scriptEngine.parseArguments(rest);
+            if (args.empty()) {
+                QString result = "Active actions:\n";
+                for (const auto *action : m_scriptEngine.getAllActions()) {
+                    result += QString("  {%1} -> {%2}\n")
+                                  .arg(mmqt::toQStringUtf8(action->pattern))
+                                  .arg(mmqt::toQStringUtf8(action->command));
+                }
+                sendToUser(SendToUserSourceEnum::FromMMapper, result);
+                return true;
+            } else if (args.size() == 1) {
+                if (m_scriptEngine.removeAction(args[0])) {
+                    sendToUser(SendToUserSourceEnum::FromMMapper,
+                               QString("Action removed: %1\n").arg(mmqt::toQStringUtf8(args[0])));
+                } else {
+                    sendToUser(SendToUserSourceEnum::FromMMapper,
+                               QString("Action not found: %1\n").arg(mmqt::toQStringUtf8(args[0])));
+                }
+                return true;
+            } else {
+                ScriptActionType type = ScriptActionType::Regex;
+                std::string pattern = args[0];
+                std::string command = args[1];
+
+                if (args[0] == "-regex" && args.size() >= 3) {
+                    type = ScriptActionType::Regex;
+                    pattern = args[1];
+                    command = args[2];
+                } else if (args[0] == "-starts" && args.size() >= 3) {
+                    type = ScriptActionType::Starts;
+                    pattern = args[1];
+                    command = args[2];
+                } else if (args[0] == "-ends" && args.size() >= 3) {
+                    type = ScriptActionType::Ends;
+                    pattern = args[1];
+                    command = args[2];
+                } else if (pattern.find_first_of("^$.()[]{}?+|") == std::string::npos) {
+                    type = ScriptActionType::Wildcard;
+                }
+
+                m_scriptEngine.setAction(pattern, command, type);
+                return true;
+            }
         },
         [this](const std::string &name) {
-            const char help[]
-                = "Usage:\n"
-                  "  action                      # Lists all active actions.\n"
-                  "  action <pattern>            # Removes action matching <pattern>.\n"
-                  "  action [-type] <pat> <cmd>  # Defines a new action.\n"
-                  "\n"
-                  "Types:\n"
-                  "  -regex  # Matches <pat> as a regular expression (default).\n"
-                  "  -starts # Matches if MUD output starts with <pat>.\n"
-                  "  -ends   # Matches if MUD output ends with <pat>.\n"
-                  "\n"
-                  "Variables:\n"
-                  "  %0      # The entire matched line.\n"
-                  "  %1..%9  # Captured groups (for regex type).\n"
-                  "\n"
-                  "Examples:\n"
-                  "  action {^You are hungry.$} eat bread\n"
-                  "  action -starts {Tick!} cast 'armor'\n"
-                  "  action {^(\\w+) has arrived.$} tell %1 welcome!";
+            const char help[] = "Usage:\n"
+                                "  action                      # Lists all active actions.\n"
+                                "  action <pattern>            # Removes action matching <pattern>.\n"
+                                "  action [-type] <pat> <cmd>  # Defines a new action.\n"
+                                "\n"
+                                "Types:\n"
+                                "  -regex  # Matches <pat> as a regular expression (default).\n"
+                                "  -starts # Matches if MUD output starts with <pat>.\n"
+                                "  -ends   # Matches if MUD output ends with <pat>.\n"
+                                "\n"
+                                "Variables:\n"
+                                "  %0      # The entire matched line.\n"
+                                "  %1..%9  # Captured groups (for regex type).\n"
+                                "\n"
+                                "Examples:\n"
+                                "  action {^You are hungry.$} eat bread\n"
+                                "  action -starts {Tick!} cast 'armor'\n"
+                                "  action {^(\\w+) has arrived.$} tell %1 welcome!";
 
             sendToUser(SendToUserSourceEnum::FromMMapper,
                        QString("Help for %1%2:\n"
@@ -1138,6 +1196,78 @@ void AbstractParser::initSpecialCommandMap()
                            .arg(mmqt::toQStringUtf8(name))
                            .arg(mmqt::toQStringUtf8(help)));
         });
+
+    /* var command */
+    add(
+        cmdVar,
+        [this](const std::vector<StringView> & /*s*/, StringView rest) {
+            auto args = m_scriptEngine.parseArguments(rest);
+            if (args.empty()) {
+                QString result = "Active variables:\n";
+                for (const auto &pair : m_scriptEngine.getAllVariables()) {
+                    result += QString("  $%1 = %2\n")
+                                  .arg(mmqt::toQStringUtf8(pair.first))
+                                  .arg(mmqt::toQStringUtf8(pair.second));
+                }
+                sendToUser(SendToUserSourceEnum::FromMMapper, result);
+            } else if (args.size() >= 2) {
+                m_scriptEngine.setVariable(args[0], args[1]);
+            } else if (args.size() == 1) {
+                if (m_scriptEngine.removeVariable(args[0])) {
+                    sendToUser(SendToUserSourceEnum::FromMMapper,
+                               QString("Variable removed: %1\n").arg(mmqt::toQStringUtf8(args[0])));
+                } else {
+                    sendToUser(SendToUserSourceEnum::FromMMapper,
+                               QString("Variable not found: %1\n").arg(mmqt::toQStringUtf8(args[0])));
+                }
+            }
+            return true;
+        },
+        makeSimpleHelp("Sets or removes a variable."));
+
+    /* ali command */
+    add(
+        cmdAli,
+        [this](const std::vector<StringView> & /*s*/, StringView rest) {
+            auto args = m_scriptEngine.parseArguments(rest);
+            if (args.empty()) {
+                QString result = "Active aliases:\n";
+                for (const auto &pair : m_scriptEngine.getAllAliases()) {
+                    result += QString("  %1 -> %2\n")
+                                  .arg(mmqt::toQStringUtf8(pair.first))
+                                  .arg(mmqt::toQStringUtf8(pair.second));
+                }
+                sendToUser(SendToUserSourceEnum::FromMMapper, result);
+            } else if (args.size() >= 2) {
+                m_scriptEngine.setAlias(args[0], args[1]);
+            } else if (args.size() == 1) {
+                if (m_scriptEngine.removeAlias(args[0])) {
+                    sendToUser(SendToUserSourceEnum::FromMMapper,
+                               QString("Alias removed: %1\n").arg(mmqt::toQStringUtf8(args[0])));
+                } else {
+                    sendToUser(SendToUserSourceEnum::FromMMapper,
+                               QString("Alias not found: %1\n").arg(mmqt::toQStringUtf8(args[0])));
+                }
+            }
+            return true;
+        },
+        makeSimpleHelp("Sets or removes an alias."));
+
+    /* if command */
+    add(
+        cmdIf,
+        [this](const std::vector<StringView> & /*s*/, StringView rest) {
+            auto args = m_scriptEngine.parseArguments(rest);
+            if (args.size() >= 2) {
+                if (m_scriptEngine.evaluateExpression(args[0])) {
+                    m_scriptEngine.executeScript(args[1]);
+                } else if (args.size() >= 3) {
+                    m_scriptEngine.executeScript(args[2]);
+                }
+            }
+            return true;
+        },
+        makeSimpleHelp("Conditional execution."));
 
     /* timers command */
     add(

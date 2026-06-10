@@ -44,6 +44,7 @@ class FindRoomsDlg;
 class GameObserver;
 class GroupWidget;
 class HotkeyManager;
+class ScriptEngine;
 class InfomarkSelection;
 class MapCanvas;
 class MapData;
@@ -122,6 +123,7 @@ private:
     DescriptionWidget *m_descriptionWidget = nullptr;
     TimerWidget *m_timerWidget = nullptr;
     std::unique_ptr<HotkeyManager> m_hotkeyManager;
+    std::unique_ptr<ScriptEngine> m_scriptEngine;
 
     QPointer<QMenu> m_contextMenu;
 
@@ -284,6 +286,7 @@ public:
     ~MainWindow() final;
 
     NODISCARD HotkeyManager &getHotkeyManager() const { return deref(m_hotkeyManager); }
+    NODISCARD ScriptEngine &getScriptEngine() const { return deref(m_scriptEngine); }
     NODISCARD CTimers &getTimers() const { return deref(m_timers); }
 
     NODISCARD bool saveFile(const QString &fileName, SaveModeEnum mode, SaveFormatEnum format);

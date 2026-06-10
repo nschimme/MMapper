@@ -46,7 +46,7 @@
 
 class Coordinate;
 class HotkeyManager;
-class UserActionManager;
+class ScriptEngine;
 class MapData;
 class MumeClock;
 class RoomFieldVariant;
@@ -98,6 +98,9 @@ public:
     // these are connected to MainWindow
     void onSetMode(const MapModeEnum mode) { virt_onSetMode(mode); }
 
+    // execute a command as if typed by the user
+    void onExecuteCommand(const QString &cmd) { virt_onExecuteCommand(cmd); }
+
 private:
     // sent to MudTelnet
     virtual void virt_onSendToMud(const QString &) = 0;
@@ -124,6 +127,7 @@ private:
     // for commands that set the mode (emulation, play, map)
     // these are connected to MainWindow
     virtual void virt_onSetMode(MapModeEnum) = 0;
+    virtual void virt_onExecuteCommand(const QString &) = 0;
 };
 
 struct NODISCARD ParserCommonData final
@@ -169,7 +173,7 @@ protected:
 protected:
     GroupManagerApi &m_group;
     HotkeyManager &m_hotkeyManager;
-    UserActionManager &m_userActionManager;
+    ScriptEngine &m_scriptEngine;
     ProxyUserGmcpApi &m_proxyUserGmcp;
     AbstractParserOutputs &m_outputs;
 
@@ -182,7 +186,7 @@ protected:
                           MapData &mapData,
                           GroupManagerApi &group,
                           HotkeyManager &hotkeyManager,
-                          UserActionManager &userActionManager,
+                          ScriptEngine &scriptEngine,
                           ProxyUserGmcpApi &proxyUserGmcp,
                           AbstractParserOutputs &outputs,
                           ParserCommonData &commonData)
@@ -191,7 +195,7 @@ protected:
         , m_mapData{mapData}
         , m_group{group}
         , m_hotkeyManager{hotkeyManager}
-        , m_userActionManager{userActionManager}
+        , m_scriptEngine{scriptEngine}
         , m_proxyUserGmcp{proxyUserGmcp}
         , m_outputs{outputs}
         , m_commonData{commonData}
@@ -270,6 +274,8 @@ protected:
 protected:
     void sendToMud(const QByteArray &msg) = delete;
     void sendToMud(const QString &msg) { m_outputs.onSendToMud(msg); }
+
+    void executeScript(const std::string &script);
 };
 
 class MumeXmlParserBase : public ParserCommon
@@ -283,7 +289,7 @@ protected:
                                MapData &mapData,
                                GroupManagerApi &group,
                                HotkeyManager &hotkeyManager,
-                               UserActionManager &userActionManager,
+                               ScriptEngine &scriptEngine,
                                ProxyUserGmcpApi &proxyUserGmcp,
                                AbstractParserOutputs &outputs,
                                ParserCommonData &parserCommonData)
@@ -292,7 +298,7 @@ protected:
                        mapData,
                        group,
                        hotkeyManager,
-                       userActionManager,
+                       scriptEngine,
                        proxyUserGmcp,
                        outputs,
                        parserCommonData}
@@ -362,7 +368,7 @@ public:
                             ProxyUserGmcpApi &,
                             GroupManagerApi &,
                             HotkeyManager &,
-                            UserActionManager &,
+                            ScriptEngine &,
                             QObject *parent,
                             AbstractParserOutputs &outputs,
                             ParserCommonData &commonData);

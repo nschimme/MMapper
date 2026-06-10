@@ -458,6 +458,8 @@ public:
 
     GroupConfig hotkeys;
     GroupConfig actions;
+    GroupConfig variables;
+    GroupConfig aliases;
 
 public:
     DELETE_CTORS_AND_ASSIGN_OPS(Configuration);

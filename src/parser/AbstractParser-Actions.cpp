@@ -2,10 +2,10 @@
 // Copyright (C) 2019 The MMapper Authors
 // Author: Nils Schimmelmann <nschimme@gmail.com> (Jahara)
 
-#include "../client/UserActionManager.h"
 #include "../clock/mumeclock.h"
 #include "../global/Consts.h"
 #include "Action.h"
+#include "ScriptEngine.h"
 #include "abstractparser.h"
 
 #include <cassert>
@@ -128,9 +128,8 @@ bool MumeXmlParserBase::evalActionMap(StringView line)
         return false;
     }
 
-    m_userActionManager.evaluate(line, [this](const std::string &command) {
-        this->sendToMud(mmqt::toQStringUtf8(command));
-    });
+    m_scriptEngine.setExecuteCallback([this](const std::string &cmd) { this->executeScript(cmd); });
+    m_scriptEngine.processServerFeed(line);
 
     auto &map = m_actionMap;
 

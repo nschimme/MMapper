@@ -67,7 +67,7 @@ MumeXmlParser::MumeXmlParser(MapData &md,
                              GroupManagerApi &group,
                              GameObserver &observer,
                              HotkeyManager &hm,
-                             UserActionManager &uam,
+                             ScriptEngine &uam,
                              QObject *parent,
                              AbstractParserOutputs &outputs,
                              ParserCommonData &parserCommonData)

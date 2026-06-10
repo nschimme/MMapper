@@ -32,6 +32,7 @@
 #include "AbstractParser-Utils.h"
 #include "CommandQueue.h"
 #include "DoorAction.h"
+#include "ScriptEngine.h"
 
 #include <algorithm>
 #include <cassert>
@@ -161,7 +162,7 @@ AbstractParser::AbstractParser(MapData &md,
                                ProxyUserGmcpApi &proxyUserGmcp,
                                GroupManagerApi &group,
                                HotkeyManager &hm,
-                               UserActionManager &uam,
+                               ScriptEngine &uam,
                                QObject *const parent,
                                AbstractParserOutputs &outputs,
                                ParserCommonData &commonData)
@@ -181,6 +182,9 @@ AbstractParser::AbstractParser(MapData &md,
     m_offlineCommandTimer.setSingleShot(true);
 
     initSpecialCommandMap();
+    m_scriptEngine.setLogCallback([this](const std::string &msg) {
+        this->sendToUser(SendToUserSourceEnum::FromMMapper, mmqt::toQStringUtf8(msg) + "\n");
+    });
 }
 
 MumeXmlParserBase::~MumeXmlParserBase() = default;
@@ -1084,4 +1088,9 @@ void MumeXmlParserBase::onForcedPositionChange()
 {
     MMLOG() << __FUNCTION__ << " called.";
     clearQueue();
+}
+
+void ParserCommon::executeScript(const std::string &script)
+{
+    m_outputs.onExecuteCommand(mmqt::toQStringUtf8(script));
 }

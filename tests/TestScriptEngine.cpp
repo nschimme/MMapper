@@ -2,6 +2,7 @@
 // Copyright (C) 2026 The MMapper Authors
 
 #include "../src/parser/ScriptEngine.h"
+
 #include <QtTest>
 
 class TestScriptEngine : public QObject
@@ -14,7 +15,8 @@ private slots:
         ScriptEngine engine;
         engine.setVariable("myvar", "hello");
         QCOMPARE(engine.expandVariables("Testing $myvar"), std::string("Testing hello"));
-        QCOMPARE(engine.expandVariables("Testing $nonexistent"), std::string("Testing $nonexistent"));
+        QCOMPARE(engine.expandVariables("Testing $nonexistent"),
+                 std::string("Testing $nonexistent"));
     }
 
     void testAliasInterception()
@@ -54,7 +56,7 @@ private slots:
         engine.setExecuteCallback([&](const std::string &cmd) { cmds.push_back(cmd); });
 
         engine.executeScript("north; south; #VAR {x} {1}");
-        QCOMPARE(cmds.size(), (size_t)3);
+        QCOMPARE(cmds.size(), (size_t) 3);
         QCOMPARE(cmds[0], std::string("north"));
         QCOMPARE(cmds[1], std::string("south"));
         QCOMPARE(cmds[2], std::string("#VAR {x} {1}"));

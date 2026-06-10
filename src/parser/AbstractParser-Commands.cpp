@@ -25,6 +25,7 @@
 #include "Abbrev.h"
 #include "AbstractParser-Utils.h"
 #include "DoorAction.h"
+#include "ScriptEngine.h"
 #include "abstractparser.h"
 
 #include <algorithm>
@@ -420,7 +421,7 @@ bool AbstractParser::parseUserCommands(const QString &input)
         // If it still starts with prefix, handle as special command
         if (!s.empty() && s[0] == getPrefixChar()) {
             StringView view{s};
-            view.takeFirstLetter();
+            (void) view.takeFirstLetter();
             parseSpecialCommand(view);
             sendPromptToUser();
             return false;
@@ -1137,25 +1138,24 @@ void AbstractParser::initSpecialCommandMap()
             }
         },
         [this](const std::string &name) {
-            const char help[]
-                = "Usage:\n"
-                  "  action                      # Lists all active actions.\n"
-                  "  action <pattern>            # Removes action matching <pattern>.\n"
-                  "  action [-type] <pat> <cmd>  # Defines a new action.\n"
-                  "\n"
-                  "Types:\n"
-                  "  -regex  # Matches <pat> as a regular expression (default).\n"
-                  "  -starts # Matches if MUD output starts with <pat>.\n"
-                  "  -ends   # Matches if MUD output ends with <pat>.\n"
-                  "\n"
-                  "Variables:\n"
-                  "  %0      # The entire matched line.\n"
-                  "  %1..%9  # Captured groups (for regex type).\n"
-                  "\n"
-                  "Examples:\n"
-                  "  action {^You are hungry.$} eat bread\n"
-                  "  action -starts {Tick!} cast 'armor'\n"
-                  "  action {^(\\w+) has arrived.$} tell %1 welcome!";
+            const char help[] = "Usage:\n"
+                                "  action                      # Lists all active actions.\n"
+                                "  action <pattern>            # Removes action matching <pattern>.\n"
+                                "  action [-type] <pat> <cmd>  # Defines a new action.\n"
+                                "\n"
+                                "Types:\n"
+                                "  -regex  # Matches <pat> as a regular expression (default).\n"
+                                "  -starts # Matches if MUD output starts with <pat>.\n"
+                                "  -ends   # Matches if MUD output ends with <pat>.\n"
+                                "\n"
+                                "Variables:\n"
+                                "  %0      # The entire matched line.\n"
+                                "  %1..%9  # Captured groups (for regex type).\n"
+                                "\n"
+                                "Examples:\n"
+                                "  action {^You are hungry.$} eat bread\n"
+                                "  action -starts {Tick!} cast 'armor'\n"
+                                "  action {^(\\w+) has arrived.$} tell %1 welcome!";
 
             sendToUser(SendToUserSourceEnum::FromMMapper,
                        QString("Help for %1%2:\n"

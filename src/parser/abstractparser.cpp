@@ -6,6 +6,7 @@
 
 #include "abstractparser.h"
 
+#include "ScriptEngine.h"
 #include "../clock/mumeclock.h"
 #include "../global/Consts.h"
 #include "../global/LineUtils.h"
@@ -1087,4 +1088,9 @@ void MumeXmlParserBase::onForcedPositionChange()
 {
     MMLOG() << __FUNCTION__ << " called.";
     clearQueue();
+}
+
+void ParserCommon::executeScript(const std::string &script)
+{
+    m_outputs.onExecuteCommand(mmqt::toQStringUtf8(script));
 }

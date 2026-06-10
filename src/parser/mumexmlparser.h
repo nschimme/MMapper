@@ -84,7 +84,7 @@ public:
                            GroupManagerApi &,
                            GameObserver &,
                            HotkeyManager &,
-                   ScriptEngine &,
+                           ScriptEngine &,
                            QObject *parent,
                            AbstractParserOutputs &outputs,
                            ParserCommonData &parserCommonData);

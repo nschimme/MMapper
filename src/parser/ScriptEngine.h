@@ -99,6 +99,7 @@ private:
 
 public:
     static std::string wildcardToRegex(const std::string &wildcard);
+
 private:
     std::string substitute(const std::string &command, const std::vector<std::string> &captures);
 

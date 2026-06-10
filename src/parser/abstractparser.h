@@ -98,6 +98,9 @@ public:
     // these are connected to MainWindow
     void onSetMode(const MapModeEnum mode) { virt_onSetMode(mode); }
 
+    // execute a command as if typed by the user
+    void onExecuteCommand(const QString &cmd) { virt_onExecuteCommand(cmd); }
+
 private:
     // sent to MudTelnet
     virtual void virt_onSendToMud(const QString &) = 0;
@@ -124,6 +127,7 @@ private:
     // for commands that set the mode (emulation, play, map)
     // these are connected to MainWindow
     virtual void virt_onSetMode(MapModeEnum) = 0;
+    virtual void virt_onExecuteCommand(const QString &) = 0;
 };
 
 struct NODISCARD ParserCommonData final
@@ -270,6 +274,8 @@ protected:
 protected:
     void sendToMud(const QByteArray &msg) = delete;
     void sendToMud(const QString &msg) { m_outputs.onSendToMud(msg); }
+
+    void executeScript(const std::string &script);
 };
 
 class MumeXmlParserBase : public ParserCommon

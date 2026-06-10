@@ -8,6 +8,7 @@
 #include "../global/logging.h"
 
 #include <algorithm>
+#include <cmath>
 #include <regex>
 #include <sstream>
 
@@ -432,10 +433,10 @@ bool ScriptEngine::evaluateExpression(const std::string &expr)
             double lVal = std::stod(left);
             double rVal = std::stod(right);
             if (op == "==") {
-                return lVal == rVal;
+                return std::abs(lVal - rVal) < 1e-9;
             }
             if (op == "!=") {
-                return lVal != rVal;
+                return std::abs(lVal - rVal) >= 1e-9;
             }
             if (op == ">=") {
                 return lVal >= rVal;

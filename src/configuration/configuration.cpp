@@ -197,6 +197,8 @@ ConstString GRP_GENERAL = "General";
 ConstString GRP_GROUP_MANAGER = "Group Manager";
 ConstString GRP_HOTKEYS = "Hotkeys";
 ConstString GRP_ACTIONS = "Actions";
+ConstString GRP_VARIABLES = "Variables";
+ConstString GRP_ALIASES = "Aliases";
 ConstString GRP_INFOMARKS_DIALOG = "InfoMarks Dialog";
 ConstString GRP_INTEGRATED_MUD_CLIENT = "Integrated Mud Client";
 ConstString GRP_MUME_CLIENT_PROTOCOL = "Mume client protocol";
@@ -210,6 +212,8 @@ ConstString GRP_ROOMEDIT_DIALOG = "RoomEdit Dialog";
 Configuration::Configuration()
     : hotkeys(GRP_HOTKEYS)
     , actions(GRP_ACTIONS)
+    , variables(GRP_VARIABLES)
+    , aliases(GRP_ALIASES)
 {
     read(); // read the settings or set them to the default values
 }
@@ -500,6 +504,8 @@ NODISCARD static uint16_t sanitizeUint16(const int input, const uint16_t default
         GROUP_CALLBACK(callback, GRP_FINDROOMS_DIALOG, findRoomsDialog); \
         GROUP_CALLBACK(callback, GRP_HOTKEYS, hotkeys); \
         GROUP_CALLBACK(callback, GRP_ACTIONS, actions); \
+        GROUP_CALLBACK(callback, GRP_VARIABLES, variables); \
+        GROUP_CALLBACK(callback, GRP_ALIASES, aliases); \
     } while (false)
 
 void Configuration::read()
@@ -532,6 +538,8 @@ void Configuration::readFrom(QSettings &conf)
 
         hotkeys.resetToDefault();
         actions.resetToDefault();
+        variables.resetToDefault();
+        aliases.resetToDefault();
     }
 
     assert(canvas.backgroundColor == colorSettings.BACKGROUND);

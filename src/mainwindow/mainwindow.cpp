@@ -37,6 +37,7 @@
 #include "../viewers/TopLevelWindows.h"
 #include "AudioVolumeSlider.h"
 #include "MapZoomSlider.h"
+#include "../parser/ScriptEngine.h"
 #include "UpdateDialog.h"
 #include "aboutdialog.h"
 #include "findroomsdlg.h"
@@ -212,6 +213,7 @@ MainWindow::MainWindow()
     m_dockDialogDescription = new QDockWidget(tr("Description Panel"), this);
 
     m_hotkeyManager = std::make_unique<HotkeyManager>();
+    m_scriptEngine = std::make_unique<ScriptEngine>(this);
     m_dockDialogDescription->setObjectName("DockWidgetDescription");
     m_dockDialogDescription->setAllowedAreas(Qt::AllDockWidgetAreas);
     m_dockDialogDescription->setFeatures(QDockWidget::DockWidgetMovable

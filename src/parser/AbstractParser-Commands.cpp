@@ -56,6 +56,9 @@ const Abbrev cmdRemoveDoorNames{"remove-secret-door-names"};
 const Abbrev cmdRoom{"room", 2};
 const Abbrev cmdSearch{"search", 3};
 const Abbrev cmdSet{"set", 2};
+const Abbrev cmdVar{"var", 3};
+const Abbrev cmdAli{"ali", 3};
+const Abbrev cmdIf{"if", 2};
 const Abbrev cmdTime{"time", 2};
 const Abbrev cmdTimer{"timer", 5};
 const Abbrev cmdVote{"vote", 2};
@@ -411,9 +414,23 @@ NODISCARD static bool isCommand(const std::string &str, const CommandEnum cmd)
 
 bool AbstractParser::parseUserCommands(const QString &input)
 {
+    std::string s = mmqt::toStdStringUtf8(input);
+    if (m_scriptEngine.processUserInput(s)) {
+        // Intercepted or modified by alias/variables
+        // If it still starts with prefix, handle as special command
+        if (!s.empty() && s[0] == getPrefixChar()) {
+            StringView view{s};
+            view.takeFirstLetter();
+            parseSpecialCommand(view);
+            sendPromptToUser();
+            return false;
+        }
+        return parseSimpleCommand(mmqt::toQStringUtf8(s));
+    }
+
     if (input.startsWith(getPrefixChar())) {
-        std::string s = mmqt::toStdStringUtf8(input);
-        auto view = StringView{s}.trim();
+        StringView view{s};
+        view.trim();
         if (view.isEmpty() || view.takeFirstLetter() != getPrefixChar()) {
             sendToUser(SendToUserSourceEnum::FromMMapper, "Internal error. Sorry.\n");
         } else {
@@ -1106,8 +1123,18 @@ void AbstractParser::initSpecialCommandMap()
     add(
         cmdAction,
         [this](const std::vector<StringView> & /*s*/, StringView rest) {
-            parseUserAction(rest);
-            return true;
+            auto args = m_scriptEngine.parseArguments(rest);
+            if (args.empty()) {
+                // List actions
+                auto actions = m_scriptEngine.getAllActions(); // TODO: Add to ScriptEngine
+                return true;
+            } else if (args.size() == 1) {
+                m_scriptEngine.removeAction(args[0]);
+                return true;
+            } else {
+                m_scriptEngine.setAction(args[0], args[1]);
+                return true;
+            }
         },
         [this](const std::string &name) {
             const char help[]
@@ -1138,6 +1165,50 @@ void AbstractParser::initSpecialCommandMap()
                            .arg(mmqt::toQStringUtf8(name))
                            .arg(mmqt::toQStringUtf8(help)));
         });
+
+    /* var command */
+    add(
+        cmdVar,
+        [this](const std::vector<StringView> & /*s*/, StringView rest) {
+            auto args = m_scriptEngine.parseArguments(rest);
+            if (args.size() >= 2) {
+                m_scriptEngine.setVariable(args[0], args[1]);
+            } else if (args.size() == 1) {
+                m_scriptEngine.removeVariable(args[0]);
+            }
+            return true;
+        },
+        makeSimpleHelp("Sets or removes a variable."));
+
+    /* ali command */
+    add(
+        cmdAli,
+        [this](const std::vector<StringView> & /*s*/, StringView rest) {
+            auto args = m_scriptEngine.parseArguments(rest);
+            if (args.size() >= 2) {
+                m_scriptEngine.setAlias(args[0], args[1]);
+            } else if (args.size() == 1) {
+                m_scriptEngine.removeAlias(args[0]);
+            }
+            return true;
+        },
+        makeSimpleHelp("Sets or removes an alias."));
+
+    /* if command */
+    add(
+        cmdIf,
+        [this](const std::vector<StringView> & /*s*/, StringView rest) {
+            auto args = m_scriptEngine.parseArguments(rest);
+            if (args.size() >= 2) {
+                if (m_scriptEngine.evaluateExpression(args[0])) {
+                    m_scriptEngine.executeScript(args[1]);
+                } else if (args.size() >= 3) {
+                    m_scriptEngine.executeScript(args[2]);
+                }
+            }
+            return true;
+        },
+        makeSimpleHelp("Conditional execution."));
 
     /* timers command */
     add(

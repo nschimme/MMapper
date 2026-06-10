@@ -161,7 +161,7 @@ AbstractParser::AbstractParser(MapData &md,
                                ProxyUserGmcpApi &proxyUserGmcp,
                                GroupManagerApi &group,
                                HotkeyManager &hm,
-                               UserActionManager &uam,
+                               ScriptEngine &uam,
                                QObject *const parent,
                                AbstractParserOutputs &outputs,
                                ParserCommonData &commonData)
@@ -181,6 +181,9 @@ AbstractParser::AbstractParser(MapData &md,
     m_offlineCommandTimer.setSingleShot(true);
 
     initSpecialCommandMap();
+    m_scriptEngine.setLogCallback([this](const std::string &msg) {
+        this->sendToUser(SendToUserSourceEnum::FromMMapper, mmqt::toQStringUtf8(msg) + "\n");
+    });
 }
 
 MumeXmlParserBase::~MumeXmlParserBase() = default;

@@ -128,9 +128,10 @@ bool MumeXmlParserBase::evalActionMap(StringView line)
         return false;
     }
 
-    m_userActionManager.evaluate(line, [this](const std::string &command) {
-        this->sendToMud(mmqt::toQStringUtf8(command));
+    m_scriptEngine.setExecuteCallback([this](const std::string &cmd) {
+        this->parseUserCommands(mmqt::toQStringUtf8(cmd));
     });
+    m_scriptEngine.processServerFeed(line);
 
     auto &map = m_actionMap;
 

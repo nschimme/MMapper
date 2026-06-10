@@ -7,7 +7,7 @@
 #include "proxy.h"
 
 #include "../client/HotkeyManager.h"
-#include "../client/UserActionManager.h"
+#include "../parser/ScriptEngine.h"
 #include "../clock/mumeclock.h"
 #include "../configuration/PasswordConfig.h"
 #include "../configuration/configuration.h"
@@ -725,7 +725,7 @@ void Proxy::allocParser()
                                                          m_groupManager.getGroupManagerApi(),
                                                          m_gameObserver,
                                                          m_mainWindow.getHotkeyManager(),
-                                                         m_mainWindow.getUserActionManager(),
+                                                         m_mainWindow.getScriptEngine(),
                                                          this,
                                                          deref(out),
                                                          deref(parserCommon));
@@ -735,7 +735,7 @@ void Proxy::allocParser()
                                                             deref(gmcp),
                                                             m_groupManager.getGroupManagerApi(),
                                                             m_mainWindow.getHotkeyManager(),
-                                                            m_mainWindow.getUserActionManager(),
+                                                            m_mainWindow.getScriptEngine(),
                                                             this,
                                                             deref(out),
                                                             deref(parserCommon));

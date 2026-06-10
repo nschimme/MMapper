@@ -46,7 +46,7 @@
 
 class Coordinate;
 class HotkeyManager;
-class UserActionManager;
+class ScriptEngine;
 class MapData;
 class MumeClock;
 class RoomFieldVariant;
@@ -169,7 +169,7 @@ protected:
 protected:
     GroupManagerApi &m_group;
     HotkeyManager &m_hotkeyManager;
-    UserActionManager &m_userActionManager;
+    ScriptEngine &m_scriptEngine;
     ProxyUserGmcpApi &m_proxyUserGmcp;
     AbstractParserOutputs &m_outputs;
 
@@ -182,7 +182,7 @@ protected:
                           MapData &mapData,
                           GroupManagerApi &group,
                           HotkeyManager &hotkeyManager,
-                          UserActionManager &userActionManager,
+                          ScriptEngine &scriptEngine,
                           ProxyUserGmcpApi &proxyUserGmcp,
                           AbstractParserOutputs &outputs,
                           ParserCommonData &commonData)
@@ -191,7 +191,7 @@ protected:
         , m_mapData{mapData}
         , m_group{group}
         , m_hotkeyManager{hotkeyManager}
-        , m_userActionManager{userActionManager}
+        , m_scriptEngine{scriptEngine}
         , m_proxyUserGmcp{proxyUserGmcp}
         , m_outputs{outputs}
         , m_commonData{commonData}
@@ -283,7 +283,7 @@ protected:
                                MapData &mapData,
                                GroupManagerApi &group,
                                HotkeyManager &hotkeyManager,
-                               UserActionManager &userActionManager,
+                               ScriptEngine &scriptEngine,
                                ProxyUserGmcpApi &proxyUserGmcp,
                                AbstractParserOutputs &outputs,
                                ParserCommonData &parserCommonData)
@@ -292,7 +292,7 @@ protected:
                        mapData,
                        group,
                        hotkeyManager,
-                       userActionManager,
+                       scriptEngine,
                        proxyUserGmcp,
                        outputs,
                        parserCommonData}
@@ -362,7 +362,7 @@ public:
                             ProxyUserGmcpApi &,
                             GroupManagerApi &,
                             HotkeyManager &,
-                            UserActionManager &,
+                            ScriptEngine &,
                             QObject *parent,
                             AbstractParserOutputs &outputs,
                             ParserCommonData &commonData);

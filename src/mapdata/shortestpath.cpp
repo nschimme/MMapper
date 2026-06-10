@@ -17,7 +17,6 @@
 
 #include <limits>
 #include <memory>
-#include <queue>
 #include <type_traits>
 #include <unordered_map>
 #include <utility>
@@ -25,6 +24,7 @@
 #include <QBasicMutex>
 #include <QSet>
 #include <QVector>
+#include <queue>
 
 // Movement costs per terrain type.
 // Same order as the RoomTerrainEnum enum.

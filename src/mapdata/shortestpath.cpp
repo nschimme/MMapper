@@ -17,6 +17,7 @@
 
 #include <limits>
 #include <memory>
+#include <queue>
 #include <type_traits>
 #include <unordered_map>
 #include <utility>
@@ -24,7 +25,6 @@
 #include <QBasicMutex>
 #include <QSet>
 #include <QVector>
-#include <queue>
 
 // Movement costs per terrain type.
 // Same order as the RoomTerrainEnum enum.
@@ -136,8 +136,9 @@ void MapData::shortestPathSearch(const RoomHandle &origin,
     future_paths.emplace(0.0, 0);
     while (!future_paths.empty()) {
         const int spindex = utils::pop_top(future_paths).second;
-        const auto thisr = sp_nodes[spindex].r;
-        const auto thisdist = sp_nodes[spindex].dist;
+        const auto &curr_node = sp_nodes[spindex];
+        const auto thisr = curr_node.r;
+        const auto thisdist = curr_node.dist;
         auto room_id = thisr.getId();
         if (visited.contains(room_id)) {
             continue;
@@ -186,7 +187,7 @@ void MapData::shortestPathSearch(const RoomHandle &origin,
 
             const double length = getLength(e, thisr, nextr);
             sp_nodes.push_back(SPNode{nextr, spindex, thisdist + length, dir});
-            future_paths.emplace(-(thisdist + length), sp_nodes.size() - 1);
+            future_paths.emplace(-(thisdist + length), static_cast<int>(sp_nodes.size() - 1));
         }
     }
 }
@@ -248,7 +249,7 @@ void MapData::shortestPathSearchPointToPoint(const RoomHandle &origin,
             if (it == visited_g.end() || new_g < it->second) {
                 visited_g[nextrId] = new_g;
                 const double h = admissible_heuristic(nextr.getPosition(), targetPos);
-                const int nextIndex = sp_nodes.size();
+                const int nextIndex = static_cast<int>(sp_nodes.size());
                 sp_nodes.push_back(SPNode{nextr, spindex, new_g, dir});
                 open_set.emplace(-(new_g + h), nextIndex);
             }
@@ -337,10 +338,18 @@ void MapData::shortestPathSearchToSet(const RoomHandle &origin,
             if (it == visited_g.end() || new_g < it->second) {
                 visited_g[nextrId] = new_g;
                 const double h = multi_target_heuristic(nextr.getPosition());
-                const int nextIndex = sp_nodes.size();
+                const int nextIndex = static_cast<int>(sp_nodes.size());
                 sp_nodes.push_back(SPNode{nextr, spindex, new_g, dir});
                 open_set.emplace(-(new_g + h), nextIndex);
             }
         }
     }
 }
+
+namespace test {
+void testShortestPath()
+{
+    // Basic coverage test for A* and set-based search
+    // (This is a skeleton for coverage, real logic would need a Map instance)
+}
+} // namespace test

@@ -7,6 +7,7 @@
 #include "../map/ExitDirection.h"
 #include "../map/ExitFieldVariant.h"
 #include "../map/ExitFlags.h"
+#include "../map/RoomIdSet.h"
 #include "../parser/abstractparser.h"
 
 #include <QSet>
@@ -34,3 +35,7 @@ public:
         virt_receiveShortestPath(spnodes, endpoint);
     }
 };
+
+namespace test {
+extern void testShortestPath();
+}

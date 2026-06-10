@@ -121,6 +121,11 @@ public:
                                                const RoomHandle &target,
                                                ShortestPathRecipient &recipient);
 
+    static void shortestPathSearchToSet(const RoomHandle &origin,
+                                        const RoomIdSet &targets,
+                                        ShortestPathRecipient &recipient,
+                                        int max_hits = -1);
+
     // Used in Console Commands
     void removeDoorNames(ProgressCounter &pc);
     void generateBaseMap(ProgressCounter &pc);

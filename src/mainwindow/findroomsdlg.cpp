@@ -229,7 +229,8 @@ void FindRoomsDlg::slot_itemDoubleClicked(QTreeWidgetItem *const inputItem)
 void FindRoomsDlg::adjustResultTable()
 {
     resultTable->setColumnCount(3);
-    resultTable->setHeaderLabels(QStringList() << tr("Room ID") << tr("Room Name") << tr("Distance"));
+    resultTable->setHeaderLabels(QStringList()
+                                 << tr("Room ID") << tr("Room Name") << tr("Distance"));
     resultTable->header()->setSectionResizeMode(QHeaderView::ResizeToContents);
     resultTable->setRootIsDecorated(false);
     resultTable->setAlternatingRowColors(true);

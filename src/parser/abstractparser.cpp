@@ -440,7 +440,12 @@ void AbstractParser::dirsCommand(const RoomFilter &f)
 {
     ShortestPathEmitter sp_emitter(*this);
     if (const auto r = m_mapData.findRoomHandle(getTailPosition())) {
-        MapData::shortestPathSearch(r, sp_emitter, f, 10, 0);
+        const RoomIdSet targets = m_mapData.genericFind(f);
+        if (targets.size() > 0 && targets.size() < 500) {
+            MapData::shortestPathSearchToSet(r, targets, sp_emitter, 10);
+        } else {
+            MapData::shortestPathSearch(r, sp_emitter, f, 10, 0);
+        }
     }
 }
 

@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-// Copyright (C) 2024 The MMapper Authors
+// Copyright (C) 2019 The MMapper Authors
+// Author: 'Elval' <ethorondil@gmail.com> (Elval)
 
 #include "shortestpath.h"
 
@@ -16,14 +17,14 @@
 
 #include <limits>
 #include <memory>
+#include <queue>
 #include <type_traits>
+#include <unordered_map>
 #include <utility>
 
 #include <QBasicMutex>
 #include <QSet>
 #include <QVector>
-#include <queue>
-#include <unordered_map>
 
 // Movement costs per terrain type.
 // Same order as the RoomTerrainEnum enum.
@@ -96,6 +97,14 @@ NODISCARD static double getLength(const RawExit &e, const RoomHandle &curr, cons
         cost += 1000.0;
     }
     return cost;
+}
+
+NODISCARD static double admissible_heuristic(const Coordinate &a, const Coordinate &b)
+{
+    // The minimum possible cost for an edge is 0.65 (ROAD in INDOORS/CITY/TUNNEL/CAVERN).
+    // Manhattan distance is used because movement is restricted to N, S, E, W, U, D.
+    const double manhattan = std::abs(a.x - b.x) + std::abs(a.y - b.y) + std::abs(a.z - b.z);
+    return manhattan * 0.65;
 }
 
 void MapData::shortestPathSearch(const RoomHandle &origin,
@@ -182,14 +191,6 @@ void MapData::shortestPathSearch(const RoomHandle &origin,
     }
 }
 
-NODISCARD static double euclidean_distance(const Coordinate &a, const Coordinate &b)
-{
-    const double dx = a.x - b.x;
-    const double dy = a.y - b.y;
-    const double dz = (a.z - b.z) * 4.0; // Vertical distance is often more expensive in MUDs
-    return std::sqrt(dx * dx + dy * dy + dz * dz);
-}
-
 void MapData::shortestPathSearchPointToPoint(const RoomHandle &origin,
                                              const RoomHandle &target,
                                              ShortestPathRecipient &recipient)
@@ -210,7 +211,7 @@ void MapData::shortestPathSearchPointToPoint(const RoomHandle &origin,
 
     sp_nodes.push_back(SPNode{origin, -1, 0, ExitDirEnum::UNKNOWN});
     visited_g[origin.getId()] = 0.0;
-    open_set.emplace(-euclidean_distance(origin.getPosition(), targetPos), 0);
+    open_set.emplace(-admissible_heuristic(origin.getPosition(), targetPos), 0);
 
     while (!open_set.empty()) {
         const int spindex = utils::pop_top(open_set).second;
@@ -246,7 +247,96 @@ void MapData::shortestPathSearchPointToPoint(const RoomHandle &origin,
             auto it = visited_g.find(nextrId);
             if (it == visited_g.end() || new_g < it->second) {
                 visited_g[nextrId] = new_g;
-                const double h = euclidean_distance(nextr.getPosition(), targetPos);
+                const double h = admissible_heuristic(nextr.getPosition(), targetPos);
+                const int nextIndex = sp_nodes.size();
+                sp_nodes.push_back(SPNode{nextr, spindex, new_g, dir});
+                open_set.emplace(-(new_g + h), nextIndex);
+            }
+        }
+    }
+}
+
+void MapData::shortestPathSearchToSet(const RoomHandle &origin,
+                                      const RoomIdSet &targets,
+                                      ShortestPathRecipient &recipient,
+                                      int max_hits)
+{
+    if (targets.empty()) {
+        return;
+    }
+
+    if (max_hits <= 0) {
+        max_hits = std::numeric_limits<int>::max();
+    }
+
+    const Map &map = origin.getMap();
+
+    // Pre-calculate target positions for heuristic
+    std::vector<Coordinate> targetPositions;
+    targetPositions.reserve(targets.size());
+    for (const RoomId tid : targets) {
+        if (const auto tr = map.findRoomHandle(tid)) {
+            targetPositions.push_back(tr.getPosition());
+        }
+    }
+
+    if (targetPositions.empty()) {
+        return;
+    }
+
+    auto multi_target_heuristic = [&](const Coordinate &pos) {
+        double min_h = std::numeric_limits<double>::max();
+        for (const auto &tpos : targetPositions) {
+            min_h = std::min(min_h, admissible_heuristic(pos, tpos));
+        }
+        return min_h;
+    };
+
+    QVector<SPNode> sp_nodes;
+    std::unordered_map<RoomId, double> visited_g;
+    std::priority_queue<std::pair<double, int>> open_set;
+
+    sp_nodes.push_back(SPNode{origin, -1, 0, ExitDirEnum::UNKNOWN});
+    visited_g[origin.getId()] = 0.0;
+    open_set.emplace(-multi_target_heuristic(origin.getPosition()), 0);
+
+    while (!open_set.empty()) {
+        const int spindex = utils::pop_top(open_set).second;
+        const auto &currNode = sp_nodes[spindex];
+        const auto thisr = currNode.r;
+        const auto thisdist = currNode.dist;
+        const auto room_id = thisr.getId();
+
+        if (thisdist > visited_g[room_id]) {
+            continue;
+        }
+
+        if (targets.contains(room_id)) {
+            recipient.receiveShortestPath(sp_nodes, spindex);
+            if (--max_hits == 0) {
+                return;
+            }
+        }
+
+        for (const ExitDirEnum dir : ALL_EXITS7) {
+            const auto &e = thisr.getExit(dir);
+            if (!e.outIsUnique() || !e.exitIsExit()) {
+                continue;
+            }
+
+            const RoomId nextrId = e.getOutgoingSet().first();
+            const auto &nextr = map.getRoomHandle(nextrId);
+            if (!nextr) {
+                continue;
+            }
+
+            const double length = getLength(e, thisr, nextr);
+            const double new_g = thisdist + length;
+
+            auto it = visited_g.find(nextrId);
+            if (it == visited_g.end() || new_g < it->second) {
+                visited_g[nextrId] = new_g;
+                const double h = multi_target_heuristic(nextr.getPosition());
                 const int nextIndex = sp_nodes.size();
                 sp_nodes.push_back(SPNode{nextr, spindex, new_g, dir});
                 open_set.emplace(-(new_g + h), nextIndex);

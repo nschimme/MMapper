@@ -17,6 +17,7 @@
 #include <QtCore>
 #include <QtGlobal>
 
+class AbstractParser;
 class ConnectionListener;
 class MapCanvas;
 class MapData;
@@ -80,6 +81,7 @@ public:
 
 public:
     void listen();
+    NODISCARD AbstractParser *getUserParser() const;
 
 private:
     void log(const QString &msg) { emit sig_log("Listener", msg); }

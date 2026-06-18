@@ -9,7 +9,7 @@
 #include "../global/progresscounter.h"
 #include "../global/string_view_utils.h"
 #include "../global/utils.h"
-#include "../mainwindow/UpdateDialog.h"
+#include "../global/CompareVersion.h"
 #include "../map/DoorFlags.h"
 #include "../map/ExitDirection.h"
 #include "../map/ExitFlags.h"

@@ -59,6 +59,7 @@ private:
 signals:
     void sig_center(glm::vec2 worldPos);
     void sig_newRoomSelection(const SigRoomSelection &);
+    void sig_getDirections(RoomId id);
     void sig_editSelection();
     void sig_log(const QString &, const QString &);
 

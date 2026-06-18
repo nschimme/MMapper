@@ -76,7 +76,6 @@ add_test(NAME TestClock COMMAND TestClock)
 
 # Expandora
 set(expandoracommon_SRCS
-    ../src/parser/Abbrev.cpp
     )
 set(TestExpandoraCommon_SRCS testexpandoracommon.cpp)
 add_executable(TestExpandoraCommon ${TestExpandoraCommon_SRCS} ${expandoracommon_SRCS})

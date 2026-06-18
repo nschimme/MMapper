@@ -3,8 +3,8 @@
 // Copyright (C) 2019 The MMapper Authors
 // Author: 'Elval' <ethorondil@gmail.com> (Elval)
 
+#include "../map-utils/CommandNames.h"
 #include "../map/RawRoom.h"
-#include "../parser/AbstractParser-Commands.h"
 
 #include <cassert>
 #include <optional>

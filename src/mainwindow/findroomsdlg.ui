@@ -245,6 +245,19 @@
        </widget>
       </item>
       <item>
+       <widget class="QPushButton" name="directionsButton">
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Maximum" vsizetype="Fixed">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
+        <property name="text">
+         <string>&amp;Directions</string>
+        </property>
+       </widget>
+      </item>
+      <item>
        <widget class="QPushButton" name="editButton">
         <property name="sizePolicy">
          <sizepolicy hsizetype="Maximum" vsizetype="Fixed">
@@ -278,6 +291,7 @@
   <tabstop>regexCheckBox</tabstop>
   <tabstop>resultTable</tabstop>
   <tabstop>selectButton</tabstop>
+  <tabstop>directionsButton</tabstop>
   <tabstop>editButton</tabstop>
  </tabstops>
  <resources>

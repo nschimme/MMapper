@@ -593,6 +593,13 @@ void MainWindow::wireConnections()
             &FindRoomsDlg::sig_editSelection,
             this,
             &MainWindow::slot_onEditRoomSelection);
+    connect(m_findRoomsDlg, &FindRoomsDlg::sig_getDirections, this, [this](RoomId id) {
+        if (const auto r = m_mapData->findRoomHandle(id)) {
+            if (auto parser = m_listener->getUserParser()) {
+                parser->doGetDirectionsToRoom(r);
+            }
+        }
+    });
 }
 
 void MainWindow::slot_log(const QString &mod, const QString &message)
@@ -900,6 +907,10 @@ void MainWindow::createActions()
     createRoomAct->setStatusTip(tr("Create a new room under the cursor"));
     connect(createRoomAct, &QAction::triggered, this, &MainWindow::slot_onCreateRoom);
 
+    directionsAct = new QAction(QIcon(":/icons/goto.png"), tr("&Directions"), this);
+    directionsAct->setStatusTip(tr("Show directions to selected room(s)"));
+    connect(directionsAct, &QAction::triggered, this, &MainWindow::slot_onDirections);
+
     editRoomSelectionAct = new QAction(QIcon(":/icons/roomedit.png"),
                                        tr("Edit Selected Rooms"),
                                        this);
@@ -1018,6 +1029,7 @@ void MainWindow::createActions()
 
     selectedRoomActGroup = new QActionGroup(this);
     selectedRoomActGroup->setExclusive(false);
+    selectedRoomActGroup->addAction(directionsAct);
     selectedRoomActGroup->addAction(editRoomSelectionAct);
     selectedRoomActGroup->addAction(deleteRoomSelectionAct);
     selectedRoomActGroup->addAction(moveUpRoomSelectionAct);
@@ -1338,6 +1350,8 @@ void MainWindow::slot_showContextMenu(const QPoint &pos)
             if (m_roomSelection->empty()) {
                 contextMenu.addAction(createRoomAct);
             } else {
+                contextMenu.addAction(directionsAct);
+                contextMenu.addSeparator();
                 contextMenu.addAction(editRoomSelectionAct);
                 contextMenu.addAction(moveUpRoomSelectionAct);
                 contextMenu.addAction(moveDownRoomSelectionAct);
@@ -2018,6 +2032,25 @@ void MainWindow::slot_onDeleteRoomSelection()
         return Change{room_change_types::RemoveRoom{room.getId()}};
     });
     getCanvas()->slot_clearRoomSelection();
+}
+
+void MainWindow::slot_onDirections()
+{
+    if (m_roomSelection == nullptr) {
+        return;
+    }
+
+    auto &mapData = deref(m_mapData);
+    auto &sel = deref(m_roomSelection);
+    sel.removeMissing(mapData);
+
+    for (const RoomId id : sel) {
+        if (const auto r = m_mapData->findRoomHandle(id)) {
+            if (auto parser = m_listener->getUserParser()) {
+                parser->doGetDirectionsToRoom(r);
+            }
+        }
+    }
 }
 
 void MainWindow::slot_onDeleteConnectionSelection()

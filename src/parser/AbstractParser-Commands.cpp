@@ -23,7 +23,7 @@
 #include "../viewers/AnsiViewWindow.h"
 #include "../viewers/LaunchAsyncViewer.h"
 #include "../viewers/TopLevelWindows.h"
-#include "Abbrev.h"
+#include "../global/Abbrev.h"
 #include "AbstractParser-Utils.h"
 #include "DoorAction.h"
 #include "abstractparser.h"

@@ -7,6 +7,7 @@
 #include "abstractparser.h"
 
 #include "../clock/mumeclock.h"
+#include "../global/Abbrev.h"
 #include "../global/Consts.h"
 #include "../global/LineUtils.h"
 #include "../global/RAII.h"
@@ -27,7 +28,6 @@
 #include "../syntax/Accept.h"
 #include "../syntax/SyntaxArgs.h"
 #include "../syntax/TreeParser.h"
-#include "Abbrev.h"
 #include "AbstractParser-Commands.h"
 #include "AbstractParser-Utils.h"
 #include "CommandQueue.h"

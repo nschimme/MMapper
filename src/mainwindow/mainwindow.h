@@ -224,6 +224,7 @@ private:
     } infomarkActions{};
 
     QAction *createRoomAct = nullptr;
+    QAction *directionsAct = nullptr;
     QAction *editRoomSelectionAct = nullptr;
     QAction *deleteRoomSelectionAct = nullptr;
     QAction *deleteConnectionSelectionAct = nullptr;
@@ -429,6 +430,7 @@ public slots:
     void slot_onEditInfomarkSelection();
     void slot_onDeleteInfomarkSelection();
     void slot_onDeleteRoomSelection();
+    void slot_onDirections();
     void slot_onDeleteConnectionSelection();
     NODISCARD bool slot_moveRoomSelection(Coordinate offset);
     void slot_onMoveUpRoomSelection();

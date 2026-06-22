@@ -5,6 +5,10 @@ uniform ivec4 uViewport; // x, y, width, height
 layout(location = 0) in vec3 aVert1;
 layout(location = 1) in vec3 aVert2;
 
+out vec2 vUv;
+out float vLineLength;
+out float vWidth;
+
 void main()
 {
     vec4 clip1 = uMVP * vec4(aVert1, 1.0);
@@ -25,14 +29,36 @@ void main()
     }
     vec2 normal = vec2(-dir.y, dir.x);
 
-    vec2 offset = normal * uLineWidth * 0.5;
+    float feather = 1.0;
+    float halfWidth = uLineWidth * 0.5;
+    float totalHalfWidth = halfWidth + feather;
+
+    vLineLength = len;
+    vWidth = uLineWidth;
 
     vec2 pos;
     float z;
-    if (gl_VertexID == 0) { pos = screen1 + offset; z = clip1.z / clip1.w; }
-    else if (gl_VertexID == 1) { pos = screen1 - offset; z = clip1.z / clip1.w; }
-    else if (gl_VertexID == 2) { pos = screen2 - offset; z = clip2.z / clip2.w; }
-    else { pos = screen2 + offset; z = clip2.z / clip2.w; }
+
+    vec2 offsetL = dir * totalHalfWidth;
+    vec2 offsetP = normal * totalHalfWidth;
+
+    if (gl_VertexID == 0) {
+        pos = screen1 - offsetL + offsetP;
+        z = clip1.z / clip1.w;
+        vUv = vec2(-totalHalfWidth, totalHalfWidth);
+    } else if (gl_VertexID == 1) {
+        pos = screen1 - offsetL - offsetP;
+        z = clip1.z / clip1.w;
+        vUv = vec2(-totalHalfWidth, -totalHalfWidth);
+    } else if (gl_VertexID == 2) {
+        pos = screen2 + offsetL - offsetP;
+        z = clip2.z / clip2.w;
+        vUv = vec2(len + totalHalfWidth, -totalHalfWidth);
+    } else {
+        pos = screen2 + offsetL + offsetP;
+        z = clip2.z / clip2.w;
+        vUv = vec2(len + totalHalfWidth, totalHalfWidth);
+    }
 
     vec2 final_ndc = (pos / vec2(uViewport.zw)) * 2.0 - 1.0;
     gl_Position = vec4(final_ndc, z, 1.0);

@@ -25,6 +25,13 @@
 #include <QOpenGLTexture>
 #include <qopengl.h>
 
+#ifndef GL_QUADS
+#define GL_QUADS 0x0007
+#endif
+#ifndef GL_POINT_SPRITE
+#define GL_POINT_SPRITE 0x8861
+#endif
+
 struct NODISCARD Viewport final
 {
     glm::ivec2 offset{};

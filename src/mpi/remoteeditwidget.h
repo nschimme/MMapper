@@ -182,6 +182,7 @@ private:
 signals:
     void sig_cancel();
     void sig_save(const QString &);
+    void sig_textModified(const QString &);
 
 protected slots:
     void slot_cancelEdit();

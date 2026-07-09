@@ -762,15 +762,15 @@ void MapCanvas::paintSelectedConnection()
 
     auto &gl = getOpenGL();
 
-    // Green means the current anchor+target already form a complete, valid connection;
-    // cyan means it's still just a pending anchor/candidate (translucent until a
-    // second room is even hovered).
+    // Green: the current anchor+target form a complete, valid connection.
+    // Red: hovering a real room, but this target would NOT be a valid connection.
+    // Cyan: no second room hovered yet (translucent -- nothing to judge yet).
     const bool isComplete = (m_canvasMouseMode == CanvasMouseModeEnum::SELECT_CONNECTIONS)
                                 ? sel.isCompleteExisting()
                                 : sel.isCompleteNew();
-    const Color ghostColor = isComplete ? Colors::green
-                             : sel.isSecondValid() ? Colors::cyan
-                                                   : Colors::cyan.withAlpha(0.8f);
+    const Color ghostColor = isComplete                ? Colors::green
+                             : sel.isSecondValid()      ? Colors::red
+                                                        : Colors::cyan.withAlpha(0.8f);
     const auto rs = GLRenderState()
                         .withColor(ghostColor)
                         .withBlend(BlendModeEnum::TRANSPARENCY)

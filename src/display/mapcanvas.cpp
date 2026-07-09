@@ -900,7 +900,11 @@ void MapCanvas::mouseMoveEvent(QMouseEvent *const event)
 
     case CanvasMouseModeEnum::CREATE_ONEWAY_CONNECTIONS:
     case CanvasMouseModeEnum::CREATE_CONNECTIONS:
-        if (m_connectionSelection != nullptr) {
+        // Only mutate the live selection while an interaction is actually in
+        // progress (i.e. waiting for the second click). Once a click has
+        // completed/ended the interaction, further mouse movement must not
+        // silently overwrite the completed second endpoint.
+        if (hasConnectionInteraction() && m_connectionSelection != nullptr) {
             m_connectionSelection->setSecond(getSel2());
         }
         // Repaint on every move (not just while an anchor is active) so the
@@ -909,7 +913,7 @@ void MapCanvas::mouseMoveEvent(QMouseEvent *const event)
         break;
 
     case CanvasMouseModeEnum::SELECT_CONNECTIONS:
-        if (m_connectionSelection != nullptr) {
+        if (hasConnectionInteraction() && m_connectionSelection != nullptr) {
             m_connectionSelection->setSecond(getSel2());
         }
         selectionChanged();

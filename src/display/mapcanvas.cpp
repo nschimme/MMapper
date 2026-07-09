@@ -713,8 +713,13 @@ void MapCanvas::mousePressEvent(QMouseEvent *const event)
                         m_connectionSelection = ConnectionSelection::alloc(m_data);
                         m_connectionSelection->setFirst(id2, ExitDirEnum::NONE);
                     } else {
-                        endInteraction();
-                        m_connectionSelection = nullptr;
+                        // Re-anchor: treat the failed second click as a new first click
+                        // instead of discarding the in-progress selection.
+                        m_connectionSelection = ConnectionSelection::alloc(m_data, getSel1());
+                        if (!m_connectionSelection->isFirstValid()) {
+                            m_connectionSelection = nullptr;
+                            endInteraction();
+                        }
                     }
                 }
             } else {
@@ -744,11 +749,17 @@ void MapCanvas::mousePressEvent(QMouseEvent *const event)
                     m_connectionSelection->setSecond(getSel1());
                     if (!m_connectionSelection->isValid()
                         || !m_connectionSelection->isCompleteExisting()) {
-                        m_connectionSelection = nullptr;
-                        endInteraction();
+                        // Re-anchor: treat the failed second click as a new first click
+                        // instead of discarding the in-progress selection.
+                        m_connectionSelection = ConnectionSelection::alloc(m_data, getSel1());
+                        if (!m_connectionSelection->isFirstValid()
+                            || m_connectionSelection->getFirst()
+                                   .room.getExit(m_connectionSelection->getFirst().direction)
+                                   .outIsEmpty()) {
+                            m_connectionSelection = nullptr;
+                            endInteraction();
+                        }
                     } else {
-                        // Success, stay in selection mode but wait for new first click?
-                        // Actually, for SELECT_CONNECTIONS, it might be better to just end.
                         endInteraction();
                     }
                 }

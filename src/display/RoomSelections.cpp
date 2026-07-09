@@ -166,11 +166,24 @@ void MapCanvas::paintSelectedRoom(RoomSelFakeGL &gl, const RawRoom &room)
 
 void MapCanvas::paintSelectedRooms()
 {
-    if (!m_roomSelection || m_roomSelection->empty()) {
-        return;
+    RoomSelFakeGL gl;
+
+    // Highlight source room of connection building
+    if (auto *const conn = getInteraction<ConnectionInteraction>()) {
+        if (m_connectionSelection && m_connectionSelection->isFirstValid()) {
+            if (const auto room = m_connectionSelection->getFirst().room) {
+                gl.resetMatrix();
+                paintSelectedRoom(gl, room.getRaw());
+            }
+        }
     }
 
-    RoomSelFakeGL gl;
+    if (!m_roomSelection || m_roomSelection->empty()) {
+        if (getInteraction<ConnectionInteraction>()) {
+            gl.draw(getOpenGL(), m_textures);
+        }
+        return;
+    }
 
     for (const RoomId id : deref(m_roomSelection)) {
         if (const auto room = m_data.findRoomHandle(id)) {

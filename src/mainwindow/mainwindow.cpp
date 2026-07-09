@@ -2190,7 +2190,7 @@ void MainWindow::slot_openNewbieHelp()
 
 void MainWindow::keyPressEvent(QKeyEvent *event)
 {
-    if (event->key() == Qt::Key_Escape) {
+    if (event->key() == Qt::Key_Escape || event->key() == Qt::Key_Space) {
         m_mapWindow->keyPressEvent(event);
         return;
     }
@@ -2199,7 +2199,7 @@ void MainWindow::keyPressEvent(QKeyEvent *event)
 
 void MainWindow::keyReleaseEvent(QKeyEvent *event)
 {
-    if (event->key() == Qt::Key_Escape) {
+    if (event->key() == Qt::Key_Escape || event->key() == Qt::Key_Space) {
         m_mapWindow->keyReleaseEvent(event);
         return;
     }

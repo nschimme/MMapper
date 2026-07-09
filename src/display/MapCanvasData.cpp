@@ -24,12 +24,6 @@ const MMapper::Array<RoomTintEnum, NUM_ROOM_TINTS> &getAllRoomTints()
     return all_room_tints;
 }
 
-MapCanvasInputState::MapCanvasInputState(PrespammedPath &prespammedPath)
-    : m_prespammedPath{prespammedPath}
-{}
-
-MapCanvasInputState::~MapCanvasInputState() = default;
-
 MapCanvasViewport::~MapCanvasViewport() = default;
 
 const glm::mat4 &MapCanvasViewport::getViewProj() const

@@ -206,6 +206,12 @@ protected:
     void mousePressEvent(QMouseEvent *event) override;
     void mouseReleaseEvent(QMouseEvent *event) override;
     void mouseMoveEvent(QMouseEvent *event) override;
+
+public:
+    void keyPressEvent(QKeyEvent *event) override;
+    void keyReleaseEvent(QKeyEvent *event) override;
+
+protected:
     void wheelEvent(QWheelEvent *event) override;
     void touchEvent(QTouchEvent *event) override;
     bool event(QEvent *e) override;

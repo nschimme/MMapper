@@ -2028,5 +2028,6 @@ void testMap()
     testConstructingInvalidEnums();
     testDoorVsExitFlags();
     test::test_mmapper2room();
+    test::testExitDirection();
 }
 } // namespace test

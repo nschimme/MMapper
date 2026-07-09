@@ -361,3 +361,29 @@ set_target_properties(
         COMPILE_FLAGS "${WARNING_FLAGS}"
 )
 add_test(NAME TestHotkeyManager COMMAND TestHotkeyManager)
+
+# UI State
+set(uistate_SRCS
+    ../src/display/prespammedpath.cpp
+    ../src/display/prespammedpath.h
+)
+set(TestUIState_SRCS TestUIState.cpp TestUIState.h)
+add_executable(TestUIState ${TestUIState_SRCS} ${uistate_SRCS})
+add_dependencies(TestUIState mm_test mm_global mm_map)
+target_link_libraries(TestUIState
+    mm_map
+    mm_test
+    mm_global
+    Qt6::Test
+    Qt6::Network
+    Qt6::OpenGL
+    coverage_config
+)
+set_target_properties(
+    TestUIState PROPERTIES
+    CXX_STANDARD 20
+    CXX_STANDARD_REQUIRED ON
+    CXX_EXTENSIONS OFF
+    COMPILE_FLAGS "${WARNING_FLAGS}"
+)
+add_test(NAME TestUIState COMMAND TestUIState)

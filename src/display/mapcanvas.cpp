@@ -217,6 +217,26 @@ void MapCanvas::wheelEvent(QWheelEvent *const event)
 {
     const bool hasCtrl = (event->modifiers() & Qt::CTRL) != 0u;
 
+    // Handle smooth panning via pixelDelta (trackpad/high-end mouse)
+    if (!event->pixelDelta().isNull() && !hasCtrl) {
+        const QPoint delta = event->pixelDelta();
+        // The delta is in screen pixels, we need to convert it to world displacement.
+        // We can approximate this by unprojecting.
+        const auto optXy = getMouseCoords(event);
+        if (optXy) {
+            const auto xy = *optXy;
+            const auto a = unproject_clamped(xy);
+            const auto b = unproject_clamped(xy - glm::vec2{delta.x(), -delta.y()});
+            const glm::vec2 worldDelta = glm::vec2(b - a);
+            const glm::vec2 newScroll = getScroll() + worldDelta;
+            setScroll(newScroll);
+            emit sig_onCenter(newScroll);
+            m_frameManager.requestUpdate();
+        }
+        event->accept();
+        return;
+    }
+
     switch (m_canvasMouseMode) {
     case CanvasMouseModeEnum::MOVE:
     case CanvasMouseModeEnum::SELECT_INFOMARKS:
@@ -270,30 +290,47 @@ void MapCanvas::touchEvent(QTouchEvent *const event)
         const auto &p1 = points[0];
         const auto &p2 = points[1];
 
+        const glm::vec2 pos1{p1.position().x(), p1.position().y()};
+        const glm::vec2 pos2{p2.position().x(), p2.position().y()};
+        const glm::vec2 center = (pos1 + pos2) * 0.5f;
+        const float dist = glm::distance(pos1, pos2);
+
         if (event->type() == QEvent::TouchBegin || p1.state() == QEventPoint::Pressed
             || p2.state() == QEventPoint::Pressed) {
-            beginPinch(glm::distance(glm::vec2(static_cast<float>(p1.position().x()),
-                                               static_cast<float>(p1.position().y())),
-                                     glm::vec2(static_cast<float>(p2.position().x()),
-                                               static_cast<float>(p2.position().y()))));
+            beginPinch(dist);
+            // Use unproject_clamped with current viewProj to get world start
+            const glm::vec2 screenPos{center.x, static_cast<float>(height()) - center.y};
+            const glm::vec3 worldPos = unproject_clamped(screenPos);
+            beginPanning(worldPos, getScroll(), getViewProj(), screenPos);
         }
 
         if (m_pinchState && m_pinchState->initialDistance > PINCH_DISTANCE_THRESHOLD) {
-            const float currentDistance
-                = glm::distance(glm::vec2(static_cast<float>(p1.position().x()),
-                                          static_cast<float>(p1.position().y())),
-                                glm::vec2(static_cast<float>(p2.position().x()),
-                                          static_cast<float>(p2.position().y())));
-            const float currentPinchFactor = currentDistance / m_pinchState->initialDistance;
+            const float currentPinchFactor = dist / m_pinchState->initialDistance;
             const float deltaFactor = currentPinchFactor / m_pinchState->lastFactor;
 
             handleZoomAtEvent(event, deltaFactor);
             updatePinch(currentPinchFactor);
         }
 
+        if (m_panningState) {
+            const auto &dragState = *m_panningState;
+            const glm::vec2 screenCenter = glm::vec2{center.x,
+                                                     static_cast<float>(height()) - center.y};
+            const glm::vec3 currWorldPos = unproject_clamped(screenCenter, dragState.startViewProj);
+            const glm::vec2 delta = glm::vec2(currWorldPos - dragState.startWorldPos);
+
+            if (glm::length(delta) > GESTURE_EPSILON) {
+                const glm::vec2 newWorldCenter = dragState.startScroll - delta;
+                setScroll(newWorldCenter);
+                emit sig_onCenter(newWorldCenter);
+                m_frameManager.requestUpdate();
+            }
+        }
+
         if (event->type() == QEvent::TouchEnd || p1.state() == QEventPoint::Released
             || p2.state() == QEventPoint::Released) {
             endPinch();
+            endPanning();
         }
         event->accept();
     } else {
@@ -423,14 +460,40 @@ std::shared_ptr<InfomarkSelection> MapCanvas::getInfomarkSelection(const MouseSe
     return InfomarkSelection::alloc(m_data, lo, hi);
 }
 
+void MapCanvas::keyPressEvent(QKeyEvent *const event)
+{
+    if (event->key() == Qt::Key_Space && !event->isAutoRepeat()) {
+        m_spacebarPressed = true;
+        setCursor(Qt::ClosedHandCursor);
+        event->accept();
+    }
+}
+
+void MapCanvas::keyReleaseEvent(QKeyEvent *const event)
+{
+    if (event->key() == Qt::Key_Space && !event->isAutoRepeat()) {
+        m_spacebarPressed = false;
+        // Restore cursor based on mode
+        slot_setCanvasMouseMode(m_canvasMouseMode);
+        event->accept();
+    }
+}
+
 void MapCanvas::mousePressEvent(QMouseEvent *const event)
 {
-    if (event->button() != Qt::RightButton) {
+    if (event->button() == Qt::RightButton) {
+        // We handle RightButton release for context menu now to allow dragging
+    } else {
         emit sig_dismissContextMenu();
+    }
+
+    if (m_spacebarPressed && event->button() == Qt::LeftButton) {
+        // Handled in universal panning
     }
 
     const bool hasLeftButton = (event->buttons() & Qt::LeftButton) != 0u;
     const bool hasRightButton = (event->buttons() & Qt::RightButton) != 0u;
+    const bool hasMiddleButton = (event->buttons() & Qt::MiddleButton) != 0u;
     const bool hasCtrl = (event->modifiers() & Qt::CTRL) != 0u;
     MAYBE_UNUSED const bool hasAlt = (event->modifiers() & Qt::ALT) != 0u;
 
@@ -446,6 +509,15 @@ void MapCanvas::mousePressEvent(QMouseEvent *const event)
         return;
     }
     const auto xy = *optXy;
+
+    // Handle universal panning (Space+LMB or MMB)
+    if ((hasLeftButton && m_spacebarPressed) || hasMiddleButton) {
+        const auto worldPos = unproject_clamped(xy);
+        beginPanning(worldPos, getScroll(), MapCanvasViewport::getViewProj(), xy);
+        setCursor(Qt::ClosedHandCursor);
+        event->accept();
+        return;
+    }
     if (m_canvasMouseMode == CanvasMouseModeEnum::MOVE) {
         const auto worldPos = unproject_clamped(xy);
         m_sel1 = m_sel2 = MouseSel{Coordinate2f{worldPos.x, worldPos.y}, getCurrentLayer()};
@@ -455,6 +527,7 @@ void MapCanvas::mousePressEvent(QMouseEvent *const event)
 
     m_mouseLeftPressed = hasLeftButton;
     m_mouseRightPressed = hasRightButton;
+    m_mouseMiddlePressed = hasMiddleButton;
 
     if (event->button() == Qt::ForwardButton) {
         slot_layerUp();
@@ -482,17 +555,32 @@ void MapCanvas::mousePressEvent(QMouseEvent *const event)
 
     switch (m_canvasMouseMode) {
     case CanvasMouseModeEnum::CREATE_INFOMARKS:
-        infomarksChanged();
-        break;
     case CanvasMouseModeEnum::SELECT_INFOMARKS:
-        // Select infomarks
         if (hasLeftButton && hasSel1()) {
-            auto tmpSel = getInfomarkSelection(getSel1());
-            if (m_infoMarkSelection != nullptr && !tmpSel->empty()
-                && m_infoMarkSelection->contains(tmpSel->front().getId())) {
-                beginInfomarkMove();
-            } else {
+            if (auto *const area = getInteraction<AreaSelectionInteraction>()) {
+                // Second click
+                const auto c1 = area->anchorPoint.getScaledCoordinate(INFOMARK_SCALE);
+                const auto c2 = getSel1().getScaledCoordinate(INFOMARK_SCALE);
+
+                if (m_canvasMouseMode == CanvasMouseModeEnum::SELECT_INFOMARKS) {
+                    auto tmpSel = InfomarkSelection::alloc(m_data, c1, c2);
+                    slot_setInfomarkSelection(tmpSel);
+                } else {
+                    auto tmpSel = InfomarkSelection::allocEmpty(m_data, c1, c2);
+                    slot_setInfomarkSelection(tmpSel);
+                }
                 endInteraction();
+            } else {
+                // Check if we are moving an existing selection
+                auto tmpSel = getInfomarkSelection(getSel1());
+                if (m_canvasMouseMode == CanvasMouseModeEnum::SELECT_INFOMARKS
+                    && m_infoMarkSelection != nullptr && !tmpSel->empty()
+                    && m_infoMarkSelection->contains(tmpSel->front().getId())) {
+                    beginInfomarkMove();
+                } else {
+                    // Start area selection
+                    beginAreaSelection(getSel1());
+                }
             }
         }
         selectionChanged();
@@ -500,7 +588,8 @@ void MapCanvas::mousePressEvent(QMouseEvent *const event)
     case CanvasMouseModeEnum::MOVE:
         if (hasLeftButton && hasSel1()) {
             setCursor(Qt::ClosedHandCursor);
-            startMoving(m_sel1.value());
+            const auto worldPos = unproject_clamped(xy);
+            beginPanning(worldPos, getScroll(), MapCanvasViewport::getViewProj(), xy);
         }
         break;
 
@@ -553,17 +642,41 @@ void MapCanvas::mousePressEvent(QMouseEvent *const event)
         }
         // Select rooms
         if (hasLeftButton && hasSel1()) {
-            if (!hasCtrl) {
-                const auto pRoom = m_data.findRoomHandle(getSel1().getCoordinate());
-                if (pRoom.exists() && m_roomSelection != nullptr
-                    && m_roomSelection->contains(pRoom.getId())) {
-                    beginRoomMove();
+            if (auto *const area = getInteraction<AreaSelectionInteraction>()) {
+                // Second click
+                const Coordinate c1 = area->anchorPoint.getCoordinate();
+                const Coordinate c2 = getSel1().getCoordinate();
+                if (m_roomSelection == nullptr || !hasCtrl) {
+                    m_roomSelection = RoomSelection::createSelection(m_data.findAllRooms(c1, c2));
                 } else {
-                    endInteraction();
-                    slot_clearRoomSelection();
+                    auto &sel = deref(m_roomSelection);
+                    sel.removeMissing(m_data);
+                    const auto tmpSel = m_data.findAllRooms(c1, c2);
+                    for (const RoomId key : tmpSel) {
+                        if (sel.contains(key)) {
+                            sel.erase(key);
+                        } else {
+                            sel.insert(key);
+                        }
+                    }
                 }
+                if (m_roomSelection != nullptr && !m_roomSelection->empty()) {
+                    slot_setRoomSelection(SigRoomSelection{m_roomSelection});
+                }
+                endInteraction();
             } else {
-                m_ctrlPressed = true;
+                if (!hasCtrl) {
+                    const auto pRoom = m_data.findRoomHandle(getSel1().getCoordinate());
+                    if (pRoom.exists() && m_roomSelection != nullptr
+                        && m_roomSelection->contains(pRoom.getId())) {
+                        beginRoomMove();
+                    } else {
+                        beginAreaSelection(getSel1());
+                    }
+                } else {
+                    m_ctrlPressed = true;
+                    beginAreaSelection(getSel1());
+                }
             }
         }
         selectionChanged();
@@ -573,14 +686,51 @@ void MapCanvas::mousePressEvent(QMouseEvent *const event)
     case CanvasMouseModeEnum::CREATE_CONNECTIONS:
         // Select connection
         if (hasLeftButton && hasSel1()) {
-            m_connectionSelection = ConnectionSelection::alloc(m_data, getSel1());
-            if (!m_connectionSelection->isFirstValid()) {
-                m_connectionSelection = nullptr;
+            if (auto *const conn = getInteraction<ConnectionInteraction>()) {
+                // Second click
+                if (m_connectionSelection != nullptr) {
+                    m_connectionSelection->setSecond(getSel1());
+                    if (m_connectionSelection->isValid() && m_connectionSelection->isCompleteNew()) {
+                        const auto first = m_connectionSelection->getFirst();
+                        const auto second = m_connectionSelection->getSecond();
+                        const auto id1 = first.room.getId();
+                        const auto id2 = second.room.getId();
+                        const auto dir1 = first.direction;
+
+                        const WaysEnum ways = (m_canvasMouseMode
+                                               != CanvasMouseModeEnum::CREATE_ONEWAY_CONNECTIONS)
+                                                  ? WaysEnum::TwoWay
+                                                  : WaysEnum::OneWay;
+                        const exit_change_types::ModifyExitConnection change{ChangeTypeEnum::Add,
+                                                                             id1,
+                                                                             dir1,
+                                                                             id2,
+                                                                             ways};
+                        m_data.applySingleChange(Change{change});
+                        slot_mapChanged();
+
+                        // Start new connection from second room, but without a pre-selected direction
+                        m_connectionSelection = ConnectionSelection::alloc(m_data);
+                        m_connectionSelection->setFirst(id2, ExitDirEnum::NONE);
+                    } else {
+                        endInteraction();
+                        m_connectionSelection = nullptr;
+                    }
+                }
+            } else {
+                // First click
+                m_connectionSelection = ConnectionSelection::alloc(m_data, getSel1());
+                if (m_connectionSelection->isFirstValid()) {
+                    beginConnectionInteraction();
+                } else {
+                    m_connectionSelection = nullptr;
+                }
             }
-            emit sig_newConnectionSelection(nullptr);
+            emit sig_newConnectionSelection(m_connectionSelection.get());
         }
         // Cancel
         if (hasRightButton) {
+            endInteraction();
             slot_clearConnectionSelection();
         }
         selectionChanged();
@@ -588,21 +738,41 @@ void MapCanvas::mousePressEvent(QMouseEvent *const event)
 
     case CanvasMouseModeEnum::SELECT_CONNECTIONS:
         if (hasLeftButton && hasSel1()) {
-            m_connectionSelection = ConnectionSelection::alloc(m_data, getSel1());
-            if (!m_connectionSelection->isFirstValid()) {
-                m_connectionSelection = nullptr;
+            if (auto *const conn = getInteraction<ConnectionInteraction>()) {
+                // Second click
+                if (m_connectionSelection != nullptr) {
+                    m_connectionSelection->setSecond(getSel1());
+                    if (!m_connectionSelection->isValid()
+                        || !m_connectionSelection->isCompleteExisting()) {
+                        m_connectionSelection = nullptr;
+                        endInteraction();
+                    } else {
+                        // Success, stay in selection mode but wait for new first click?
+                        // Actually, for SELECT_CONNECTIONS, it might be better to just end.
+                        endInteraction();
+                    }
+                }
             } else {
-                const auto &r1 = m_connectionSelection->getFirst().room;
-                const ExitDirEnum dir1 = m_connectionSelection->getFirst().direction;
+                // First click
+                m_connectionSelection = ConnectionSelection::alloc(m_data, getSel1());
+                if (m_connectionSelection->isFirstValid()) {
+                    const auto &r1 = m_connectionSelection->getFirst().room;
+                    const ExitDirEnum dir1 = m_connectionSelection->getFirst().direction;
 
-                if (r1.getExit(dir1).outIsEmpty()) {
+                    if (!r1.getExit(dir1).outIsEmpty()) {
+                        beginConnectionInteraction();
+                    } else {
+                        m_connectionSelection = nullptr;
+                    }
+                } else {
                     m_connectionSelection = nullptr;
                 }
             }
-            emit sig_newConnectionSelection(nullptr);
+            emit sig_newConnectionSelection(m_connectionSelection.get());
         }
         // Cancel
         if (hasRightButton) {
+            endInteraction();
             slot_clearConnectionSelection();
         }
         selectionChanged();
@@ -625,6 +795,26 @@ void MapCanvas::mouseMoveEvent(QMouseEvent *const event)
         return;
     }
     const auto xy = *optXy;
+
+    // Handle panning
+    if (m_panningState) {
+        const auto &dragState = *m_panningState;
+        const glm::vec3 currWorldPos = unproject_clamped(xy, dragState.startViewProj);
+        const glm::vec2 delta = glm::vec2(currWorldPos - dragState.startWorldPos);
+
+        if (glm::length(delta) > GESTURE_EPSILON) {
+            const glm::vec2 newWorldCenter = dragState.startScroll - delta;
+            setScroll(newWorldCenter);
+            emit sig_onCenter(newWorldCenter);
+            m_frameManager.requestUpdate();
+        }
+
+        // Keep tool cursor in sync during panning
+        m_sel2 = getUnprojectedMouseSel(xy);
+
+        event->accept();
+        return;
+    }
 
     if (auto *const altDragState = getInteraction<AltDragState>()) {
         // The user released the Alt key mid-drag.
@@ -672,129 +862,57 @@ void MapCanvas::mouseMoveEvent(QMouseEvent *const event)
         return;
     }
 
-    const bool hasLeftButton = (event->buttons() & Qt::LeftButton) != 0u;
-
-    if (m_canvasMouseMode != CanvasMouseModeEnum::MOVE) {
-        // NOTE: Y is opposite of what you might expect here.
-        const int vScroll = std::invoke([this, &xy]() -> int {
-            const int h = height();
-            const int MARGIN = std::min(100, h / 4);
-            const auto y = static_cast<int>(static_cast<float>(h) - xy.y);
-            if (y < MARGIN) {
-                return SCROLL_SCALE;
-            } else if (y > h - MARGIN) {
-                return -SCROLL_SCALE;
-            } else {
-                return 0;
-            }
-        });
-        const int hScroll = std::invoke([this, &xy]() -> int {
-            const int w = width();
-            const int MARGIN = std::min(100, w / 4);
-            const auto x = static_cast<int>(xy.x);
-            if (x < MARGIN) {
-                return -SCROLL_SCALE;
-            } else if (x > w - MARGIN) {
-                return SCROLL_SCALE;
-            } else {
-                return 0;
-            }
-        });
-
-        emit sig_continuousScroll(hScroll, vScroll);
-    }
+    MAYBE_UNUSED const bool hasLeftButton = (event->buttons() & Qt::LeftButton) != 0u;
 
     m_sel2 = getUnprojectedMouseSel(xy);
 
     switch (m_canvasMouseMode) {
     case CanvasMouseModeEnum::SELECT_INFOMARKS:
-        if (hasLeftButton && hasSel1() && hasSel2()) {
-            if (auto *const move = getInteraction<InfomarkSelectionMove>()) {
-                move->pos = getSel2().pos - getSel1().pos;
-                setCursor(Qt::ClosedHandCursor);
-
-            } else {
-                beginAreaSelection();
-            }
+        if (auto *const move = getInteraction<InfomarkSelectionMove>()) {
+            move->pos = getSel2().pos - getSel1().pos;
+            setCursor(Qt::ClosedHandCursor);
         }
         selectionChanged();
         break;
     case CanvasMouseModeEnum::CREATE_INFOMARKS:
-        if (hasLeftButton) {
-            beginAreaSelection();
-        }
-        // REVISIT: It doesn't look like anything actually changed here?
-        infomarksChanged();
+        selectionChanged();
         break;
     case CanvasMouseModeEnum::MOVE:
-        if (hasLeftButton && m_mouseLeftPressed) {
-            if (auto *const dragState = getInteraction<DragState>()) {
-                const glm::vec3 currWorldPos = unproject_clamped(xy, dragState->startViewProj);
-                const glm::vec2 delta = glm::vec2(currWorldPos - dragState->startWorldPos);
-
-                if (glm::length(delta) > GESTURE_EPSILON) {
-                    const glm::vec2 newWorldCenter = dragState->startScroll - delta;
-                    setScroll(newWorldCenter);
-                    emit sig_onCenter(newWorldCenter);
-                    m_frameManager.requestUpdate();
-                }
-            }
-        }
         break;
 
     case CanvasMouseModeEnum::RAYPICK_ROOMS:
         break;
 
     case CanvasMouseModeEnum::SELECT_ROOMS:
-        if (hasLeftButton) {
-            if (auto *const move = getInteraction<RoomSelMove>(); move && hasSel1() && hasSel2()) {
-                auto &map = this->m_data;
-                auto isMovable = [&map](RoomSelection &sel, const Coordinate offset) -> bool {
-                    sel.removeMissing(map);
-                    return map.getCurrentMap().wouldAllowRelativeMove(sel.getRoomIds(), offset);
-                };
+        if (auto *const move = getInteraction<RoomSelMove>(); move && hasSel1() && hasSel2()) {
+            auto &map = this->m_data;
+            auto isMovable = [&map](RoomSelection &sel, const Coordinate offset) -> bool {
+                sel.removeMissing(map);
+                return map.getCurrentMap().wouldAllowRelativeMove(sel.getRoomIds(), offset);
+            };
 
-                const auto diff = getSel2().pos.truncate() - getSel1().pos.truncate();
-                const auto wrongPlace = !isMovable(deref(m_roomSelection), Coordinate{diff, 0});
-                move->pos = diff;
-                move->wrongPlace = wrongPlace;
+            const auto diff = getSel2().pos.truncate() - getSel1().pos.truncate();
+            const auto wrongPlace = !isMovable(deref(m_roomSelection), Coordinate{diff, 0});
+            move->pos = diff;
+            move->wrongPlace = wrongPlace;
 
-                setCursor(wrongPlace ? Qt::ForbiddenCursor : Qt::ClosedHandCursor);
-            } else {
-                beginAreaSelection();
-            }
+            setCursor(wrongPlace ? Qt::ForbiddenCursor : Qt::ClosedHandCursor);
         }
         selectionChanged();
         break;
 
     case CanvasMouseModeEnum::CREATE_ONEWAY_CONNECTIONS:
     case CanvasMouseModeEnum::CREATE_CONNECTIONS:
-        if (hasLeftButton && hasSel2()) {
-            if (m_connectionSelection != nullptr) {
-                m_connectionSelection->setSecond(getSel2());
-
-                if (m_connectionSelection->isValid() && !m_connectionSelection->isCompleteNew()) {
-                    m_connectionSelection->removeSecond();
-                }
-
-                selectionChanged();
-            }
-        } else {
-            slot_requestUpdate();
+        if (m_connectionSelection != nullptr) {
+            m_connectionSelection->setSecond(getSel2());
+            selectionChanged();
         }
         break;
 
     case CanvasMouseModeEnum::SELECT_CONNECTIONS:
-        if (hasLeftButton && hasSel2()) {
-            if (m_connectionSelection != nullptr) {
-                m_connectionSelection->setSecond(getSel2());
-
-                if (!m_connectionSelection->isCompleteExisting()) {
-                    m_connectionSelection->removeSecond();
-                }
-
-                selectionChanged();
-            }
+        if (m_connectionSelection != nullptr) {
+            m_connectionSelection->setSecond(getSel2());
+            selectionChanged();
         }
         break;
 
@@ -813,6 +931,26 @@ void MapCanvas::mouseReleaseEvent(QMouseEvent *const event)
     }
     const auto xy = *optXy;
 
+    if (m_panningState) {
+        const bool isUniversalPanning = m_spacebarPressed || m_mouseMiddlePressed;
+        const bool isMoveModeLmb = (m_canvasMouseMode == CanvasMouseModeEnum::MOVE
+                                    && !isUniversalPanning);
+
+        // A tiny threshold (3 pixels) to differentiate a click from a pan.
+        const float dist = glm::distance(xy, m_panningState->startScreenPos);
+        const bool isSignificantMovement = (dist > 3.f);
+
+        endPanning();
+        // Restore cursor based on mode
+        slot_setCanvasMouseMode(m_canvasMouseMode);
+
+        if (!isMoveModeLmb || isSignificantMovement) {
+            event->accept();
+            return;
+        }
+        // Fall through for MOVE mode tooltips if movement was minimal
+    }
+
     if (auto *const altDragState = getInteraction<AltDragState>()) {
         setCursor(altDragState->originalCursor);
         endInteraction();
@@ -820,7 +958,6 @@ void MapCanvas::mouseReleaseEvent(QMouseEvent *const event)
         return;
     }
 
-    emit sig_continuousScroll(0, 0);
     m_sel2 = getUnprojectedMouseSel(xy);
 
     if (m_mouseRightPressed) {
@@ -841,52 +978,25 @@ void MapCanvas::mouseReleaseEvent(QMouseEvent *const event)
                     const InfomarkSelection &sel = deref(m_infoMarkSelection);
                     sel.applyOffset(offset);
                     infomarksChanged();
+                    endInteraction();
                 }
-            } else if (hasSel1() && hasSel2()) {
-                // Add infomarks to selection
-                const auto c1 = getSel1().getScaledCoordinate(INFOMARK_SCALE);
-                const auto c2 = getSel2().getScaledCoordinate(INFOMARK_SCALE);
-                auto tmpSel = InfomarkSelection::alloc(m_data, c1, c2);
-                if (tmpSel && tmpSel->size() == 1) {
-                    const InfomarkHandle &firstMark = tmpSel->front();
-                    const Coordinate pos = firstMark.getPosition1();
-                    QString ctemp = QString("Selected Info Mark: [%1] (at %2,%3,%4)")
-                                        .arg(firstMark.getText().toQString())
-                                        .arg(pos.x)
-                                        .arg(pos.y)
-                                        .arg(pos.z);
-                    log(ctemp);
-                }
-                slot_setInfomarkSelection(tmpSel);
             }
         }
-        endInteraction();
         selectionChanged();
         break;
 
     case CanvasMouseModeEnum::CREATE_INFOMARKS:
-        if (m_mouseLeftPressed && hasSel1() && hasSel2()) {
-            m_mouseLeftPressed = false;
-            const auto c1 = getSel1().getScaledCoordinate(INFOMARK_SCALE);
-            const auto c2 = getSel2().getScaledCoordinate(INFOMARK_SCALE);
-            // REVISIT: this previously searched for all the marks in c1, c2,
-            // and then immediately cleared the selection.
-            // Why??? Now it just allocates an empty selection.
-            auto tmpSel = InfomarkSelection::allocEmpty(m_data, c1, c2);
-            slot_setInfomarkSelection(tmpSel);
-            endInteraction();
-        }
-        infomarksChanged();
+        m_mouseLeftPressed = false;
+        selectionChanged();
         break;
 
     case CanvasMouseModeEnum::MOVE:
-        stopMoving();
         setCursor(Qt::OpenHandCursor);
         if (m_mouseLeftPressed) {
             m_mouseLeftPressed = false;
         }
         // Display a room info tooltip if there was no mouse movement
-        if (event->button() == Qt::LeftButton && hasSel1() && hasSel2()
+        if (event->button() == Qt::LeftButton && !m_spacebarPressed && hasSel1() && hasSel2()
             && getSel1().to_vec3() == getSel2().to_vec3()) {
             if (const auto room = m_data.findRoomHandle(getSel1().getCoordinate())) {
                 // Tooltip doesn't support ANSI, and there's no way to add formatted text.
@@ -905,16 +1015,8 @@ void MapCanvas::mouseReleaseEvent(QMouseEvent *const event)
 
     case CanvasMouseModeEnum::SELECT_ROOMS:
         setCursor(Qt::ArrowCursor);
-
-        // This seems very unusual.
-        if (m_ctrlPressed && m_altPressed) {
-            endInteraction();
-            break;
-        }
-
         if (m_mouseLeftPressed) {
             m_mouseLeftPressed = false;
-
             if (auto *const move = getInteraction<RoomSelMove>()) {
                 const auto pos = move->pos;
                 const bool wrongPlace = move->wrongPlace;
@@ -923,102 +1025,20 @@ void MapCanvas::mouseReleaseEvent(QMouseEvent *const event)
                     m_data.applySingleChange(Change{
                         room_change_types::MoveRelative2{m_roomSelection->getRoomIds(), moverel}});
                 }
-
-            } else if (hasSel1() && hasSel2()) {
-                const Coordinate c1 = getSel1().getCoordinate();
-                const Coordinate c2 = getSel2().getCoordinate();
-                if (m_roomSelection == nullptr) {
-                    // add rooms to default selections
-                    m_roomSelection = RoomSelection::createSelection(m_data.findAllRooms(c1, c2));
-                } else {
-                    auto &sel = deref(m_roomSelection);
-                    sel.removeMissing(m_data);
-                    // add or remove rooms to/from default selection
-                    const auto tmpSel = m_data.findAllRooms(c1, c2);
-                    for (const RoomId key : tmpSel) {
-                        if (sel.contains(key)) {
-                            sel.erase(key);
-                        } else {
-                            sel.insert(key);
-                        }
-                    }
-                }
-
-                if (m_roomSelection != nullptr && !m_roomSelection->empty()) {
-                    slot_setRoomSelection(SigRoomSelection{m_roomSelection});
-                }
+                endInteraction();
             }
         }
-        endInteraction();
         selectionChanged();
         break;
 
     case CanvasMouseModeEnum::CREATE_ONEWAY_CONNECTIONS:
     case CanvasMouseModeEnum::CREATE_CONNECTIONS:
-        if (m_mouseLeftPressed && hasSel1() && hasSel2()) {
-            m_mouseLeftPressed = false;
-
-            if (m_connectionSelection == nullptr) {
-                m_connectionSelection = ConnectionSelection::alloc(m_data, getSel1());
-            }
-            m_connectionSelection->setSecond(getSel2());
-
-            if (!m_connectionSelection->isValid()) {
-                m_connectionSelection = nullptr;
-            } else {
-                const auto first = m_connectionSelection->getFirst();
-                const auto second = m_connectionSelection->getSecond();
-                const auto &r1 = first.room;
-                const auto &r2 = second.room;
-
-                if (r1.exists() && r2.exists()) {
-                    const ExitDirEnum dir1 = first.direction;
-                    const ExitDirEnum dir2 = second.direction;
-
-                    const RoomId id1 = r1.getId();
-                    const RoomId id2 = r2.getId();
-
-                    const bool isCompleteNew = m_connectionSelection->isCompleteNew();
-                    m_connectionSelection = nullptr;
-
-                    if (isCompleteNew) {
-                        const WaysEnum ways = (m_canvasMouseMode
-                                               != CanvasMouseModeEnum::CREATE_ONEWAY_CONNECTIONS)
-                                                  ? WaysEnum::TwoWay
-                                                  : WaysEnum::OneWay;
-                        const exit_change_types::ModifyExitConnection change{ChangeTypeEnum::Add,
-                                                                             id1,
-                                                                             dir1,
-                                                                             id2,
-                                                                             ways};
-                        m_data.applySingleChange(Change{change});
-                    }
-                    m_connectionSelection = ConnectionSelection::alloc(m_data);
-                    m_connectionSelection->setFirst(id1, dir1);
-                    m_connectionSelection->setSecond(id2, dir2);
-                    slot_mapChanged();
-                }
-            }
-
-            slot_setConnectionSelection(m_connectionSelection);
-        }
+        m_mouseLeftPressed = false;
         selectionChanged();
         break;
 
     case CanvasMouseModeEnum::SELECT_CONNECTIONS:
-        if (m_mouseLeftPressed && (m_connectionSelection != nullptr || hasSel1()) && hasSel2()) {
-            m_mouseLeftPressed = false;
-
-            if (m_connectionSelection == nullptr && hasSel1()) {
-                m_connectionSelection = ConnectionSelection::alloc(m_data, getSel1());
-            }
-            m_connectionSelection->setSecond(getSel2());
-
-            if (!m_connectionSelection->isValid() || !m_connectionSelection->isCompleteExisting()) {
-                m_connectionSelection = nullptr;
-            }
-            slot_setConnectionSelection(m_connectionSelection);
-        }
+        m_mouseLeftPressed = false;
         selectionChanged();
         break;
 
@@ -1035,16 +1055,6 @@ void MapCanvas::mouseReleaseEvent(QMouseEvent *const event)
 
     m_altPressed = false;
     m_ctrlPressed = false;
-}
-
-void MapCanvas::startMoving(const MouseSel &startPos)
-{
-    beginDrag(startPos.to_vec3(), getScroll(), MapCanvasViewport::getViewProj());
-}
-
-void MapCanvas::stopMoving()
-{
-    endInteraction();
 }
 
 void MapCanvas::zoomAt(const float factor, const glm::vec2 mousePos)

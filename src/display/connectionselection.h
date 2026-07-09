@@ -18,29 +18,6 @@
 
 class MapFrontend;
 
-struct NODISCARD MouseSel final
-{
-    Coordinate2f pos;
-    int layer = 0;
-
-    MouseSel() = default;
-    explicit MouseSel(const Coordinate2f &pos_, const int layer_)
-        : pos{pos_}
-        , layer{layer_}
-    {}
-
-    NODISCARD Coordinate getCoordinate() const { return Coordinate{pos.truncate(), layer}; }
-    NODISCARD Coordinate getScaledCoordinate(const float xy_scale) const
-    {
-        return Coordinate{(pos * xy_scale).truncate(), layer};
-    }
-
-    NODISCARD glm::vec3 to_vec3() const
-    {
-        return glm::vec3{pos.to_vec2(), static_cast<float>(layer)};
-    }
-};
-
 class NODISCARD ConnectionSelection final : public std::enable_shared_from_this<ConnectionSelection>
 {
 public:
@@ -106,6 +83,8 @@ public:
         return isValid() && ConnectionDescriptor::isCompleteNew(getFirst(), getSecond());
     }
 
-private:
-    NODISCARD static ExitDirEnum computeDirection(const Coordinate2f &mouse_f);
+    NODISCARD static ExitDirEnum computeDirection(const Coordinate2f &mouse_f)
+    {
+        return getExitDirFromCoordinate(mouse_f);
+    }
 };

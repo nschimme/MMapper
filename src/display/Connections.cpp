@@ -652,7 +652,9 @@ void MapCanvas::paintNearbyConnectionPoints()
             }
         }
 
-        points.emplace_back(Colors::cyan, roomCoord.to_vec3() + getConnectionOffset(dir));
+        // Potential targets for an active selection are Green, otherwise Cyan.
+        const Color dotColor = optFirst.has_value() ? Colors::green : Colors::cyan;
+        points.emplace_back(dotColor, roomCoord.to_vec3() + getConnectionOffset(dir));
     };
     const auto addPoints =
         [this, isSelection, &addPoint](const std::optional<MouseSel> &sel,
@@ -682,13 +684,14 @@ void MapCanvas::paintNearbyConnectionPoints()
     };
 
     // FIXME: This doesn't show dots for red connections.
-    if (m_connectionSelection != nullptr
+    if (hasConnectionInteraction() && m_connectionSelection != nullptr
         && (m_connectionSelection->isFirstValid() || m_connectionSelection->isSecondValid())) {
         const CD valid = m_connectionSelection->isFirstValid() ? m_connectionSelection->getFirst()
                                                                : m_connectionSelection->getSecond();
         const Coordinate c = valid.room.getPosition();
         const glm::vec3 pos = c.to_vec3();
-        points.emplace_back(Colors::cyan, pos + getConnectionOffset(valid.direction));
+        // Source point of current interaction is Green
+        points.emplace_back(Colors::green, pos + getConnectionOffset(valid.direction));
 
         addPoints(MouseSel{Coordinate2f{pos.x, pos.y}, c.z}, valid);
         addPoints(m_sel1, valid);
@@ -698,7 +701,10 @@ void MapCanvas::paintNearbyConnectionPoints()
         addPoints(m_sel2, std::nullopt);
     }
 
-    getOpenGL().renderPoints(points, GLRenderState().withPointSize(VALID_CONNECTION_POINT_SIZE));
+    getOpenGL().renderPoints(points,
+                             GLRenderState()
+                                 .withPointSize(VALID_CONNECTION_POINT_SIZE + 2.f)
+                                 .withDepthFunction(std::nullopt));
 }
 
 void MapCanvas::paintSelectedConnection()
@@ -715,13 +721,19 @@ void MapCanvas::paintSelectedConnection()
 
     const ConnectionSelection::ConnectionDescriptor &first = sel.getFirst();
     const auto pos1 = getPosition(first);
-    // REVISIT: How about not dashed lines to the nearest possible connections
-    // if the second isn't valid?
+
     const auto optPos2 = std::invoke([this, &sel]() -> std::optional<glm::vec3> {
         if (sel.isSecondValid()) {
             return getPosition(sel.getSecond());
         } else if (hasSel2()) {
-            return getSel2().to_vec3();
+            // Snapping logic for ghost line
+            const auto mouse = getSel2();
+            const auto dir = ConnectionSelection::computeDirection(mouse.pos);
+            const auto room = m_data.findRoomHandle(mouse.getCoordinate());
+            if (room.exists()) {
+                return room.getPosition().to_vec3() + getConnectionOffset(dir);
+            }
+            return mouse.to_vec3();
         } else {
             return std::nullopt;
         }
@@ -734,17 +746,23 @@ void MapCanvas::paintSelectedConnection()
     const glm::vec3 pos2 = optPos2.value();
 
     auto &gl = getOpenGL();
-    const auto rs = GLRenderState().withColor(Colors::red);
+
+    // Use Cyan for the ghost line and potential interaction points to distinguish them from finalized connections.
+    const Color ghostColor = sel.isSecondValid() ? Colors::cyan : Colors::cyan.withAlpha(0.8f);
+    const auto rs = GLRenderState()
+                        .withColor(ghostColor)
+                        .withBlend(BlendModeEnum::TRANSPARENCY)
+                        .withDepthFunction(std::nullopt);
 
     {
         std::vector<ColorVert> verts;
-        mmgl::generateLineQuadsSafe(verts, pos1, pos2, CONNECTION_LINE_WIDTH, Colors::red);
+        mmgl::generateLineQuadsSafe(verts, pos1, pos2, CONNECTION_LINE_WIDTH, ghostColor);
         gl.renderColoredQuads(verts, rs);
     }
 
     std::vector<ColorVert> points;
-    points.emplace_back(Colors::red, pos1);
-    points.emplace_back(Colors::red, pos2);
+    points.emplace_back(ghostColor, pos1);
+    points.emplace_back(ghostColor, pos2);
     gl.renderPoints(points, rs.withPointSize(NEW_CONNECTION_POINT_SIZE));
 }
 

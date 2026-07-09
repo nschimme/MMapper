@@ -44,9 +44,6 @@ protected:
     QPointer<QWidget> m_canvasContainer;
     QPointer<QWidget> m_splashWidget;
     QPointer<AudioHintWidget> m_audioHint;
-    QPointer<QTimer> m_scrollTimer;
-    int m_verticalScrollStep = 0;
-    int m_horizontalScrollStep = 0;
 
 private:
     struct NODISCARD KnownMapSize final
@@ -93,8 +90,6 @@ public slots:
     void slot_setScrollBars(Coordinate, Coordinate);
     void slot_centerOnWorldPos(glm::vec2 worldPos);
     void slot_mapMove(int dx, int dy);
-    void slot_continuousScroll(int dx, int dy);
-    void slot_scrollTimerTimeout();
     void slot_graphicsSettingsChanged();
     void slot_zoomChanged(const float zoom) { emit sig_zoomChanged(zoom); }
     void slot_showTooltip(const QString &text, const QPoint &pos);

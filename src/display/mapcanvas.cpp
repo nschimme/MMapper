@@ -546,6 +546,14 @@ void MapCanvas::mousePressEvent(QMouseEvent *const event)
             slot_setInfomarkSelection(getInfomarkSelection(getSel1()));
 
             selectionChanged();
+        } else if (m_canvasMouseMode == CanvasMouseModeEnum::CREATE_CONNECTIONS
+                  || m_canvasMouseMode == CanvasMouseModeEnum::CREATE_ONEWAY_CONNECTIONS
+                  || m_canvasMouseMode == CanvasMouseModeEnum::SELECT_CONNECTIONS) {
+            // A plain right-click never reaches the mode switch below (this branch
+            // returns first), so cancelling a pending/completed connection selection
+            // has to happen here.
+            endInteraction();
+            slot_clearConnectionSelection();
         }
         emit sig_customContextMenuRequested(event->position().toPoint());
         m_mouseRightPressed = false;

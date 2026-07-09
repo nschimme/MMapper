@@ -695,7 +695,12 @@ void MapCanvas::paintNearbyConnectionPoints()
         const Coordinate c = valid.room.getPosition();
         const glm::vec3 pos = c.to_vec3();
         // The anchor point is always Green so it stands out among the Cyan candidates.
-        points.emplace_back(Colors::green, pos + getConnectionOffset(valid.direction));
+        // A freshly chained CREATE_CONNECTIONS anchor has direction NONE (no direction
+        // picked yet), which getConnectionOffset() can't handle, so skip drawing it
+        // until a real direction is set.
+        if (isNESWUD(valid.direction) || valid.direction == ExitDirEnum::UNKNOWN) {
+            points.emplace_back(Colors::green, pos + getConnectionOffset(valid.direction));
+        }
 
         addPoints(MouseSel{Coordinate2f{pos.x, pos.y}, c.z}, valid);
         addPoints(m_sel1, valid);
@@ -724,6 +729,12 @@ void MapCanvas::paintSelectedConnection()
     ConnectionSelection &sel = deref(m_connectionSelection);
 
     const ConnectionSelection::ConnectionDescriptor &first = sel.getFirst();
+    // A freshly chained CREATE_CONNECTIONS anchor has direction NONE (no direction
+    // picked yet); there's no meaningful ghost line to draw until the user hovers
+    // over a direction, and getConnectionOffset() can't handle NONE anyway.
+    if (!isNESWUD(first.direction) && first.direction != ExitDirEnum::UNKNOWN) {
+        return;
+    }
     const auto pos1 = getPosition(first);
 
     const auto optPos2 = std::invoke([this, &sel]() -> std::optional<glm::vec3> {

@@ -652,9 +652,9 @@ void MapCanvas::paintNearbyConnectionPoints()
             }
         }
 
-        // Potential targets for an active selection are Green, otherwise Cyan.
-        const Color dotColor = optFirst.has_value() ? Colors::green : Colors::cyan;
-        points.emplace_back(dotColor, roomCoord.to_vec3() + getConnectionOffset(dir));
+        // Cyan means "not yet a complete selection"; green is reserved for the
+        // anchor/ghost-line once both endpoints form a valid connection (see below).
+        points.emplace_back(Colors::cyan, roomCoord.to_vec3() + getConnectionOffset(dir));
     };
     const auto addPoints =
         [this, isSelection, &addPoint](const std::optional<MouseSel> &sel,
@@ -690,7 +690,7 @@ void MapCanvas::paintNearbyConnectionPoints()
                                                                : m_connectionSelection->getSecond();
         const Coordinate c = valid.room.getPosition();
         const glm::vec3 pos = c.to_vec3();
-        // Source point of current interaction is Green
+        // The anchor point is always Green so it stands out among the Cyan candidates.
         points.emplace_back(Colors::green, pos + getConnectionOffset(valid.direction));
 
         addPoints(MouseSel{Coordinate2f{pos.x, pos.y}, c.z}, valid);
@@ -747,8 +747,15 @@ void MapCanvas::paintSelectedConnection()
 
     auto &gl = getOpenGL();
 
-    // Use Cyan for the ghost line and potential interaction points to distinguish them from finalized connections.
-    const Color ghostColor = sel.isSecondValid() ? Colors::cyan : Colors::cyan.withAlpha(0.8f);
+    // Green means the current anchor+target already form a complete, valid connection;
+    // cyan means it's still just a pending anchor/candidate (translucent until a
+    // second room is even hovered).
+    const bool isComplete = (m_canvasMouseMode == CanvasMouseModeEnum::SELECT_CONNECTIONS)
+                                ? sel.isCompleteExisting()
+                                : sel.isCompleteNew();
+    const Color ghostColor = isComplete ? Colors::green
+                             : sel.isSecondValid() ? Colors::cyan
+                                                   : Colors::cyan.withAlpha(0.8f);
     const auto rs = GLRenderState()
                         .withColor(ghostColor)
                         .withBlend(BlendModeEnum::TRANSPARENCY)

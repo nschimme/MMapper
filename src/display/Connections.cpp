@@ -626,14 +626,6 @@ void MapCanvas::paintNearbyConnectionPoints()
     const bool isSelection = m_canvasMouseMode == CanvasMouseModeEnum::SELECT_CONNECTIONS;
     using CD = ConnectionSelection::ConnectionDescriptor;
 
-    static const auto allExits = std::invoke([]() -> ExitDirFlags {
-        ExitDirFlags tmp;
-        for (const ExitDirEnum dir : ALL_EXITS7) {
-            tmp |= dir;
-        }
-        return tmp;
-    });
-
     std::vector<ColorVert> points;
     const auto addPoint = [isSelection, &points](const Coordinate roomCoord,
                                                  const RoomHandle &room,
@@ -671,7 +663,19 @@ void MapCanvas::paintNearbyConnectionPoints()
                     continue;
                 }
 
-                ExitDirFlags dirs = isSelection ? m_data.getExitDirections(roomCoord) : allExits;
+                // SELECT_CONNECTIONS only offers directions that already have an exit to pick
+                // from. CREATE_CONNECTIONS should only offer directions that don't already have
+                // an outgoing connection, since clicking one that does would silently overwrite it.
+                ExitDirFlags dirs;
+                if (isSelection) {
+                    dirs = m_data.getExitDirections(roomCoord);
+                } else {
+                    for (const ExitDirEnum dir : ALL_EXITS7) {
+                        if (isNESWUD(dir) && room.getExit(dir).outIsEmpty()) {
+                            dirs |= dir;
+                        }
+                    }
+                }
                 if (optFirst) {
                     dirs |= ExitDirEnum::UNKNOWN;
                 }

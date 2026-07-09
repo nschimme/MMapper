@@ -719,12 +719,11 @@ void MapCanvas::mousePressEvent(QMouseEvent *const event)
                     }
                 }
             } else {
-                // First click
-                m_connectionSelection = ConnectionSelection::alloc(m_data, getSel1());
-                if (m_connectionSelection->isFirstValid()) {
+                // First click: a click that doesn't land on a valid room is a no-op.
+                auto candidate = ConnectionSelection::alloc(m_data, getSel1());
+                if (candidate->isFirstValid()) {
+                    m_connectionSelection = std::move(candidate);
                     beginConnectionInteraction();
-                } else {
-                    m_connectionSelection = nullptr;
                 }
             }
             emit sig_newConnectionSelection(m_connectionSelection.get());
@@ -753,19 +752,17 @@ void MapCanvas::mousePressEvent(QMouseEvent *const event)
                     }
                 }
             } else {
-                // First click
-                m_connectionSelection = ConnectionSelection::alloc(m_data, getSel1());
-                if (m_connectionSelection->isFirstValid()) {
-                    const auto &r1 = m_connectionSelection->getFirst().room;
-                    const ExitDirEnum dir1 = m_connectionSelection->getFirst().direction;
-
-                    if (!r1.getExit(dir1).outIsEmpty()) {
-                        beginConnectionInteraction();
-                    } else {
-                        m_connectionSelection = nullptr;
-                    }
-                } else {
-                    m_connectionSelection = nullptr;
+                // First click: try to anchor a new selection here. A click that doesn't
+                // land on a valid exit is a no-op, leaving any already-completed
+                // selection from a prior two-click gesture in place (right-click to
+                // clear it explicitly) instead of silently wiping it out.
+                auto candidate = ConnectionSelection::alloc(m_data, getSel1());
+                if (candidate->isFirstValid()
+                    && !candidate->getFirst()
+                            .room.getExit(candidate->getFirst().direction)
+                            .outIsEmpty()) {
+                    m_connectionSelection = std::move(candidate);
+                    beginConnectionInteraction();
                 }
             }
             emit sig_newConnectionSelection(m_connectionSelection.get());

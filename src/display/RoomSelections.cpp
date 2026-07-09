@@ -168,20 +168,12 @@ void MapCanvas::paintSelectedRooms()
 {
     RoomSelFakeGL gl;
 
-    // Highlight source room of connection building
-    if (auto *const conn = getInteraction<ConnectionInteraction>()) {
-        if (m_connectionSelection && m_connectionSelection->isFirstValid()) {
-            if (const auto room = m_connectionSelection->getFirst().room) {
-                gl.resetMatrix();
-                paintSelectedRoom(gl, room.getRaw());
-            }
-        }
-    }
+    // NOTE: The connection-building anchor room is intentionally not drawn with the
+    // room-selection texture here; it already has its own distinct highlight (green
+    // anchor point + ghost line) painted in paintSelectedConnection(), so reusing the
+    // room-selection graphic would make it look like an actual room selection.
 
     if (!m_roomSelection || m_roomSelection->empty()) {
-        if (getInteraction<ConnectionInteraction>()) {
-            gl.draw(getOpenGL(), m_textures);
-        }
         return;
     }
 

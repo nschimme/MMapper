@@ -905,15 +905,17 @@ void MapCanvas::mouseMoveEvent(QMouseEvent *const event)
     case CanvasMouseModeEnum::CREATE_CONNECTIONS:
         if (m_connectionSelection != nullptr) {
             m_connectionSelection->setSecond(getSel2());
-            selectionChanged();
         }
+        // Repaint on every move (not just while an anchor is active) so the
+        // nearby-exit hover dots track the mouse before the first click too.
+        selectionChanged();
         break;
 
     case CanvasMouseModeEnum::SELECT_CONNECTIONS:
         if (m_connectionSelection != nullptr) {
             m_connectionSelection->setSecond(getSel2());
-            selectionChanged();
         }
+        selectionChanged();
         break;
 
     case CanvasMouseModeEnum::CREATE_ROOMS:

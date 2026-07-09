@@ -713,13 +713,9 @@ void MapCanvas::mousePressEvent(QMouseEvent *const event)
                         m_connectionSelection = ConnectionSelection::alloc(m_data);
                         m_connectionSelection->setFirst(id2, ExitDirEnum::NONE);
                     } else {
-                        // Re-anchor: treat the failed second click as a new first click
-                        // instead of discarding the in-progress selection.
-                        m_connectionSelection = ConnectionSelection::alloc(m_data, getSel1());
-                        if (!m_connectionSelection->isFirstValid()) {
-                            m_connectionSelection = nullptr;
-                            endInteraction();
-                        }
+                        // Invalid second click: leave the first click's anchor in place
+                        // instead of discarding the in-progress selection. Right-click cancels.
+                        m_connectionSelection->removeSecond();
                     }
                 }
             } else {
@@ -749,16 +745,9 @@ void MapCanvas::mousePressEvent(QMouseEvent *const event)
                     m_connectionSelection->setSecond(getSel1());
                     if (!m_connectionSelection->isValid()
                         || !m_connectionSelection->isCompleteExisting()) {
-                        // Re-anchor: treat the failed second click as a new first click
-                        // instead of discarding the in-progress selection.
-                        m_connectionSelection = ConnectionSelection::alloc(m_data, getSel1());
-                        if (!m_connectionSelection->isFirstValid()
-                            || m_connectionSelection->getFirst()
-                                   .room.getExit(m_connectionSelection->getFirst().direction)
-                                   .outIsEmpty()) {
-                            m_connectionSelection = nullptr;
-                            endInteraction();
-                        }
+                        // Invalid second click: leave the first click's anchor in place
+                        // instead of discarding the in-progress selection. Right-click cancels.
+                        m_connectionSelection->removeSecond();
                     } else {
                         endInteraction();
                     }

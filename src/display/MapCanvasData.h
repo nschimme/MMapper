@@ -17,6 +17,7 @@
 #include "prespammedpath.h"
 
 #include <cassert>
+#include <chrono>
 #include <map>
 #include <memory>
 #include <optional>
@@ -242,6 +243,15 @@ struct NODISCARD PinchState
     float lastFactor = 1.f;
 };
 
+// Tracks a single-finger touch to detect tap-and-hold, the touch equivalent of a
+// right-click, since touchscreens have no secondary button to cancel a selection with.
+struct NODISCARD TouchHoldState
+{
+    glm::vec2 startPos;
+    std::chrono::steady_clock::time_point startTime;
+    bool fired = false;
+};
+
 struct NODISCARD MagnificationState
 {
     float lastValue = 1.f;
@@ -300,6 +310,7 @@ struct NODISCARD MapCanvasInputState
     // and each other, so they are managed independently.
     std::optional<PinchState> m_pinchState;
     std::optional<MagnificationState> m_magnificationState;
+    std::optional<TouchHoldState> m_touchHoldState;
 
     SharedRoomSelection m_roomSelection;
 

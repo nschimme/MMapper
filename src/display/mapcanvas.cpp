@@ -25,6 +25,7 @@
 #include "connectionselection.h"
 
 #include <array>
+#include <chrono>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
@@ -48,6 +49,9 @@
 namespace {
 constexpr float GESTURE_EPSILON = 1e-6f;
 constexpr float PINCH_DISTANCE_THRESHOLD = 1e-3f;
+// Touch equivalent of a right-click: a single finger held roughly in place this long.
+constexpr auto TAP_HOLD_DURATION = std::chrono::milliseconds(500);
+constexpr float TAP_HOLD_MAX_MOVEMENT_PIXELS = 15.f;
 } // namespace
 
 using NonOwningPointer = MapCanvas *;
@@ -156,6 +160,29 @@ void MapCanvas::slot_setCanvasMouseMode(const CanvasMouseModeEnum mode)
     m_canvasMouseMode = mode;
     m_activeInteraction.reset();
     selectionChanged();
+}
+
+void MapCanvas::cancelPendingSelection()
+{
+    switch (m_canvasMouseMode) {
+    case CanvasMouseModeEnum::CREATE_CONNECTIONS:
+    case CanvasMouseModeEnum::CREATE_ONEWAY_CONNECTIONS:
+    case CanvasMouseModeEnum::SELECT_CONNECTIONS:
+        endInteraction();
+        slot_clearConnectionSelection();
+        break;
+    case CanvasMouseModeEnum::SELECT_ROOMS:
+        endInteraction();
+        slot_clearRoomSelection();
+        break;
+    case CanvasMouseModeEnum::NONE:
+    case CanvasMouseModeEnum::MOVE:
+    case CanvasMouseModeEnum::RAYPICK_ROOMS:
+    case CanvasMouseModeEnum::CREATE_ROOMS:
+    case CanvasMouseModeEnum::SELECT_INFOMARKS:
+    case CanvasMouseModeEnum::CREATE_INFOMARKS:
+        break;
+    }
 }
 
 void MapCanvas::slot_setRoomSelection(const SigRoomSelection &selection)
@@ -333,12 +360,38 @@ void MapCanvas::touchEvent(QTouchEvent *const event)
             endPanning();
         }
         event->accept();
-    } else {
-        if (points.size() > 2) {
-            // Explicitly ignore more than 2 touch points for pinch zoom.
-            qDebug() << "MapCanvas::touchEvent: ignoring" << points.size() << "touch points";
+    } else if (points.size() == 1) {
+        // Tap-and-hold: the touch equivalent of a right-click, since a touchscreen has
+        // no secondary button to cancel a pending/completed selection with. The tap
+        // itself still falls through to Qt's synthesized mouse press/release below, so
+        // a normal tap keeps working as a first/second click.
+        const auto &p = points[0];
+        const glm::vec2 pos{p.position().x(), p.position().y()};
+
+        if (event->type() == QEvent::TouchBegin || p.state() == QEventPoint::Pressed) {
+            m_touchHoldState = TouchHoldState{pos, std::chrono::steady_clock::now(), false};
+        } else if (m_touchHoldState) {
+            auto &hold = *m_touchHoldState;
+            if (glm::distance(pos, hold.startPos) > TAP_HOLD_MAX_MOVEMENT_PIXELS) {
+                m_touchHoldState.reset();
+            } else if (!hold.fired
+                      && std::chrono::steady_clock::now() - hold.startTime >= TAP_HOLD_DURATION) {
+                hold.fired = true;
+                cancelPendingSelection();
+            }
         }
 
+        if (event->type() == QEvent::TouchEnd || p.state() == QEventPoint::Released) {
+            m_touchHoldState.reset();
+        }
+
+        endPinch();
+        QOpenGLWindow::touchEvent(event);
+    } else {
+        // Explicitly ignore more than 2 touch points for pinch zoom.
+        qDebug() << "MapCanvas::touchEvent: ignoring" << points.size() << "touch points";
+
+        m_touchHoldState.reset();
         endPinch();
         QOpenGLWindow::touchEvent(event);
     }
@@ -546,14 +599,11 @@ void MapCanvas::mousePressEvent(QMouseEvent *const event)
             slot_setInfomarkSelection(getInfomarkSelection(getSel1()));
 
             selectionChanged();
-        } else if (m_canvasMouseMode == CanvasMouseModeEnum::CREATE_CONNECTIONS
-                  || m_canvasMouseMode == CanvasMouseModeEnum::CREATE_ONEWAY_CONNECTIONS
-                  || m_canvasMouseMode == CanvasMouseModeEnum::SELECT_CONNECTIONS) {
+        } else {
             // A plain right-click never reaches the mode switch below (this branch
-            // returns first), so cancelling a pending/completed connection selection
-            // has to happen here.
-            endInteraction();
-            slot_clearConnectionSelection();
+            // returns first), so cancelling a pending/completed selection for modes
+            // that support it has to happen here.
+            cancelPendingSelection();
         }
         emit sig_customContextMenuRequested(event->position().toPoint());
         m_mouseRightPressed = false;

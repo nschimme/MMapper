@@ -226,6 +226,10 @@ private:
 
     NODISCARD std::shared_ptr<InfomarkSelection> getInfomarkSelection(const MouseSel &sel);
 
+    // Cancels whatever pending/completed selection the current mode supports cancelling
+    // (connection or room selection). Shared by right-click and touch tap-and-hold.
+    void cancelPendingSelection();
+
 public:
     void setMvp(const glm::mat4 &viewProj);
     void setViewportAndMvp(int width, int height);

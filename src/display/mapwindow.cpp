@@ -171,14 +171,10 @@ MapWindow::MapWindow(MapData &mapData,
     {
         connect(m_canvas, &MapCanvas::sig_onCenter, this, &MapWindow::slot_centerOnWorldPos);
         connect(m_canvas, &MapCanvas::sig_setScrollBars, this, &MapWindow::slot_setScrollBars);
-        connect(m_canvas, &MapCanvas::sig_continuousScroll, this, &MapWindow::slot_continuousScroll);
         connect(m_canvas, &MapCanvas::sig_mapMove, this, &MapWindow::slot_mapMove);
         connect(m_canvas, &MapCanvas::sig_zoomChanged, this, &MapWindow::slot_zoomChanged);
         connect(m_canvas, &MapCanvas::sig_showTooltip, this, &MapWindow::slot_showTooltip);
     }
-
-    m_scrollTimer = mmqt::makeQPointer<QTimer>(this);
-    connect(m_scrollTimer, &QTimer::timeout, this, &MapWindow::slot_scrollTimerTimeout);
 }
 
 void MapWindow::hideSplashImage()
@@ -194,6 +190,9 @@ void MapWindow::keyPressEvent(QKeyEvent *const event)
     if (event->key() == Qt::Key_Escape) {
         deref(m_canvas).userPressedEscape(true);
         return;
+    } else if (event->key() == Qt::Key_Space) {
+        deref(m_canvas).keyPressEvent(event);
+        return;
     }
     QWidget::keyPressEvent(event);
 }
@@ -202,6 +201,9 @@ void MapWindow::keyReleaseEvent(QKeyEvent *const event)
 {
     if (event->key() == Qt::Key_Escape) {
         deref(m_canvas).userPressedEscape(false);
+        return;
+    } else if (event->key() == Qt::Key_Space) {
+        deref(m_canvas).keyReleaseEvent(event);
         return;
     }
     QWidget::keyReleaseEvent(event);
@@ -221,52 +223,6 @@ void MapWindow::slot_mapMove(const int dx, const int input_dy)
 
     const int hValue = horz.value() + dx;
     const int vValue = vert.value() + dy;
-
-    const glm::ivec2 scrollPos{hValue, vValue};
-    centerOnScrollPos(scrollPos);
-}
-
-// REVISIT: This looks more like "delayed jump" than "continuous scroll."
-void MapWindow::slot_continuousScroll(const int hStep, const int input_vStep)
-{
-    const auto fitsInInt8 = [](int n) -> bool {
-        // alternate: test against std::numeric_limits<int8_t>::min and max.
-        return static_cast<int>(static_cast<int8_t>(n)) == n;
-    };
-
-    // code originally used int8_t
-    assert(fitsInInt8(hStep));
-    assert(fitsInInt8(input_vStep));
-
-    // Y is negated because delta is in world space
-    const int vStep = -input_vStep;
-
-    m_horizontalScrollStep = hStep;
-    m_verticalScrollStep = vStep;
-
-    auto &scrollTimer = deref(m_scrollTimer);
-    // stop
-    if (hStep == 0 && vStep == 0) {
-        if (scrollTimer.isActive()) {
-            scrollTimer.stop();
-        }
-    } else {
-        // start
-        if (!scrollTimer.isActive()) {
-            scrollTimer.start(100);
-        }
-    }
-}
-
-void MapWindow::slot_scrollTimerTimeout()
-{
-    auto &horz = deref(m_horizontalScrollBar);
-    auto &vert = deref(m_verticalScrollBar);
-    const SignalBlocker block_horz{horz};
-    const SignalBlocker block_vert{vert};
-
-    const int vValue = vert.value() + m_verticalScrollStep;
-    const int hValue = horz.value() + m_horizontalScrollStep;
 
     const glm::ivec2 scrollPos{hValue, vValue};
     centerOnScrollPos(scrollPos);

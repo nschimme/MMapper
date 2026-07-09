@@ -50,39 +50,6 @@ bool ConnectionSelection::isValid() const
     return true;
 }
 
-// \NNNNNNNN/
-// W\NNNN--/E
-// WW\NN|UU|E
-// WWW\-|UU|E
-// WWW|CC--EE
-// WW--CC|EEE
-// W|DD|-\EEE
-// W|DD|SS\EE
-// W/--SSSS\E
-// /SSSSSSSS\.
-ExitDirEnum ConnectionSelection::computeDirection(const Coordinate2f &c)
-{
-    const glm::vec2 pos = glm::fract(c.to_vec2());
-    const glm::vec2 upCenter{0.75f, 0.75f};
-    const glm::vec2 downCenter{0.25f, 0.25f};
-    const glm::vec2 actualCenter{0.5f, 0.5f};
-    const float upDownRadius = 0.15f;
-    const float centerRadius = 0.15f;
-
-    if (glm::distance(pos, upCenter) <= upDownRadius) {
-        return ExitDirEnum::UP;
-    } else if (glm::distance(pos, downCenter) <= upDownRadius) {
-        return ExitDirEnum::DOWN;
-    } else if (glm::distance(pos, actualCenter) <= centerRadius) {
-        return ExitDirEnum::UNKNOWN;
-    }
-
-    const bool ne = pos.x >= 1.f - pos.y;
-    const bool nw = pos.x <= pos.y;
-    return ne ? (nw ? ExitDirEnum::NORTH : ExitDirEnum::EAST)
-              : (nw ? ExitDirEnum::WEST : ExitDirEnum::SOUTH);
-}
-
 void ConnectionSelection::setFirst(const RoomId id, const ExitDirEnum dir)
 {
     m_first = true;

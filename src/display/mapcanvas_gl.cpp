@@ -826,8 +826,8 @@ void MapCanvas::paintSelections()
 {
     paintSelectedRooms();
     paintSelectedConnection();
-    paintSelectionArea();
     paintSelectedInfomarks();
+    paintSelectionArea();
 }
 
 void MapCanvas::paintGL()
@@ -979,18 +979,19 @@ void MapCanvas::paintGL()
 
 void MapCanvas::paintSelectionArea()
 {
-    if (!hasSel1() || !hasSel2()) {
+    const auto *area = getInteraction<AreaSelectionInteraction>();
+    if (!area) {
         return;
     }
 
-    const auto pos1 = getSel1().pos.to_vec2();
+    const auto pos1 = area->anchorPoint.pos.to_vec2();
     const auto pos2 = getSel2().pos.to_vec2();
 
     // Mouse selected area
     auto &gl = getOpenGL();
     const auto layer = static_cast<float>(getCurrentLayer());
 
-    if (hasAreaSelection()) {
+    if (area->isSelecting) {
         const glm::vec3 A{pos1, layer};
         const glm::vec3 B{pos2.x, pos1.y, layer};
         const glm::vec3 C{pos2, layer};

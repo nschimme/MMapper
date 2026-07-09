@@ -5,6 +5,7 @@
 
 #include "../src/global/HideQDebug.h"
 #include "../src/map/Diff.h"
+#include "../src/map/ExitDirection.h"
 #include "../src/map/Map.h"
 #include "../src/map/TinyRoomIdSet.h"
 #include "../src/map/sanitizer.h"
@@ -50,6 +51,11 @@ void TestMap::roomIdSetTest()
     mmqt::HideQDebug forThisTest;
     test::testRoomIdSet();
     test::testImmRoomIdSet();
+}
+
+void TestMap::exitDirectionTest()
+{
+    test::testExitDirection();
 }
 
 QTEST_MAIN(TestMap)

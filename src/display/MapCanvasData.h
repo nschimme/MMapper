@@ -17,6 +17,7 @@
 #include "prespammedpath.h"
 
 #include <cassert>
+#include <chrono>
 #include <map>
 #include <memory>
 #include <optional>
@@ -228,17 +229,27 @@ struct NODISCARD AltDragState
     QCursor originalCursor;
 };
 
-struct NODISCARD DragState
+struct NODISCARD PanningState
 {
     glm::vec3 startWorldPos;
     glm::vec2 startScroll;
     glm::mat4 startViewProj;
+    glm::vec2 startScreenPos;
 };
 
 struct NODISCARD PinchState
 {
     float initialDistance = 0.f;
     float lastFactor = 1.f;
+};
+
+// Tracks a single-finger touch to detect tap-and-hold, the touch equivalent of a
+// right-click, since touchscreens have no secondary button to cancel a selection with.
+struct NODISCARD TouchHoldState
+{
+    glm::vec2 startPos;
+    std::chrono::steady_clock::time_point startTime;
+    bool fired = false;
 };
 
 struct NODISCARD MagnificationState
@@ -257,8 +268,17 @@ struct NODISCARD InfomarkSelectionMove
     Coordinate2f pos;
 };
 
-struct NODISCARD AreaSelectionState
-{};
+struct NODISCARD AreaSelectionInteraction
+{
+    MouseSel anchorPoint;
+    bool isSelecting = false;
+};
+
+struct NODISCARD ConnectionInteraction
+{
+    // No extra state needed here yet as we use m_connectionSelection,
+    // but having the struct helps identify the active tool.
+};
 
 struct NODISCARD MapCanvasInputState
 {
@@ -266,22 +286,31 @@ struct NODISCARD MapCanvasInputState
 
     bool m_mouseRightPressed = false;
     bool m_mouseLeftPressed = false;
+    bool m_mouseMiddlePressed = false;
     bool m_altPressed = false;
     bool m_ctrlPressed = false;
+    bool m_spacebarPressed = false;
 
     // mouse selection
     std::optional<MouseSel> m_sel1;
     std::optional<MouseSel> m_sel2;
 
-    // Mutually exclusive mouse-based interactions.
-    std::optional<
-        std::variant<AltDragState, DragState, RoomSelMove, InfomarkSelectionMove, AreaSelectionState>>
+    // Panning is independent of tool-based interactions.
+    std::optional<PanningState> m_panningState;
+
+    // Mutually exclusive mouse-based tool interactions.
+    std::optional<std::variant<AltDragState,
+                               RoomSelMove,
+                               InfomarkSelectionMove,
+                               AreaSelectionInteraction,
+                               ConnectionInteraction>>
         m_activeInteraction;
 
     // Gesture states (pinch, magnification) can occur concurrently with mouse interactions
     // and each other, so they are managed independently.
     std::optional<PinchState> m_pinchState;
     std::optional<MagnificationState> m_magnificationState;
+    std::optional<TouchHoldState> m_touchHoldState;
 
     SharedRoomSelection m_roomSelection;
 
@@ -292,8 +321,10 @@ struct NODISCARD MapCanvasInputState
     PrespammedPath &m_prespammedPath;
 
 public:
-    explicit MapCanvasInputState(PrespammedPath &prespammedPath);
-    ~MapCanvasInputState();
+    explicit MapCanvasInputState(PrespammedPath &prespammedPath)
+        : m_prespammedPath{prespammedPath}
+    {}
+    ~MapCanvasInputState() = default;
 
 public:
     NODISCARD static MouseSel getMouseSel(const std::optional<MouseSel> &x)
@@ -344,13 +375,22 @@ public:
     {
         beginInteraction(AltDragState{pos, cursor});
     }
-    void beginDrag(const glm::vec3 worldPos, const glm::vec2 scroll, const glm::mat4 &viewProj)
+    void beginPanning(const glm::vec3 worldPos,
+                      const glm::vec2 scroll,
+                      const glm::mat4 &viewProj,
+                      const glm::vec2 screenPos)
     {
-        beginInteraction(DragState{worldPos, scroll, viewProj});
+        m_panningState.emplace(PanningState{worldPos, scroll, viewProj, screenPos});
     }
+    void endPanning() { m_panningState.reset(); }
+
     void beginRoomMove() { beginInteraction(RoomSelMove{}); }
     void beginInfomarkMove() { beginInteraction(InfomarkSelectionMove{}); }
-    void beginAreaSelection() { beginInteraction(AreaSelectionState{}); }
+    void beginAreaSelection(const MouseSel &anchor)
+    {
+        beginInteraction(AreaSelectionInteraction{anchor, true});
+    }
+    void beginConnectionInteraction() { beginInteraction(ConnectionInteraction{}); }
     void endInteraction() { m_activeInteraction.reset(); }
 
 public:
@@ -385,6 +425,10 @@ public:
     }
     NODISCARD bool hasAreaSelection() const
     {
-        return getInteraction<AreaSelectionState>() != nullptr;
+        return getInteraction<AreaSelectionInteraction>() != nullptr;
+    }
+    NODISCARD bool hasConnectionInteraction() const
+    {
+        return getInteraction<ConnectionInteraction>() != nullptr;
     }
 };

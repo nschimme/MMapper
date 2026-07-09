@@ -206,6 +206,12 @@ protected:
     void mousePressEvent(QMouseEvent *event) override;
     void mouseReleaseEvent(QMouseEvent *event) override;
     void mouseMoveEvent(QMouseEvent *event) override;
+
+public:
+    void keyPressEvent(QKeyEvent *event) override;
+    void keyReleaseEvent(QKeyEvent *event) override;
+
+protected:
     void wheelEvent(QWheelEvent *event) override;
     void touchEvent(QTouchEvent *event) override;
     bool event(QEvent *e) override;
@@ -219,6 +225,10 @@ private:
     void updateMultisampling();
 
     NODISCARD std::shared_ptr<InfomarkSelection> getInfomarkSelection(const MouseSel &sel);
+
+    // Cancels whatever pending/completed selection the current mode supports cancelling
+    // (connection or room selection). Shared by right-click and touch tap-and-hold.
+    void cancelPendingSelection();
 
 public:
     void setMvp(const glm::mat4 &viewProj);

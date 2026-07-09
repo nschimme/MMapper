@@ -196,7 +196,77 @@ Coordinate exitDir(const ExitDirEnum dir)
     return exitDirs[dir];
 }
 
+/*
+ * Snap zones within a room coordinate (fract(x), fract(y)) in [0..1, 0..1]:
+ *
+ * (0,1)             (1,1)
+ *    +---------------+
+ *    | \     N     / |
+ *    |   \   U   /   |  U = UP (Center 0.75, 0.75, radius 0.15)
+ *    |     \   /     |
+ *    |  W    X    E  |  X = UNKNOWN (Center 0.5, 0.5, radius 0.15)
+ *    |     /   \     |
+ *    |   /   D   \   |  D = DOWN (Center 0.25, 0.25, radius 0.15)
+ *    | /     S     \ |
+ *    +---------------+
+ * (0,0)             (1,0)
+ *
+ * Partitioned by diagonals:
+ * ne = x >= 1-y (North-East half)
+ * nw = x <= y   (North-West half)
+ *
+ * (ne && nw)   => NORTH
+ * (ne && !nw)  => EAST
+ * (!ne && nw)  => WEST
+ * (!ne && !nw) => SOUTH
+ *
+ * Circle-based zones (U, D, X) take precedence over the quadrant diagonals.
+ * This logic is moved here from ConnectionSelection to allow unit testing and
+ * potential reuse by other UI components needing room-relative direction snapping.
+ */
+ExitDirEnum getExitDirFromCoordinate(const Coordinate2f &c)
+{
+    const glm::vec2 pos = glm::fract(c.to_vec2());
+    const glm::vec2 upCenter{0.75f, 0.75f};
+    const glm::vec2 downCenter{0.25f, 0.25f};
+    const glm::vec2 actualCenter{0.5f, 0.5f};
+    const float upDownRadius = 0.15f;
+    const float centerRadius = 0.15f;
+
+    if (glm::distance(pos, upCenter) <= upDownRadius) {
+        return ExitDirEnum::UP;
+    } else if (glm::distance(pos, downCenter) <= upDownRadius) {
+        return ExitDirEnum::DOWN;
+    } else if (glm::distance(pos, actualCenter) <= centerRadius) {
+        return ExitDirEnum::UNKNOWN;
+    }
+
+    const bool ne = pos.x >= 1.f - pos.y;
+    const bool nw = pos.x <= pos.y;
+    return ne ? (nw ? ExitDirEnum::NORTH : ExitDirEnum::EAST)
+              : (nw ? ExitDirEnum::WEST : ExitDirEnum::SOUTH);
+}
+
 std::string_view to_string_view(const ExitDirEnum dir)
 {
     return lowercaseDirection(dir);
+}
+
+void test::testExitDirection()
+{
+    // Test getExitDirFromCoordinate
+    // North: fractal pos (0.5, 0.9)
+    assert(getExitDirFromCoordinate(Coordinate2f{0.5f, 0.9f}) == ExitDirEnum::NORTH);
+    // South: fractal pos (0.5, 0.1)
+    assert(getExitDirFromCoordinate(Coordinate2f{0.5f, 0.1f}) == ExitDirEnum::SOUTH);
+    // East: fractal pos (0.9, 0.5)
+    assert(getExitDirFromCoordinate(Coordinate2f{0.9f, 0.5f}) == ExitDirEnum::EAST);
+    // West: fractal pos (0.1, 0.5)
+    assert(getExitDirFromCoordinate(Coordinate2f{0.1f, 0.5f}) == ExitDirEnum::WEST);
+    // Up: near (0.75, 0.75)
+    assert(getExitDirFromCoordinate(Coordinate2f{0.75f, 0.75f}) == ExitDirEnum::UP);
+    // Down: near (0.25, 0.25)
+    assert(getExitDirFromCoordinate(Coordinate2f{0.25f, 0.25f}) == ExitDirEnum::DOWN);
+    // Unknown: near (0.5, 0.5)
+    assert(getExitDirFromCoordinate(Coordinate2f{0.5f, 0.5f}) == ExitDirEnum::UNKNOWN);
 }

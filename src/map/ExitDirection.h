@@ -5,6 +5,7 @@
 
 #include "../global/View.h"
 #include "ExitFlags.h"
+#include "coordinate.h"
 
 #include <cstdint>
 
@@ -61,4 +62,9 @@ NODISCARD char charForDir(ExitDirEnum dir);
 } // namespace Mmapper2Exit
 
 NODISCARD extern Coordinate exitDir(ExitDirEnum dir);
+NODISCARD extern ExitDirEnum getExitDirFromCoordinate(const Coordinate2f &c);
 NODISCARD extern std::string_view to_string_view(ExitDirEnum dir);
+
+namespace test {
+void testExitDirection();
+}

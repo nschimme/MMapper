@@ -790,6 +790,10 @@ if(WITH_AUDIO)
     target_link_libraries(mmapper PUBLIC Qt6::Multimedia)
 endif()
 
+if(WITH_QML)
+    target_link_libraries(mmapper PUBLIC Qt6::Qml Qt6::Quick Qt6::QuickWidgets Qt6::QuickControls2)
+endif()
+
 set_target_properties(
   mmapper PROPERTIES
   CXX_STANDARD 20
@@ -1123,6 +1127,9 @@ if(UNIX AND NOT APPLE AND NOT EMSCRIPTEN)
     endif()
     if(WITH_AUDIO)
         set(CPACK_DEBIAN_PACKAGE_DEPENDS "${CPACK_DEBIAN_PACKAGE_DEPENDS}, libqt6multimedia6 (>= 6.4.0)")
+    endif()
+    if(WITH_QML)
+        set(CPACK_DEBIAN_PACKAGE_DEPENDS "${CPACK_DEBIAN_PACKAGE_DEPENDS}, libqt6qml6 (>= 6.4.0), libqt6quick6 (>= 6.4.0), libqt6quickwidgets6 (>= 6.4.0), qml6-module-qtquick, qml6-module-qtquick-controls, qml6-module-qtquick-templates, qml6-module-qtquick-window, qml6-module-qtqml, qml6-module-qtqml-workerscript")
     endif()
     set(CPACK_DEBIAN_PACKAGE_DEPENDS "${CPACK_DEBIAN_PACKAGE_DEPENDS}, libqt6svg6 (>= 6.4.0), libqt6svgwidgets6 (>= 6.4.0)")
 endif(UNIX AND NOT APPLE AND NOT EMSCRIPTEN)

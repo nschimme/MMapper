@@ -28,15 +28,18 @@ private:
     const bool m_editSession;
 
     QProcess m_process;
-    QString m_fileName;
+    QString m_fullPath;
     QDateTime m_previousTime;
 
 public:
     explicit RemoteEditProcess(bool editSession,
                                const QString &title,
                                const QString &body,
+                               const QString &fullPath,
                                QObject *parent);
     ~RemoteEditProcess() final;
+
+    NODISCARD bool isRunning() const { return m_process.state() == QProcess::Running; }
 
 private:
     virtual void virt_onError(QProcess::ProcessError);

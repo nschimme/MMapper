@@ -42,6 +42,14 @@ public:
         virt_onMumeClientEdit(id, title, body);
     }
     void onMumeClientError(const QString &errmsg) { virt_onMumeClientError(errmsg); }
+    void onMumeClientWriteResult(const RemoteSessionId id, bool success, const QString &errmsg)
+    {
+        virt_onMumeClientWriteResult(id, success, errmsg);
+    }
+    void onMumeClientCancelResult(const RemoteSessionId id, bool success, const QString &errmsg)
+    {
+        virt_onMumeClientCancelResult(id, success, errmsg);
+    }
 
 private:
     virtual void virt_onAnalyzeMudStream(const RawBytes &, bool goAhead) = 0;
@@ -57,7 +65,16 @@ private:
                                        const QString &body)
         = 0;
     virtual void virt_onMumeClientError(const QString &errmsg) = 0;
+    virtual void virt_onMumeClientWriteResult(const RemoteSessionId id,
+                                              bool success,
+                                              const QString &errmsg)
+        = 0;
+    virtual void virt_onMumeClientCancelResult(const RemoteSessionId id,
+                                               bool success,
+                                               const QString &errmsg)
+        = 0;
 };
+
 
 class NODISCARD MudTelnet final : public AbstractTelnet
 {

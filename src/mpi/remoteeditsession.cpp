@@ -21,9 +21,11 @@
 
 RemoteEditSession::RemoteEditSession(const RemoteInternalId internalId,
                                      const RemoteSessionId sessionId,
+                                     QString title,
                                      RemoteEdit *const remoteEdit)
     : QObject(remoteEdit)
     , m_manager(remoteEdit)
+    , m_title(std::move(title))
     , m_internalId(internalId)
     , m_sessionId(sessionId)
 {
@@ -40,12 +42,38 @@ void RemoteEditSession::cancel()
     m_manager->cancel(this);
 }
 
+void RemoteEditSession::virt_show()
+{
+    QString content = m_content;
+    if (content.isEmpty() && !m_draftFileName.isEmpty()) {
+        QFile file(getFullDraftPath());
+        if (file.open(QFile::ReadOnly | QFile::Text)) {
+            content = QString::fromLatin1(file.readAll());
+            file.close();
+        }
+    }
+
+    // Default implementation does nothing (for recovered raw sessions)
+    // We will show the content in a read-only dialog
+    auto *widget = new RemoteEditWidget(false, m_title, content, dynamic_cast<QWidget *>(m_manager->parent()));
+    widget->setAttribute(Qt::WA_DeleteOnClose);
+    widget->show();
+}
+
+QString RemoteEditSession::getFullDraftPath() const
+{
+    if (m_draftFileName.isEmpty()) {
+        return QString();
+    }
+    return QDir(RemoteEdit::getDraftDirectory()).absoluteFilePath(m_draftFileName);
+}
+
 RemoteEditInternalSession::RemoteEditInternalSession(const RemoteInternalId internalId,
                                                      const RemoteSessionId sessionId,
                                                      const QString &title,
                                                      const QString &body,
                                                      RemoteEdit *const parent)
-    : RemoteEditSession(internalId, sessionId, parent)
+    : RemoteEditSession(internalId, sessionId, title, parent)
     , m_widget(
           new RemoteEditWidget(isEditSession(),
                                title,
@@ -56,6 +84,28 @@ RemoteEditInternalSession::RemoteEditInternalSession(const RemoteInternalId inte
     const auto widget = m_widget.data();
     connect(widget, &RemoteEditWidget::sig_save, this, &RemoteEditSession::slot_onSave);
     connect(widget, &RemoteEditWidget::sig_cancel, this, &RemoteEditSession::slot_onCancel);
+    connect(widget,
+            &RemoteEditWidget::sig_textModified,
+            this,
+            &RemoteEditInternalSession::slot_onTextModified);
+
+    if (isEditSession()) {
+        m_debounceTimer = new QTimer(this);
+        m_debounceTimer->setSingleShot(true);
+        connect(m_debounceTimer,
+                &QTimer::timeout,
+                this,
+                &RemoteEditInternalSession::slot_performAutoSave);
+
+        m_throttleTimer = new QTimer(this);
+        m_throttleTimer->setSingleShot(true);
+        connect(m_throttleTimer,
+                &QTimer::timeout,
+                this,
+                &RemoteEditInternalSession::slot_performAutoSave);
+
+        m_lastWriteTimer.start();
+    }
 }
 
 RemoteEditInternalSession::~RemoteEditInternalSession()
@@ -67,15 +117,55 @@ RemoteEditInternalSession::~RemoteEditInternalSession()
     }
 }
 
+void RemoteEditInternalSession::slot_onTextModified(const QString &content)
+{
+    m_content = content;
+
+    // FR-3.2: 2000ms debounce
+    m_debounceTimer->start(2000);
+
+    // FR-3.3: 15000ms max throttle
+    if (!m_throttleTimer->isActive()) {
+        m_throttleTimer->start(15000);
+    }
+}
+
+void RemoteEditInternalSession::slot_performAutoSave()
+{
+    if (m_draftFileName.isEmpty()) {
+        return;
+    }
+
+    if (RemoteEdit::saveDraftAtomic(m_draftFileName, m_content)) {
+        qDebug() << "Auto-save successful for" << m_draftFileName;
+        m_lastWriteTimer.restart();
+        m_debounceTimer->stop();
+        m_throttleTimer->stop();
+    } else {
+        qWarning() << "Auto-save failed for" << m_draftFileName;
+    }
+}
+
+void RemoteEditInternalSession::virt_show()
+{
+    if (m_widget) {
+        m_widget->show();
+        m_widget->raise();
+        m_widget->activateWindow();
+    } else {
+        RemoteEditSession::virt_show();
+    }
+}
+
 #ifndef Q_OS_WASM
 RemoteEditExternalSession::RemoteEditExternalSession(const RemoteInternalId internalId,
                                                      const RemoteSessionId sessionId,
                                                      const QString &title,
                                                      const QString &body,
                                                      RemoteEdit *const parent)
-    : RemoteEditSession(internalId, sessionId, parent)
-    , m_process(new RemoteEditProcess(isEditSession(), title, body, this))
+    : RemoteEditSession(internalId, sessionId, title, parent)
 {
+    m_process = new RemoteEditProcess(isEditSession(), title, body, getFullDraftPath(), this);
     const auto proc = m_process.data();
     connect(proc, &RemoteEditProcess::sig_save, this, &RemoteEditExternalSession::slot_onSave);
     connect(proc, &RemoteEditProcess::sig_cancel, this, &RemoteEditExternalSession::slot_onCancel);

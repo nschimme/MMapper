@@ -8,6 +8,9 @@
 #include "../global/PrintUtils.h"
 #include "../global/SendToUser.h"
 #include "../global/thread_utils.h"
+#include "../mpi/remoteedit.h"
+#include "../proxy/connectionlistener.h"
+#include "../proxy/proxy.h"
 #include "AsyncTypes.h"
 #include "mainwindow.h"
 
@@ -71,15 +74,27 @@ private:
         return QScopedPointer<QProgressBar>{progress.release()};
     });
     QScopedPointer<CancelTaskButton> m_cancelButton;
+    QScopedPointer<QPushButton> m_actionButton;
 
 public:
-    explicit ListItem(async_tasks::AsyncTaskHandle moved_task)
+    explicit ListItem(async_tasks::AsyncTaskHandle moved_task, MainWindow &mainWindow)
         : m_task{std::move(moved_task)}
         , m_cancelButton{mmqt::makeQScopedPointer<CancelTaskButton>(m_task)}
+        , m_actionButton{mmqt::makeQScopedPointer<QPushButton>()}
     {
         const auto layout = mmqt::makeQPointer<QVBoxLayout>(this);
         layout->addWidget(m_label.get());
         layout->addWidget(m_progress.get());
+
+        if (m_task.getType() == AsyncTaskTypeEnum::RemoteEdit) {
+            auto btn = m_actionButton.get();
+            btn->setText("Show Editor / View Draft");
+            layout->addWidget(btn);
+            connect(btn, &QPushButton::clicked, this, [&mainWindow, task_id = m_task.getId()]() {
+                mainWindow.getRemoteEdit().slot_showDraft(task_id);
+            });
+        }
+
         layout->addWidget(m_cancelButton.get());
         layout->insertStretch(-1); // must be after all the addWidget() calls
         updateProgress();
@@ -370,7 +385,7 @@ void TasksPanel::add_new_item(const TaskHandle &handle)
 {
     const auto &task = handle.task;
     // NOLINTNEXTLINE (no, this is not leaked; Qt manages it)
-    if (auto *const item = new ListItem(task)) {
+    if (auto *const item = new ListItem(task, m_mainWindow)) {
         getLayout().addWidget(item);
         getKnownTasks().emplace(task.getId(), task);
     }

@@ -109,6 +109,7 @@ public:
     }
     void stopTask() { m_stopTask = true; }
     NODISCARD bool shouldStopTask() const { return m_stopTask; }
+    virtual void virt_show();
 
 protected slots:
     void slot_onCancel() { cancel(); }
@@ -136,6 +137,9 @@ public:
                                        const QString &body,
                                        RemoteEdit *remoteEdit);
     ~RemoteEditInternalSession() final;
+
+public:
+    void virt_show() final;
 
 private slots:
     void slot_onTextModified(const QString &content);

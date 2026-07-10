@@ -42,6 +42,24 @@ void RemoteEditSession::cancel()
     m_manager->cancel(this);
 }
 
+void RemoteEditSession::virt_show()
+{
+    QString content = m_content;
+    if (content.isEmpty() && !m_draftFileName.isEmpty()) {
+        QFile file(getFullDraftPath());
+        if (file.open(QFile::ReadOnly | QFile::Text)) {
+            content = QString::fromLatin1(file.readAll());
+            file.close();
+        }
+    }
+
+    // Default implementation does nothing (for recovered raw sessions)
+    // We will show the content in a read-only dialog
+    auto *widget = new RemoteEditWidget(false, m_title, content, dynamic_cast<QWidget *>(m_manager->parent()));
+    widget->setAttribute(Qt::WA_DeleteOnClose);
+    widget->show();
+}
+
 QString RemoteEditSession::getFullDraftPath() const
 {
     if (m_draftFileName.isEmpty()) {
@@ -125,6 +143,17 @@ void RemoteEditInternalSession::slot_performAutoSave()
         m_throttleTimer->stop();
     } else {
         qWarning() << "Auto-save failed for" << m_draftFileName;
+    }
+}
+
+void RemoteEditInternalSession::virt_show()
+{
+    if (m_widget) {
+        m_widget->show();
+        m_widget->raise();
+        m_widget->activateWindow();
+    } else {
+        RemoteEditSession::virt_show();
     }
 }
 

@@ -47,7 +47,6 @@ public:
 public:
     void onDisconnected();
     void recoverDrafts();
-    void slot_parseGmcpInput(const GmcpMessage &msg);
 
     static QString getDraftDirectory();
     static QString provisionDraftFile(RemoteSessionId sessionId,
@@ -84,6 +83,15 @@ public:
     NODISCARD RemoteEditSession *getSessionByTaskId(size_t taskId) const;
 
 public slots:
-    void slot_remoteView(const QString &, const QString &);
-    void slot_remoteEdit(const RemoteSessionId, const QString &, const QString &);
+    void slot_remoteView(const QString &title, const QString &body);
+    void slot_remoteEdit(const RemoteSessionId sessionId,
+                         const QString &title,
+                         const QString &body);
+    void slot_remoteWriteResult(const RemoteSessionId sessionId,
+                                const bool success,
+                                const QString &message);
+    void slot_remoteCancelResult(const RemoteSessionId sessionId,
+                                 const bool success,
+                                 const QString &message);
+    void slot_showDraft(size_t taskId);
 };

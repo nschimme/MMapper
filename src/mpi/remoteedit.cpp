@@ -262,6 +262,13 @@ void RemoteEdit::onDisconnected()
     }
 }
 
+void RemoteEdit::slot_showDraft(size_t taskId)
+{
+    if (auto session = getSessionByTaskId(taskId)) {
+        session->virt_show();
+    }
+}
+
 RemoteEditSession *RemoteEdit::getSessionByTaskId(size_t taskId) const
 {
     for (const auto &pair : m_sessions) {
@@ -276,90 +283,42 @@ RemoteEditSession *RemoteEdit::getSessionByTaskId(size_t taskId) const
     return nullptr;
 }
 
-void RemoteEdit::slot_parseGmcpInput(const GmcpMessage &msg)
+void RemoteEdit::slot_remoteWriteResult(const RemoteSessionId sessionId,
+                                        const bool success,
+                                        const QString &message)
 {
-    if (msg.isMumeClientEdit()) {
-        auto doc = msg.getJsonDocument();
-        if (!doc)
-            return;
-        auto optObj = doc->getObject();
-        if (!optObj)
-            return;
-        auto &obj = *optObj;
-        auto optId = obj.getInt("id");
-        auto optTitle = obj.getString("title");
-        auto optBody = obj.getString("text");
-        if (optId && optTitle && optBody) {
-            slot_remoteEdit(RemoteSessionId(*optId), *optTitle, *optBody);
-        }
-    } else if (msg.isMumeClientView()) {
-        auto doc = msg.getJsonDocument();
-        if (!doc)
-            return;
-        auto optObj = doc->getObject();
-        if (!optObj)
-            return;
-        auto &obj = *optObj;
-        auto optTitle = obj.getString("title");
-        auto optBody = obj.getString("text");
-        if (optTitle && optBody) {
-            slot_remoteView(*optTitle, *optBody);
-        }
-    } else if (msg.isMumeClientWrite()) {
-        auto doc = msg.getJsonDocument();
-        if (!doc)
-            return;
-        auto optObj = doc->getObject();
-        if (!optObj)
-            return;
-        auto &obj = *optObj;
-        auto optId = obj.getInt("id");
-        auto optResult = obj.getBool("result");
-        auto optResultMsg = obj.getString("result");
-        if (optId) {
-            const auto sessionId = RemoteSessionId(*optId);
-            for (auto it = m_sessions.begin(); it != m_sessions.end(); ++it) {
-                if (it->second->getSessionId() == sessionId) {
-                    if (optResult && *optResult) {
-                        qDebug() << "MUME.Client.Write success for session" << optId.value();
-                        deleteDraft(it->second->getDraftFileName());
-                        removeSession(*(it->second));
-                    } else if (auto handle = it->second->getAsyncTask()) {
-                        const QString errorMsg = optResultMsg.value_or("unknown error");
-                        handle->getProgressCounter().setCurrentTask(
-                            ProgressMsg{QString("Submission failed: %1").arg(errorMsg)});
-                    }
-                    break;
-                }
+    for (auto it = m_sessions.begin(); it != m_sessions.end(); ++it) {
+        if (it->second->getSessionId() == sessionId) {
+            if (success) {
+                qDebug() << "MUME.Client.Write success for session" << sessionId.asInt32();
+                deleteDraft(it->second->getDraftFileName());
+                removeSession(*(it->second));
+            } else if (auto handle = it->second->getAsyncTask()) {
+                const QString errorMsg = message.isEmpty() ? "unknown error" : message;
+                handle->getProgressCounter().setCurrentTask(
+                    ProgressMsg{QString("Submission failed: %1").arg(errorMsg)});
             }
+            break;
         }
-    } else if (msg.isMumeClientCancelEdit()) {
-        auto doc = msg.getJsonDocument();
-        if (!doc)
-            return;
-        auto optObj = doc->getObject();
-        if (!optObj)
-            return;
-        auto &obj = *optObj;
-        auto optId = obj.getInt("id");
-        auto optResult = obj.getBool("result");
-        if (optId) {
-            const auto sessionId = RemoteSessionId(*optId);
-            for (auto it = m_sessions.begin(); it != m_sessions.end(); ++it) {
-                if (it->second->getSessionId() == sessionId) {
-                    if (optResult && *optResult) {
-                        qDebug() << "MUME.Client.CancelEdit success for session" << optId.value();
-                        deleteDraft(it->second->getDraftFileName());
-                        removeSession(*(it->second));
-                    } else if (auto handle = it->second->getAsyncTask()) {
-                        handle->getProgressCounter().setCurrentTask(ProgressMsg{"Cancel failed"});
-                    }
-                    break;
-                }
+    }
+}
+
+void RemoteEdit::slot_remoteCancelResult(const RemoteSessionId sessionId,
+                                         const bool success,
+                                         const QString &message)
+{
+    for (auto it = m_sessions.begin(); it != m_sessions.end(); ++it) {
+        if (it->second->getSessionId() == sessionId) {
+            if (success) {
+                qDebug() << "MUME.Client.CancelEdit success for session" << sessionId.asInt32();
+                deleteDraft(it->second->getDraftFileName());
+                removeSession(*(it->second));
+            } else if (auto handle = it->second->getAsyncTask()) {
+                const QString errorMsg = message.isEmpty() ? "Cancel failed" : message;
+                handle->getProgressCounter().setCurrentTask(ProgressMsg{errorMsg});
             }
+            break;
         }
-    } else if (msg.isCoreGoodbye()) {
-        onDisconnected();
     }
 }
 

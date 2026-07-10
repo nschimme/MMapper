@@ -86,6 +86,15 @@ public:
         layout->addWidget(m_label.get());
         layout->addWidget(m_progress.get());
 
+        if (m_task.getType() == AsyncTaskTypeEnum::RemoteEdit) {
+            auto btn = m_actionButton.get();
+            btn->setText("Show Editor / View Draft");
+            layout->addWidget(btn);
+            connect(btn, &QPushButton::clicked, this, [&mainWindow, task_id = m_task.getId()]() {
+                mainWindow.getRemoteEdit().slot_showDraft(task_id);
+            });
+        }
+
         layout->addWidget(m_cancelButton.get());
         layout->insertStretch(-1); // must be after all the addWidget() calls
         updateProgress();

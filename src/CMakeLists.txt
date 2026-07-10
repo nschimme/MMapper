@@ -747,6 +747,24 @@ message("mmapper_map_SRCS=[${mmapper_map_SRCS}]")
 add_library(mm_global STATIC ${mmapper_global_SRCS})
 add_library(mm_map STATIC ${mmapper_map_SRCS})
 
+if(WITH_QML)
+    qt_add_qml_module(mm_qml
+        STATIC
+        URI MMapper
+        VERSION 1.0
+        RESOURCE_PREFIX "/qt/qml"
+        PLUGIN_TARGET mm_qmlplugin
+        QML_FILES
+            qml/PanelFrame.qml
+    )
+    set_target_properties(mm_qml PROPERTIES
+        CXX_STANDARD 20
+        CXX_STANDARD_REQUIRED ON
+        CXX_EXTENSIONS OFF
+    )
+    target_link_libraries(mm_qml PUBLIC Qt6::Quick)
+endif()
+
 # Build the executable
 set(mmapper_EXECUTABLE_ARGS
     ${mmapper_SRCS}
@@ -791,7 +809,7 @@ if(WITH_AUDIO)
 endif()
 
 if(WITH_QML)
-    target_link_libraries(mmapper PUBLIC Qt6::Qml Qt6::Quick Qt6::QuickWidgets Qt6::QuickControls2)
+    target_link_libraries(mmapper PUBLIC Qt6::Qml Qt6::Quick Qt6::QuickWidgets Qt6::QuickControls2 mm_qml mm_qmlplugin)
 endif()
 
 set_target_properties(

@@ -28,6 +28,11 @@
 #include <QtCore>
 #include <QtWidgets>
 
+#ifdef MMAPPER_WITH_QML
+#include <QQuickStyle>
+#include <QQuickWindow>
+#endif
+
 #ifdef WITH_DRMINGW
 #include <exchndl.h>
 #endif
@@ -174,6 +179,12 @@ int main(int argc, char **argv)
         qSetMessagePattern(
             "[%{time} %{threadid}] %{type} in %{function} (at %{file}:%{line}): %{message}");
     }
+
+#ifdef MMAPPER_WITH_QML
+    QCoreApplication::setAttribute(Qt::AA_ShareOpenGLContexts);
+    QQuickWindow::setGraphicsApi(QSGRendererInterface::OpenGL);
+    QQuickStyle::setStyle("Fusion");
+#endif
 
     QApplication app(argc, argv);
     tryInitDrMingw();

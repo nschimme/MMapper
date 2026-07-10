@@ -220,7 +220,7 @@ void RemoteEdit::sendToMume(const RemoteEditSession &session)
     emit sig_sendGmcp(msg);
 
     // FR-4.4: Upon confirmed delivery success, delete local temporary file and unregister task.
-    // Deletion is now handled in slot_parseGmcpInput for MUME_CLIENT_WRITE.
+    // Deletion is now handled in slot_remoteWriteResult.
 }
 
 void RemoteEdit::trySaveLocally(const RemoteEditSession &session)

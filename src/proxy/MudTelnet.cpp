@@ -490,15 +490,13 @@ void MudTelnet::virt_receiveGmcpMessage(const GmcpMessage &msg)
         const auto optBool = obj.getBool("result");
         const auto optString = obj.getString("result");
 
-        if (optBool && optBool.value()) {
-            qDebug() << "[success] Successfully" << (msg.isMumeClientWrite() ? "sent" : "cancelled")
-                     << "remote edit" << id;
+        const bool success = optBool.value_or(false);
+        const QString errmsg = optString.value_or(success ? "" : "unknown error");
+
+        if (msg.isMumeClientWrite()) {
+            m_outputs.onMumeClientWriteResult(RemoteSessionId{id}, success, errmsg);
         } else {
-            const auto action = (msg.isMumeClientWrite() ? "sending" : "canceling");
-            const auto result = optString.value_or("missing text");
-            qDebug() << "Failure" << action << "remote message" << id << result;
-            // Mume doesn't send anything, so we have to make our own message.
-            global::sendToUser(QString("Failure %1 remote message: %2\n").arg(action, result));
+            m_outputs.onMumeClientCancelResult(RemoteSessionId{id}, success, errmsg);
         }
         return;
     }

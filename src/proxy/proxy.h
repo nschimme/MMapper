@@ -328,6 +328,12 @@ signals:
                                  const QString &title,
                                  const QString &body);
     void sig_remoteViewRequested(const QString &title, const QString &body);
+    void sig_remoteWriteResult(const RemoteSessionId sessionId,
+                               const bool success,
+                               const QString &message);
+    void sig_remoteCancelResult(const RemoteSessionId sessionId,
+                                const bool success,
+                                const QString &message);
 
 public slots:
     void slot_remoteEditSave(const RemoteSessionId sessionId, const Latin1Bytes &content);

@@ -620,10 +620,16 @@ void MainWindow::wireConnections()
             return;
 
         connect(m_remoteEdit, &RemoteEdit::sig_sendGmcp, proxy.data(), &Proxy::slot_sendGmcp);
-    });
-
-    deref(m_gameObserver).sig2_sentToUserGmcp.connect(m_lifetime, [this](const GmcpMessage &msg) {
-        m_remoteEdit->slot_parseGmcpInput(msg);
+        connect(proxy.data(), &Proxy::sig_remoteEditRequested, m_remoteEdit, &RemoteEdit::slot_remoteEdit);
+        connect(proxy.data(), &Proxy::sig_remoteViewRequested, m_remoteEdit, &RemoteEdit::slot_remoteView);
+        connect(proxy.data(),
+                &Proxy::sig_remoteWriteResult,
+                m_remoteEdit,
+                &RemoteEdit::slot_remoteWriteResult);
+        connect(proxy.data(),
+                &Proxy::sig_remoteCancelResult,
+                m_remoteEdit,
+                &RemoteEdit::slot_remoteCancelResult);
     });
 
     deref(m_gameObserver).sig2_disconnected.connect(m_lifetime, [this]() {

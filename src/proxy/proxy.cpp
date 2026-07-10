@@ -540,6 +540,32 @@ void Proxy::allocMudTelnet()
             getProxy().sendToUser(SendToUserSourceEnum::FromMMapper,
                                   QString("MUME.Client protocol error: %1").arg(errmsg));
         }
+        void virt_onMumeClientWriteResult(const RemoteSessionId id,
+                                          const bool success,
+                                          const QString &errmsg) final
+        {
+            if (success) {
+                qDebug() << "[success] Successfully sent remote edit" << id.asInt32();
+            } else {
+                qDebug() << "Failure sending remote message" << id.asInt32() << errmsg;
+                getProxy().sendToUser(SendToUserSourceEnum::FromMMapper,
+                                      QString("Failure sending remote message: %1\n").arg(errmsg));
+            }
+            emit getProxy().sig_remoteWriteResult(id, success, errmsg);
+        }
+        void virt_onMumeClientCancelResult(const RemoteSessionId id,
+                                           const bool success,
+                                           const QString &errmsg) final
+        {
+            if (success) {
+                qDebug() << "[success] Successfully cancelled remote edit" << id.asInt32();
+            } else {
+                qDebug() << "Failure canceling remote message" << id.asInt32() << errmsg;
+                getProxy().sendToUser(SendToUserSourceEnum::FromMMapper,
+                                      QString("Failure canceling remote message: %1\n").arg(errmsg));
+            }
+            emit getProxy().sig_remoteCancelResult(id, success, errmsg);
+        }
     };
 
     auto &pipe = getPipeline();

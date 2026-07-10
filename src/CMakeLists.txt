@@ -748,6 +748,12 @@ add_library(mm_global STATIC ${mmapper_global_SRCS})
 add_library(mm_map STATIC ${mmapper_map_SRCS})
 
 if(WITH_QML)
+    # QML_FILES paths default to a resource alias matching their path relative
+    # to this file (i.e. "qml/PanelFrame.qml"). Force each file's alias to be
+    # rooted at the module (i.e. "PanelFrame.qml") so QML sources are loadable
+    # as qrc:/qt/qml/MMapper/<File>.qml.
+    set_source_files_properties(qml/PanelFrame.qml PROPERTIES QT_RESOURCE_ALIAS "PanelFrame.qml")
+
     qt_add_qml_module(mm_qml
         STATIC
         URI MMapper
@@ -756,13 +762,16 @@ if(WITH_QML)
         PLUGIN_TARGET mm_qmlplugin
         QML_FILES
             qml/PanelFrame.qml
+        SOURCES
+            qml/QmlDockWidget.h
+            qml/QmlDockWidget.cpp
     )
     set_target_properties(mm_qml PROPERTIES
         CXX_STANDARD 20
         CXX_STANDARD_REQUIRED ON
         CXX_EXTENSIONS OFF
     )
-    target_link_libraries(mm_qml PUBLIC Qt6::Quick)
+    target_link_libraries(mm_qml PUBLIC Qt6::Quick Qt6::QuickWidgets Qt6::Widgets)
 endif()
 
 # Build the executable

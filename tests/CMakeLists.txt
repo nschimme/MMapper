@@ -361,3 +361,27 @@ set_target_properties(
         COMPILE_FLAGS "${WARNING_FLAGS}"
 )
 add_test(NAME TestHotkeyManager COMMAND TestHotkeyManager)
+
+# QML
+if(WITH_QML)
+    set(TestQml_SRCS TestQml.cpp TestQml.h)
+    add_executable(TestQml ${TestQml_SRCS})
+    add_dependencies(TestQml mm_qml mm_qmlplugin)
+    target_link_libraries(TestQml
+            mm_qml
+            mm_qmlplugin
+            Qt6::Quick
+            Qt6::QuickWidgets
+            Qt6::Widgets
+            Qt6::Qml
+            Qt6::Test
+            coverage_config)
+    set_target_properties(
+            TestQml PROPERTIES
+            CXX_STANDARD 20
+            CXX_STANDARD_REQUIRED ON
+            CXX_EXTENSIONS OFF
+            COMPILE_FLAGS "${WARNING_FLAGS}"
+    )
+    add_test(NAME TestQml COMMAND TestQml)
+endif()

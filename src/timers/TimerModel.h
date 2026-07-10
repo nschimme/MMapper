@@ -25,7 +25,7 @@ private:
 
 public:
     enum Column { ColName = 0, ColTime, ColCount };
-    enum Role { ProgressRole = Qt::UserRole + 1 };
+    enum Role { ProgressRole = Qt::UserRole + 1, NameRole, TimeRole, ExpiredRole };
 
 public:
     explicit TimerModel(CTimers &timers, QObject *parent = nullptr);
@@ -36,6 +36,7 @@ public:
     NODISCARD QVariant headerData(int section,
                                   Qt::Orientation orientation,
                                   int role = Qt::DisplayRole) const override;
+    NODISCARD QHash<int, QByteArray> roleNames() const override;
 
     NODISCARD Qt::ItemFlags flags(const QModelIndex &index) const override;
     NODISCARD Qt::DropActions supportedDropActions() const override;

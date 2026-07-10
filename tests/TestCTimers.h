@@ -30,4 +30,10 @@ private Q_SLOTS:
     void testModelDataRetrieval();
     void testModelUpdates();
     void testMoveTimer();
+    void testModelRoleNames();
+    void testModelCustomRoleData();
+
+    // TimerController tests
+    void testControllerRemove();
+    void testControllerClearExpiredNoop();
 };

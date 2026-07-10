@@ -5,6 +5,7 @@
 
 #include "../src/global/TextUtils.h"
 #include "../src/timers/CTimers.h"
+#include "../src/timers/TimerController.h"
 #include "../src/timers/TimerModel.h"
 
 #include <tuple>
@@ -261,6 +262,73 @@ void TestCTimers::testMoveTimer()
     all = timers.allTimers();
     it = all.begin();
     QCOMPARE(QString::fromStdString(it->getName()), QString("T3"));
+}
+
+void TestCTimers::testModelRoleNames()
+{
+    CTimers timers(nullptr);
+    TimerModel model(timers, nullptr);
+
+    QHash<int, QByteArray> roles = model.roleNames();
+    QVERIFY(roles.values().contains("name"));
+    QVERIFY(roles.values().contains("time"));
+    QVERIFY(roles.values().contains("progress"));
+    QVERIFY(roles.values().contains("expired"));
+
+    QCOMPARE(roles[TimerModel::NameRole], QByteArray("name"));
+    QCOMPARE(roles[TimerModel::TimeRole], QByteArray("time"));
+    QCOMPARE(roles[TimerModel::ProgressRole], QByteArray("progress"));
+    QCOMPARE(roles[TimerModel::ExpiredRole], QByteArray("expired"));
+}
+
+void TestCTimers::testModelCustomRoleData()
+{
+    CTimers timers(nullptr);
+    TimerModel model(timers, nullptr);
+
+    timers.addTimer("T1", "D1");
+
+    QModelIndex idx = model.index(0, 0);
+
+    QVariant nameVal = model.data(idx, TimerModel::NameRole);
+    QVERIFY(nameVal.isValid());
+    QCOMPARE(nameVal.toString(), QString("T1 <D1>"));
+
+    QVariant timeVal = model.data(idx, TimerModel::TimeRole);
+    QVERIFY(timeVal.isValid());
+    QVERIFY(!timeVal.toString().isEmpty());
+
+    QVariant expiredVal = model.data(idx, TimerModel::ExpiredRole);
+    QVERIFY(expiredVal.isValid());
+    QCOMPARE(expiredVal.toBool(), false);
+}
+
+void TestCTimers::testControllerRemove()
+{
+    CTimers timers(nullptr);
+    TimerModel model(timers, nullptr);
+    TimerController controller(timers, model, nullptr);
+
+    timers.addTimer("T1", "D1");
+    timers.addTimer("T2", "D2");
+    QCOMPARE(model.rowCount(), 2);
+
+    controller.remove(0);
+    QCOMPARE(model.rowCount(), 1);
+}
+
+void TestCTimers::testControllerClearExpiredNoop()
+{
+    CTimers timers(nullptr);
+    TimerModel model(timers, nullptr);
+    TimerController controller(timers, model, nullptr);
+
+    timers.addTimer("T1", "D1");
+    QCOMPARE(model.rowCount(), 1);
+
+    // T1 has not expired, so clearing expired timers should be a no-op.
+    controller.clearExpired();
+    QCOMPARE(model.rowCount(), 1);
 }
 
 QTEST_MAIN(TestCTimers)

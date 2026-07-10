@@ -601,6 +601,8 @@ set(mmapper_SRCS
     syntax/syntax-helpers.h
     timers/CTimers.cpp
     timers/CTimers.h
+    timers/TimerController.cpp
+    timers/TimerController.h
     timers/TimerDelegate.cpp
     timers/TimerModel.cpp
     timers/TimerModel.h

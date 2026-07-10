@@ -77,6 +77,17 @@ QVariant TimerModel::data(const QModelIndex &index, int role) const
 
     const TTimer *timer = m_allTimers[static_cast<size_t>(index.row())];
 
+    // QML delegates read every role from column 0, so the custom roles are
+    // handled independently of index.column() by delegating to the same
+    // per-column formatting logic used by Qt::DisplayRole.
+    if (role == NameRole) {
+        return data(this->index(index.row(), ColName), Qt::DisplayRole);
+    } else if (role == TimeRole) {
+        return data(this->index(index.row(), ColTime), Qt::DisplayRole);
+    } else if (role == ExpiredRole) {
+        return timer->isExpired();
+    }
+
     if (role == Qt::DisplayRole || role == Qt::ToolTipRole) {
         switch (index.column()) {
         case ColName: {
@@ -110,6 +121,16 @@ QVariant TimerModel::data(const QModelIndex &index, int role) const
     }
 
     return QVariant();
+}
+
+QHash<int, QByteArray> TimerModel::roleNames() const
+{
+    QHash<int, QByteArray> roles = QAbstractTableModel::roleNames();
+    roles[NameRole] = "name";
+    roles[TimeRole] = "time";
+    roles[ProgressRole] = "progress";
+    roles[ExpiredRole] = "expired";
+    return roles;
 }
 
 QVariant TimerModel::headerData(int section, Qt::Orientation orientation, int role) const

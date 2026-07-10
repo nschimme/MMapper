@@ -265,6 +265,8 @@ add_test(NAME TestAdventure COMMAND TestAdventure)
 set(timer_test
         ../src/timers/CTimers.cpp
         ../src/timers/CTimers.h
+        ../src/timers/TimerController.cpp
+        ../src/timers/TimerController.h
         ../src/timers/TimerModel.cpp
         ../src/timers/TimerModel.h
 )

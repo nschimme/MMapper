@@ -19,4 +19,5 @@ private Q_SLOTS:
     void loadPanelFrame();
     void qmlDockWidgetFallback();
     void qmlDockWidgetLoads();
+    void loadTimerPanel();
 };

@@ -4,6 +4,9 @@
 #include "TestQml.h"
 
 #include "../src/qml/QmlDockWidget.h"
+#include "../src/timers/CTimers.h"
+#include "../src/timers/TimerController.h"
+#include "../src/timers/TimerModel.h"
 
 #include <QLabel>
 #include <QQmlComponent>
@@ -71,6 +74,32 @@ void TestQml::qmlDockWidgetLoads()
     while (quick->status() == QQuickWidget::Loading) {
         QCoreApplication::processEvents();
     }
+
+    QCOMPARE(quick->status(), QQuickWidget::Ready);
+    QVERIFY(quick->rootObject() != nullptr);
+}
+
+void TestQml::loadTimerPanel()
+{
+    CTimers timers(nullptr);
+    timers.addCountdown("test-timer", "", 60000);
+
+    TimerModel model(timers, nullptr);
+    TimerController controller(timers, model, nullptr);
+
+    QmlDockWidget dock("t", "TestDockTimers", nullptr);
+    dock.setContextProperty("timerModel", &model);
+    dock.setContextProperty("timerController", &controller);
+    dock.setQmlSource(QUrl(u"qrc:/qt/qml/MMapper/TimerPanel.qml"_qs));
+
+    QQuickWidget *const quick = dock.quickWidget();
+    QVERIFY(quick != nullptr);
+
+    while (quick->status() == QQuickWidget::Loading) {
+        QCoreApplication::processEvents();
+    }
+    // Let the delegate finish instantiating against the seeded timer.
+    QCoreApplication::processEvents();
 
     QCOMPARE(quick->status(), QQuickWidget::Ready);
     QVERIFY(quick->rootObject() != nullptr);

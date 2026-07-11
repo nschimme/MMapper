@@ -47,6 +47,12 @@
 #include "roomeditattrdlg.h"
 #include "utils.h"
 
+#ifdef MMAPPER_WITH_QML
+#include "../qml/QmlDockWidget.h"
+#include "../timers/TimerController.h"
+#include "../timers/TimerModel.h"
+#endif
+
 #include <memory>
 #include <mutex>
 
@@ -267,6 +273,18 @@ MainWindow::MainWindow()
 
     std::invoke([this] {
         auto *const timers = new CTimers(this);
+
+#ifdef MMAPPER_WITH_QML
+        auto *const model = new TimerModel(deref(timers), this);
+        auto *const controller = new TimerController(deref(timers), deref(model), this);
+        auto *const dock = new QmlDockWidget(tr("Timers Panel"), "DockWidgetTimers", this);
+        dock->setFeatures(QDockWidget::DockWidgetMovable | QDockWidget::DockWidgetFloatable
+                          | QDockWidget::DockWidgetClosable);
+        dock->setContextProperty("timerModel", model);
+        dock->setContextProperty("timerController", controller);
+        dock->setQmlSource(QUrl(QStringLiteral("qrc:/qt/qml/MMapper/TimerPanel.qml")));
+        dock->hide();
+#else
         auto *const w = new TimerWidget(deref(timers), this);
         auto *const dock = new QDockWidget(tr("Timers Panel"), this);
         dock->setObjectName("DockWidgetTimers");
@@ -275,8 +293,10 @@ MainWindow::MainWindow()
         dock->setWidget(w);
         dock->hide();
 
-        m_timers = timers;
         m_timerWidget = w;
+#endif
+
+        m_timers = timers;
         m_dockDialogTimers = dock;
     });
 

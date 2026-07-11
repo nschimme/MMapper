@@ -212,3 +212,20 @@ void RoomModel::update()
     m_room.updateModel(m_mobsById, m_mobVector);
     endResetModel();
 }
+
+QString RoomModel::longestTextInColumn(const int column) const
+{
+    if (column < 0 || column >= static_cast<int>(ROOM_COLUMN_COUNT)) {
+        return QString();
+    }
+
+    QString longest;
+    const int rows = rowCount(QModelIndex());
+    for (int row = 0; row < rows; ++row) {
+        const QString text = data(index(row, column), Qt::DisplayRole).toString();
+        if (text.length() > longest.length()) {
+            longest = text;
+        }
+    }
+    return longest;
+}

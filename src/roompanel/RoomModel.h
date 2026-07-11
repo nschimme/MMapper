@@ -58,6 +58,8 @@ public:
 
     void update();
 
+    NODISCARD Q_INVOKABLE QString longestTextInColumn(int column) const;
+
 private:
     NODISCARD SharedRoomMob getMob(int row) const;
     NODISCARD RoomMob::Field getField(ColumnTypeEnum column) const;

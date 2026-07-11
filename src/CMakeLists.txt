@@ -577,6 +577,8 @@ set(mmapper_SRCS
     roompanel/RoomMob.h
     roompanel/RoomMobs.cpp
     roompanel/RoomMobs.h
+    roompanel/RoomModel.cpp
+    roompanel/RoomModel.h
     roompanel/RoomWidget.cpp
     roompanel/RoomWidget.h
     syntax/Accept.cpp

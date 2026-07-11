@@ -191,8 +191,14 @@ add_test(NAME TestGlobal COMMAND TestGlobal)
 
 # Group
 set(TestGroup_SRCS
+        ../src/group/CGroupChar.cpp
+        ../src/group/CGroupChar.h
+        ../src/group/GroupModel.cpp
+        ../src/group/GroupModel.h
         ../src/group/enums.cpp
         ../src/group/enums.h
+        ../src/group/mmapper2character.cpp
+        ../src/group/mmapper2character.h
         TestGroup.cpp
 )
 add_executable(TestGroup ${TestGroup_SRCS})

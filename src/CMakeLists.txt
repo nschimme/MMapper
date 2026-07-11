@@ -237,6 +237,8 @@ set(mmapper_SRCS
     group/ColorGenerator.h
     group/GroupManagerApi.cpp
     group/GroupManagerApi.h
+    group/GroupModel.cpp
+    group/GroupModel.h
     group/enums.cpp
     group/enums.h
     group/groupwidget.cpp

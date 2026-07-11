@@ -60,6 +60,7 @@
 #include "../roompanel/RoomModel.h"
 #include "../timers/TimerController.h"
 #include "../timers/TimerModel.h"
+#include "LogModel.h"
 #endif
 
 #include <memory>
@@ -179,6 +180,20 @@ MainWindow::MainWindow()
 
     // View -> Side Panels -> Log Panel
     std::invoke([this] {
+#ifdef MMAPPER_WITH_QML
+        auto *const model = new LogModel(this);
+        auto *const dock = new QmlDockWidget(tr("Log Panel"), "DockWidgetLog", this);
+        dock->setAllowedAreas(Qt::TopDockWidgetArea | Qt::BottomDockWidgetArea);
+        dock->setFeatures(QDockWidget::DockWidgetMovable | QDockWidget::DockWidgetFloatable
+                          | QDockWidget::DockWidgetClosable);
+        dock->toggleViewAction()->setShortcut(tr("Ctrl+L"));
+        addDockWidget(Qt::BottomDockWidgetArea, dock);
+        dock->setContextProperty("logModel", model);
+        dock->setQmlSource(QUrl(QStringLiteral("qrc:/qt/qml/MMapper/LogPanel.qml")));
+        dock->hide();
+
+        m_logModel = model;
+#else
         auto *const dock = new QDockWidget(tr("Log Panel"), this);
         dock->setObjectName("DockWidgetLog");
         dock->setAllowedAreas(Qt::TopDockWidgetArea | Qt::BottomDockWidgetArea);
@@ -193,8 +208,10 @@ MainWindow::MainWindow()
         dock->setWidget(logWindow);
         dock->hide();
 
-        m_dockDialogLog = dock;
         m_logWindow = logWindow;
+#endif
+
+        m_dockDialogLog = dock;
     });
 
     // View -> Side Panels -> Group Panel and Tools -> Group Manager
@@ -675,11 +692,15 @@ void MainWindow::wireConnections()
 
 void MainWindow::slot_log(const QString &mod, const QString &message)
 {
+#ifdef MMAPPER_WITH_QML
+    deref(m_logModel).append(mod, message);
+#else
     QTextBrowser *const logWindow = m_logWindow;
     logWindow->append(QString("[%1] %2").arg(mod, message));
     logWindow->moveCursor(QTextCursor::MoveOperation::End);
     logWindow->ensureCursorVisible();
     logWindow->update();
+#endif
 }
 
 // TODO: clean up all this copy/paste by using helper functions and X-macros

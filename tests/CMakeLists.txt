@@ -371,7 +371,11 @@ add_test(NAME TestHotkeyManager COMMAND TestHotkeyManager)
 # QML
 if(WITH_QML)
     set(TestQml_SRCS TestQml.cpp TestQml.h)
-    add_executable(TestQml ${TestQml_SRCS} ${timer_test} ${adventure_SRCS} ${room_manager})
+    set(log_model_SRCS
+            ../src/mainwindow/LogModel.cpp
+            ../src/mainwindow/LogModel.h
+    )
+    add_executable(TestQml ${TestQml_SRCS} ${timer_test} ${adventure_SRCS} ${room_manager} ${log_model_SRCS})
     add_dependencies(TestQml mm_qml mm_qmlplugin mm_test mm_global)
     target_link_libraries(TestQml
             mm_qml

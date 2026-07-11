@@ -6,6 +6,7 @@
 #include "../src/adventure/AdventureLogModel.h"
 #include "../src/adventure/adventuretracker.h"
 #include "../src/configuration/configuration.h"
+#include "../src/mainwindow/LogModel.h"
 #include "../src/observer/gameobserver.h"
 #include "../src/proxy/GmcpMessage.h"
 #include "../src/qml/QmlConfig.h"
@@ -231,6 +232,44 @@ void TestQml::loadRoomPanel()
     QJSValue result = provider.call(QJSValueList{QJSValue(0)});
     QVERIFY(!result.isError());
     QVERIFY(result.toNumber() >= headerTextWidth);
+}
+
+void TestQml::loadLogPanel()
+{
+    LogModel model(nullptr);
+    model.append("Test", "hello world");
+
+    QmlDockWidget dock("t", "TestDockLog", nullptr);
+    dock.setContextProperty("logModel", &model);
+    dock.setQmlSource(QUrl(u"qrc:/qt/qml/MMapper/LogPanel.qml"_qs));
+
+    QQuickWidget *const quick = dock.quickWidget();
+    QVERIFY(quick != nullptr);
+
+    while (quick->status() == QQuickWidget::Loading) {
+        QCoreApplication::processEvents();
+    }
+    // Let the delegate finish instantiating against the seeded log entry.
+    QCoreApplication::processEvents();
+
+    QCOMPARE(quick->status(), QQuickWidget::Ready);
+    QVERIFY(quick->rootObject() != nullptr);
+}
+
+void TestQml::logModelCap()
+{
+    LogModel model(nullptr);
+
+    for (int i = 1; i <= LogModel::MAX_LINES + 1; ++i) {
+        model.append("Test", QString("line %1").arg(i));
+    }
+
+    QCOMPARE(model.rowCount(), LogModel::MAX_LINES);
+    QCOMPARE(model.data(model.index(0, 0), Qt::DisplayRole).toString(),
+             QStringLiteral("[Test] line 2"));
+
+    model.clear();
+    QCOMPARE(model.rowCount(), 0);
 }
 
 void TestQml::qmlConfigRoundTrip()

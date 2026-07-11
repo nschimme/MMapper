@@ -250,6 +250,8 @@ set(mmapper_SRCS
     mainwindow/AsyncTypes.h
     mainwindow/AudioVolumeSlider.cpp
     mainwindow/AudioVolumeSlider.h
+    mainwindow/LogModel.cpp
+    mainwindow/LogModel.h
     mainwindow/MapZoomSlider.cpp
     mainwindow/MapZoomSlider.h
     mainwindow/TasksPanel.cpp
@@ -768,6 +770,7 @@ if(WITH_QML)
     set_source_files_properties(qml/TimerPanel.qml PROPERTIES QT_RESOURCE_ALIAS "TimerPanel.qml")
     set_source_files_properties(qml/AdventurePanel.qml PROPERTIES QT_RESOURCE_ALIAS "AdventurePanel.qml")
     set_source_files_properties(qml/RoomPanel.qml PROPERTIES QT_RESOURCE_ALIAS "RoomPanel.qml")
+    set_source_files_properties(qml/LogPanel.qml PROPERTIES QT_RESOURCE_ALIAS "LogPanel.qml")
 
     qt_add_qml_module(mm_qml
         STATIC
@@ -780,6 +783,7 @@ if(WITH_QML)
             qml/TimerPanel.qml
             qml/AdventurePanel.qml
             qml/RoomPanel.qml
+            qml/LogPanel.qml
         SOURCES
             qml/QmlDockWidget.h
             qml/QmlDockWidget.cpp

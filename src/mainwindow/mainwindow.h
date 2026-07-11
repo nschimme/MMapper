@@ -39,6 +39,7 @@ class GameObserver;
 class GroupWidget;
 class HotkeyManager;
 class InfomarkSelection;
+class LogModel;
 class MapCanvas;
 class MapData;
 class MapWindow;
@@ -87,7 +88,11 @@ private:
 
 private:
     MapWindow *m_mapWindow = nullptr;
+#ifndef MMAPPER_WITH_QML
     QTextBrowser *m_logWindow = nullptr;
+#else
+    LogModel *m_logModel = nullptr;
+#endif
 
     QDockWidget *m_dockDialogRoom = nullptr;
     QDockWidget *m_dockDialogLog = nullptr;

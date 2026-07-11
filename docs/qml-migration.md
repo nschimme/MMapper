@@ -140,12 +140,190 @@ Controls types only where there's no reasonable primitive substitute (e.g. `Butt
 | Timers | `src/qml/TimerPanel.qml` | `timers/TimerModel.{h,cpp}` (roles) + `timers/TimerController.{h,cpp}` | `timers/TimerWidget.{h,cpp}`, `timers/TimerDelegate.{h,cpp}` |
 | Adventure | `src/qml/AdventurePanel.qml` | `adventure/AdventureLogModel.{h,cpp}` | `adventure/adventurewidget.{h,cpp}` |
 | Room | `src/qml/RoomPanel.qml` | `roompanel/RoomModel.{h,cpp}` (roles) | `roompanel/RoomWidget.{h,cpp}` |
+| Log | `src/qml/LogPanel.qml` | `mainwindow/LogModel.{h,cpp}` (roles, 10k-line cap) | *(none — inline `QTextBrowser`)* |
+| Group | `src/qml/GroupPanel.qml` | `group/GroupModel.{h,cpp}` (roles) + `group/GroupController.{h,cpp}` + `qml/GroupIconProvider.{h,cpp}` | `group/groupwidget.{h,cpp}` |
+| Description | `src/qml/DescriptionPanel.qml` | `media/DescriptionAdapter.{h,cpp}` + `media/DescriptionImageStore.h` + `qml/DescriptionImageProvider.{h,cpp}` | `media/DescriptionWidget.{h,cpp}` |
 
 The Widget classes are excluded from the build entirely when `WITH_QML=ON`
 (`src/CMakeLists.txt` only appends them to `mmapper_SRCS` under `if(NOT WITH_QML)`).
-They exist solely as the `WITH_QML=OFF` escape hatch and are planned for deletion
-about one release cycle after the WebAssembly build ships with QML, once we're
-confident nobody needs to fall back to Widgets.
+As of phase 2 this list covers `TimerWidget`/`TimerDelegate`, `adventurewidget`,
+`RoomWidget`, `groupwidget`, and `DescriptionWidget`. The Log panel has no legacy
+widget class to retire — it replaces an inline `QTextBrowser` that was created
+directly in `mainwindow.cpp`, not a separate widget file. All of the Widget classes
+exist solely as the `WITH_QML=OFF` escape hatch and are planned for deletion about
+one release cycle after the WebAssembly build ships with QML, once we're confident
+nobody needs to fall back to Widgets.
+
+## Phase 2 notes
+
+Phase 2 ported the Log, Group, and Description panels, fixed a column-sizing bug in
+the Room panel, and introduced two new pieces of shared infrastructure: a config
+façade (`QmlConfig`) and per-engine image provider registration. No new QML runtime
+module dependencies were introduced (see "Packaging" below).
+
+### RoomPanel column width fix
+
+The Room panel's `TableView` originally let columns size themselves, which on Qt 6.4
+collapses to a small fixed default width regardless of content — Qt 6.5 added
+`TableView.explicitColumnWidth`/`resizableColumns` to address this properly, but
+those aren't available on the Qt 6.4 floor this project builds against (see "Qt 6.4
+compatibility" above). The fix (`src/qml/RoomPanel.qml`) is a manual
+`columnWidthProvider` function that measures the pixel width of both the column's
+header text and its widest cell text (via a `TextMetrics` item and a new
+`RoomModel::longestTextInColumn(col)` helper in `roompanel/RoomModel.{h,cpp}`), and
+returns `max(headerWidth, contentWidth) + margin`, floored at a minimum width. This
+is the pattern to reach for any time a `TableView`/`HorizontalHeaderView` pairing
+needs content-driven column widths on Qt 6.4.
+
+### `QmlConfig` façade
+
+`src/qml/QmlConfig.h` is a `Q_PROPERTY` façade wrapping the `groupManager` subgroup
+of `Configuration` (`npcHide`, `npcSortBottom`, `groupColor`), exposed to QML as the
+`config` context property consumed by `GroupPanel.qml`. Unlike most `Configuration`
+subgroups, `GroupManagerSettings` is a plain struct with no `ChangeMonitor` — it's a
+bag of public fields written directly by callers (most notably the preferences
+dialog), so there is no callback `QmlConfig` can hook to observe writes it didn't
+make itself. The contract:
+
+- Each setter (`setNpcHide`, `setNpcSortBottom`, `setGroupColor`) writes
+  `getConfig()` and emits its `*Changed` signal itself; QML sees its own writes
+  immediately.
+- `reload()` re-syncs the cached values against the live `Configuration` and emits
+  whichever `*Changed` signals differ. `MainWindow::slot_onPreferences()` wires this
+  to `ConfigDialog::sig_groupSettingsChanged` and to the dialog's `finished` signal,
+  so anything the preferences dialog wrote lands in QML as soon as the dialog
+  signals a change or closes.
+- Any other code path that writes `setConfig().groupManager.*` directly, outside of
+  `QmlConfig`'s own setters and without going through a hook that calls `reload()`,
+  leaves QML holding stale values until the next `reload()`. This is a deliberate,
+  documented limitation (see the class comment in `QmlConfig.h`), not a bug — there
+  is no config-system-wide change notification to hang a fix off yet (see "Config
+  binding" above, which is still future work for subgroups that already have
+  `ChangeMonitor`).
+
+The Description panel's colors/font (`parser.roomName`/`DescColor`,
+`integratedClient.font`/colors) have the same no-`ChangeMonitor` shape and are
+handled the same way: `DescriptionAdapter::reloadConfig()` is called from the same
+`ConfigDialog::finished` handler in `mainwindow.cpp`.
+
+### Per-engine image providers
+
+Every `QmlDockWidget` wraps its own `QQuickWidget`, and every `QQuickWidget` owns its
+own `QQmlEngine` — image providers are registered per-engine, not globally, so each
+panel that needs one must register it on its own dock. `QmlDockWidget::addImageProvider`
+(`src/qml/QmlDockWidget.{h,cpp}`) does this:
+
+```cpp
+dock->addImageProvider("groupicons", new GroupIconProvider());
+...
+dock->setQmlSource(QUrl(QStringLiteral("qrc:/qt/qml/MMapper/GroupPanel.qml")));
+```
+
+Like `setContextProperty`, `addImageProvider` must be called **before**
+`setQmlSource()` — the provider has to be registered with the engine before the QML
+loads and issues `image://...` requests against it. The `QQmlEngine` takes ownership
+of the provider pointer.
+
+Two image providers were added in phase 2:
+
+- `GroupIconProvider` (`src/qml/GroupIconProvider.{h,cpp}`), registered under the
+  `"groupicons"` id. It resolves URLs of the form
+  `image://groupicons/<std|inv>/<position|affect>/<lowercase-enum-name>` (documented
+  above `GroupModel` in `src/group/GroupModel.h`) back to icon files via the existing
+  `getIconFilename()` lookup. `<std|inv>` picks the standard or inverted (white-icon)
+  variant, mirroring `GroupImageCache`'s invert condition
+  (`mmqt::textColor(charColor) == Qt::white`); `<lowercase-enum-name>` is the same
+  token `Filenames.cpp`'s `getFilenameSuffix()` uses (e.g. `standing`, `sanctuary`).
+- `DescriptionImageProvider` (`src/qml/DescriptionImageProvider.{h,cpp}`), registered
+  under the `"description"` id, which also performs the stack blur used for the
+  Description panel's background (see below).
+
+For panels that need to hand data from an always-compiled adapter object (which
+can't depend on `Qt6::Quick`) to a `Quick`-only image provider, the pattern is a
+small shared struct behind a `std::shared_ptr`: `DescriptionImageStore`
+(`src/media/DescriptionImageStore.h`) holds the current sharp `QImage` plus a
+revision counter, guarded by a `QMutex` because `requestImage()` runs on a QML
+loader/render thread while `DescriptionAdapter::updateRoom()` runs on the GUI
+thread. `DescriptionAdapter` (always compiled, owns no `QQuickImageProvider`) and
+`DescriptionImageProvider` (`Quick`-only, owned by the `QQmlEngine`) both hold a
+`shared_ptr` to the same store, which sidesteps their lifetime mismatch —
+`DescriptionAdapter` is owned by `MainWindow`, `DescriptionImageProvider` by the
+engine, and neither has to outlive the other. `rev` is embedded in the
+`image://description/...` URL so a changed room forces QML to reload the image
+instead of reusing a cached pixmap for a stale id. The actual stack blur for the
+panel's blurred background happens lazily inside `DescriptionImageProvider::requestImage()`,
+in C++, not in QML.
+
+### Group panel design notes
+
+`src/qml/GroupPanel.qml` is a `ListView`, not a `TableView`, over
+`GroupProxyModel`/`GroupModel` (`src/group/GroupModel.{h,cpp}`), coordinated by
+`GroupController` (`src/group/GroupController.{h,cpp}`). Notes on the choices made:
+
+- **`ListView`, not `TableView`.** The group roster is a row-oriented UI (each row
+  is one character, selected/dragged/right-clicked as a unit), and Qt 6.4's
+  `TableView` has no row-level selection or built-in drag-and-drop model — both
+  would have to be hand-rolled on top of `TableView` anyway, at which point a
+  `ListView` of per-row delegates is simpler and gives per-row `TapHandler`/
+  `DragHandler`/`DropArea` for free.
+- **Fixed-width `Row` columns, not `QtQuick.Layouts`.** Each delegate lays out its
+  cells with a plain `Row` of fixed/derived-width children (`nameW`, `statW`,
+  `stateW`, `roomW` computed as properties on the root `PanelFrame`), rather than
+  `RowLayout`/`ColumnLayout`. This avoids adding a `QtQuick.Layouts` import (and the
+  corresponding `qml6-module-qtquick-layouts` package) for something fixed-width
+  positioning already covers — see "Packaging" below.
+  `statMetrics`/`TextMetrics` mirrors `GroupDelegate::sizeHint()`'s `"999 / 999"`
+  monospace measurement from the legacy `groupwidget.cpp` delegate to size the
+  HP/Mana/Moves columns.
+- **Declarative pulse animation, not a repaint timer.** The legacy
+  `GroupDelegate::paint()` drove the low-HP/low-Moves pulse by hand: a 50ms
+  `QTimer` forced a repaint on every tick and the delegate recomputed a sine-wave
+  alpha in `paint()`. `GroupPanel.qml`'s `StatBar` component replaces that with a
+  `SequentialAnimation on opacity` (two 750ms `NumberAnimation`s with
+  `Easing.InOutSine`, `loops: Animation.Infinite`) bound to the `low` property —
+  the scene graph drives the animation, so there's no polling timer and no
+  C++-side repaint scheduling at all.
+- **Left-button-only drag to reorder.** Reordering is done via `DragHandler` +
+  `DropArea`, calling `GroupController::moveCharacter(fromProxyRow, toProxyRow)` on
+  drop. `DragHandler`'s default `acceptedButtons` (left button only) is deliberate,
+  not incidental: right-click and long-press both open the row's context menu
+  (`TapHandler` with `acceptedButtons: Qt.RightButton`, plus `onLongPressed`), so a
+  drag gesture that also accepted the right button or triggered on long-press would
+  race with the context menu. Recolor is still a C++ `QColorDialog` invoked from
+  `GroupController::recolorCharacter()` (via the "Recolor" context menu item), not a
+  QML dialog — see "Packaging" below.
+
+### Log panel
+
+`src/qml/LogPanel.qml` is backed by `mainwindow/LogModel.{h,cpp}`, a
+`QAbstractListModel` capped at `LogModel::MAX_LINES = 10000` lines: once the cap is
+reached, `append()` drops the oldest line before inserting the new one. This is new
+behavior relative to the legacy inline `QTextBrowser` it replaces, which had no line
+limit and could grow unbounded for a long-running session.
+
+### Packaging: zero new QML module dependencies
+
+Phase 2 added no new entries to the Debian `qml6-module-*`/`libqt6*` dependency list
+in `src/CMakeLists.txt` (`CPACK_DEBIAN_PACKAGE_DEPENDS`, `WITH_QML` branch) or to
+`.github/workflows/build-test.yml`'s package install list — both are byte-for-byte
+unchanged from phase 1. This was a deliberate constraint, not an accident of what
+happened to be needed:
+
+- Recolor uses a plain C++ `QColorDialog::getColor()` call from
+  `GroupController::recolorCharacter()`, not `QtQuick.Dialogs`' `ColorDialog` — so no
+  `qml6-module-qtquick-dialogs` dependency.
+- The Description panel's background blur is done in C++ inside
+  `DescriptionImageProvider::requestImage()` (a manual stack blur over the `QImage`),
+  not `Qt5Compat.GraphicalEffects`' `FastBlur` — so no `qml6-module-qt5compat-graphicaleffects`
+  (or the `Qt5Compat` component in `find_package(Qt6 ...)`) dependency.
+- The Group panel's columns are fixed-width `Row` children (see above), not
+  `QtQuick.Layouts` — so no `qml6-module-qtquick-layouts` dependency.
+
+If a future phase revisits any of these decisions — e.g. moving recolor to a QML
+`ColorDialog`, or the blur to a QML effect — the corresponding package(s) above (and
+the matching `find_package(Qt6 COMPONENTS ...)` addition) need to be added to both
+`src/CMakeLists.txt`'s `CPACK_DEBIAN_PACKAGE_DEPENDS` and
+`.github/workflows/build-test.yml`, alongside a `WITH_QML` doc update here.
 
 ## Map canvas (future work, not started)
 

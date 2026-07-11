@@ -31,6 +31,14 @@ public:
         MOUNT,
     };
 
+    // Custom roles exposed to QML views (e.g. TableView), in addition to the
+    // standard Qt::DisplayRole/BackgroundRole/ForegroundRole consumed by the
+    // QTableView-based RoomWidget.
+    enum Role {
+        RowBackgroundRole = Qt::UserRole + 1,
+        RowForegroundRole,
+    };
+
 private:
     const RoomMobs &m_room;
     std::unordered_map<RoomMob::Id, SharedRoomMob> m_mobsById;
@@ -46,6 +54,7 @@ public:
     NODISCARD QVariant data(const QModelIndex &index, int role) const override;
     NODISCARD QVariant headerData(int section, Qt::Orientation orientation, int role) const override;
     NODISCARD Qt::ItemFlags flags(const QModelIndex &parent) const override;
+    NODISCARD QHash<int, QByteArray> roleNames() const override;
 
     void update();
 

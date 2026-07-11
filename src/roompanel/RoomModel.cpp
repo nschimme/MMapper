@@ -84,6 +84,7 @@ QVariant RoomModel::data(const QModelIndex &index, int role) const
             }
             return getMobField(row, column);
         case Qt::BackgroundRole:
+        case RowBackgroundRole:
             if (isEnemy(row, column)) {
                 // highlight enemy players
                 // REVISIT: Ideally, this could be configurable.
@@ -91,6 +92,7 @@ QVariant RoomModel::data(const QModelIndex &index, int role) const
             }
             break;
         case Qt::ForegroundRole:
+        case RowForegroundRole:
             if (isFightingYOU(row, column)) {
                 // highlight "YOU" in fighting column
                 return QColor(Qt::red);
@@ -104,6 +106,15 @@ QVariant RoomModel::data(const QModelIndex &index, int role) const
         }
     }
     return empty;
+}
+
+QHash<int, QByteArray> RoomModel::roleNames() const
+{
+    QHash<int, QByteArray> roles = QAbstractTableModel::roleNames();
+    roles[Qt::DisplayRole] = "display";
+    roles[RowBackgroundRole] = "rowBackground";
+    roles[RowForegroundRole] = "rowForeground";
+    return roles;
 }
 
 SharedRoomMob RoomModel::getMob(const int row) const

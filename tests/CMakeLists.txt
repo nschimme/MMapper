@@ -332,6 +332,8 @@ set(room_manager
         ../src/roompanel/RoomMob.cpp
         ../src/roompanel/RoomManager.cpp
         ../src/roompanel/RoomManager.h
+        ../src/roompanel/RoomModel.cpp
+        ../src/roompanel/RoomModel.h
 )
 set(RoomManager roompanel/TestRoomManager.cpp)
 add_executable(TestRoomManager ${room_manager} ${RoomManager})
@@ -369,7 +371,7 @@ add_test(NAME TestHotkeyManager COMMAND TestHotkeyManager)
 # QML
 if(WITH_QML)
     set(TestQml_SRCS TestQml.cpp TestQml.h)
-    add_executable(TestQml ${TestQml_SRCS} ${timer_test} ${adventure_SRCS})
+    add_executable(TestQml ${TestQml_SRCS} ${timer_test} ${adventure_SRCS} ${room_manager})
     add_dependencies(TestQml mm_qml mm_qmlplugin mm_test mm_global)
     target_link_libraries(TestQml
             mm_qml

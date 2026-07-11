@@ -761,6 +761,7 @@ if(WITH_QML)
     set_source_files_properties(qml/PanelFrame.qml PROPERTIES QT_RESOURCE_ALIAS "PanelFrame.qml")
     set_source_files_properties(qml/TimerPanel.qml PROPERTIES QT_RESOURCE_ALIAS "TimerPanel.qml")
     set_source_files_properties(qml/AdventurePanel.qml PROPERTIES QT_RESOURCE_ALIAS "AdventurePanel.qml")
+    set_source_files_properties(qml/RoomPanel.qml PROPERTIES QT_RESOURCE_ALIAS "RoomPanel.qml")
 
     qt_add_qml_module(mm_qml
         STATIC
@@ -772,6 +773,7 @@ if(WITH_QML)
             qml/PanelFrame.qml
             qml/TimerPanel.qml
             qml/AdventurePanel.qml
+            qml/RoomPanel.qml
         SOURCES
             qml/QmlDockWidget.h
             qml/QmlDockWidget.cpp

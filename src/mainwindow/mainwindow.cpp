@@ -50,6 +50,7 @@
 
 #ifdef MMAPPER_WITH_QML
 #include "../qml/QmlDockWidget.h"
+#include "../roompanel/RoomModel.h"
 #include "../timers/TimerController.h"
 #include "../timers/TimerModel.h"
 #endif
@@ -215,6 +216,19 @@ MainWindow::MainWindow()
     });
 
     std::invoke([this] {
+#ifdef MMAPPER_WITH_QML
+        auto *const model = new RoomModel(this, deref(m_roomManager).getRoom());
+        connect(m_roomManager, &RoomManager::sig_updateWidget, model, &RoomModel::update);
+
+        auto *const dock = new QmlDockWidget(tr("Room Panel"), "DockWidgetRoom", this);
+        dock->setAllowedAreas(Qt::TopDockWidgetArea | Qt::BottomDockWidgetArea);
+        dock->setFeatures(QDockWidget::DockWidgetMovable | QDockWidget::DockWidgetFloatable
+                          | QDockWidget::DockWidgetClosable);
+        addDockWidget(Qt::BottomDockWidgetArea, dock);
+        dock->setContextProperty("roomModel", model);
+        dock->setQmlSource(QUrl(QStringLiteral("qrc:/qt/qml/MMapper/RoomPanel.qml")));
+        dock->hide();
+#else
         auto *const w = new RoomWidget(deref(m_roomManager), this);
         auto *const dock = new QDockWidget(tr("Room Panel"), this);
         dock->setObjectName("DockWidgetRoom");
@@ -226,6 +240,8 @@ MainWindow::MainWindow()
         dock->hide();
 
         m_roomWidget = w;
+#endif
+
         m_dockDialogRoom = dock;
     });
 

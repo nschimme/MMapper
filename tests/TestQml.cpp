@@ -7,6 +7,8 @@
 #include "../src/adventure/adventuretracker.h"
 #include "../src/observer/gameobserver.h"
 #include "../src/qml/QmlDockWidget.h"
+#include "../src/roompanel/RoomManager.h"
+#include "../src/roompanel/RoomModel.h"
 #include "../src/timers/CTimers.h"
 #include "../src/timers/TimerController.h"
 #include "../src/timers/TimerModel.h"
@@ -125,6 +127,27 @@ void TestQml::loadAdventurePanel()
         QCoreApplication::processEvents();
     }
     // Let the delegate finish instantiating against the seeded log entry.
+    QCoreApplication::processEvents();
+
+    QCOMPARE(quick->status(), QQuickWidget::Ready);
+    QVERIFY(quick->rootObject() != nullptr);
+}
+
+void TestQml::loadRoomPanel()
+{
+    RoomManager manager(nullptr);
+    RoomModel model(nullptr, manager.getRoom());
+
+    QmlDockWidget dock("t", "TestDockRoom", nullptr);
+    dock.setContextProperty("roomModel", &model);
+    dock.setQmlSource(QUrl(u"qrc:/qt/qml/MMapper/RoomPanel.qml"_qs));
+
+    QQuickWidget *const quick = dock.quickWidget();
+    QVERIFY(quick != nullptr);
+
+    while (quick->status() == QQuickWidget::Loading) {
+        QCoreApplication::processEvents();
+    }
     QCoreApplication::processEvents();
 
     QCOMPARE(quick->status(), QQuickWidget::Ready);

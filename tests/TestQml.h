@@ -21,4 +21,5 @@ private Q_SLOTS:
     void qmlDockWidgetLoads();
     void loadTimerPanel();
     void loadAdventurePanel();
+    void loadRoomPanel();
 };

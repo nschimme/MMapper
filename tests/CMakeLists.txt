@@ -399,15 +399,30 @@ if(WITH_QML)
             ../src/mainwindow/LogModel.cpp
             ../src/mainwindow/LogModel.h
     )
+    # Sources for loadDescriptionPanel(). Deliberately excludes
+    # display/Filenames.cpp (whose getParserCommandName() use would drag the
+    # parser/mapdata graph into this small binary); TestQml.cpp provides a
+    # stub getAssetsPath() instead.
+    set(description_panel_SRCS
+            ../src/media/DescriptionAdapter.cpp
+            ../src/media/DescriptionAdapter.h
+            ../src/media/DescriptionImageStore.h
+            ../src/media/MediaLibrary.cpp
+            ../src/media/MediaLibrary.h
+            ../src/media/StackBlur.cpp
+            ../src/media/StackBlur.h
+            ../src/preferences/ansicombo.cpp
+            ../src/preferences/ansicombo.h
+    )
     add_executable(TestQml ${TestQml_SRCS} ${timer_test} ${adventure_SRCS} ${room_manager}
-            ${log_model_SRCS} ${group_SRCS})
+            ${log_model_SRCS} ${group_SRCS} ${description_panel_SRCS})
     add_dependencies(TestQml mm_qml mm_qmlplugin mm_test mm_global mm_map)
     target_link_libraries(TestQml
             mm_qml
             mm_qmlplugin
+            mm_map
             mm_test
             mm_global
-            mm_map
             Qt6::Quick
             Qt6::QuickWidgets
             Qt6::Widgets
@@ -415,6 +430,11 @@ if(WITH_QML)
             Qt6::Network
             Qt6::Test
             coverage_config)
+    if(WITH_AUDIO)
+        # MediaLibrary.cpp uses QMediaFormat unless MMAPPER_NO_AUDIO is
+        # defined (which the top-level CMakeLists only does when audio is off).
+        target_link_libraries(TestQml Qt6::Multimedia)
+    endif()
     set_target_properties(
             TestQml PROPERTIES
             CXX_STANDARD 20

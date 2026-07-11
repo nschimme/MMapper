@@ -17,8 +17,6 @@ set(mmapper_SRCS
     media/DescriptionAdapter.cpp
     media/DescriptionAdapter.h
     media/DescriptionImageStore.h
-    media/DescriptionWidget.cpp
-    media/DescriptionWidget.h
     media/MediaLibrary.cpp
     media/MediaLibrary.h
     media/MusicManager.cpp
@@ -633,6 +631,8 @@ if(NOT WITH_QML)
         adventure/adventurewidget.h
         group/groupwidget.cpp
         group/groupwidget.h
+        media/DescriptionWidget.cpp
+        media/DescriptionWidget.h
         roompanel/RoomWidget.cpp
         roompanel/RoomWidget.h
         timers/TimerDelegate.cpp
@@ -787,6 +787,7 @@ if(WITH_QML)
     set_source_files_properties(qml/RoomPanel.qml PROPERTIES QT_RESOURCE_ALIAS "RoomPanel.qml")
     set_source_files_properties(qml/LogPanel.qml PROPERTIES QT_RESOURCE_ALIAS "LogPanel.qml")
     set_source_files_properties(qml/GroupPanel.qml PROPERTIES QT_RESOURCE_ALIAS "GroupPanel.qml")
+    set_source_files_properties(qml/DescriptionPanel.qml PROPERTIES QT_RESOURCE_ALIAS "DescriptionPanel.qml")
 
     qt_add_qml_module(mm_qml
         STATIC
@@ -801,6 +802,7 @@ if(WITH_QML)
             qml/RoomPanel.qml
             qml/LogPanel.qml
             qml/GroupPanel.qml
+            qml/DescriptionPanel.qml
         SOURCES
             qml/QmlDockWidget.h
             qml/QmlDockWidget.cpp

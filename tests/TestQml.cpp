@@ -6,11 +6,16 @@
 #include "../src/adventure/AdventureLogModel.h"
 #include "../src/adventure/adventuretracker.h"
 #include "../src/configuration/configuration.h"
+#include "../src/display/Filenames.h"
 #include "../src/group/CGroupChar.h"
 #include "../src/group/GroupModel.h"
 #include "../src/mainwindow/LogModel.h"
+#include "../src/map/RoomHandle.h"
+#include "../src/media/DescriptionAdapter.h"
+#include "../src/media/MediaLibrary.h"
 #include "../src/observer/gameobserver.h"
 #include "../src/proxy/GmcpMessage.h"
+#include "../src/qml/DescriptionImageProvider.h"
 #include "../src/qml/QmlConfig.h"
 #include "../src/qml/QmlDockWidget.h"
 #include "../src/roompanel/RoomManager.h"
@@ -63,6 +68,17 @@ public:
 };
 
 } // namespace
+
+// MediaLibrary.cpp calls getAssetsPath() (declared in display/Filenames.h),
+// but linking display/Filenames.cpp would drag getParserCommandName() and
+// with it most of the parser/mapdata dependency graph into this small test
+// binary (the same problem loadGroupPanel() avoids with GroupIconProvider).
+// Provide the one symbol MediaLibrary needs; an empty path simply means no
+// sideloaded assets directory is scanned.
+QString getAssetsPath()
+{
+    return QString();
+}
 
 TestQml::TestQml() = default;
 
@@ -394,6 +410,37 @@ void TestQml::loadGroupPanel()
         QCoreApplication::processEvents();
     }
     // Let the delegate finish instantiating against the seeded character.
+    QCoreApplication::processEvents();
+
+    QCOMPARE(quick->status(), QQuickWidget::Ready);
+    QVERIFY(quick->rootObject() != nullptr);
+}
+
+void TestQml::loadDescriptionPanel()
+{
+    MediaLibrary library;
+    DescriptionAdapter adapter(library, nullptr);
+
+    // No room yet: the adapter must present the empty state (no image URLs,
+    // no text) that DescriptionPanel.qml renders as a bare panel.
+    adapter.updateRoom(RoomHandle{});
+    QCOMPARE(adapter.getImageUrl(), QUrl());
+    QCOMPARE(adapter.getBlurUrl(), QUrl());
+    QCOMPARE(adapter.getRoomName(), QString());
+    QCOMPARE(adapter.getRoomDesc(), QString());
+
+    QmlDockWidget dock("t", "TestDockDescription", nullptr);
+    // Must be registered before setQmlSource(); the engine takes ownership.
+    dock.addImageProvider("description", new DescriptionImageProvider(adapter.getStore()));
+    dock.setContextProperty("adapter", &adapter);
+    dock.setQmlSource(QUrl(u"qrc:/qt/qml/MMapper/DescriptionPanel.qml"_qs));
+
+    QQuickWidget *const quick = dock.quickWidget();
+    QVERIFY(quick != nullptr);
+
+    while (quick->status() == QQuickWidget::Loading) {
+        QCoreApplication::processEvents();
+    }
     QCoreApplication::processEvents();
 
     QCOMPARE(quick->status(), QQuickWidget::Ready);

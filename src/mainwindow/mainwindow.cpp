@@ -30,7 +30,9 @@
 #endif
 #include "../logger/autologger.h"
 #include "../media/AudioManager.h"
+#ifndef MMAPPER_WITH_QML
 #include "../media/DescriptionWidget.h"
+#endif
 #include "../media/MediaLibrary.h"
 #include "../pathmachine/mmapper2pathmachine.h"
 #include "../preferences/configdialog.h"
@@ -58,6 +60,8 @@
 
 #ifdef MMAPPER_WITH_QML
 #include "../group/GroupController.h"
+#include "../media/DescriptionAdapter.h"
+#include "../qml/DescriptionImageProvider.h"
 #include "../qml/GroupIconProvider.h"
 #include "../qml/QmlConfig.h"
 #include "../qml/QmlDockWidget.h"
@@ -345,6 +349,22 @@ MainWindow::MainWindow()
 
     // View -> Side Panels -> Description / Area Panel
     std::invoke([this] {
+#ifdef MMAPPER_WITH_QML
+        auto *const adapter = new DescriptionAdapter(deref(m_mediaLibrary), this);
+        auto *const dock = new QmlDockWidget(tr("Description Panel"), "DockWidgetDescription", this);
+        dock->setAllowedAreas(Qt::AllDockWidgetAreas);
+        dock->setFeatures(QDockWidget::DockWidgetMovable | QDockWidget::DockWidgetFloatable
+                          | QDockWidget::DockWidgetClosable);
+        addDockWidget(Qt::RightDockWidgetArea, dock);
+        // The engine takes ownership of the provider; it shares the image
+        // store with the adapter via shared_ptr (see DescriptionImageStore.h).
+        // Must be registered before setQmlSource().
+        dock->addImageProvider("description", new DescriptionImageProvider(adapter->getStore()));
+        dock->setContextProperty("adapter", adapter);
+        dock->setQmlSource(QUrl(QStringLiteral("qrc:/qt/qml/MMapper/DescriptionPanel.qml")));
+
+        m_descriptionAdapter = adapter;
+#else
         auto *const w = new DescriptionWidget(deref(m_mediaLibrary), this);
         auto *const dock = new QDockWidget(tr("Description Panel"), this);
         dock->setObjectName("DockWidgetDescription");
@@ -355,6 +375,7 @@ MainWindow::MainWindow()
         dock->setWidget(w);
 
         m_descriptionWidget = w;
+#endif
         m_dockDialogDescription = dock;
     });
 
@@ -610,19 +631,16 @@ void MainWindow::wireConnections()
             canvas,
             &MapCanvas::slot_moveMarker);
 
-    connect(m_pathMachine,
-            &Mmapper2PathMachine::sig_playerMoved,
-            m_descriptionWidget,
-            [this](const RoomId &id) {
-                if (const auto room = m_mapData->getRoomHandle(id)) {
-                    m_descriptionWidget->updateRoom(room);
-                    m_audioManager->onAreaChanged(room.getArea());
-                }
-            });
+    connect(m_pathMachine, &Mmapper2PathMachine::sig_playerMoved, this, [this](const RoomId &id) {
+        if (const auto room = m_mapData->getRoomHandle(id)) {
+            updateDescriptionRoom(room);
+            m_audioManager->onAreaChanged(room.getArea());
+        }
+    });
 
     connect(m_mapData, &MapData::sig_onPositionChange, this, [this]() {
         m_pathMachine->onPositionChange(m_mapData->getCurrentRoomId());
-        m_descriptionWidget->updateRoom(m_mapData->getCurrentRoom());
+        updateDescriptionRoom(m_mapData->getCurrentRoom());
         m_audioManager->onAreaChanged(m_mapData->getCurrentRoom().getArea());
     });
 
@@ -1708,6 +1726,10 @@ void MainWindow::slot_onPreferences()
                 &QmlConfig::reload);
         connect(configDialog, &QDialog::finished, this, [this](MAYBE_UNUSED int result) {
             m_qmlConfig->reload();
+            // Likewise, the Description panel's colors/font (parser.roomName/
+            // DescColor, integratedClient.font/colors) have no ChangeMonitor;
+            // re-resolve them after the dialog closes.
+            deref(m_descriptionAdapter).reloadConfig();
         });
 #endif
         connect(configDialog, &QDialog::finished, this, [this](MAYBE_UNUSED int result) {
@@ -1867,6 +1889,15 @@ void MainWindow::slot_newFile()
     }
 }
 
+void MainWindow::updateDescriptionRoom(const RoomHandle &room)
+{
+#ifdef MMAPPER_WITH_QML
+    deref(m_descriptionAdapter).updateRoom(room);
+#else
+    deref(m_descriptionWidget).updateRoom(room);
+#endif
+}
+
 void MainWindow::forceNewFile()
 {
     {
@@ -1883,7 +1914,7 @@ void MainWindow::forceNewFile()
 #else
     m_groupWidget->slot_mapLoaded();
 #endif
-    m_descriptionWidget->updateRoom(RoomHandle{});
+    updateDescriptionRoom(RoomHandle{});
     m_audioManager->onAreaChanged(RoomArea{});
 
     /*
@@ -2391,8 +2422,7 @@ void MainWindow::onSuccessfulLoad(const MapLoadData &mapLoadData)
     groupWidget.slot_mapLoaded();
     pathMachine.onMapLoaded();
     if (const auto room = mapData.getCurrentRoom()) {
-        auto &widget = deref(m_descriptionWidget);
-        widget.updateRoom(room);
+        updateDescriptionRoom(room);
         deref(m_audioManager).onAreaChanged(room.getArea());
     }
 

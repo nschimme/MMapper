@@ -74,7 +74,11 @@ class RoomSelection;
 class RoomWidget;
 #endif
 class UpdateDialog;
+#ifdef MMAPPER_WITH_QML
+class DescriptionAdapter;
+#else
 class DescriptionWidget;
+#endif
 class MediaLibrary;
 #ifndef MMAPPER_WITH_QML
 class TimerWidget;
@@ -140,7 +144,11 @@ private:
     MediaLibrary *m_mediaLibrary = nullptr;
     AudioManager *m_audioManager = nullptr;
 
+#ifdef MMAPPER_WITH_QML
+    DescriptionAdapter *m_descriptionAdapter = nullptr;
+#else
     DescriptionWidget *m_descriptionWidget = nullptr;
+#endif
 #ifndef MMAPPER_WITH_QML
     TimerWidget *m_timerWidget = nullptr;
 #endif
@@ -362,6 +370,9 @@ private:
     void updateMapModified();
 
 private:
+    // Dispatches to m_descriptionAdapter (QML) or m_descriptionWidget
+    // (legacy widget) depending on the build.
+    void updateDescriptionRoom(const RoomHandle &room);
     void applyGroupAction(const std::function<Change(const RawRoom &)> &getChange);
     void onSuccessfulLoad(const MapLoadData &mapLoadData);
     void onSuccessfulMerge(const Map &map);

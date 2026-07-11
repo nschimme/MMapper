@@ -46,6 +46,9 @@ class Mmapper2Group;
 class Mmapper2PathMachine;
 class MumeClock;
 class PrespammedPath;
+#ifdef MMAPPER_WITH_QML
+class QmlConfig;
+#endif
 class CTimers;
 class QAction;
 class QActionGroup;
@@ -252,6 +255,13 @@ private:
     QAction *rebuildMeshesAct = nullptr;
 
     std::unique_ptr<ConfigDialog> m_configDialog;
+
+#ifdef MMAPPER_WITH_QML
+    // Q_PROPERTY façade over Configuration::groupManager, shared by the
+    // upcoming QML Group and Description panels; see QmlConfig.h for why
+    // reload() must be called explicitly after ConfigDialog changes.
+    QmlConfig *m_qmlConfig = nullptr;
+#endif
 
     struct AsyncBase;
     struct AsyncIO;

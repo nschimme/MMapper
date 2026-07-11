@@ -5,8 +5,10 @@
 
 #include "../src/adventure/AdventureLogModel.h"
 #include "../src/adventure/adventuretracker.h"
+#include "../src/configuration/configuration.h"
 #include "../src/observer/gameobserver.h"
 #include "../src/proxy/GmcpMessage.h"
+#include "../src/qml/QmlConfig.h"
 #include "../src/qml/QmlDockWidget.h"
 #include "../src/roompanel/RoomManager.h"
 #include "../src/roompanel/RoomModel.h"
@@ -24,7 +26,9 @@
 #include <QQmlEngine>
 #include <QQuickItem>
 #include <QQuickWidget>
+#include <QScopeGuard>
 #include <QScopedPointer>
+#include <QSignalSpy>
 #include <QtTest/QtTest>
 
 TestQml::TestQml() = default;
@@ -35,6 +39,9 @@ void TestQml::initTestCase()
 {
     // Allows QQuickWidget to run without a GPU under the offscreen platform.
     qputenv("QT_QUICK_BACKEND", "software");
+    // Required before any getConfig()/setConfig() call (see
+    // qmlConfigRoundTrip()); see also TestMainWindow and TestClock.
+    setEnteredMain();
 }
 
 void TestQml::loadPanelFrame()
@@ -224,6 +231,51 @@ void TestQml::loadRoomPanel()
     QJSValue result = provider.call(QJSValueList{QJSValue(0)});
     QVERIFY(!result.isError());
     QVERIFY(result.toNumber() >= headerTextWidth);
+}
+
+void TestQml::qmlConfigRoundTrip()
+{
+    const bool originalNpcHide = getConfig().groupManager.npcHide;
+    const QColor originalGroupColor = getConfig().groupManager.color;
+
+    // TestQml mutates the global Configuration singleton, which is shared
+    // across all tests in this binary; always restore it, following the
+    // precedent in TestMainWindow::audioToolbarTest().
+    auto cleanup = qScopeGuard([=]() {
+        setConfig().groupManager.npcHide = originalNpcHide;
+        setConfig().groupManager.color = originalGroupColor;
+    });
+
+    QmlConfig qmlConfig;
+
+    // setProperty()-driven write must go through the QmlConfig setter and
+    // land in the live Configuration.
+    QSignalSpy npcHideSpy(&qmlConfig, &QmlConfig::npcHideChanged);
+    QVERIFY(qmlConfig.setProperty("npcHide", true));
+    QCOMPARE(getConfig().groupManager.npcHide, true);
+    QCOMPARE(npcHideSpy.count(), 1);
+
+    // An external writer (e.g. the preferences dialog) bypasses QmlConfig's
+    // setters entirely, so the façade goes stale until reload() is called.
+    setConfig().groupManager.npcHide = false;
+    QCOMPARE(qmlConfig.getNpcHide(), false); // getters always read live config
+    qmlConfig.reload();
+    QCOMPARE(npcHideSpy.count(), 2);
+    QCOMPARE(qmlConfig.property("npcHide").toBool(), false);
+
+    // Spot-check the same pattern for groupColor.
+    QSignalSpy groupColorSpy(&qmlConfig, &QmlConfig::groupColorChanged);
+    const QColor newColor{Qt::green};
+    QVERIFY(qmlConfig.setProperty("groupColor", newColor));
+    QCOMPARE(getConfig().groupManager.color, newColor);
+    QCOMPARE(groupColorSpy.count(), 1);
+
+    const QColor externalColor{Qt::blue};
+    setConfig().groupManager.color = externalColor;
+    QCOMPARE(qmlConfig.getGroupColor(), externalColor);
+    qmlConfig.reload();
+    QCOMPARE(groupColorSpy.count(), 2);
+    QCOMPARE(qmlConfig.property("groupColor").value<QColor>(), externalColor);
 }
 
 QTEST_MAIN(TestQml)

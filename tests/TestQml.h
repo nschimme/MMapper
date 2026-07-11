@@ -23,4 +23,5 @@ private Q_SLOTS:
     void loadAdventurePanel();
     void roomModelLongestTextInColumn();
     void loadRoomPanel();
+    void qmlConfigRoundTrip();
 };

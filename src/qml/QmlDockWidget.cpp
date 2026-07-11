@@ -5,7 +5,9 @@
 
 #include <QLabel>
 #include <QQmlContext>
+#include <QQmlEngine>
 #include <QQmlError>
+#include <QQuickImageProvider>
 #include <QQuickWidget>
 #include <QQuickWindow>
 
@@ -26,6 +28,17 @@ void QmlDockWidget::setContextProperty(const QString &name, QObject *const objec
         return;
     }
     m_quick->rootContext()->setContextProperty(name, object);
+}
+
+void QmlDockWidget::addImageProvider(const QString &id, QQuickImageProvider *const provider)
+{
+    if (m_quick == nullptr) {
+        qWarning() << "QmlDockWidget::addImageProvider() called with no QQuickWidget";
+        delete provider;
+        return;
+    }
+    // engine()->addImageProvider() takes ownership of provider.
+    m_quick->engine()->addImageProvider(id, provider);
 }
 
 void QmlDockWidget::setQmlSource(const QUrl &url)

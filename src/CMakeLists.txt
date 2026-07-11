@@ -783,6 +783,8 @@ if(WITH_QML)
         SOURCES
             qml/QmlDockWidget.h
             qml/QmlDockWidget.cpp
+            qml/QmlConfig.h
+            qml/QmlConfig.cpp
     )
     set_target_properties(mm_qml PROPERTIES
         CXX_STANDARD 20

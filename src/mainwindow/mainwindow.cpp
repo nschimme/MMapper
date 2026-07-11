@@ -55,6 +55,7 @@
 #include "utils.h"
 
 #ifdef MMAPPER_WITH_QML
+#include "../qml/QmlConfig.h"
 #include "../qml/QmlDockWidget.h"
 #include "../roompanel/RoomModel.h"
 #include "../timers/TimerController.h"
@@ -138,6 +139,10 @@ MainWindow::MainWindow()
     setWindowIcon(QIcon(":/icons/mmapper-lo.svg"));
     addApplicationFont();
     registerMetatypes();
+
+#ifdef MMAPPER_WITH_QML
+    m_qmlConfig = new QmlConfig(this);
+#endif
 
     std::invoke([this] {
         auto *const mapData = new MapData(this);
@@ -1634,6 +1639,19 @@ void MainWindow::slot_onPreferences()
                 &ConfigDialog::sig_groupSettingsChanged,
                 m_groupManager,
                 &Mmapper2Group::slot_groupSettingsChanged);
+#ifdef MMAPPER_WITH_QML
+        // GroupManagerSettings has no ChangeMonitor (see QmlConfig.h), so
+        // QmlConfig cannot observe ConfigDialog's writes on its own; re-sync
+        // it explicitly whenever the dialog reports a group settings change
+        // or closes.
+        connect(configDialog,
+                &ConfigDialog::sig_groupSettingsChanged,
+                m_qmlConfig,
+                &QmlConfig::reload);
+        connect(configDialog, &QDialog::finished, this, [this](MAYBE_UNUSED int result) {
+            m_qmlConfig->reload();
+        });
+#endif
         connect(configDialog, &QDialog::finished, this, [this](MAYBE_UNUSED int result) {
             m_configDialog.reset();
         });

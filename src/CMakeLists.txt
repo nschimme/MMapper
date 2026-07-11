@@ -14,6 +14,9 @@ set(mmapper_SRCS
     display/AudioHintWidget.h
     media/AudioManager.cpp
     media/AudioManager.h
+    media/DescriptionAdapter.cpp
+    media/DescriptionAdapter.h
+    media/DescriptionImageStore.h
     media/DescriptionWidget.cpp
     media/DescriptionWidget.h
     media/MediaLibrary.cpp
@@ -22,6 +25,8 @@ set(mmapper_SRCS
     media/MusicManager.h
     media/SfxManager.cpp
     media/SfxManager.h
+    media/StackBlur.cpp
+    media/StackBlur.h
     client/ClientTelnet.cpp
     client/ClientTelnet.h
     client/ClientWidget.cpp
@@ -803,6 +808,8 @@ if(WITH_QML)
             qml/QmlConfig.cpp
             qml/GroupIconProvider.h
             qml/GroupIconProvider.cpp
+            qml/DescriptionImageProvider.h
+            qml/DescriptionImageProvider.cpp
     )
     set_target_properties(mm_qml PROPERTIES
         CXX_STANDARD 20

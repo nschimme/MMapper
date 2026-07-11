@@ -374,6 +374,24 @@ set_target_properties(
 )
 add_test(NAME TestHotkeyManager COMMAND TestHotkeyManager)
 
+# Media
+set(media_SRCS
+        ../src/media/StackBlur.cpp
+        ../src/media/StackBlur.h
+)
+set(TestMedia_SRCS TestMedia.cpp TestMedia.h)
+add_executable(TestMedia ${TestMedia_SRCS} ${media_SRCS})
+add_dependencies(TestMedia mm_test mm_global)
+target_link_libraries(TestMedia mm_test mm_global Qt6::Gui Qt6::Test coverage_config)
+set_target_properties(
+        TestMedia PROPERTIES
+        CXX_STANDARD 20
+        CXX_STANDARD_REQUIRED ON
+        CXX_EXTENSIONS OFF
+        COMPILE_FLAGS "${WARNING_FLAGS}"
+)
+add_test(NAME TestMedia COMMAND TestMedia)
+
 # QML
 if(WITH_QML)
     set(TestQml_SRCS TestQml.cpp TestQml.h)

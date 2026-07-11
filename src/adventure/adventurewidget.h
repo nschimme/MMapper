@@ -4,6 +4,7 @@
 // Author: Mike Repass <mike.repass@gmail.com> (Taryn)
 
 #include "../global/macros.h"
+#include "AdventureLogModel.h"
 #include "adventuretracker.h"
 
 #include <memory>
@@ -25,17 +26,18 @@ private:
     QAction *m_clearContentAction = nullptr;
 
 public:
-    static constexpr const int MAX_LINES = 1024;
-    static constexpr const auto DEFAULT_MSG
-        = "Your adventures in Middle Earth will be tracked here!\n";
+    // Message constants live on AdventureLogModel (the QML-facing equivalent
+    // of this widget) so both share a single definition.
+    static constexpr const int MAX_LINES = AdventureLogModel::MAX_LINES;
+    static constexpr const auto DEFAULT_MSG = AdventureLogModel::DEFAULT_MSG;
 
-    static constexpr const auto ACCOMPLISH_MSG = "Task accomplished! (%1 xp)\n";
-    static constexpr const auto ACHIEVE_MSG = "Achievement: %1\n";
-    static constexpr const auto ACHIEVE_MSG_XP = "Achievement: %1 (%2 xp)\n";
-    static constexpr const auto DIED_MSG = "You are dead! Sorry... (%1 xp)\n";
-    static constexpr const auto GAINED_LEVEL_MSG = "You gain a level! Congrats!\n";
-    static constexpr const auto HINT_MSG = "Hint: %1\n";
-    static constexpr const auto KILL_TROPHY_MSG = "Trophy: %1 (%2 xp)\n";
+    static constexpr const auto ACCOMPLISH_MSG = AdventureLogModel::ACCOMPLISH_MSG;
+    static constexpr const auto ACHIEVE_MSG = AdventureLogModel::ACHIEVE_MSG;
+    static constexpr const auto ACHIEVE_MSG_XP = AdventureLogModel::ACHIEVE_MSG_XP;
+    static constexpr const auto DIED_MSG = AdventureLogModel::DIED_MSG;
+    static constexpr const auto GAINED_LEVEL_MSG = AdventureLogModel::GAINED_LEVEL_MSG;
+    static constexpr const auto HINT_MSG = AdventureLogModel::HINT_MSG;
+    static constexpr const auto KILL_TROPHY_MSG = AdventureLogModel::KILL_TROPHY_MSG;
 
     explicit AdventureWidget(AdventureTracker &at, QWidget *parent);
 

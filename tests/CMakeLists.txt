@@ -241,6 +241,8 @@ add_test(NAME TestMap COMMAND TestMap)
 
 # Adventure
 set(adventure_SRCS
+        ../src/adventure/AdventureLogModel.cpp
+        ../src/adventure/AdventureLogModel.h
         ../src/adventure/adventuresession.cpp
         ../src/adventure/adventuresession.h
         ../src/adventure/adventuretracker.cpp
@@ -367,16 +369,18 @@ add_test(NAME TestHotkeyManager COMMAND TestHotkeyManager)
 # QML
 if(WITH_QML)
     set(TestQml_SRCS TestQml.cpp TestQml.h)
-    add_executable(TestQml ${TestQml_SRCS} ${timer_test})
-    add_dependencies(TestQml mm_qml mm_qmlplugin mm_global)
+    add_executable(TestQml ${TestQml_SRCS} ${timer_test} ${adventure_SRCS})
+    add_dependencies(TestQml mm_qml mm_qmlplugin mm_test mm_global)
     target_link_libraries(TestQml
             mm_qml
             mm_qmlplugin
+            mm_test
             mm_global
             Qt6::Quick
             Qt6::QuickWidgets
             Qt6::Widgets
             Qt6::Qml
+            Qt6::Network
             Qt6::Test
             coverage_config)
     set_target_properties(

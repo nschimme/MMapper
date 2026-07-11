@@ -1,5 +1,7 @@
 set(mmapper_SRCS
     main.cpp
+    adventure/AdventureLogModel.cpp
+    adventure/AdventureLogModel.h
     adventure/adventuresession.cpp
     adventure/adventuresession.h
     adventure/adventuretracker.cpp
@@ -756,6 +758,7 @@ if(WITH_QML)
     # as qrc:/qt/qml/MMapper/<File>.qml.
     set_source_files_properties(qml/PanelFrame.qml PROPERTIES QT_RESOURCE_ALIAS "PanelFrame.qml")
     set_source_files_properties(qml/TimerPanel.qml PROPERTIES QT_RESOURCE_ALIAS "TimerPanel.qml")
+    set_source_files_properties(qml/AdventurePanel.qml PROPERTIES QT_RESOURCE_ALIAS "AdventurePanel.qml")
 
     qt_add_qml_module(mm_qml
         STATIC
@@ -766,6 +769,7 @@ if(WITH_QML)
         QML_FILES
             qml/PanelFrame.qml
             qml/TimerPanel.qml
+            qml/AdventurePanel.qml
         SOURCES
             qml/QmlDockWidget.h
             qml/QmlDockWidget.cpp

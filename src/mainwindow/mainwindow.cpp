@@ -6,6 +6,7 @@
 
 #include "mainwindow.h"
 
+#include "../adventure/AdventureLogModel.h"
 #include "../adventure/adventuretracker.h"
 #include "../adventure/adventurewidget.h"
 #include "../adventure/xpstatuswidget.h"
@@ -238,8 +239,20 @@ MainWindow::MainWindow()
 
     std::invoke([this] {
         auto *const adv = new AdventureTracker(deref(m_gameObserver), this);
-        auto *const w = new AdventureWidget(deref(adv), this);
+
         // View -> Side Panels -> Adventure Panel (Trophy XP, Achievements, Hints, etc)
+#ifdef MMAPPER_WITH_QML
+        auto *const model = new AdventureLogModel(deref(adv), this);
+        auto *const dock = new QmlDockWidget(tr("Adventure Panel"), "DockWidgetGameConsole", this);
+        dock->setAllowedAreas(Qt::BottomDockWidgetArea | Qt::TopDockWidgetArea);
+        dock->setFeatures(QDockWidget::DockWidgetClosable | QDockWidget::DockWidgetFloatable
+                          | QDockWidget::DockWidgetMovable);
+        addDockWidget(Qt::BottomDockWidgetArea, dock);
+        dock->setContextProperty("adventureLogModel", model);
+        dock->setQmlSource(QUrl(QStringLiteral("qrc:/qt/qml/MMapper/AdventurePanel.qml")));
+        dock->hide();
+#else
+        auto *const w = new AdventureWidget(deref(adv), this);
         auto *const dock = new QDockWidget(tr("Adventure Panel"), this);
         dock->setObjectName("DockWidgetGameConsole");
         dock->setAllowedAreas(Qt::BottomDockWidgetArea | Qt::TopDockWidgetArea);
@@ -249,8 +262,10 @@ MainWindow::MainWindow()
         dock->setWidget(w);
         dock->hide();
 
-        m_adventureTracker = adv;
         m_adventureWidget = w;
+#endif
+
+        m_adventureTracker = adv;
         m_dockDialogAdventure = dock;
     });
 

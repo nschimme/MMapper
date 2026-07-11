@@ -3,6 +3,9 @@
 
 #include "TestQml.h"
 
+#include "../src/adventure/AdventureLogModel.h"
+#include "../src/adventure/adventuretracker.h"
+#include "../src/observer/gameobserver.h"
 #include "../src/qml/QmlDockWidget.h"
 #include "../src/timers/CTimers.h"
 #include "../src/timers/TimerController.h"
@@ -99,6 +102,29 @@ void TestQml::loadTimerPanel()
         QCoreApplication::processEvents();
     }
     // Let the delegate finish instantiating against the seeded timer.
+    QCoreApplication::processEvents();
+
+    QCOMPARE(quick->status(), QQuickWidget::Ready);
+    QVERIFY(quick->rootObject() != nullptr);
+}
+
+void TestQml::loadAdventurePanel()
+{
+    GameObserver observer;
+    AdventureTracker tracker(observer, nullptr);
+    AdventureLogModel model(tracker, nullptr);
+
+    QmlDockWidget dock("t", "TestDockAdventure", nullptr);
+    dock.setContextProperty("adventureLogModel", &model);
+    dock.setQmlSource(QUrl(u"qrc:/qt/qml/MMapper/AdventurePanel.qml"_qs));
+
+    QQuickWidget *const quick = dock.quickWidget();
+    QVERIFY(quick != nullptr);
+
+    while (quick->status() == QQuickWidget::Loading) {
+        QCoreApplication::processEvents();
+    }
+    // Let the delegate finish instantiating against the seeded log entry.
     QCoreApplication::processEvents();
 
     QCOMPARE(quick->status(), QQuickWidget::Ready);

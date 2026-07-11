@@ -79,13 +79,50 @@ enum class NODISCARD ColumnTypeEnum {
 
 static_assert(GROUP_COLUMN_COUNT == static_cast<int>(ColumnTypeEnum::ROOM_NAME) + 1, "# of columns");
 
+// QML role URL scheme for the "stateIcons" role (Role::StateIconsRole below):
+//   image://groupicons/<std|inv>/<position|affect>/<lowercase-enum-name>
+// <std|inv> selects the standard or inverted (white-icon) variant, mirroring
+// GroupImageCache's invert condition: mmqt::textColor(charColor) == Qt::white.
+// <lowercase-enum-name> is the same "lower_case" token used by
+// Filenames.cpp's getFilenameSuffix() (e.g. "standing", "sanctuary"). A
+// QQuickImageProvider registered under the "groupicons" id resolves these
+// URLs back to icon files via getIconFilename().
 class NODISCARD_QOBJECT GroupModel final : public QAbstractTableModel
 {
     Q_OBJECT
 
+    Q_PROPERTY(bool anyMana READ getAnyMana NOTIFY anyManaChanged)
+
+public:
+    // Custom roles exposed to QML views (e.g. TableView / Repeater), in addition
+    // to the standard Qt::DisplayRole/ToolTipRole consumed by the QTableView-based
+    // GroupWidget. All roles are answered from data() regardless of the
+    // QModelIndex's column, since QML delegates read every role from column 0.
+    enum Role {
+        NameRole = Qt::UserRole + 1,
+        CharColorRole,
+        TextColorRole,
+        HpTextRole,
+        ManaTextRole,
+        MovesTextRole,
+        HpRatioRole,
+        ManaRatioRole,
+        MovesRatioRole,
+        HpLowRole,
+        MovesLowRole,
+        ManaHiddenRole,
+        StateIconsRole,
+        StateTipRole,
+        RoomNameRole,
+        IsYouRole,
+        IsNpcRole,
+        CanCenterRole,
+    };
+
 private:
     GroupVector m_characters;
     bool m_mapLoaded = false;
+    bool m_anyMana = false;
 
 public:
     explicit GroupModel(QObject *parent = nullptr);
@@ -102,11 +139,20 @@ public:
     void updateCharacter(const SharedGroupChar &updatedCharacter);
     void resetModel();
 
+public:
+    NODISCARD bool getAnyMana() const { return m_anyMana; }
+    NODISCARD Q_INVOKABLE bool moveRow(int from, int to);
+
+signals:
+    void anyManaChanged();
+
 private:
     NODISCARD QVariant dataForCharacter(const SharedGroupChar &character,
                                         ColumnTypeEnum column,
                                         int role) const;
+    NODISCARD QVariant roleDataForCharacter(const SharedGroupChar &character, int role) const;
     NODISCARD int findIndexById(GroupId charId) const;
+    void updateAnyMana();
 
 protected:
     NODISCARD int rowCount(const QModelIndex &parent) const override;
@@ -114,6 +160,7 @@ protected:
 
     NODISCARD QVariant data(const QModelIndex &index, int role) const override;
     NODISCARD QVariant headerData(int section, Qt::Orientation orientation, int role) const override;
+    NODISCARD QHash<int, QByteArray> roleNames() const override;
 
     // Drag and drop overrides
     NODISCARD Qt::ItemFlags flags(const QModelIndex &index) const override;

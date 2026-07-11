@@ -5,6 +5,7 @@
 #include "GroupModel.h"
 
 #include "../configuration/configuration.h"
+#include "../global/Color.h"
 #include "../global/Timer.h"
 #include "../global/utils.h"
 #include "../map/roomid.h"
@@ -39,6 +40,59 @@ NODISCARD static const char *getColumnFriendlyName(const ColumnTypeEnum column)
         return "";
     }
 #undef X_DECL_COLUMNTYPE
+}
+
+// Same "lower_case" token used by Filenames.cpp's getFilenameSuffix(); see the
+// image://groupicons/... URL scheme documented in GroupModel.h.
+NODISCARD static QString getPositionToken(const CharacterPositionEnum position)
+{
+#define X_CASE(UPPER_CASE, lower_case, CamelCase, friendly) \
+    case CharacterPositionEnum::UPPER_CASE: \
+        return QStringLiteral(#lower_case);
+    switch (position) {
+        XFOREACH_CHARACTER_POSITION(X_CASE)
+    }
+    return QString();
+#undef X_CASE
+}
+NODISCARD static QString getAffectToken(const CharacterAffectEnum affect)
+{
+#define X_CASE(UPPER_CASE, lower_case, CamelCase, friendly) \
+    case CharacterAffectEnum::UPPER_CASE: \
+        return QStringLiteral(#lower_case);
+    switch (affect) {
+        XFOREACH_CHARACTER_AFFECT(X_CASE)
+    }
+    return QString();
+#undef X_CASE
+}
+
+NODISCARD static double computeRatio(const int cur, const int max)
+{
+    if (max <= 0) {
+        return 0.0;
+    }
+    return std::clamp(static_cast<double>(cur) / static_cast<double>(max), 0.0, 1.0);
+}
+
+NODISCARD static QStringList buildStateIcons(const CGroupChar &character)
+{
+    QStringList icons;
+    // Mirrors GroupImageCache's invert condition in groupwidget.cpp.
+    const bool invert = mmqt::textColor(character.getColor()) == Qt::white;
+    const QString variant = invert ? QStringLiteral("inv") : QStringLiteral("std");
+
+    const CharacterPositionEnum position = character.getPosition();
+    if (position != CharacterPositionEnum::UNDEFINED) {
+        icons << QString("image://groupicons/%1/position/%2")
+                     .arg(variant, getPositionToken(position));
+    }
+    for (const CharacterAffectEnum affect : ALL_CHARACTER_AFFECTS) {
+        if (character.getAffects().contains(affect)) {
+            icons << QString("image://groupicons/%1/affect/%2").arg(variant, getAffectToken(affect));
+        }
+    }
+    return icons;
 }
 } // namespace
 
@@ -186,6 +240,8 @@ void GroupModel::setCharacters(const GroupVector &newGameChars)
     beginResetModel();
     m_characters = std::move(resultingCharacterList);
     endResetModel();
+
+    updateAnyMana();
 }
 
 int GroupModel::findIndexById(const GroupId charId) const
@@ -225,6 +281,8 @@ void GroupModel::insertCharacter(const SharedGroupChar &newCharacter)
     beginInsertRows(QModelIndex(), newIndex, newIndex);
     m_characters.insert(m_characters.begin() + newIndex, newCharacter);
     endInsertRows();
+
+    updateAnyMana();
 }
 
 void GroupModel::removeCharacterById(const GroupId charId)
@@ -237,6 +295,8 @@ void GroupModel::removeCharacterById(const GroupId charId)
     beginRemoveRows(QModelIndex(), index, index);
     m_characters.erase(m_characters.begin() + index);
     endRemoveRows();
+
+    updateAnyMana();
 }
 
 void GroupModel::updateCharacter(const SharedGroupChar &updatedCharacter)
@@ -252,13 +312,26 @@ void GroupModel::updateCharacter(const SharedGroupChar &updatedCharacter)
     SharedGroupChar &existingChar = m_characters[static_cast<size_t>(index)];
     existingChar = updatedCharacter;
 
-    emit dataChanged(this->index(index, 0),
-                     this->index(index, columnCount(QModelIndex()) - 1),
-                     {Qt::DisplayRole,
-                      Qt::BackgroundRole,
-                      Qt::ForegroundRole,
-                      Qt::ToolTipRole,
-                      Qt::UserRole + 1});
+    // Empty role list: refresh every role (including the QML-only roles), not
+    // just the fixed set the QTableView-based GroupWidget originally cared about.
+    emit dataChanged(this->index(index, 0), this->index(index, columnCount(QModelIndex()) - 1), {});
+
+    updateAnyMana();
+}
+
+void GroupModel::updateAnyMana()
+{
+    bool any = false;
+    for (const auto &character : m_characters) {
+        if (character && (character->getMana() > 0 || character->getMaxMana() > 0)) {
+            any = true;
+            break;
+        }
+    }
+    if (any != m_anyMana) {
+        m_anyMana = any;
+        emit anyManaChanged();
+    }
 }
 
 SharedGroupChar GroupModel::getCharacter(int row) const
@@ -424,6 +497,63 @@ QVariant GroupModel::dataForCharacter(const SharedGroupChar &pCharacter,
     return QVariant();
 }
 
+QVariant GroupModel::roleDataForCharacter(const SharedGroupChar &pCharacter, const int role) const
+{
+    const CGroupChar &character = deref(pCharacter);
+
+    switch (role) {
+    case NameRole:
+        return dataForCharacter(pCharacter, ColumnTypeEnum::NAME, Qt::DisplayRole);
+    case CharColorRole:
+        return character.getColor();
+    case TextColorRole:
+        return mmqt::textColor(character.getColor());
+    case HpTextRole:
+        return dataForCharacter(pCharacter, ColumnTypeEnum::HP, Qt::DisplayRole);
+    case ManaTextRole:
+        // Mirrors GroupDelegate::paint()'s MANA "Hidden State" branch, which
+        // always draws "--" once maxmana <= 0 (regardless of the formatted text).
+        if (character.getMaxMana() <= 0) {
+            return QStringLiteral("--");
+        }
+        return dataForCharacter(pCharacter, ColumnTypeEnum::MANA, Qt::DisplayRole);
+    case MovesTextRole:
+        return dataForCharacter(pCharacter, ColumnTypeEnum::MOVES, Qt::DisplayRole);
+    case HpRatioRole:
+        return computeRatio(character.getHits(), character.getMaxHits());
+    case ManaRatioRole:
+        return computeRatio(character.getMana(), character.getMaxMana());
+    case MovesRatioRole:
+        return computeRatio(character.getMoves(), character.getMaxMoves());
+    case HpLowRole:
+        // Threshold matches GroupDelegate::paint()'s HP pulse/red-bar cutoff (pct < 0.3).
+        // Like the delegate's pulse decision, an unknown max (max <= 0) is NOT low.
+        return character.getMaxHits() > 0
+               && computeRatio(character.getHits(), character.getMaxHits()) < 0.30;
+    case MovesLowRole:
+        // Threshold matches GroupDelegate::paint()'s Moves pulse cutoff (pct < 0.15).
+        // Like the delegate's pulse decision, an unknown max (max <= 0) is NOT low.
+        return character.getMaxMoves() > 0
+               && computeRatio(character.getMoves(), character.getMaxMoves()) < 0.15;
+    case ManaHiddenRole:
+        return character.getMaxMana() <= 0;
+    case StateIconsRole:
+        return buildStateIcons(character);
+    case StateTipRole:
+        return dataForCharacter(pCharacter, ColumnTypeEnum::STATE, Qt::ToolTipRole);
+    case RoomNameRole:
+        return dataForCharacter(pCharacter, ColumnTypeEnum::ROOM_NAME, Qt::DisplayRole);
+    case IsYouRole:
+        return character.isYou();
+    case IsNpcRole:
+        return character.isNpc();
+    case CanCenterRole:
+        return character.isYou() || character.getServerId() != INVALID_SERVER_ROOMID;
+    default:
+        return QVariant();
+    }
+}
+
 QVariant GroupModel::data(const QModelIndex &index, int role) const
 {
     if (!index.isValid()) {
@@ -432,6 +562,12 @@ QVariant GroupModel::data(const QModelIndex &index, int role) const
 
     if (index.row() >= 0 && index.row() < static_cast<int>(m_characters.size())) {
         const SharedGroupChar &character = m_characters.at(static_cast<size_t>(index.row()));
+        // QML delegates read every custom role from column 0, so those roles are
+        // answered independently of index.column(); the legacy Qt roles keep the
+        // per-column behavior the QTableView-based GroupWidget relies on.
+        if (role >= Qt::UserRole + 1) {
+            return roleDataForCharacter(character, role);
+        }
         return dataForCharacter(character, static_cast<ColumnTypeEnum>(index.column()), role);
     }
 
@@ -448,6 +584,32 @@ QVariant GroupModel::headerData(int section, Qt::Orientation orientation, int ro
         break;
     }
     return QVariant();
+}
+
+QHash<int, QByteArray> GroupModel::roleNames() const
+{
+    QHash<int, QByteArray> roles = QAbstractTableModel::roleNames();
+    roles[Qt::DisplayRole] = "display";
+    roles[Qt::ToolTipRole] = "toolTip";
+    roles[NameRole] = "name";
+    roles[CharColorRole] = "charColor";
+    roles[TextColorRole] = "textColor";
+    roles[HpTextRole] = "hpText";
+    roles[ManaTextRole] = "manaText";
+    roles[MovesTextRole] = "movesText";
+    roles[HpRatioRole] = "hpRatio";
+    roles[ManaRatioRole] = "manaRatio";
+    roles[MovesRatioRole] = "movesRatio";
+    roles[HpLowRole] = "hpLow";
+    roles[MovesLowRole] = "movesLow";
+    roles[ManaHiddenRole] = "manaHidden";
+    roles[StateIconsRole] = "stateIcons";
+    roles[StateTipRole] = "stateTip";
+    roles[RoomNameRole] = "roomName";
+    roles[IsYouRole] = "isYou";
+    roles[IsNpcRole] = "isNpc";
+    roles[CanCenterRole] = "canCenter";
+    return roles;
 }
 
 Qt::ItemFlags GroupModel::flags(const QModelIndex &index) const
@@ -509,36 +671,39 @@ bool GroupModel::dropMimeData(
         targetInsertionIndex = static_cast<int>(m_characters.size());
     }
 
-    if (sourceRow == targetInsertionIndex
-        || (sourceRow == targetInsertionIndex - 1 && targetInsertionIndex > sourceRow)) {
+    return moveRow(sourceRow, targetInsertionIndex);
+}
+
+bool GroupModel::moveRow(const int from, int to)
+{
+    const int size = static_cast<int>(m_characters.size());
+    if (from < 0 || from >= size) {
+        return false;
+    }
+    if (to < 0 || to > size) {
         return false;
     }
 
-    if (targetInsertionIndex < 0) {
-        targetInsertionIndex = 0;
-    }
-    if (targetInsertionIndex > static_cast<int>(m_characters.size())) {
-        targetInsertionIndex = static_cast<int>(m_characters.size());
-    }
-
-    if (!beginMoveRows(QModelIndex(), sourceRow, sourceRow, QModelIndex(), targetInsertionIndex)) {
+    // No-op: dropping onto the same position, or immediately after itself.
+    if (from == to || to == from + 1) {
         return false;
     }
 
-    SharedGroupChar movedChar = m_characters[static_cast<size_t>(sourceRow)];
-    m_characters.erase(m_characters.begin() + sourceRow);
+    if (!beginMoveRows(QModelIndex(), from, from, QModelIndex(), to)) {
+        return false;
+    }
 
-    int actualInsertionIdx = targetInsertionIndex;
-    if (sourceRow < targetInsertionIndex) {
+    SharedGroupChar movedChar = m_characters[static_cast<size_t>(from)];
+    m_characters.erase(m_characters.begin() + from);
+
+    // beginMoveRows()'s destinationChild is expressed in terms of the row indices
+    // *before* removal; once the source row is erased, every index after it shifts
+    // down by one, so the insertion point needs the same +1 adjustment.
+    int actualInsertionIdx = to;
+    if (from < to) {
         actualInsertionIdx--;
     }
-
-    if (actualInsertionIdx < 0) {
-        actualInsertionIdx = 0;
-    }
-    if (actualInsertionIdx > static_cast<int>(m_characters.size())) {
-        actualInsertionIdx = static_cast<int>(m_characters.size());
-    }
+    actualInsertionIdx = std::clamp(actualInsertionIdx, 0, static_cast<int>(m_characters.size()));
 
     m_characters.insert(m_characters.begin() + actualInsertionIdx, movedChar);
 

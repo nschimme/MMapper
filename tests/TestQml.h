@@ -26,4 +26,5 @@ private Q_SLOTS:
     void loadLogPanel();
     void logModelCap();
     void qmlConfigRoundTrip();
+    void loadGroupPanel();
 };

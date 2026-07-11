@@ -190,7 +190,7 @@ set_target_properties(
 add_test(NAME TestGlobal COMMAND TestGlobal)
 
 # Group
-set(TestGroup_SRCS
+set(group_SRCS
         ../src/group/CGroupChar.cpp
         ../src/group/CGroupChar.h
         ../src/group/GroupModel.cpp
@@ -199,8 +199,8 @@ set(TestGroup_SRCS
         ../src/group/enums.h
         ../src/group/mmapper2character.cpp
         ../src/group/mmapper2character.h
-        TestGroup.cpp
 )
+set(TestGroup_SRCS ${group_SRCS} TestGroup.cpp)
 add_executable(TestGroup ${TestGroup_SRCS})
 add_dependencies(TestGroup mm_test mm_global mm_map)
 target_link_libraries(TestGroup
@@ -381,13 +381,15 @@ if(WITH_QML)
             ../src/mainwindow/LogModel.cpp
             ../src/mainwindow/LogModel.h
     )
-    add_executable(TestQml ${TestQml_SRCS} ${timer_test} ${adventure_SRCS} ${room_manager} ${log_model_SRCS})
-    add_dependencies(TestQml mm_qml mm_qmlplugin mm_test mm_global)
+    add_executable(TestQml ${TestQml_SRCS} ${timer_test} ${adventure_SRCS} ${room_manager}
+            ${log_model_SRCS} ${group_SRCS})
+    add_dependencies(TestQml mm_qml mm_qmlplugin mm_test mm_global mm_map)
     target_link_libraries(TestQml
             mm_qml
             mm_qmlplugin
             mm_test
             mm_global
+            mm_map
             Qt6::Quick
             Qt6::QuickWidgets
             Qt6::Widgets

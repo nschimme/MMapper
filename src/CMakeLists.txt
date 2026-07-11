@@ -235,14 +235,14 @@ set(mmapper_SRCS
     group/CGroupChar.h
     group/ColorGenerator.cpp
     group/ColorGenerator.h
+    group/GroupController.cpp
+    group/GroupController.h
     group/GroupManagerApi.cpp
     group/GroupManagerApi.h
     group/GroupModel.cpp
     group/GroupModel.h
     group/enums.cpp
     group/enums.h
-    group/groupwidget.cpp
-    group/groupwidget.h
     group/mmapper2character.cpp
     group/mmapper2character.h
     group/mmapper2group.cpp
@@ -626,6 +626,8 @@ if(NOT WITH_QML)
     list(APPEND mmapper_SRCS
         adventure/adventurewidget.cpp
         adventure/adventurewidget.h
+        group/groupwidget.cpp
+        group/groupwidget.h
         roompanel/RoomWidget.cpp
         roompanel/RoomWidget.h
         timers/TimerDelegate.cpp
@@ -720,6 +722,12 @@ if(CHECK_ODR)
     message(STATUS "Will check headers for ODR violations (slow)")
     # ODR Violation Check
     file(GLOB_RECURSE mmapper_HDRS RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} *.h)
+    if(NOT WITH_QML)
+        # qml/*.h headers that inherit from Qt Quick classes (e.g.
+        # GroupIconProvider.h's QQuickImageProvider base) can't be included
+        # standalone without Qt6::Quick, which this build doesn't link.
+        list(FILTER mmapper_HDRS EXCLUDE REGEX "^qml/")
+    endif()
     list(SORT mmapper_HDRS)
     file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/odr.cpp "// This generated file exists to help detect ODR violations.\n"
         "// It will catch duplicate class names in header files,\n"
@@ -773,6 +781,7 @@ if(WITH_QML)
     set_source_files_properties(qml/AdventurePanel.qml PROPERTIES QT_RESOURCE_ALIAS "AdventurePanel.qml")
     set_source_files_properties(qml/RoomPanel.qml PROPERTIES QT_RESOURCE_ALIAS "RoomPanel.qml")
     set_source_files_properties(qml/LogPanel.qml PROPERTIES QT_RESOURCE_ALIAS "LogPanel.qml")
+    set_source_files_properties(qml/GroupPanel.qml PROPERTIES QT_RESOURCE_ALIAS "GroupPanel.qml")
 
     qt_add_qml_module(mm_qml
         STATIC
@@ -786,11 +795,14 @@ if(WITH_QML)
             qml/AdventurePanel.qml
             qml/RoomPanel.qml
             qml/LogPanel.qml
+            qml/GroupPanel.qml
         SOURCES
             qml/QmlDockWidget.h
             qml/QmlDockWidget.cpp
             qml/QmlConfig.h
             qml/QmlConfig.cpp
+            qml/GroupIconProvider.h
+            qml/GroupIconProvider.cpp
     )
     set_target_properties(mm_qml PROPERTIES
         CXX_STANDARD 20

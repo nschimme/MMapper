@@ -6,6 +6,8 @@
 #include "../src/adventure/AdventureLogModel.h"
 #include "../src/adventure/adventuretracker.h"
 #include "../src/configuration/configuration.h"
+#include "../src/group/CGroupChar.h"
+#include "../src/group/GroupModel.h"
 #include "../src/mainwindow/LogModel.h"
 #include "../src/observer/gameobserver.h"
 #include "../src/proxy/GmcpMessage.h"
@@ -31,6 +33,36 @@
 #include <QScopedPointer>
 #include <QSignalSpy>
 #include <QtTest/QtTest>
+
+namespace { // anonymous
+
+// GroupController's real constructor needs a live Mmapper2Group and MapData,
+// and MapData drags in mapfrontend/parser/mapstorage, none of which are
+// linked into TestQml's small executable (unlike TestMainWindow, no test
+// binary currently links MapData; see mainwindow_SRCS in
+// tests/CMakeLists.txt, which only exercises AudioVolumeSlider/UpdateDialog).
+// This stub exposes GroupController's exact Q_INVOKABLE surface so
+// GroupPanel.qml's context-menu bindings (which call groupController.
+// canCenter()/centerOnCharacter()/recolorCharacter()) resolve normally,
+// without needing a real map to center on.
+class NODISCARD_QOBJECT GroupControllerStub final : public QObject
+{
+    Q_OBJECT
+
+public:
+    explicit GroupControllerStub(QObject *const parent)
+        : QObject(parent)
+    {}
+
+public:
+    Q_INVOKABLE void centerOnCharacter(int /*proxyRow*/) {}
+    Q_INVOKABLE void recolorCharacter(int /*proxyRow*/) {}
+    Q_INVOKABLE void moveCharacter(int /*fromProxyRow*/, int /*toProxyRow*/) {}
+    Q_INVOKABLE void refreshFilter() {}
+    NODISCARD Q_INVOKABLE bool canCenter(int /*proxyRow*/) const { return false; }
+};
+
+} // namespace
 
 TestQml::TestQml() = default;
 
@@ -317,4 +349,57 @@ void TestQml::qmlConfigRoundTrip()
     QCOMPARE(qmlConfig.property("groupColor").value<QColor>(), externalColor);
 }
 
+void TestQml::loadGroupPanel()
+{
+    GroupModel model;
+    GroupProxyModel proxy;
+    proxy.setSourceModel(&model);
+    GroupControllerStub controller(nullptr);
+
+    // Seed one character directly on the model, the same fixture pattern
+    // TestGroup.cpp's characterRoleDataTest() uses.
+    SharedGroupChar character = CGroupChar::alloc();
+    character->setId(GroupId{1});
+    character->setColor(QColor(Qt::black));
+    character->setPosition(CharacterPositionEnum::STANDING);
+    character->setScore(/*hp=*/20,
+                        /*maxhp=*/100,
+                        /*mana=*/0,
+                        /*maxmana=*/0,
+                        /*moves=*/10,
+                        /*maxmoves=*/100);
+    model.insertCharacter(character);
+
+    QmlConfig config;
+
+    // Deliberately does not register a "groupicons" image provider: doing so
+    // would pull GroupIconProvider.cpp (and, transitively via
+    // display/Filenames.cpp's RoomTerrainEnum/RoomLoadFlagEnum/
+    // RoomMobFlagEnum overloads, most of the parser/mapdata dependency
+    // graph) into this small test binary. The seeded character's
+    // "image://groupicons/..." state-icon URLs simply fail to resolve
+    // against an unregistered scheme, which QQuickWidget logs and ignores
+    // rather than treating as fatal.
+    QmlDockWidget dock("t", "TestDockGroup", nullptr);
+    dock.setContextProperty("groupModel", &model);
+    dock.setContextProperty("groupProxyModel", &proxy);
+    dock.setContextProperty("groupController", &controller);
+    dock.setContextProperty("config", &config);
+    dock.setQmlSource(QUrl(u"qrc:/qt/qml/MMapper/GroupPanel.qml"_qs));
+
+    QQuickWidget *const quick = dock.quickWidget();
+    QVERIFY(quick != nullptr);
+
+    while (quick->status() == QQuickWidget::Loading) {
+        QCoreApplication::processEvents();
+    }
+    // Let the delegate finish instantiating against the seeded character.
+    QCoreApplication::processEvents();
+
+    QCOMPARE(quick->status(), QQuickWidget::Ready);
+    QVERIFY(quick->rootObject() != nullptr);
+}
+
 QTEST_MAIN(TestQml)
+
+#include "TestQml.moc"

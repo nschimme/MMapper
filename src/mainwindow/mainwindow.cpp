@@ -25,7 +25,9 @@
 #include "../global/SendToUser.h"
 #include "../global/Version.h"
 #include "../global/window_utils.h"
+#ifndef MMAPPER_WITH_QML
 #include "../group/groupwidget.h"
+#endif
 #include "../logger/autologger.h"
 #include "../media/AudioManager.h"
 #include "../media/DescriptionWidget.h"
@@ -55,6 +57,8 @@
 #include "utils.h"
 
 #ifdef MMAPPER_WITH_QML
+#include "../group/GroupController.h"
+#include "../qml/GroupIconProvider.h"
 #include "../qml/QmlConfig.h"
 #include "../qml/QmlDockWidget.h"
 #include "../roompanel/RoomModel.h"
@@ -216,6 +220,31 @@ MainWindow::MainWindow()
 
     // View -> Side Panels -> Group Panel and Tools -> Group Manager
     std::invoke([this] {
+#ifdef MMAPPER_WITH_QML
+        auto *const controller = new GroupController(deref(m_groupManager), deref(m_mapData), this);
+        auto *const dock = new QmlDockWidget(tr("Group Panel"), "DockWidgetGroup", this);
+        dock->setAllowedAreas(Qt::TopDockWidgetArea | Qt::BottomDockWidgetArea);
+        dock->setFeatures(QDockWidget::DockWidgetMovable | QDockWidget::DockWidgetFloatable
+                          | QDockWidget::DockWidgetClosable);
+        addDockWidget(Qt::TopDockWidgetArea, dock);
+        dock->addImageProvider("groupicons", new GroupIconProvider());
+        dock->setContextProperty("groupModel", controller->getModel());
+        dock->setContextProperty("groupProxyModel", controller->getProxy());
+        dock->setContextProperty("groupController", controller);
+        dock->setContextProperty("config", m_qmlConfig);
+        dock->setQmlSource(QUrl(QStringLiteral("qrc:/qt/qml/MMapper/GroupPanel.qml")));
+        connect(controller,
+                &GroupController::sig_center,
+                m_mapWindow,
+                &MapWindow::slot_centerOnWorldPos);
+        connect(m_qmlConfig, &QmlConfig::npcHideChanged, controller, &GroupController::refreshFilter);
+        connect(m_qmlConfig,
+                &QmlConfig::npcSortBottomChanged,
+                controller,
+                &GroupController::refreshFilter);
+
+        m_groupController = controller;
+#else
         auto *const w = new GroupWidget(m_groupManager, m_mapData, this);
         auto *const dock = new QDockWidget(tr("Group Panel"), this);
         dock->setObjectName("DockWidgetGroup");
@@ -227,6 +256,7 @@ MainWindow::MainWindow()
         connect(w, &GroupWidget::sig_center, m_mapWindow, &MapWindow::slot_centerOnWorldPos);
 
         m_groupWidget = w;
+#endif
         m_dockDialogGroup = dock;
     });
 
@@ -656,7 +686,14 @@ void MainWindow::wireConnections()
             canvas,
             &MapCanvas::slot_requestUpdate);
 
+#ifdef MMAPPER_WITH_QML
+    connect(m_mapData,
+            &MapFrontend::sig_clearingMap,
+            m_groupController,
+            &GroupController::slot_mapUnloaded);
+#else
     connect(m_mapData, &MapFrontend::sig_clearingMap, m_groupWidget, &GroupWidget::slot_mapUnloaded);
+#endif
 
     connect(m_mumeClock, &MumeClock::sig_log, this, &MainWindow::slot_log);
 
@@ -1841,7 +1878,11 @@ void MainWindow::forceNewFile()
 
     setCurrentFile("");
     getCanvas()->slot_dataLoaded();
+#ifdef MMAPPER_WITH_QML
+    m_groupController->slot_mapLoaded();
+#else
     m_groupWidget->slot_mapLoaded();
+#endif
     m_descriptionWidget->updateRoom(RoomHandle{});
     m_audioManager->onAreaChanged(RoomArea{});
 
@@ -2335,7 +2376,11 @@ void MainWindow::onSuccessfulLoad(const MapLoadData &mapLoadData)
 {
     auto &mapData = deref(m_mapData);
     auto &mapCanvas = deref(getCanvas());
+#ifdef MMAPPER_WITH_QML
+    auto &groupWidget = deref(m_groupController);
+#else
     auto &groupWidget = deref(m_groupWidget);
+#endif
     auto &pathMachine = deref(m_pathMachine);
 
     mapData.setMapData(mapLoadData);
@@ -2363,7 +2408,11 @@ void MainWindow::onSuccessfulMerge(const Map &map)
 {
     auto &mapData = deref(m_mapData);
     auto &mapCanvas = deref(getCanvas());
+#ifdef MMAPPER_WITH_QML
+    auto &groupWidget = deref(m_groupController);
+#else
     auto &groupWidget = deref(m_groupWidget);
+#endif
 
     mapData.setCurrentMap(map);
     mapData.checkSize();

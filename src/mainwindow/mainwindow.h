@@ -36,7 +36,11 @@ class ConnectionListener;
 class ConnectionSelection;
 class FindRoomsDlg;
 class GameObserver;
+#ifdef MMAPPER_WITH_QML
+class GroupController;
+#else
 class GroupWidget;
+#endif
 class HotkeyManager;
 class InfomarkSelection;
 class LogModel;
@@ -115,7 +119,11 @@ private:
     // Pandora Ported
     FindRoomsDlg *m_findRoomsDlg = nullptr;
     Mmapper2Group *m_groupManager = nullptr;
+#ifdef MMAPPER_WITH_QML
+    GroupController *m_groupController = nullptr;
+#else
     GroupWidget *m_groupWidget = nullptr;
+#endif
 
 #ifndef MMAPPER_WITH_QML
     RoomWidget *m_roomWidget = nullptr;

@@ -8,7 +8,9 @@
 
 #include "../adventure/AdventureLogModel.h"
 #include "../adventure/adventuretracker.h"
+#ifndef MMAPPER_WITH_QML
 #include "../adventure/adventurewidget.h"
+#endif
 #include "../adventure/xpstatuswidget.h"
 #include "../client/ClientWidget.h"
 #include "../client/HotkeyManager.h"
@@ -32,9 +34,13 @@
 #include "../preferences/configdialog.h"
 #include "../proxy/connectionlistener.h"
 #include "../roompanel/RoomManager.h"
+#ifndef MMAPPER_WITH_QML
 #include "../roompanel/RoomWidget.h"
+#endif
 #include "../timers/CTimers.h"
+#ifndef MMAPPER_WITH_QML
 #include "../timers/TimerWidget.h"
+#endif
 #include "../viewers/TopLevelWindows.h"
 #include "AudioVolumeSlider.h"
 #include "MapZoomSlider.h"

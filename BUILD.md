@@ -128,6 +128,28 @@ cmake -G Ninja -DWITH_WEBSOCKET=ON -DWITH_QTKEYCHAIN=ON -S ..
 cmake --build . --parallel
 ```
 
+### Optional: QML-based UI panels
+
+Some UI panels (Timers, Adventure, Room) are built with Qt Quick/QML instead of
+Widgets, controlled by the `WITH_QML` CMake option (default `ON`). This requires the
+Qt `Qml`, `Quick`, `QuickWidgets`, and `QuickControls2` modules; on Debian/Ubuntu:
+
+```bash
+sudo apt-get install -y qt6-declarative-dev qml6-module-qtquick qml6-module-qtquick-controls \
+    qml6-module-qtquick-templates qml6-module-qtquick-window qml6-module-qtqml \
+    qml6-module-qtqml-workerscript
+```
+
+If those modules aren't available, disable the option to fall back to the Widgets
+panels:
+
+```bash
+cmake -G Ninja -DWITH_QML=OFF -S ..
+```
+
+See [docs/qml-migration.md](docs/qml-migration.md) for the architecture behind the
+QML panels.
+
 ### Optional: Run Tests
 
 ```bash

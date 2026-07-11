@@ -6,8 +6,6 @@ set(mmapper_SRCS
     adventure/adventuresession.h
     adventure/adventuretracker.cpp
     adventure/adventuretracker.h
-    adventure/adventurewidget.cpp
-    adventure/adventurewidget.h
     adventure/lineparsers.cpp
     adventure/lineparsers.h
     adventure/xpstatuswidget.cpp
@@ -579,8 +577,6 @@ set(mmapper_SRCS
     roompanel/RoomMobs.h
     roompanel/RoomModel.cpp
     roompanel/RoomModel.h
-    roompanel/RoomWidget.cpp
-    roompanel/RoomWidget.h
     syntax/Accept.cpp
     syntax/Accept.h
     syntax/IArgument.cpp
@@ -607,12 +603,8 @@ set(mmapper_SRCS
     timers/CTimers.h
     timers/TimerController.cpp
     timers/TimerController.h
-    timers/TimerDelegate.cpp
     timers/TimerModel.cpp
     timers/TimerModel.h
-    timers/TimerDelegate.h
-    timers/TimerWidget.cpp
-    timers/TimerWidget.h
     viewers/AnsiViewWindow.cpp
     viewers/AnsiViewWindow.h
     viewers/LaunchAsyncViewer.h
@@ -622,6 +614,20 @@ set(mmapper_SRCS
 
 if(NOT EMSCRIPTEN)
     list(APPEND mmapper_SRCS mpi/remoteeditprocess.cpp mpi/remoteeditprocess.h)
+endif()
+
+if(NOT WITH_QML)
+    # Legacy widget-based panels; superseded by the QML panels in mm_qml.
+    # Kept as an escape hatch until wasm ships QML, then deleted.
+    list(APPEND mmapper_SRCS
+        adventure/adventurewidget.cpp
+        adventure/adventurewidget.h
+        roompanel/RoomWidget.cpp
+        roompanel/RoomWidget.h
+        timers/TimerDelegate.cpp
+        timers/TimerDelegate.h
+        timers/TimerWidget.cpp
+        timers/TimerWidget.h)
 endif()
 
 qt_add_resources(mmapper_QRC resources/mmapper2.qrc)

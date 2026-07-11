@@ -24,7 +24,9 @@
 
 class AbstractMapStorage;
 class AdventureTracker;
+#ifndef MMAPPER_WITH_QML
 class AdventureWidget;
+#endif
 class AnsiOstream;
 class AudioManager;
 class AutoLogger;
@@ -60,11 +62,15 @@ class QWidget;
 class RoomEditAttrDlg;
 class RoomManager;
 class RoomSelection;
+#ifndef MMAPPER_WITH_QML
 class RoomWidget;
+#endif
 class UpdateDialog;
 class DescriptionWidget;
 class MediaLibrary;
+#ifndef MMAPPER_WITH_QML
 class TimerWidget;
+#endif
 class MapDestination;
 
 struct MapLoadData;
@@ -103,19 +109,25 @@ private:
     Mmapper2Group *m_groupManager = nullptr;
     GroupWidget *m_groupWidget = nullptr;
 
+#ifndef MMAPPER_WITH_QML
     RoomWidget *m_roomWidget = nullptr;
+#endif
     RoomManager *m_roomManager = nullptr;
 
     ClientWidget *m_clientWidget = nullptr;
     UpdateDialog *m_updateDialog = nullptr;
 
     AdventureTracker *m_adventureTracker = nullptr;
+#ifndef MMAPPER_WITH_QML
     AdventureWidget *m_adventureWidget = nullptr;
+#endif
     MediaLibrary *m_mediaLibrary = nullptr;
     AudioManager *m_audioManager = nullptr;
 
     DescriptionWidget *m_descriptionWidget = nullptr;
+#ifndef MMAPPER_WITH_QML
     TimerWidget *m_timerWidget = nullptr;
+#endif
     std::unique_ptr<HotkeyManager> m_hotkeyManager;
 
     QPointer<QMenu> m_contextMenu;

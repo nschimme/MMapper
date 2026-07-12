@@ -399,6 +399,10 @@ if(WITH_QML)
             ../src/mainwindow/LogModel.cpp
             ../src/mainwindow/LogModel.h
     )
+    set(tasks_model_SRCS
+            ../src/mainwindow/TasksModel.cpp
+            ../src/mainwindow/TasksModel.h
+    )
     # Sources for loadDescriptionPanel(). Deliberately excludes
     # display/Filenames.cpp (whose getParserCommandName() use would drag the
     # parser/mapdata graph into this small binary); TestQml.cpp provides a
@@ -415,7 +419,7 @@ if(WITH_QML)
             ../src/preferences/ansicombo.h
     )
     add_executable(TestQml ${TestQml_SRCS} ${timer_test} ${adventure_SRCS} ${room_manager}
-            ${log_model_SRCS} ${group_SRCS} ${description_panel_SRCS})
+            ${log_model_SRCS} ${tasks_model_SRCS} ${group_SRCS} ${description_panel_SRCS})
     add_dependencies(TestQml mm_qml mm_qmlplugin mm_test mm_global mm_map)
     target_link_libraries(TestQml
             mm_qml

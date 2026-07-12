@@ -259,6 +259,8 @@ set(mmapper_SRCS
     mainwindow/LogModel.h
     mainwindow/MapZoomSlider.cpp
     mainwindow/MapZoomSlider.h
+    mainwindow/TasksModel.cpp
+    mainwindow/TasksModel.h
     mainwindow/TasksPanel.cpp
     mainwindow/TasksPanel.h
     mainwindow/ThemeManager.cpp

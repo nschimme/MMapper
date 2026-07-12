@@ -7,9 +7,12 @@
 #include "../src/adventure/adventuretracker.h"
 #include "../src/configuration/configuration.h"
 #include "../src/display/Filenames.h"
+#include "../src/global/AsyncTasks.h"
+#include "../src/global/progresscounter.h"
 #include "../src/group/CGroupChar.h"
 #include "../src/group/GroupModel.h"
 #include "../src/mainwindow/LogModel.h"
+#include "../src/mainwindow/TasksModel.h"
 #include "../src/map/RoomHandle.h"
 #include "../src/media/DescriptionAdapter.h"
 #include "../src/media/MediaLibrary.h"
@@ -23,6 +26,10 @@
 #include "../src/timers/CTimers.h"
 #include "../src/timers/TimerController.h"
 #include "../src/timers/TimerModel.h"
+
+#include <atomic>
+#include <chrono>
+#include <thread>
 
 #include <QFontMetricsF>
 #include <QImage>
@@ -101,6 +108,22 @@ void TestQml::initTestCase()
     // Required before any getConfig()/setConfig() call (see
     // qmlConfigRoundTrip()); see also TestMainWindow and TestClock.
     setEnteredMain();
+
+    // async_tasks:: is a process-global singleton (see AsyncTasks.cpp's
+    // g_tasks/g_cleaning_up statics) that can only be initialized once per
+    // process: init() aborts if called again after cleanup() has run, so
+    // unlike getConfig()/setConfig() this can't be scoped per-test with a
+    // local init()/cleanup() pair. Initialize it once here for the whole
+    // binary; cleanupTestCase() tears it down after the last test runs.
+    // Required by tasksModelEmpty(), tasksModelHoldRemovalsRoundTrip(), and
+    // tasksModelLifecycle(), all of which construct a TasksModel whose
+    // internal QTimer calls async_tasks::for_each() on every tick.
+    async_tasks::init();
+}
+
+void TestQml::cleanupTestCase()
+{
+    async_tasks::cleanup();
 }
 
 void TestQml::loadPanelFrame()
@@ -571,6 +594,72 @@ void TestQml::descriptionPanelBlurVisible()
                             .arg(sample.red())
                             .arg(sample.green())
                             .arg(sample.blue())));
+}
+
+void TestQml::tasksModelEmpty()
+{
+    TasksModel model;
+    QCOMPARE(model.rowCount(), 0);
+    QCOMPARE(model.getHoldRemovals(), false);
+    QCOMPARE(model.data(model.index(0), TasksModel::StatusTextRole), QVariant());
+}
+
+void TestQml::tasksModelHoldRemovalsRoundTrip()
+{
+    TasksModel model;
+    QSignalSpy spy(&model, &TasksModel::holdRemovalsChanged);
+
+    QCOMPARE(model.getHoldRemovals(), false);
+    model.setHoldRemovals(true);
+    QCOMPARE(model.getHoldRemovals(), true);
+    QCOMPARE(spy.count(), 1);
+
+    // No-op writes must not emit a spurious notify.
+    model.setHoldRemovals(true);
+    QCOMPARE(spy.count(), 1);
+
+    model.setHoldRemovals(false);
+    QCOMPARE(model.getHoldRemovals(), false);
+    QCOMPARE(spy.count(), 2);
+}
+
+void TestQml::tasksModelLifecycle()
+{
+    TasksModel model;
+    QCOMPARE(model.rowCount(), 0);
+
+    // Kept running until the test explicitly releases it, so the model has
+    // time to observe the task in its "still running" state before it
+    // completes and is removed.
+    std::atomic_bool allowFinish{false};
+
+    MAYBE_UNUSED const auto handle = async_tasks::startAsyncTask(
+        AsyncTaskTypeEnum::Task,
+        AllowCancelEnum::Allow,
+        "test-task",
+        [&allowFinish](ProgressCounter &pc) {
+            pc.setNewTask(ProgressMsg{"working"}, 10);
+            while (!allowFinish) {
+                std::this_thread::sleep_for(std::chrono::milliseconds(5));
+            }
+        },
+        []() {});
+
+    // TasksModel polls the registry every 250ms on its own internal QTimer;
+    // QTRY_COMPARE_WITH_TIMEOUT spins the event loop so that timer can fire.
+    QTRY_COMPARE_WITH_TIMEOUT(model.rowCount(), 1, 5000);
+
+    const QModelIndex idx = model.index(0);
+    QVERIFY(model.data(idx, TasksModel::StatusTextRole).toString().contains("Task #"));
+    QCOMPARE(model.data(idx, TasksModel::CanCancelRole).toBool(), true);
+    QCOMPARE(model.data(idx, TasksModel::PercentRole).toInt(), 0);
+
+    allowFinish = true;
+
+    // Once the background worker returns, AsyncTasks completes it on the
+    // next 250ms timer tick and TasksModel's own timer removes the row on
+    // its next tick after that.
+    QTRY_COMPARE_WITH_TIMEOUT(model.rowCount(), 0, 5000);
 }
 
 QTEST_MAIN(TestQml)

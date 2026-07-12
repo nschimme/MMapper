@@ -16,6 +16,7 @@ public:
 
 private Q_SLOTS:
     void initTestCase();
+    void cleanupTestCase();
     void loadPanelFrame();
     void loadPanelHeaderRow();
     void qmlDockWidgetFallback();
@@ -30,4 +31,7 @@ private Q_SLOTS:
     void loadGroupPanel();
     void loadDescriptionPanel();
     void descriptionPanelBlurVisible();
+    void tasksModelEmpty();
+    void tasksModelHoldRemovalsRoundTrip();
+    void tasksModelLifecycle();
 };

@@ -28,4 +28,5 @@ private Q_SLOTS:
     void qmlConfigRoundTrip();
     void loadGroupPanel();
     void loadDescriptionPanel();
+    void descriptionPanelBlurVisible();
 };

@@ -25,11 +25,14 @@
 #include "../src/timers/TimerModel.h"
 
 #include <QFontMetricsF>
+#include <QImage>
 #include <QJSEngine>
 #include <QJSValue>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QLabel>
+#include <QPainter>
+#include <QPixmap>
 #include <QQmlComponent>
 #include <QQmlEngine>
 #include <QQuickItem>
@@ -452,6 +455,84 @@ void TestQml::loadDescriptionPanel()
 
     QCOMPARE(quick->status(), QQuickWidget::Ready);
     QVERIFY(quick->rootObject() != nullptr);
+}
+
+void TestQml::descriptionPanelBlurVisible()
+{
+    MediaLibrary library;
+    DescriptionAdapter adapter(library, nullptr);
+
+    QmlDockWidget dock("t", "TestDockDescriptionBlur", nullptr);
+    // Must be registered before setQmlSource(); the engine takes ownership.
+    dock.addImageProvider("description", new DescriptionImageProvider(adapter.getStore()));
+    dock.setContextProperty("adapter", &adapter);
+    dock.setQmlSource(QUrl(u"qrc:/qt/qml/MMapper/DescriptionPanel.qml"_qs));
+
+    QQuickWidget *const quick = dock.quickWidget();
+    QVERIFY(quick != nullptr);
+
+    while (quick->status() == QQuickWidget::Loading) {
+        QCoreApplication::processEvents();
+    }
+    QCoreApplication::processEvents();
+
+    QCOMPARE(quick->status(), QQuickWidget::Ready);
+    QVERIFY(quick->rootObject() != nullptr);
+
+    // A strongly patterned source image (red-dominant field with a blue
+    // block) so the blurred backdrop remains distinguishable from a plain
+    // window background even after downscale+blur+stretch.
+    QImage source(200, 150, QImage::Format_ARGB32_Premultiplied);
+    source.fill(Qt::red);
+    {
+        QPainter painter(&source);
+        painter.fillRect(QRect(60, 40, 80, 70), Qt::blue);
+    }
+    adapter.setImageForTesting(source);
+
+    dock.resize(400, 300);
+    dock.show();
+    QCoreApplication::processEvents();
+    QCoreApplication::processEvents();
+
+    QObject *const blurImage = quick->rootObject()->findChild<QObject *>(
+        QStringLiteral("blurImage"));
+    QVERIFY(blurImage != nullptr);
+
+    // Image.Ready == 1. Poll with a bounded loop: the image provider request
+    // is dispatched asynchronously.
+    bool ready = false;
+    for (int i = 0; i < 200 && !ready; ++i) {
+        QCoreApplication::processEvents();
+        ready = blurImage->property("status").toInt() == 1;
+        if (!ready) {
+            QTest::qWait(5);
+        }
+    }
+    QVERIFY2(ready, "blurImage never reached Image.Ready status");
+    QVERIFY(blurImage->property("paintedWidth").toReal() > 0);
+
+    const QPixmap pm = quick->grab();
+    QVERIFY(!pm.isNull());
+    const QImage grabbed = pm.toImage();
+    QCOMPARE(grabbed.width(), 400);
+    QCOMPARE(grabbed.height(), 300);
+
+    // Sample the bottom-left corner: guaranteed to be blur-only under the
+    // new layout (the text overlay occupies the top-left, and the sharp
+    // image is centered/inset rather than full-bleed). PanelFrame insets its
+    // content by a 4px margin, so sample a few pixels further in to land
+    // inside the blur Image rather than on the frame's own background.
+    const QColor sample = grabbed.pixelColor(10, grabbed.height() - 10);
+    QVERIFY2(sample.alpha() > 0, "Sampled corner pixel is fully transparent");
+
+    // Reddish: the blurred backdrop is dominated by the red field, so the
+    // red channel should clearly exceed the blue channel at this corner.
+    QVERIFY2(sample.red() > sample.blue(),
+             qPrintable(QStringLiteral("Corner pixel not reddish: rgb(%1,%2,%3)")
+                            .arg(sample.red())
+                            .arg(sample.green())
+                            .arg(sample.blue())));
 }
 
 QTEST_MAIN(TestQml)

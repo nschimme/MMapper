@@ -71,6 +71,14 @@ public:
 
     void updateRoom(const RoomHandle &r);
 
+    // Test seam: writes `image` directly into the shared store (bumping its
+    // revision) and emits sig_changed(), bypassing MediaLibrary/file
+    // resolution entirely. Production code always goes through
+    // updateRoom()/resolveImage(); tests use this to exercise the QML image
+    // pipeline (DescriptionImageProvider, blur/sharp Image elements) without
+    // needing real image files on disk.
+    void setImageForTesting(const QImage &image);
+
 public:
     NODISCARD QString getRoomName() const { return m_roomName; }
     NODISCARD QString getRoomDesc() const { return m_roomDesc; }

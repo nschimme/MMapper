@@ -15,6 +15,17 @@ PanelFrame {
     // capped at ~80 average characters of the configured client font.
     readonly property int maxDescriptionChars: 80
 
+    // TOP_PADDING_LINES in DescriptionWidget.cpp.
+    readonly property int topPaddingLines: 5
+
+    // Mirrors DescriptionWidget::updateBackground()'s hasRoomRightOfTextEdit:
+    // true when the sharp image's natural size fits in the space to the
+    // right of the text overlay block, so it can sit beside the text
+    // full-bleed instead of needing to be pushed down below it.
+    readonly property bool hasRoomRightOfText: sharpImage.implicitWidth > 0
+        && sharpImage.implicitWidth <= width - textBlock.width
+    readonly property int imageTopPadding: hasRoomRightOfText ? 0 : topPaddingLines * fm.lineSpacing
+
     FontMetrics {
         id: fm
         font.family: adapter.fontFamily
@@ -25,6 +36,7 @@ PanelFrame {
     // downscale-blur-stretch pipeline in DescriptionWidget::updateBackground()
     // (the blur itself happens in DescriptionImageProvider).
     Image {
+        objectName: "blurImage"
         anchors.fill: parent
         fillMode: Image.Stretch
         source: adapter.blurUrl
@@ -33,8 +45,15 @@ PanelFrame {
 
     // Sharp image centered on top of the blur, preserving aspect ratio
     // (the widget's Qt::KeepAspectRatio + centered draw).
+    //
+    // Widget parity (DescriptionWidget::updateBackground): when the image
+    // cannot fit beside the text block, inset it below by TOP_PADDING_LINES
+    // text lines so the blurred backdrop stays visible around it.
     Image {
+        id: sharpImage
+        objectName: "sharpImage"
         anchors.fill: parent
+        anchors.topMargin: root.imageTopPadding
         fillMode: Image.PreserveAspectFit
         source: adapter.imageUrl
         visible: adapter.imageUrl.toString() !== ""
@@ -44,6 +63,7 @@ PanelFrame {
     // background color (the widget applied integratedClient.backgroundColor
     // as the QTextEdit's per-block background, at the color's own alpha).
     Rectangle {
+        id: textBlock
         anchors.left: parent.left
         anchors.top: parent.top
         width: Math.min(root.width, fm.averageCharacterWidth * root.maxDescriptionChars)

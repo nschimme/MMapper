@@ -103,6 +103,17 @@ void DescriptionAdapter::resolveImage()
     emit sig_changed();
 }
 
+void DescriptionAdapter::setImageForTesting(const QImage &image)
+{
+    {
+        QMutexLocker<QMutex> locker(&m_store->mutex);
+        m_store->base = image;
+        ++m_store->rev;
+    }
+
+    emit sig_changed();
+}
+
 QUrl DescriptionAdapter::getImageUrl() const
 {
     QMutexLocker<QMutex> locker(&m_store->mutex);

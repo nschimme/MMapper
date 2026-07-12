@@ -356,10 +356,12 @@ set_target_properties(
 )
 add_test(NAME TestRoomManager COMMAND TestRoomManager)
 
-# Client (ClientLineModel + shared ANSI decode helpers)
+# Client (ClientLineModel + InputHistory/TabHistory + shared ANSI decode helpers)
 set(client_line_model_SRCS
         ../src/client/ClientLineModel.cpp
         ../src/client/ClientLineModel.h
+        ../src/client/InputHistory.cpp
+        ../src/client/InputHistory.h
 )
 set(TestClient_SRCS TestClient.cpp TestClient.h)
 add_executable(TestClient ${TestClient_SRCS} ${client_line_model_SRCS})

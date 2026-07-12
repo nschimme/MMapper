@@ -24,4 +24,15 @@ private Q_SLOTS:
     void partialLineAcrossCalls();
     void scrollbackCap();
     void clearResetsModel();
+
+    // InputHistory
+    void inputHistoryDedupVsBackOnly();
+    void inputHistoryEmptyLineSkipped();
+    void inputHistoryCap();
+    void inputHistoryNavigation();
+
+    // TabHistory
+    void tabHistoryWordExtraction();
+    void tabHistoryCap();
+    void tabHistoryNextMatchCycling();
 };

@@ -65,7 +65,7 @@ QImage GroupIconProvider::requestImage(const QString &id,
     const QStringList parts = id.split(QChar('/'));
 
     {
-        QMutexLocker locker(&m_mutex);
+        QMutexLocker<QMutex> locker(&m_mutex);
         const auto it = m_cache.find(id);
         if (it != m_cache.end()) {
             if (size != nullptr) {
@@ -143,6 +143,6 @@ QImage GroupIconProvider::requestImage(const QString &id,
         *size = image.size();
     }
 
-    QMutexLocker locker(&m_mutex);
+    QMutexLocker<QMutex> locker(&m_mutex);
     return m_cache.insert(id, image).value();
 }

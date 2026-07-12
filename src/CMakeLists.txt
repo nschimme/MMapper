@@ -819,6 +819,15 @@ if(WITH_QML)
         CXX_EXTENSIONS OFF
     )
     target_link_libraries(mm_qml PUBLIC Qt6::Quick Qt6::QuickWidgets Qt6::Widgets)
+    target_include_directories(mm_qml SYSTEM PUBLIC
+        ${GLM_INCLUDE_DIR}
+        ${IMMER_INCLUDE_DIR}
+    )
+    add_dependencies(mm_qml glm immer mm_global mm_map)
+    # Qt's generated mm_qmlplugin_init.cpp lacks a trailing newline.
+    if(TARGET mm_qmlplugin_init)
+        target_compile_options(mm_qmlplugin_init PRIVATE -Wno-error=newline-eof)
+    endif()
 endif()
 
 # Build the executable

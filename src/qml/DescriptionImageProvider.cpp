@@ -27,12 +27,12 @@ QImage DescriptionImageProvider::requestImage(const QString &id,
                                               const QSize & /*requestedSize*/)
 {
     // id is everything after "image://description/", i.e. "<sharp|blur>/<rev>".
-    const int slash = id.indexOf(QChar('/'));
+    const qsizetype slash = id.indexOf(QChar('/'));
     const QString kind = slash < 0 ? id : id.left(slash);
 
     QImage base;
     {
-        QMutexLocker locker(&m_store->mutex);
+        QMutexLocker<QMutex> locker(&m_store->mutex);
         base = m_store->base;
     }
 

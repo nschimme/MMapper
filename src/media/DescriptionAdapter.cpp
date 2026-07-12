@@ -95,7 +95,7 @@ void DescriptionAdapter::resolveImage()
     QImage *const pImage = loadAndCacheImage(m_fileName);
 
     {
-        QMutexLocker locker(&m_store->mutex);
+        QMutexLocker<QMutex> locker(&m_store->mutex);
         m_store->base = (pImage && !pImage->isNull()) ? *pImage : QImage();
         ++m_store->rev;
     }
@@ -105,7 +105,7 @@ void DescriptionAdapter::resolveImage()
 
 QUrl DescriptionAdapter::getImageUrl() const
 {
-    QMutexLocker locker(&m_store->mutex);
+    QMutexLocker<QMutex> locker(&m_store->mutex);
     if (m_store->base.isNull()) {
         return QUrl();
     }
@@ -114,7 +114,7 @@ QUrl DescriptionAdapter::getImageUrl() const
 
 QUrl DescriptionAdapter::getBlurUrl() const
 {
-    QMutexLocker locker(&m_store->mutex);
+    QMutexLocker<QMutex> locker(&m_store->mutex);
     if (m_store->base.isNull()) {
         return QUrl();
     }

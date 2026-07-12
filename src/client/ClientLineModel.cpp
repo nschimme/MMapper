@@ -9,6 +9,7 @@
 #include <algorithm>
 
 #include <QRegularExpression>
+#include <QStringList>
 
 namespace { // anonymous
 
@@ -297,6 +298,33 @@ QString ClientLineModel::htmlForRuns(const std::vector<Run> &runs) const
         }
     }
     return html;
+}
+
+QString ClientLineModel::toPlainText() const
+{
+    QStringList lines;
+    lines.reserve(static_cast<int>(m_finishedLines.size()) + 1);
+    for (const FinishedLine &line : m_finishedLines) {
+        lines.push_back(line.plain);
+    }
+    lines.push_back(m_partialPlain);
+    return lines.join(QChar::fromLatin1('\n'));
+}
+
+QString ClientLineModel::toHtml() const
+{
+    const auto &settings = getConfig().integratedClient;
+    QString body;
+    body.reserve(static_cast<int>(m_finishedLines.size()) * 32);
+    for (const FinishedLine &line : m_finishedLines) {
+        body += line.html;
+        body += QStringLiteral("<br>\n");
+    }
+    body += m_partialHtml;
+
+    return QStringLiteral("<html><body style=\"background-color:%1;color:%2;"
+                          "white-space:pre-wrap;\">%3</body></html>")
+        .arg(settings.backgroundColor.name(), settings.foregroundColor.name(), body);
 }
 
 QString ClientLineModel::plainForRuns(const std::vector<Run> &runs)

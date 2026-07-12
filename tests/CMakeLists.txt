@@ -356,17 +356,24 @@ set_target_properties(
 )
 add_test(NAME TestRoomManager COMMAND TestRoomManager)
 
-# Client (ClientLineModel + InputHistory/TabHistory + shared ANSI decode helpers)
+# Client (ClientLineModel + InputHistory/TabHistory + ClientController +
+# HotkeyManager + shared ANSI decode helpers)
 set(client_line_model_SRCS
+        ../src/client/ClientController.cpp
+        ../src/client/ClientController.h
         ../src/client/ClientLineModel.cpp
         ../src/client/ClientLineModel.h
+        ../src/client/Hotkey.cpp
+        ../src/client/Hotkey.h
+        ../src/client/HotkeyManager.cpp
+        ../src/client/HotkeyManager.h
         ../src/client/InputHistory.cpp
         ../src/client/InputHistory.h
 )
 set(TestClient_SRCS TestClient.cpp TestClient.h)
 add_executable(TestClient ${TestClient_SRCS} ${client_line_model_SRCS})
-add_dependencies(TestClient mm_test mm_global)
-target_link_libraries(TestClient mm_test mm_global Qt6::Gui Qt6::Test coverage_config)
+add_dependencies(TestClient mm_test mm_global mm_map)
+target_link_libraries(TestClient mm_map mm_test mm_global Qt6::Gui Qt6::Test Qt6::Network coverage_config)
 set_target_properties(
         TestClient PROPERTIES
         CXX_STANDARD 20

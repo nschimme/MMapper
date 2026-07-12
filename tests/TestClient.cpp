@@ -3,10 +3,15 @@
 
 #include "TestClient.h"
 
+#include "../src/client/ClientController.h"
 #include "../src/client/ClientLineModel.h"
+#include "../src/client/HotkeyManager.h"
 #include "../src/client/InputHistory.h"
 #include "../src/configuration/configuration.h"
 
+#include <memory>
+
+#include <QSignalSpy>
 #include <QtTest/QtTest>
 
 TestClient::TestClient()
@@ -358,6 +363,180 @@ void TestClient::tabHistoryNextMatchCycling()
     QCOMPARE(history.nextMatch("ap"), std::make_optional(QStringLiteral("apricot")));
 
     setConfig().integratedClient.tabCompletionDictionarySize = savedCap;
+}
+
+namespace { // anonymous
+
+// Records every call made through the ClientControllerBackend seam so tests
+// can assert on them without a real ClientTelnet/socket.
+struct NODISCARD FakeBackend final : public ClientControllerBackend
+{
+    bool connected = false;
+    int connectCount = 0;
+    int disconnectCount = 0;
+    QStringList sentToMud;
+    QList<QPair<int, int>> windowSizes;
+
+private:
+    void virt_connectToMud() final { ++connectCount; }
+    void virt_disconnectFromMud() final { ++disconnectCount; }
+    NODISCARD bool virt_isConnected() const final { return connected; }
+    void virt_sendToMud(const QString &data) final { sentToMud.push_back(data); }
+    void virt_windowSizeChanged(const int width, const int height) final
+    {
+        windowSizes.push_back({width, height});
+    }
+};
+
+} // namespace
+
+void TestClient::controllerSplitCommands()
+{
+    const bool savedUse = getConfig().integratedClient.useCommandSeparator;
+    const QString savedSep = getConfig().integratedClient.commandSeparator;
+
+    setConfig().integratedClient.useCommandSeparator = true;
+    setConfig().integratedClient.commandSeparator = QStringLiteral(";;");
+
+    QCOMPARE(ClientController::splitCommands(QStringLiteral("l;;look")),
+             QStringList({QStringLiteral("l"), QStringLiteral("look")}));
+
+    // A backslash-escaped separator is not split on, and the backslash is
+    // stripped from the (single) resulting command.
+    QCOMPARE(ClientController::splitCommands(QStringLiteral("l\\;;look")),
+             QStringList({QStringLiteral("l;;look")}));
+
+    setConfig().integratedClient.useCommandSeparator = false;
+    QCOMPARE(ClientController::splitCommands(QStringLiteral("l;;look")),
+             QStringList({QStringLiteral("l;;look")}));
+
+    setConfig().integratedClient.useCommandSeparator = savedUse;
+    setConfig().integratedClient.commandSeparator = savedSep;
+}
+
+void TestClient::controllerSendInputDisconnected()
+{
+    ClientLineModel model;
+    HotkeyManager hotkeys;
+    ClientController controller(model, hotkeys, nullptr);
+    auto backend = std::make_unique<FakeBackend>();
+    FakeBackend &fake = *backend;
+    controller.setBackend(std::move(backend));
+
+    controller.sendInput(QStringLiteral("look"));
+
+    // Disconnected: exactly one connect attempt, and the command is
+    // DROPPED, not queued (parity with ClientWidget.cpp's
+    // virt_sendUserInput()).
+    QCOMPARE(fake.connectCount, 1);
+    QVERIFY(fake.sentToMud.isEmpty());
+    // Local echo is still shown regardless.
+    QVERIFY2(model.toPlainText().contains(QStringLiteral("look")), qPrintable(model.toPlainText()));
+}
+
+void TestClient::controllerSendInputConnected()
+{
+    ClientLineModel model;
+    HotkeyManager hotkeys;
+    ClientController controller(model, hotkeys, nullptr);
+    auto backend = std::make_unique<FakeBackend>();
+    FakeBackend &fake = *backend;
+    fake.connected = true;
+    controller.setBackend(std::move(backend));
+
+    controller.sendInput(QStringLiteral("look"));
+
+    QCOMPARE(fake.connectCount, 0);
+    QCOMPARE(fake.sentToMud, QStringList{QStringLiteral("look\n")});
+    QVERIFY2(model.toPlainText().contains(QStringLiteral("look")), qPrintable(model.toPlainText()));
+
+    // The raw line was recorded in the input history.
+    const QVariant up = controller.historyUp();
+    QCOMPARE(up.toString(), QStringLiteral("look"));
+}
+
+void TestClient::controllerSendPassword()
+{
+    ClientLineModel model;
+    HotkeyManager hotkeys;
+    ClientController controller(model, hotkeys, nullptr);
+    auto backend = std::make_unique<FakeBackend>();
+    FakeBackend &fake = *backend;
+    fake.connected = true;
+    controller.setBackend(std::move(backend));
+
+    controller.sendPassword(QStringLiteral("secret"));
+
+    QCOMPARE(fake.sentToMud, QStringList{QStringLiteral("secret\n")});
+    QVERIFY2(model.toPlainText().contains(QStringLiteral("******")),
+             qPrintable(model.toPlainText()));
+    // sendPassword() does not itself change echo mode.
+    QCOMPARE(controller.getEchoVisible(), true);
+}
+
+void TestClient::controllerEchoModeChanged()
+{
+    ClientLineModel model;
+    HotkeyManager hotkeys;
+    ClientController controller(model, hotkeys, nullptr);
+
+    QSignalSpy spyEcho(&controller, &ClientController::echoVisibleChanged);
+    QSignalSpy spyPrompt(&controller, &ClientController::sig_passwordPromptRequested);
+
+    controller.onEchoModeChanged(false);
+
+    QCOMPARE(spyEcho.count(), 1);
+    QCOMPARE(spyPrompt.count(), 1);
+    QCOMPARE(controller.getEchoVisible(), false);
+}
+
+void TestClient::controllerSendToUserWhileHidden()
+{
+    ClientLineModel model;
+    HotkeyManager hotkeys;
+    ClientController controller(model, hotkeys, nullptr);
+    controller.onEchoModeChanged(false);
+
+    QSignalSpy spyPrompt(&controller, &ClientController::sig_passwordPromptRequested);
+    controller.onSendToUser(QStringLiteral("Password: "));
+
+    QCOMPARE(spyPrompt.count(), 1);
+    QVERIFY2(model.toPlainText().contains(QStringLiteral("Password: ")),
+             qPrintable(model.toPlainText()));
+}
+
+void TestClient::controllerDisconnectedReconnectHint()
+{
+    ClientLineModel model;
+    HotkeyManager hotkeys;
+    ClientController controller(model, hotkeys, nullptr);
+
+    controller.onDisconnected();
+
+    QVERIFY2(model.toPlainText().contains(QStringLiteral("Press return to reconnect.")),
+             qPrintable(model.toPlainText()));
+}
+
+void TestClient::controllerHotkeys()
+{
+    ClientLineModel model;
+    HotkeyManager hotkeys;
+    hotkeys.resetToDefaults();
+    ClientController controller(model, hotkeys, nullptr);
+    auto backend = std::make_unique<FakeBackend>();
+    FakeBackend &fake = *backend;
+    fake.connected = true;
+    controller.setBackend(std::move(backend));
+
+    QVERIFY(controller.isHotkey(Qt::Key_F1, Qt::NoModifier));
+    QVERIFY(controller.sendHotkey(Qt::Key_F1, Qt::NoModifier));
+    QCOMPARE(fake.sentToMud, QStringList{QStringLiteral("F1\n")});
+
+    // Hotkeys never touch the input history.
+    const QVariant up = controller.historyUp();
+    QVERIFY(!up.isValid());
+
+    hotkeys.clear();
 }
 
 QTEST_MAIN(TestClient)

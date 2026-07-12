@@ -35,4 +35,14 @@ private Q_SLOTS:
     void tabHistoryWordExtraction();
     void tabHistoryCap();
     void tabHistoryNextMatchCycling();
+
+    // ClientController
+    void controllerSplitCommands();
+    void controllerSendInputDisconnected();
+    void controllerSendInputConnected();
+    void controllerSendPassword();
+    void controllerEchoModeChanged();
+    void controllerSendToUserWhileHidden();
+    void controllerDisconnectedReconnectHint();
+    void controllerHotkeys();
 };

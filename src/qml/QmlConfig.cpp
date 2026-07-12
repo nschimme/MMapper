@@ -25,6 +25,8 @@ QmlConfig::QmlConfig(QObject *const parent)
     , m_clientFontPointSize(resolveClientFont().pointSize())
     , m_clientBgColor(getConfig().integratedClient.backgroundColor)
     , m_clientFgColor(getConfig().integratedClient.foregroundColor)
+    , m_clientClearInputOnEnter(getConfig().integratedClient.clearInputOnEnter)
+    , m_clientPreviewLines(getConfig().integratedClient.linesOfPeekPreview)
 {}
 
 bool QmlConfig::getNpcHide() const
@@ -92,6 +94,16 @@ QColor QmlConfig::getClientFgColor() const
     return getConfig().integratedClient.foregroundColor;
 }
 
+bool QmlConfig::getClientClearInputOnEnter() const
+{
+    return getConfig().integratedClient.clearInputOnEnter;
+}
+
+int QmlConfig::getClientPreviewLines() const
+{
+    return getConfig().integratedClient.linesOfPeekPreview;
+}
+
 void QmlConfig::reload()
 {
     if (const bool value = getConfig().groupManager.npcHide; value != m_npcHide) {
@@ -126,5 +138,15 @@ void QmlConfig::reload()
         value != m_clientFgColor) {
         m_clientFgColor = value;
         emit clientColorsChanged();
+    }
+    if (const bool value = getConfig().integratedClient.clearInputOnEnter;
+        value != m_clientClearInputOnEnter) {
+        m_clientClearInputOnEnter = value;
+        emit clientClearInputOnEnterChanged();
+    }
+    if (const int value = getConfig().integratedClient.linesOfPeekPreview;
+        value != m_clientPreviewLines) {
+        m_clientPreviewLines = value;
+        emit clientPreviewLinesChanged();
     }
 }

@@ -25,10 +25,14 @@ set(mmapper_SRCS
     media/SfxManager.h
     media/StackBlur.cpp
     media/StackBlur.h
+    client/ClientController.cpp
+    client/ClientController.h
     client/ClientLineModel.cpp
     client/ClientLineModel.h
     client/ClientTelnet.cpp
     client/ClientTelnet.h
+    client/ClientTelnetBackend.cpp
+    client/ClientTelnetBackend.h
     client/ClientWidget.cpp
     client/ClientWidget.h
     client/InputHistory.cpp

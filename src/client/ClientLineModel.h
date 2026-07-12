@@ -71,6 +71,19 @@ public:
 
     Q_INVOKABLE void clear();
 
+public:
+    // Joins every finished line's plain text (plus the current partial
+    // line) with '\n' separators. Used for saving logs / feeding QML text
+    // fields that want raw text.
+    NODISCARD QString toPlainText() const;
+    // Wraps the equivalent join of each line's cached HTML in a minimal
+    // <html><body> shell styled with the configured client colors. This is
+    // a much simpler approximation of QTextDocument::toHtml() (used by the
+    // legacy DisplayWidget, see ClientWidget::slot_saveLogAsHtml()): no
+    // per-run <head>/<style> metadata, just inline styles already baked
+    // into each row's cached HTML by htmlForRuns().
+    NODISCARD QString toHtml() const;
+
 private:
     void processSegment(QStringView segment);
     void appendRawWithAnsi(QStringView text, const RawAnsi &ansi);

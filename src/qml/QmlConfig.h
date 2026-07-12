@@ -40,6 +40,15 @@ class NODISCARD_QOBJECT QmlConfig final : public QObject
     Q_PROPERTY(QColor clientBgColor READ getClientBgColor NOTIFY clientColorsChanged)
     Q_PROPERTY(QColor clientFgColor READ getClientFgColor NOTIFY clientColorsChanged)
 
+    // Read-only façade over two more integratedClient settings used by the
+    // QML client input/preview: whether Enter clears the input box (see
+    // InputWidget::gotInput()) and how many trailing lines the peek preview
+    // shows (see PreviewWidget). Same reload()-driven staleness contract as
+    // every other property here.
+    Q_PROPERTY(bool clientClearInputOnEnter READ getClientClearInputOnEnter NOTIFY
+                   clientClearInputOnEnterChanged)
+    Q_PROPERTY(int clientPreviewLines READ getClientPreviewLines NOTIFY clientPreviewLinesChanged)
+
 private:
     // Cache of the last-known values, used only to detect external changes
     // in reload(); the getters below always read the live Configuration.
@@ -50,6 +59,8 @@ private:
     int m_clientFontPointSize = -1;
     QColor m_clientBgColor;
     QColor m_clientFgColor;
+    bool m_clientClearInputOnEnter = false;
+    int m_clientPreviewLines = 0;
 
 public:
     explicit QmlConfig(QObject *parent = nullptr);
@@ -69,6 +80,9 @@ public:
     NODISCARD QColor getClientBgColor() const;
     NODISCARD QColor getClientFgColor() const;
 
+    NODISCARD bool getClientClearInputOnEnter() const;
+    NODISCARD int getClientPreviewLines() const;
+
 public slots:
     // Re-syncs the cached values against the live Configuration and emits
     // the appropriate *Changed signals for anything that differs. Must be
@@ -82,4 +96,6 @@ signals:
     void groupColorChanged();
     void clientFontChanged();
     void clientColorsChanged();
+    void clientClearInputOnEnterChanged();
+    void clientPreviewLinesChanged();
 };

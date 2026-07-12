@@ -163,12 +163,16 @@ Controls types only where there's no reasonable primitive substitute (e.g. `Butt
 | Tasks | `src/qml/TasksPanel.qml` | `mainwindow/TasksModel.{h,cpp}` (roles, poll/diff) | `mainwindow/TasksPanel.{h,cpp}` |
 | Status bar: clock | `src/qml/ClockStrip.qml` | `clock/ClockAdapter.{h,cpp}` + `clock/ClockStrings.{h,cpp}` (shared) | `clock/mumeclockwidget.{h,cpp,ui}` |
 | Status bar: XP status | `src/qml/XpStatusItem.qml` | `adventure/XpStatusAdapter.{h,cpp}` | `adventure/xpstatuswidget.{h,cpp}` |
+| Client | `src/qml/ClientPanel.qml` + `src/qml/ClientDisplay.qml` | `client/ClientController.{h,cpp}` + `client/ClientLineModel.{h,cpp}` + `client/ClientTelnetBackend.{h,cpp}` | `client/ClientWidget.{h,cpp,ui}`, `client/inputwidget.{h,cpp}`, `client/stackedinputwidget.{h,cpp}`, `client/PasswordDialog.{h,cpp}`, `client/PreviewWidget.{h,cpp}`, `client/PaletteManager.{h,cpp}` |
 
 The Widget classes are excluded from the build entirely when `WITH_QML=ON`
 (`src/CMakeLists.txt` only appends them to `mmapper_SRCS` under `if(NOT WITH_QML)`).
-As of phase 3 this list covers `TimerWidget`/`TimerDelegate`, `adventurewidget`,
+As of phase 5 this list covers `TimerWidget`/`TimerDelegate`, `adventurewidget`,
 `RoomWidget`, `groupwidget`, `DescriptionWidget`, `TasksPanel`, `MumeClockWidget`
-(+ its `.ui`), and `XPStatusWidget`. The Log panel has no legacy widget class to
+(+ its `.ui`), `XPStatusWidget`, and the Client panel's six Widget files —
+`ClientWidget` (+ its `.ui`), `inputwidget`, `stackedinputwidget`,
+`PasswordDialog`, `PreviewWidget`, and `PaletteManager` (used only by
+`inputwidget`). The Log panel has no legacy widget class to
 retire — it replaces an inline `QTextBrowser` that was created directly in
 `mainwindow.cpp`, not a separate widget file. The status bar's two widgets are
 always-on, non-dockable status bar contents rather than `QDockWidget` panels (see
@@ -177,6 +181,15 @@ always-on, non-dockable status bar contents rather than `QDockWidget` panels (se
 the Widget classes exist solely as the `WITH_QML=OFF` escape hatch and are planned
 for deletion about one release cycle after the WebAssembly build ships with QML,
 once we're confident nobody needs to fall back to Widgets.
+
+`client/displaywidget.{h,cpp}` is a partial exception: it stays compiled
+unconditionally (never moves into the `if(NOT WITH_QML)` block) because
+`AnsiTextHelper`, defined there, is a general-purpose ANSI text renderer
+consumed outside the client entirely — `viewers/AnsiViewWindow.cpp`,
+`mainwindow/roomeditattrdlg.cpp`, and `mpi/remoteeditwidget.cpp` all use it
+regardless of `WITH_QML`. `client/ClientTelnet.{h,cpp}` similarly stays
+unconditional: it's the real telnet socket implementation that
+`ClientTelnetBackend` wraps, so both builds need it.
 
 ## Phase 2 notes
 
@@ -491,6 +504,89 @@ As in phase 2, phase 3 added no new `qml6-module-*` entries to
 `.github/workflows/build-test.yml`'s package list — the new panels/widgets use
 only `QtQuick` primitives, `SystemPalette`, `HoverHandler`/`TapHandler`, and
 `QQuickWidget`, all already covered by the existing dependency set.
+
+## Phase 5 notes
+
+### Client architecture: `ClientController` + backend seam
+
+The integrated MUD client (`ClientWidget`/`InputWidget`/`StackedInputWidget`/
+`PreviewWidget`) is the biggest single panel ported so far, and the only one
+that owns a live network connection. Rather than porting `ClientWidget`'s
+logic straight into QML/JS, it was lifted into a plain `QObject`,
+`ClientController` (`src/client/ClientController.h`), that owns the command
+history, hotkey dispatch, tab-completion, and command-separator splitting
+logic InputWidget/StackedInputWidget used to own, and exposes it to
+`ClientPanel.qml`/`ClientDisplay.qml` via `Q_PROPERTY`/`Q_INVOKABLE`.
+
+The one piece deliberately *not* folded into `ClientController` itself is the
+telnet socket. `ClientController` talks to it only through the abstract
+`ClientControllerBackend` seam (`connectToMud()`/`disconnectFromMud()`/
+`isConnected()`/`sendToMud()`/`windowSizeChanged()`); `ClientTelnetBackend`
+(`src/client/ClientTelnetBackend.{h,cpp}`) is the real implementation, owning
+a `ClientTelnet` and forwarding its callbacks back into the controller. Tests
+(`tests/TestClient.cpp`) install a `FakeBackend` instead, so all of
+`ClientController`'s Q_INVOKABLE logic — history boundaries, hotkey lookup,
+tab-completion cycling, command splitting — is exercised without a real
+socket. This also keeps `TestClient`/`TestQml` free of any dependency on
+actual network I/O: the backend seam is what makes `ClientController` a unit
+suitable for `Q_INVOKABLE`-level testing in the first place, not just a
+QML-friendly wrapper.
+
+### `ClientPanel.qml` key handling
+
+`ClientPanel.qml`'s input `TextArea` reimplements `InputWidget`'s
+`keyPressEvent()`/`event()` key handling in QML's `Keys.onPressed`/
+`Keys.onShortcutOverride`, in the same numbered-case order as the original
+(tab-completion state machine, configured hotkeys, terminal Ctrl shortcuts,
+Enter, history Up/Down, Tab, PageUp/PageDown — see the comments inline).
+Two points are easy to get wrong when reading it:
+
+- **`Keys.onShortcutOverride` guard**: any key that resolves to a configured
+  hotkey (`clientController.isHotkey()`) must be claimed in
+  `ShortcutOverride` before `Keys.onPressed` ever runs, mirroring
+  `InputWidget::event()`'s `QEvent::ShortcutOverride` handling
+  (`inputwidget.cpp`). Without this, Qt's shortcut system intercepts the key
+  as a global `QAction` shortcut first and `Keys.onPressed` never sees it.
+- **The Ctrl+numpad zoom collision**: this guard is not just defensive —
+  `Hotkey.h`'s `NUMPAD_PLUS`/`NUMPAD_MINUS` bindings resolve to the same
+  `Qt::Key_Plus`/`Qt::Key_Minus` codes as `MainWindow`'s map-zoom `QAction`s
+  (`zoomInAct`'s `"Ctrl++"`, `zoomOutAct`'s `"Ctrl+-"`, see
+  `mainwindow.cpp:createActions()`). Without the `ShortcutOverride` claim, a
+  user with a numpad +/- hotkey configured while typing in the client would
+  have Ctrl+Numpad+/- silently zoom the map canvas instead of firing their
+  hotkey — the same collision `InputWidget`'s widget-level event filter
+  existed to prevent.
+
+### Password entry: inline swap, not a floating dialog
+
+`ClientWidget`/`StackedInputWidget` show `PasswordDialog` as a small floating
+top-level dialog when the telnet echo mode turns off. `ClientPanel.qml`
+instead swaps the input `TextArea` for a `TextField` with
+`echoMode: TextInput.Password` in place, toggled by
+`clientController.echoVisible` (see the `inputHolder` `Item` in
+`ClientPanel.qml`). A floating dialog is a mouse/keyboard-era pattern that
+adds an extra window to manage for no benefit on touch — an inline swap
+keeps focus in the same input rectangle the user was just typing in, which
+matters more on the touch-friendly targets this migration is aimed at
+(see "Goal" above) than pixel-parity with the old dialog chrome.
+
+### Preview tail: `ClientLineModel` shared between two views
+
+`PreviewWidget`'s job — showing a peek of the trailing scrollback while the
+user has scrolled the main display up to read backlog — needed no new model
+of its own: `ClientPanel.qml`'s preview `ListView` binds directly to the same
+`ClientLineModel` instance (`clientLineModel` context property) that
+`ClientDisplay.qml`'s main view uses, just filtered to `visible: !display.atEnd`
+and pinned to the bottom (`positionViewAtEnd()`). One list model, two views,
+rather than `PreviewWidget`'s separate `QTextDocument` mirroring the main
+display's content.
+
+### `displaywidget` stays compiled unconditionally
+
+Unlike every other Widget class this phase retired, `client/displaywidget.{h,cpp}`
+was *not* moved into the `if(NOT WITH_QML)` block — see "Ported panels" above
+for why (`AnsiTextHelper` has consumers outside the client:
+`AnsiViewWindow.cpp`, `roomeditattrdlg.cpp`, `remoteeditwidget.cpp`).
 
 ## Map canvas (future work, not started)
 

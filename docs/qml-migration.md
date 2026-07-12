@@ -160,16 +160,23 @@ Controls types only where there's no reasonable primitive substitute (e.g. `Butt
 | Log | `src/qml/LogPanel.qml` | `mainwindow/LogModel.{h,cpp}` (roles, 10k-line cap) | *(none — inline `QTextBrowser`)* |
 | Group | `src/qml/GroupPanel.qml` | `group/GroupModel.{h,cpp}` (roles) + `group/GroupController.{h,cpp}` + `qml/GroupIconProvider.{h,cpp}` | `group/groupwidget.{h,cpp}` |
 | Description | `src/qml/DescriptionPanel.qml` | `media/DescriptionAdapter.{h,cpp}` + `media/DescriptionImageStore.h` + `qml/DescriptionImageProvider.{h,cpp}` | `media/DescriptionWidget.{h,cpp}` |
+| Tasks | `src/qml/TasksPanel.qml` | `mainwindow/TasksModel.{h,cpp}` (roles, poll/diff) | `mainwindow/TasksPanel.{h,cpp}` |
+| Status bar: clock | `src/qml/ClockStrip.qml` | `clock/ClockAdapter.{h,cpp}` + `clock/ClockStrings.{h,cpp}` (shared) | `clock/mumeclockwidget.{h,cpp,ui}` |
+| Status bar: XP status | `src/qml/XpStatusItem.qml` | `adventure/XpStatusAdapter.{h,cpp}` | `adventure/xpstatuswidget.{h,cpp}` |
 
 The Widget classes are excluded from the build entirely when `WITH_QML=ON`
 (`src/CMakeLists.txt` only appends them to `mmapper_SRCS` under `if(NOT WITH_QML)`).
-As of phase 2 this list covers `TimerWidget`/`TimerDelegate`, `adventurewidget`,
-`RoomWidget`, `groupwidget`, and `DescriptionWidget`. The Log panel has no legacy
-widget class to retire — it replaces an inline `QTextBrowser` that was created
-directly in `mainwindow.cpp`, not a separate widget file. All of the Widget classes
-exist solely as the `WITH_QML=OFF` escape hatch and are planned for deletion about
-one release cycle after the WebAssembly build ships with QML, once we're confident
-nobody needs to fall back to Widgets.
+As of phase 3 this list covers `TimerWidget`/`TimerDelegate`, `adventurewidget`,
+`RoomWidget`, `groupwidget`, `DescriptionWidget`, `TasksPanel`, `MumeClockWidget`
+(+ its `.ui`), and `XPStatusWidget`. The Log panel has no legacy widget class to
+retire — it replaces an inline `QTextBrowser` that was created directly in
+`mainwindow.cpp`, not a separate widget file. The status bar's two widgets are
+always-on, non-dockable status bar contents rather than `QDockWidget` panels (see
+"Status bar" under "Phase 3 notes" below), but otherwise follow the same
+`WITH_QML`-gated Widget-vs-adapter split as every other row in this table. All of
+the Widget classes exist solely as the `WITH_QML=OFF` escape hatch and are planned
+for deletion about one release cycle after the WebAssembly build ships with QML,
+once we're confident nobody needs to fall back to Widgets.
 
 ## Phase 2 notes
 
@@ -341,6 +348,149 @@ If a future phase revisits any of these decisions — e.g. moving recolor to a Q
 the matching `find_package(Qt6 COMPONENTS ...)` addition) need to be added to both
 `src/CMakeLists.txt`'s `CPACK_DEBIAN_PACKAGE_DEPENDS` and
 `.github/workflows/build-test.yml`, alongside a `WITH_QML` doc update here.
+
+## Phase 3 notes
+
+Phase 3 fixed a layout bug in the Description panel's blur backdrop, standardized
+every ListView-based panel's header on the same look `RoomPanel`'s `TableView`
+already had, ported the Tasks panel, and ported the two always-on status bar
+widgets (Mume clock, XP status). No new QML runtime module dependencies were
+introduced (same "Packaging" constraint as phase 2).
+
+### Description panel blur layout fix + `grab()`-based pixel regression test
+
+The sharp foreground image in `DescriptionPanel.qml` was previously laid out
+full-bleed over the blurred backdrop; phase 3 insets it instead (widget-parity
+with the legacy `DescriptionWidget`, which never drew the sharp image edge to
+edge). This left a border of blur-only background visible around the sharp
+image, which is otherwise easy to regress silently since a screenshot diff is
+the only way to notice a layout change like this.
+
+`TestQml::descriptionPanelBlurLayout()` (`tests/TestQml.cpp`) guards it with a
+pixel-level regression test: it loads `DescriptionPanel.qml` inside a real
+`QmlDockWidget`, feeds `DescriptionAdapter::setImageForTesting()` a strongly
+patterned red/blue source image, waits for the blur image provider's async
+`Image.Ready` status, calls `QQuickWidget::grab()`, and asserts on the sampled
+corner pixel's color (reddish, non-transparent) at a coordinate known to fall
+in the blur-only border under the new layout. This works under CI because
+`initTestCase()` forces `QT_QUICK_BACKEND=software` before `QApplication` is
+constructed — the same software scene-graph backend production uses (see
+"Startup graphics API pinning" above) — so `grab()` returns real rendered
+pixels even on a GPU-less, headless offscreen-platform CI runner. **This is a
+reusable pattern**: any future QML layout bug that's easier to see than to
+assert on via property inspection can use `grab()` + `pixelColor()` the same
+way, as long as the software backend is active.
+
+### `PanelHeaderRow.qml`: shared table-header convention
+
+`src/qml/PanelHeaderRow.qml` is a plain `Row` of styled cells that reproduces
+`QtQuick.Controls.Fusion`'s `HorizontalHeaderView` delegate look (8px cell
+padding, top-to-bottom gradient, 1px cell borders, centered text), but driven
+by a `columns: [{text, width}, ...]` property instead of a `syncView`
+`TableView`. It exists because `HorizontalHeaderView` requires a `syncView`
+`TableView` to size against, which rules it out for the `ListView`-based
+panels (Group, Tasks): those need the same visual header row without an
+underlying `TableView`.
+
+The convention going forward:
+
+- Panels whose body is a `TableView` (`RoomPanel`) use
+  `QtQuick.Controls.Fusion`'s `HorizontalHeaderView` directly, unchanged.
+- Panels whose body is a `ListView` (`GroupPanel`, and the new `TasksPanel`)
+  use `PanelHeaderRow` instead, with `columns` mirroring the `ListView`
+  delegate's own column layout so the header cells line up with the rows
+  beneath them.
+
+`PanelHeaderRow` is `SystemPalette`-derived (`light`/`button`/`mid`/`text`
+roles), not the upstream delegate's hardcoded light-theme literals, so it
+tracks `ThemeManager`'s dark/light switches the same way `PanelFrame` does
+(see "Theming" above) — the upstream Fusion delegate does not do this itself,
+which is why phase 3 needed a local component rather than reusing it as-is
+for the `ListView` panels too.
+
+### Tasks panel: poll/diff `TasksModel` + `holdRemovals`
+
+`src/mainwindow/TasksModel.{h,cpp}` is a `QAbstractListModel` that mirrors the
+legacy `TasksPanel` (QWidget) dock: a `QTimer` polls the `async_tasks`
+registry every 250ms (`TASKS_REFRESH_INTERVAL_MS`, matching the widget's own
+cadence) and diffs the polled snapshot against the model's current rows, so
+`TasksPanel.qml`'s `ListView` only sees `dataChanged`/insert/remove deltas
+each tick rather than a full model reset.
+
+`holdRemovals` (`Q_PROPERTY bool`) mirrors the widget's `underMouse()`-gated
+removal suppression (`TasksPanel::refresh_data()`'s `allowRemoval`): while
+true, `refresh()` still updates rows in place (so a task's final
+Finished/Canceled status is visible) but leaves finished/vanished tasks in the
+model instead of removing them, so a user hovering the list doesn't have rows
+yanked out from under the pointer mid-interaction. `TasksPanel.qml` binds this
+to a `HoverHandler` over the `ListView`
+(`onHoveredChanged: tasksModel.holdRemovals = hovered`). Transitioning from
+held to released calls `refresh()` immediately rather than waiting for the
+next timer tick, so deferred removals happen as soon as the pointer leaves
+instead of up to 250ms later.
+
+`TasksPanel.qml` uses `PanelHeaderRow` for its header (see above) and a
+`Q_INVOKABLE cancelTask(row)` on the model — unifying the widget's separate
+"Cancel" row-button and context-menu code paths into one entry point — that
+only calls `AsyncTaskHandle::requestCancel()` when `getCanCancel()` allows it.
+
+### Status bar: bare `QQuickWidget` + `SizeViewToRootObject`
+
+The Mume clock and XP status widgets are always-on status bar contents, not
+dockable panels, so `MainWindow::setupStatusBar()` embeds them with a bare
+`QQuickWidget` directly (`statusBar()->insertPermanentWidget(...)`) instead of
+`QmlDockWidget`, which would add unneeded `QDockWidget` machinery. The pattern
+(mirrored for both `ClockStrip.qml` and `XpStatusItem.qml`):
+
+```cpp
+auto *const quick = new QQuickWidget(statusBar());
+quick->setResizeMode(QQuickWidget::SizeViewToRootObject);
+quick->setClearColor(Qt::transparent);
+quick->setAttribute(Qt::WA_TranslucentBackground);
+quick->rootContext()->setContextProperty("adapter", adapter); // before setSource()
+quick->setSource(QUrl(QStringLiteral("qrc:/qt/qml/MMapper/XpStatusItem.qml")));
+statusBar()->insertPermanentWidget(0, quick);
+```
+
+- `SizeViewToRootObject` makes the `QQuickWidget` size itself to the QML root
+  item's `implicitWidth`/`implicitHeight` instead of the more common opposite
+  (view sizes the root item) — required here because a status bar item's
+  natural size is content-driven (e.g. the clock's text width changes as the
+  in-game time changes) and `QStatusBar`'s layout needs an accurate
+  `sizeHint()` from the widget to lay out its permanent widgets correctly.
+- `setClearColor(Qt::transparent)` + `Qt::WA_TranslucentBackground` let the
+  status bar's own background show through the item instead of the
+  `QQuickWidget` painting an opaque backing rectangle behind it — without
+  both, the item would appear as an opaque colored box floating in the status
+  bar rather than blending in.
+
+Both widgets are backed by an always-compiled adapter with no `QQuickWidget`/
+`Qt6::Quick` dependency of its own (`XpStatusAdapter`, `ClockAdapter` — same
+shape as `DescriptionAdapter`/`QmlConfig` from phase 2, see "Per-engine image
+providers" above): `XpStatusAdapter` ports `XPStatusWidget`'s
+`updateContent()`/`enterEvent()`/`leaveEvent()`/`clicked()` logic behind
+`Q_INVOKABLE hoverEntered()`/`hoverExited()`/`clicked()` methods called from
+QML `HoverHandler`/`TapHandler`s, and signals
+(`sig_showStatusMessage`/`sig_clearStatusMessage`/`sig_toggleAdventurePanel`)
+that `mainwindow.cpp` wires to the real `QStatusBar` and the Adventure dock.
+`ClockAdapter` does the equivalent for `MumeClockWidget`.
+
+`src/clock/ClockStrings.{h,cpp}` is a small enum→`QString` helper namespace
+(`clockstrings::moonPhaseEmoji()`, `seasonText()`, `weatherEmoji()`/
+`weatherTooltip()`, `fogEmoji()`/`fogTooltip()`) factored out of
+`MumeClockWidget` and shared by both `ClockAdapter` and the legacy
+`MumeClockWidget` (`WITH_QML=OFF`), so the two implementations can't drift on
+what a given moon phase/season/weather/fog value displays as. It has no Qt
+widget or QML dependency, only `QString`, so it links into both builds
+unconditionally.
+
+### Packaging: zero new QML module dependencies (again)
+
+As in phase 2, phase 3 added no new `qml6-module-*` entries to
+`CPACK_DEBIAN_PACKAGE_DEPENDS` in `src/CMakeLists.txt` or to
+`.github/workflows/build-test.yml`'s package list — the new panels/widgets use
+only `QtQuick` primitives, `SystemPalette`, `HoverHandler`/`TapHandler`, and
+`QQuickWidget`, all already covered by the existing dependency set.
 
 ## Map canvas (future work, not started)
 

@@ -49,6 +49,8 @@ target_link_libraries(mm_test
 
 # Clock
 set(clock_SRCS
+    ../src/clock/ClockStrings.cpp
+    ../src/clock/ClockStrings.h
     ../src/clock/mumeclock.cpp
     ../src/clock/mumeclock.h
     ../src/clock/mumemoment.cpp
@@ -418,8 +420,22 @@ if(WITH_QML)
             ../src/preferences/ansicombo.cpp
             ../src/preferences/ansicombo.h
     )
+    # Sources for loadClockStrip(): mumeclock/mumemoment (also linked into
+    # TestClock via clock_SRCS above) plus ClockAdapter and the shared
+    # ClockStrings helpers it (and MumeClockWidget, on the non-QML path) use.
+    set(clock_adapter_SRCS
+            ${clock_SRCS}
+            ../src/clock/ClockAdapter.cpp
+            ../src/clock/ClockAdapter.h
+    )
+    # Sources for loadXpStatusItem().
+    set(xp_status_adapter_SRCS
+            ../src/adventure/XpStatusAdapter.cpp
+            ../src/adventure/XpStatusAdapter.h
+    )
     add_executable(TestQml ${TestQml_SRCS} ${timer_test} ${adventure_SRCS} ${room_manager}
-            ${log_model_SRCS} ${tasks_model_SRCS} ${group_SRCS} ${description_panel_SRCS})
+            ${log_model_SRCS} ${tasks_model_SRCS} ${group_SRCS} ${description_panel_SRCS}
+            ${clock_adapter_SRCS} ${xp_status_adapter_SRCS})
     add_dependencies(TestQml mm_qml mm_qmlplugin mm_test mm_global mm_map)
     target_link_libraries(TestQml
             mm_qml

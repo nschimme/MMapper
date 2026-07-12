@@ -4,7 +4,10 @@
 #include "TestQml.h"
 
 #include "../src/adventure/AdventureLogModel.h"
+#include "../src/adventure/XpStatusAdapter.h"
 #include "../src/adventure/adventuretracker.h"
+#include "../src/clock/ClockAdapter.h"
+#include "../src/clock/mumeclock.h"
 #include "../src/configuration/configuration.h"
 #include "../src/display/Filenames.h"
 #include "../src/global/AsyncTasks.h"
@@ -41,6 +44,7 @@
 #include <QPainter>
 #include <QPixmap>
 #include <QQmlComponent>
+#include <QQmlContext>
 #include <QQmlEngine>
 #include <QQuickItem>
 #include <QQuickWidget>
@@ -682,6 +686,47 @@ void TestQml::loadTasksPanel()
 
     QCOMPARE(quick->status(), QQuickWidget::Ready);
     QVERIFY(quick->rootObject() != nullptr);
+}
+
+void TestQml::loadXpStatusItem()
+{
+    GameObserver observer;
+    AdventureTracker tracker(observer, nullptr);
+    XpStatusAdapter adapter(tracker, nullptr);
+
+    // These are plain status bar widgets, not dockable panels, so (mirroring
+    // MainWindow::setupStatusBar()) load them in a bare QQuickWidget rather
+    // than QmlDockWidget.
+    QQuickWidget quick;
+    quick.rootContext()->setContextProperty("adapter", &adapter);
+    quick.setSource(QUrl(u"qrc:/qt/qml/MMapper/XpStatusItem.qml"_qs));
+
+    while (quick.status() == QQuickWidget::Loading) {
+        QCoreApplication::processEvents();
+    }
+    QCoreApplication::processEvents();
+
+    QCOMPARE(quick.status(), QQuickWidget::Ready);
+    QVERIFY(quick.rootObject() != nullptr);
+}
+
+void TestQml::loadClockStrip()
+{
+    GameObserver observer;
+    MumeClock clock(/*mumeEpoch=*/0, observer, nullptr);
+    ClockAdapter adapter(observer, clock, nullptr);
+
+    QQuickWidget quick;
+    quick.rootContext()->setContextProperty("clock", &adapter);
+    quick.setSource(QUrl(u"qrc:/qt/qml/MMapper/ClockStrip.qml"_qs));
+
+    while (quick.status() == QQuickWidget::Loading) {
+        QCoreApplication::processEvents();
+    }
+    QCoreApplication::processEvents();
+
+    QCOMPARE(quick.status(), QQuickWidget::Ready);
+    QVERIFY(quick.rootObject() != nullptr);
 }
 
 QTEST_MAIN(TestQml)

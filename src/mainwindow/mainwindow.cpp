@@ -10,12 +10,14 @@
 #include "../adventure/adventuretracker.h"
 #ifndef MMAPPER_WITH_QML
 #include "../adventure/adventurewidget.h"
-#endif
 #include "../adventure/xpstatuswidget.h"
+#endif
 #include "../client/ClientWidget.h"
 #include "../client/HotkeyManager.h"
 #include "../clock/mumeclock.h"
+#ifndef MMAPPER_WITH_QML
 #include "../clock/mumeclockwidget.h"
+#endif
 #include "../display/InfomarkSelection.h"
 #include "../display/MapCanvasData.h"
 #include "../display/mapcanvas.h"
@@ -61,6 +63,8 @@
 #include "utils.h"
 
 #ifdef MMAPPER_WITH_QML
+#include "../adventure/XpStatusAdapter.h"
+#include "../clock/ClockAdapter.h"
 #include "../group/GroupController.h"
 #include "../media/DescriptionAdapter.h"
 #include "../qml/DescriptionImageProvider.h"
@@ -72,6 +76,9 @@
 #include "../timers/TimerModel.h"
 #include "LogModel.h"
 #include "TasksModel.h"
+
+#include <QQmlContext>
+#include <QQuickWidget>
 #endif
 
 #include <memory>
@@ -1695,6 +1702,50 @@ void MainWindow::setupToolBars()
 void MainWindow::setupStatusBar()
 {
     showStatusForever(tr("Say friend and enter..."));
+
+#ifdef MMAPPER_WITH_QML
+    // These are simple always-on status bar widgets, not dockable panels, so
+    // they use a bare QQuickWidget directly rather than QmlDockWidget (which
+    // adds QDockWidget machinery these don't need).
+    auto *const clockAdapter = new ClockAdapter(deref(m_gameObserver), deref(m_mumeClock), this);
+    auto *const clockQuick = new QQuickWidget(statusBar());
+    clockQuick->setResizeMode(QQuickWidget::SizeViewToRootObject);
+    // Let the status bar show through the item's transparent background
+    // instead of painting an opaque QQuickWidget backing rectangle behind it.
+    clockQuick->setClearColor(Qt::transparent);
+    clockQuick->setAttribute(Qt::WA_TranslucentBackground);
+    // Must be registered before setSource() below: the root context must have
+    // all properties before the root object is instantiated (see
+    // QmlDockWidget::setQmlSource()'s comment for the same rule).
+    clockQuick->rootContext()->setContextProperty("clock", clockAdapter);
+    clockQuick->setSource(QUrl(QStringLiteral("qrc:/qt/qml/MMapper/ClockStrip.qml")));
+    statusBar()->insertPermanentWidget(0, clockQuick);
+
+    m_clockAdapter = clockAdapter;
+
+    auto *const xpAdapter = new XpStatusAdapter(deref(m_adventureTracker), this);
+    auto *const xpQuick = new QQuickWidget(statusBar());
+    xpQuick->setResizeMode(QQuickWidget::SizeViewToRootObject);
+    xpQuick->setClearColor(Qt::transparent);
+    xpQuick->setAttribute(Qt::WA_TranslucentBackground);
+    xpQuick->setToolTip(tr("Click to toggle the Adventure Panel."));
+    xpQuick->rootContext()->setContextProperty("adapter", xpAdapter);
+    xpQuick->setSource(QUrl(QStringLiteral("qrc:/qt/qml/MMapper/XpStatusItem.qml")));
+    statusBar()->insertPermanentWidget(0, xpQuick);
+
+    connect(xpAdapter, &XpStatusAdapter::sig_showStatusMessage, this, [this](const QString &msg) {
+        statusBar()->showMessage(msg);
+    });
+    connect(xpAdapter, &XpStatusAdapter::sig_clearStatusMessage, this, [this]() {
+        statusBar()->clearMessage();
+    });
+    connect(xpAdapter, &XpStatusAdapter::sig_toggleAdventurePanel, this, [this]() {
+        auto &dock = deref(m_dockDialogAdventure);
+        dock.setVisible(!dock.isVisible());
+    });
+
+    m_xpStatusAdapter = xpAdapter;
+#else
     statusBar()->insertPermanentWidget(0,
                                        new MumeClockWidget(deref(m_gameObserver),
                                                            deref(m_mumeClock),
@@ -1708,6 +1759,7 @@ void MainWindow::setupStatusBar()
         dock.setVisible(!dock.isVisible());
     });
     statusBar()->insertPermanentWidget(0, xpStatus);
+#endif
 
     auto *const pathmachineStatus = new QLabel(statusBar());
     connect(m_pathMachine, &Mmapper2PathMachine::sig_state, pathmachineStatus, &QLabel::setText);

@@ -35,4 +35,6 @@ private Q_SLOTS:
     void tasksModelHoldRemovalsRoundTrip();
     void tasksModelLifecycle();
     void loadTasksPanel();
+    void loadXpStatusItem();
+    void loadClockStrip();
 };

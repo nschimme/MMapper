@@ -30,6 +30,9 @@ class AdventureWidget;
 class AnsiOstream;
 class AudioManager;
 class AutoLogger;
+#ifdef MMAPPER_WITH_QML
+class ClockAdapter;
+#endif
 class ClientWidget;
 class ConfigDialog;
 class ConnectionListener;
@@ -85,6 +88,9 @@ class DescriptionWidget;
 class MediaLibrary;
 #ifndef MMAPPER_WITH_QML
 class TimerWidget;
+#endif
+#ifdef MMAPPER_WITH_QML
+class XpStatusAdapter;
 #endif
 class MapDestination;
 
@@ -157,6 +163,8 @@ private:
 #endif
 #ifdef MMAPPER_WITH_QML
     TasksModel *m_tasksModel = nullptr;
+    ClockAdapter *m_clockAdapter = nullptr;
+    XpStatusAdapter *m_xpStatusAdapter = nullptr;
 #endif
     std::unique_ptr<HotkeyManager> m_hotkeyManager;
 

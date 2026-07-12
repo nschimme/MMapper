@@ -8,8 +8,8 @@ set(mmapper_SRCS
     adventure/adventuretracker.h
     adventure/lineparsers.cpp
     adventure/lineparsers.h
-    adventure/xpstatuswidget.cpp
-    adventure/xpstatuswidget.h
+    adventure/XpStatusAdapter.cpp
+    adventure/XpStatusAdapter.h
     display/AudioHintWidget.cpp
     display/AudioHintWidget.h
     media/AudioManager.cpp
@@ -45,10 +45,12 @@ set(mmapper_SRCS
     client/PasswordDialog.h
     client/PreviewWidget.cpp
     client/PreviewWidget.h
+    clock/ClockAdapter.cpp
+    clock/ClockAdapter.h
+    clock/ClockStrings.cpp
+    clock/ClockStrings.h
     clock/mumeclock.cpp
     clock/mumeclock.h
-    clock/mumeclockwidget.cpp
-    clock/mumeclockwidget.h
     clock/mumemoment.cpp
     clock/mumemoment.h
     configuration/GroupConfig.cpp
@@ -629,6 +631,10 @@ if(NOT WITH_QML)
     list(APPEND mmapper_SRCS
         adventure/adventurewidget.cpp
         adventure/adventurewidget.h
+        adventure/xpstatuswidget.cpp
+        adventure/xpstatuswidget.h
+        clock/mumeclockwidget.cpp
+        clock/mumeclockwidget.h
         group/groupwidget.cpp
         group/groupwidget.h
         media/DescriptionWidget.cpp
@@ -694,7 +700,6 @@ endif()
 
 set(mmapper_UIS
     client/ClientWidget.ui
-    clock/mumeclockwidget.ui
     mainwindow/aboutdialog.ui
     mainwindow/infomarkseditdlg.ui
     mainwindow/findroomsdlg.ui
@@ -712,6 +717,12 @@ set(mmapper_UIS
     preferences/parserpage.ui
     preferences/pathmachinepage.ui
 )
+
+if(NOT WITH_QML)
+    # MumeClockWidget's .ui; ClockAdapter (used instead when WITH_QML) has no
+    # widget of its own, so there is nothing to AUTOUIC on that path.
+    list(APPEND mmapper_UIS clock/mumeclockwidget.ui)
+endif()
 
 if(MMAPPER_IS_DEBUG)
     if(NOT DEFINED CHECK_ODR)
@@ -792,6 +803,8 @@ if(WITH_QML)
     set_source_files_properties(qml/GroupPanel.qml PROPERTIES QT_RESOURCE_ALIAS "GroupPanel.qml")
     set_source_files_properties(qml/DescriptionPanel.qml PROPERTIES QT_RESOURCE_ALIAS "DescriptionPanel.qml")
     set_source_files_properties(qml/TasksPanel.qml PROPERTIES QT_RESOURCE_ALIAS "TasksPanel.qml")
+    set_source_files_properties(qml/XpStatusItem.qml PROPERTIES QT_RESOURCE_ALIAS "XpStatusItem.qml")
+    set_source_files_properties(qml/ClockStrip.qml PROPERTIES QT_RESOURCE_ALIAS "ClockStrip.qml")
 
     qt_add_qml_module(mm_qml
         STATIC
@@ -809,6 +822,8 @@ if(WITH_QML)
             qml/GroupPanel.qml
             qml/DescriptionPanel.qml
             qml/TasksPanel.qml
+            qml/XpStatusItem.qml
+            qml/ClockStrip.qml
         SOURCES
             qml/QmlDockWidget.h
             qml/QmlDockWidget.cpp

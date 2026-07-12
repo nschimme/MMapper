@@ -3,7 +3,6 @@
 
 #include "mainwindow-async.h"
 
-#include "../client/ClientWidget.h"
 #include "../display/MapCanvasData.h"
 #include "../display/mapcanvas.h"
 #include "../display/mapwindow.h"

@@ -12,7 +12,9 @@
 #include "../adventure/adventurewidget.h"
 #include "../adventure/xpstatuswidget.h"
 #endif
+#ifndef MMAPPER_WITH_QML
 #include "../client/ClientWidget.h"
+#endif
 #include "../client/HotkeyManager.h"
 #include "../clock/mumeclock.h"
 #ifndef MMAPPER_WITH_QML
@@ -64,6 +66,9 @@
 
 #ifdef MMAPPER_WITH_QML
 #include "../adventure/XpStatusAdapter.h"
+#include "../client/ClientController.h"
+#include "../client/ClientLineModel.h"
+#include "../client/ClientTelnetBackend.h"
 #include "../clock/ClockAdapter.h"
 #include "../group/GroupController.h"
 #include "../media/DescriptionAdapter.h"
@@ -251,7 +256,10 @@ MainWindow::MainWindow()
                 &GroupController::sig_center,
                 m_mapWindow,
                 &MapWindow::slot_centerOnWorldPos);
-        connect(m_qmlConfig, &QmlConfig::npcHideChanged, controller, &GroupController::refreshFilter);
+        connect(m_qmlConfig,
+                &QmlConfig::npcHideChanged,
+                controller,
+                &GroupController::refreshFilter);
         connect(m_qmlConfig,
                 &QmlConfig::npcSortBottomChanged,
                 controller,
@@ -490,6 +498,26 @@ MainWindow::MainWindow()
                                                       deref(m_gameObserver),
                                                       this);
 
+#ifdef MMAPPER_WITH_QML
+        auto *const model = new ClientLineModel(this);
+        auto *const controller = new ClientController(deref(model), deref(m_hotkeyManager), this);
+        controller->setBackend(std::make_unique<ClientTelnetBackend>(deref(listener), *controller));
+
+        auto *const dock = new QmlDockWidget(tr("Client Panel"), "DockWidgetClient", this);
+        dock->setAllowedAreas(Qt::AllDockWidgetAreas);
+        dock->setFeatures(QDockWidget::DockWidgetMovable | QDockWidget::DockWidgetFloatable
+                          | QDockWidget::DockWidgetClosable);
+        addDockWidget(Qt::RightDockWidgetArea, timers); // caution: this is different
+        addDockWidget(Qt::LeftDockWidgetArea, dock);
+        dock->setContextProperty("clientController", controller);
+        dock->setContextProperty("clientLineModel", model);
+        dock->setContextProperty("config", m_qmlConfig);
+        dock->setQmlSource(QUrl(QStringLiteral("qrc:/qt/qml/MMapper/ClientPanel.qml")));
+
+        m_listener = listener;
+        m_clientLineModel = model;
+        m_clientController = controller;
+#else
         auto *const w = new ClientWidget(deref(listener), deref(m_hotkeyManager), this);
         w->setObjectName("InternalMudClientWidget");
 
@@ -504,6 +532,7 @@ MainWindow::MainWindow()
 
         m_listener = listener;
         m_clientWidget = w;
+#endif
         m_dockDialogClient = dock;
     });
 
@@ -740,6 +769,33 @@ void MainWindow::wireConnections()
     connect(m_mumeClock, &MumeClock::sig_log, this, &MainWindow::slot_log);
 
     connect(m_listener, &ConnectionListener::sig_log, this, &MainWindow::slot_log);
+#ifdef MMAPPER_WITH_QML
+    // Mirrors ClientWidget::slot_onVisibilityChanged() (see ClientWidget.cpp):
+    // delay 500ms to distinguish a real hide/show from the dock briefly
+    // popping back in, then disconnect if hidden-while-connected or focus
+    // the input if shown-while-disconnected.
+    connect(m_dockDialogClient, &QDockWidget::visibilityChanged, this, [this](bool /*visible*/) {
+        if (!m_clientController->getUsingClient()) {
+            return;
+        }
+        QTimer::singleShot(500, this, [this]() {
+            if (m_clientController->getConnected() && !m_dockDialogClient->isVisible()) {
+                m_clientController->disconnectFromMud();
+            } else if (!m_clientController->getConnected() && m_dockDialogClient->isVisible()) {
+                emit m_clientController->sig_requestInputFocus();
+            }
+        });
+    });
+    connect(m_listener, &ConnectionListener::sig_clientSuccessfullyConnected, this, [this]() {
+        if (!m_clientController->getUsingClient()) {
+            m_dockDialogClient->hide();
+        }
+    });
+    connect(m_clientController,
+            &ClientController::sig_relayMessage,
+            this,
+            [this](const QString &message) { showStatusShort(message); });
+#else
     connect(m_dockDialogClient,
             &QDockWidget::visibilityChanged,
             m_clientWidget,
@@ -752,6 +808,7 @@ void MainWindow::wireConnections()
     connect(m_clientWidget, &ClientWidget::sig_relayMessage, this, [this](const QString &message) {
         showStatusShort(message);
     });
+#endif
 
     // Find Room Dialog Connections
     connect(m_findRoomsDlg,
@@ -1147,16 +1204,39 @@ void MainWindow::createActions()
     saveLogAct = new QAction(QIcon::fromTheme("document-save", QIcon(":/icons/save.png")),
                              tr("Save Log as &Plain Text..."),
                              this);
+#ifdef MMAPPER_WITH_QML
+    // Mirrors ClientWidget::slot_saveLog() (see ClientWidget.cpp), reading
+    // from ClientLineModel instead of a QTextDocument.
+    connect(saveLogAct, &QAction::triggered, this, [this]() {
+        const QByteArray logContent = m_clientLineModel->toPlainText().toUtf8();
+        const QString newFileName = "log-"
+                                    + QDateTime::currentDateTime().toString("yyyyMMdd-hhmmss")
+                                    + ".txt";
+        QFileDialog::saveFileContent(logContent, newFileName);
+    });
+#else
     connect(saveLogAct, &QAction::triggered, m_clientWidget, &ClientWidget::slot_saveLog);
+#endif
     saveLogAct->setStatusTip(tr("Save log as plain text file"));
 
     saveLogAsHtmlAct = new QAction(QIcon::fromTheme("document-save", QIcon(":/icons/save.png")),
                                    tr("Save Log as &HTML..."),
                                    this);
+#ifdef MMAPPER_WITH_QML
+    // Mirrors ClientWidget::slot_saveLogAsHtml() (see ClientWidget.cpp).
+    connect(saveLogAsHtmlAct, &QAction::triggered, this, [this]() {
+        const QByteArray logContent = m_clientLineModel->toHtml().toUtf8();
+        const QString newFileNameHtml = "log-"
+                                        + QDateTime::currentDateTime().toString("yyyyMMdd-hhmmss")
+                                        + ".html";
+        QFileDialog::saveFileContent(logContent, newFileNameHtml);
+    });
+#else
     connect(saveLogAsHtmlAct,
             &QAction::triggered,
             m_clientWidget,
             &ClientWidget::slot_saveLogAsHtml);
+#endif
     saveLogAsHtmlAct->setStatusTip(tr("Save log as HTML file"));
 
     releaseAllPathsAct = new QAction(QIcon(":/icons/cancel.png"), tr("Release All Paths"), this);

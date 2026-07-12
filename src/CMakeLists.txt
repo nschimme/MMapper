@@ -33,26 +33,14 @@ set(mmapper_SRCS
     client/ClientTelnet.h
     client/ClientTelnetBackend.cpp
     client/ClientTelnetBackend.h
-    client/ClientWidget.cpp
-    client/ClientWidget.h
     client/InputHistory.cpp
     client/InputHistory.h
-    client/PaletteManager.cpp
-    client/PaletteManager.h
     client/displaywidget.cpp
     client/displaywidget.h
-    client/inputwidget.cpp
-    client/inputwidget.h
-    client/stackedinputwidget.cpp
-    client/stackedinputwidget.h
     client/Hotkey.cpp
     client/Hotkey.h
     client/HotkeyManager.cpp
     client/HotkeyManager.h
-    client/PasswordDialog.cpp
-    client/PasswordDialog.h
-    client/PreviewWidget.cpp
-    client/PreviewWidget.h
     clock/ClockAdapter.cpp
     clock/ClockAdapter.h
     clock/ClockStrings.cpp
@@ -641,6 +629,18 @@ if(NOT WITH_QML)
         adventure/adventurewidget.h
         adventure/xpstatuswidget.cpp
         adventure/xpstatuswidget.h
+        client/ClientWidget.cpp
+        client/ClientWidget.h
+        client/PaletteManager.cpp
+        client/PaletteManager.h
+        client/PasswordDialog.cpp
+        client/PasswordDialog.h
+        client/PreviewWidget.cpp
+        client/PreviewWidget.h
+        client/inputwidget.cpp
+        client/inputwidget.h
+        client/stackedinputwidget.cpp
+        client/stackedinputwidget.h
         clock/mumeclockwidget.cpp
         clock/mumeclockwidget.h
         group/groupwidget.cpp
@@ -707,7 +707,6 @@ if(EMSCRIPTEN)
 endif()
 
 set(mmapper_UIS
-    client/ClientWidget.ui
     mainwindow/aboutdialog.ui
     mainwindow/infomarkseditdlg.ui
     mainwindow/findroomsdlg.ui
@@ -730,6 +729,9 @@ if(NOT WITH_QML)
     # MumeClockWidget's .ui; ClockAdapter (used instead when WITH_QML) has no
     # widget of its own, so there is nothing to AUTOUIC on that path.
     list(APPEND mmapper_UIS clock/mumeclockwidget.ui)
+    # ClientWidget's .ui; ClientPanel.qml (used instead when WITH_QML) is
+    # driven by ClientController rather than a generated ui_ClientWidget.h.
+    list(APPEND mmapper_UIS client/ClientWidget.ui)
 endif()
 
 if(MMAPPER_IS_DEBUG)

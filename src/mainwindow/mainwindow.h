@@ -33,7 +33,12 @@ class AutoLogger;
 #ifdef MMAPPER_WITH_QML
 class ClockAdapter;
 #endif
+#ifdef MMAPPER_WITH_QML
+class ClientController;
+class ClientLineModel;
+#else
 class ClientWidget;
+#endif
 class ConfigDialog;
 class ConnectionListener;
 class ConnectionSelection;
@@ -143,7 +148,12 @@ private:
 #endif
     RoomManager *m_roomManager = nullptr;
 
+#ifdef MMAPPER_WITH_QML
+    ClientController *m_clientController = nullptr;
+    ClientLineModel *m_clientLineModel = nullptr;
+#else
     ClientWidget *m_clientWidget = nullptr;
+#endif
     UpdateDialog *m_updateDialog = nullptr;
 
     AdventureTracker *m_adventureTracker = nullptr;

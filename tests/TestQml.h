@@ -17,6 +17,7 @@ public:
 private Q_SLOTS:
     void initTestCase();
     void loadPanelFrame();
+    void loadPanelHeaderRow();
     void qmlDockWidgetFallback();
     void qmlDockWidgetLoads();
     void loadTimerPanel();

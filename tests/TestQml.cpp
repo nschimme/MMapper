@@ -118,6 +118,44 @@ void TestQml::loadPanelFrame()
     QVERIFY(object != nullptr);
 }
 
+void TestQml::loadPanelHeaderRow()
+{
+    QQmlEngine engine;
+    QQmlComponent component(&engine);
+
+    // Instantiate PanelHeaderRow directly with a literal columns array (a
+    // couple of fixed-width columns plus a fillWidth column, mirroring
+    // GroupPanel.qml's/TimerPanel.qml's usage) rather than injecting the
+    // columns via QObject::setProperty() after creation: writing a
+    // QVariantList to a "property var" that way crashes inside QV4's
+    // ExecutionEngine::fromData() when the item has no owning QQuickWindow,
+    // whereas a literal QML binding goes through the normal compiled
+    // binding path and works fine.
+    component.setData(QByteArrayLiteral("import QtQuick\n"
+                                        "import MMapper\n"
+                                        "PanelHeaderRow {\n"
+                                        "    width: 400\n"
+                                        "    columns: [\n"
+                                        "        { text: \"Name\", width: 140 },\n"
+                                        "        { text: \"Room Name\", fillWidth: true }\n"
+                                        "    ]\n"
+                                        "}\n"),
+                      QUrl(u"qrc:/qt/qml/MMapper/PanelHeaderRowTest.qml"_qs));
+
+    while (component.isLoading()) {
+        QCoreApplication::processEvents();
+    }
+
+    QVERIFY2(!component.isError(), qPrintable(component.errorString()));
+
+    QScopedPointer<QObject> object(component.create(engine.rootContext()));
+    QVERIFY(object != nullptr);
+    QCoreApplication::processEvents();
+
+    QCOMPARE(object->property("columns").toList().size(), 2);
+    QVERIFY(object->property("implicitHeight").toReal() > 0);
+}
+
 void TestQml::qmlDockWidgetFallback()
 {
     QmlDockWidget dock("t", "TestDock", nullptr);

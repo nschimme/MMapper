@@ -782,6 +782,7 @@ if(WITH_QML)
     # rooted at the module (i.e. "PanelFrame.qml") so QML sources are loadable
     # as qrc:/qt/qml/MMapper/<File>.qml.
     set_source_files_properties(qml/PanelFrame.qml PROPERTIES QT_RESOURCE_ALIAS "PanelFrame.qml")
+    set_source_files_properties(qml/PanelHeaderRow.qml PROPERTIES QT_RESOURCE_ALIAS "PanelHeaderRow.qml")
     set_source_files_properties(qml/TimerPanel.qml PROPERTIES QT_RESOURCE_ALIAS "TimerPanel.qml")
     set_source_files_properties(qml/AdventurePanel.qml PROPERTIES QT_RESOURCE_ALIAS "AdventurePanel.qml")
     set_source_files_properties(qml/RoomPanel.qml PROPERTIES QT_RESOURCE_ALIAS "RoomPanel.qml")
@@ -797,6 +798,7 @@ if(WITH_QML)
         PLUGIN_TARGET mm_qmlplugin
         QML_FILES
             qml/PanelFrame.qml
+            qml/PanelHeaderRow.qml
             qml/TimerPanel.qml
             qml/AdventurePanel.qml
             qml/RoomPanel.qml

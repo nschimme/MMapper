@@ -25,6 +25,36 @@ PanelFrame {
     readonly property int statsVisibleCount: groupModel.anyMana ? 3 : 2
     readonly property real roomW: Math.max(40, width - nameW - stateW - statW * statsVisibleCount)
 
+    // Rebuilt whenever groupModel.anyMana changes so the Mana column
+    // appears/disappears and the Room Name column's width (roomW, which
+    // itself depends on statsVisibleCount) stays in sync.
+    readonly property var headerColumns: {
+        var cols = [{
+                text: qsTr("Name"),
+                width: nameW
+            }, {
+                text: qsTr("HP"),
+                width: statW
+            }];
+        if (groupModel.anyMana) {
+            cols.push({
+                text: qsTr("Mana"),
+                width: statW
+            });
+        }
+        cols.push({
+            text: qsTr("Moves"),
+            width: statW
+        }, {
+            text: qsTr("State"),
+            width: stateW
+        }, {
+            text: qsTr("Room Name"),
+            width: roomW
+        });
+        return cols;
+    }
+
     function openMenuFor(index) {
         contextMenu.rowIndex = index;
         contextMenu.popup();
@@ -112,66 +142,10 @@ PanelFrame {
         anchors.fill: parent
         spacing: 0
 
-        Row {
+        PanelHeaderRow {
             id: headerRow
             width: parent.width
-            height: rowH
-
-            Text {
-                width: nameW
-                height: rowH
-                leftPadding: 4
-                verticalAlignment: Text.AlignVCenter
-                font.bold: true
-                text: qsTr("Name")
-                color: root.panelPalette.text
-            }
-            Text {
-                width: statW
-                height: rowH
-                horizontalAlignment: Text.AlignHCenter
-                verticalAlignment: Text.AlignVCenter
-                font.bold: true
-                text: qsTr("HP")
-                color: root.panelPalette.text
-            }
-            Text {
-                width: statW
-                height: rowH
-                horizontalAlignment: Text.AlignHCenter
-                verticalAlignment: Text.AlignVCenter
-                font.bold: true
-                visible: groupModel.anyMana
-                text: qsTr("Mana")
-                color: root.panelPalette.text
-            }
-            Text {
-                width: statW
-                height: rowH
-                horizontalAlignment: Text.AlignHCenter
-                verticalAlignment: Text.AlignVCenter
-                font.bold: true
-                text: qsTr("Moves")
-                color: root.panelPalette.text
-            }
-            Text {
-                width: stateW
-                height: rowH
-                horizontalAlignment: Text.AlignHCenter
-                verticalAlignment: Text.AlignVCenter
-                font.bold: true
-                text: qsTr("State")
-                color: root.panelPalette.text
-            }
-            Text {
-                width: root.roomW
-                height: rowH
-                leftPadding: 4
-                verticalAlignment: Text.AlignVCenter
-                font.bold: true
-                text: qsTr("Room Name")
-                color: root.panelPalette.text
-            }
+            columns: root.headerColumns
         }
 
         ListView {

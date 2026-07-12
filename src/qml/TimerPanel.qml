@@ -9,6 +9,16 @@ PanelFrame {
     // Context properties expected to be set by C++ before this component is
     // instantiated: timerModel (TimerModel), timerController (TimerController).
 
+    // Widest expected rendering of TimerModel's "time" role (see formatMs()
+    // in TimerModel.cpp: unpadded hour count, then zero-padded "mm:ss", with
+    // a leading "-" once a countdown goes negative). Sized generously enough
+    // to fit double-digit hours without needing to remeasure per row.
+    TextMetrics {
+        id: timeMetrics
+        text: "-99:59:59"
+    }
+    readonly property real timeW: timeMetrics.advanceWidth + 16
+
     function openMenuFor(index) {
         contextMenu.rowIndex = index;
         contextMenu.popup();
@@ -37,9 +47,27 @@ PanelFrame {
         }
     }
 
+    PanelHeaderRow {
+        id: headerRow
+        width: parent.width
+        columns: [
+            {
+                text: qsTr("Name"),
+                fillWidth: true
+            },
+            {
+                text: qsTr("Time"),
+                width: root.timeW
+            }
+        ]
+    }
+
     ListView {
         id: listView
-        anchors.fill: parent
+        anchors.top: headerRow.bottom
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.bottom: parent.bottom
         clip: true
         model: timerModel
 

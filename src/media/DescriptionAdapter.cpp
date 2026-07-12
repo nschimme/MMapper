@@ -12,6 +12,7 @@
 
 #include <memory>
 
+#include <QDebug>
 #include <QFont>
 #include <QMutexLocker>
 #include <QRegularExpression>
@@ -22,6 +23,14 @@ DescriptionAdapter::DescriptionAdapter(MediaLibrary &library, QObject *const par
     , m_store(std::make_shared<DescriptionImageStore>())
 {
     resolveConfig();
+
+    if (m_library.numImages() == 0) {
+        qWarning().noquote() << "[description] MediaLibrary has no image files indexed; room/area"
+                                "backgrounds will never appear. Install background images under"
+                             << (getConfig().canvas.resourcesDirectory + "/areas") << "or"
+                             << (getConfig().canvas.resourcesDirectory + "/rooms")
+                             << "(Preferences > General > Resources Directory controls this path).";
+    }
 
     connect(&m_library, &MediaLibrary::sig_mediaChanged, this, [this]() {
         m_imageCache.clear();
@@ -82,7 +91,7 @@ QImage *DescriptionAdapter::loadAndCacheImage(const QString &imagePath)
     } else {
         std::unique_ptr<QImage> temp = std::make_unique<QImage>();
         if (!temp->load(imagePath) || temp->isNull()) {
-            qWarning() << "Failed to load image:" << imagePath;
+            qWarning() << "[description] Failed to load image:" << imagePath;
             return nullptr;
         }
         m_imageCache.insert(imagePath, temp.release());
@@ -98,6 +107,12 @@ void DescriptionAdapter::resolveImage()
         QMutexLocker<QMutex> locker(&m_store->mutex);
         m_store->base = (pImage && !pImage->isNull()) ? *pImage : QImage();
         ++m_store->rev;
+        if (m_store->base.isNull()) {
+            qInfo() << "[description] resolveImage: cleared (no image); rev" << m_store->rev;
+        } else {
+            qInfo() << "[description] resolveImage: rev" << m_store->rev << "size"
+                    << m_store->base.size();
+        }
     }
 
     emit sig_changed();
@@ -148,15 +163,17 @@ void DescriptionAdapter::updateRoom(const RoomHandle &r)
 
     QString newFileName;
     const ServerRoomId id = r.getServerId();
+    const QString roomKey = QString::number(id.asUint32());
     if (id != INVALID_SERVER_ROOMID) {
-        newFileName = m_library.findImage("rooms", QString::number(id.asUint32()));
+        newFileName = m_library.findImage("rooms", roomKey);
     }
 
+    const RoomArea &area = r.getArea();
+    static const QRegularExpression regex("^the\\s+");
+    QString areaName = area.toQString().toLower().remove(regex).replace(' ', '-');
+    mmqt::toAsciiInPlace(areaName);
+
     if (newFileName.isEmpty()) {
-        const RoomArea &area = r.getArea();
-        static const QRegularExpression regex("^the\\s+");
-        QString areaName = area.toQString().toLower().remove(regex).replace(' ', '-');
-        mmqt::toAsciiInPlace(areaName);
         newFileName = m_library.findImage("areas", areaName);
     }
 
@@ -165,6 +182,13 @@ void DescriptionAdapter::updateRoom(const RoomHandle &r)
 
     if (newFileName != m_fileName) {
         m_fileName = newFileName;
+        if (newFileName.isEmpty()) {
+            qInfo() << "[description] updateRoom: no image found for room; serverId" << roomKey
+                    << "tried rooms/" + roomKey << "and areas/" + areaName;
+        } else {
+            qInfo() << "[description] updateRoom: serverId" << roomKey << "resolved to"
+                    << newFileName;
+        }
         resolveImage(); // emits sig_changed()
     } else {
         emit sig_changed();

@@ -16,7 +16,10 @@
 #include "../src/group/GroupModel.h"
 #include "../src/mainwindow/LogModel.h"
 #include "../src/mainwindow/TasksModel.h"
+#include "../src/map/Map.h"
+#include "../src/map/RawRoom.h"
 #include "../src/map/RoomHandle.h"
+#include "../src/map/mmapper2room.h"
 #include "../src/media/DescriptionAdapter.h"
 #include "../src/media/MediaLibrary.h"
 #include "../src/observer/gameobserver.h"
@@ -34,6 +37,7 @@
 #include <chrono>
 #include <thread>
 
+#include <QDir>
 #include <QFontMetricsF>
 #include <QImage>
 #include <QJSEngine>
@@ -51,6 +55,7 @@
 #include <QScopeGuard>
 #include <QScopedPointer>
 #include <QSignalSpy>
+#include <QTemporaryDir>
 #include <QtTest/QtTest>
 
 namespace { // anonymous
@@ -598,6 +603,122 @@ void TestQml::descriptionPanelBlurVisible()
                             .arg(sample.red())
                             .arg(sample.green())
                             .arg(sample.blue())));
+}
+
+void TestQml::descriptionAdapterRealResolution()
+{
+    // Exercises the real production image-resolution path end to end:
+    // MainWindow::updateDescriptionRoom -> DescriptionAdapter::updateRoom ->
+    // MediaLibrary::findImage -> DescriptionAdapter::loadAndCacheImage ->
+    // DescriptionImageStore -> DescriptionImageProvider::requestImage. The
+    // other Description* tests all go through setImageForTesting(), which
+    // bypasses this whole chain, so a regression anywhere in it (e.g. a
+    // MediaLibrary scan/key mismatch, or a resourcesDirectory that isn't
+    // being picked up) would ship undetected.
+    QTemporaryDir tempDir;
+    QVERIFY(tempDir.isValid());
+
+    QVERIFY(QDir(tempDir.path()).mkpath("areas"));
+    QVERIFY(QDir(tempDir.path()).mkpath("rooms"));
+
+    // "The Blue Mountains" is the room's RoomArea; DescriptionAdapter::
+    // updateRoom (DescriptionAdapter.cpp:~156-159) lowercases it, strips a
+    // leading "the ", replaces spaces with dashes, and ASCII-fies the
+    // result, so it must resolve to areas/blue-mountains.<ext>.
+    const QString areaImagePath = tempDir.path() + "/areas/blue-mountains.png";
+    {
+        QImage areaImage(200, 150, QImage::Format_ARGB32_Premultiplied);
+        areaImage.fill(Qt::blue);
+        QVERIFY(areaImage.save(areaImagePath, "PNG"));
+    }
+
+    // Nice-to-have: also cover the higher-priority rooms/<serverId>.<ext>
+    // lookup with a second, differently-sized fixture image so the two
+    // paths can't be confused with each other.
+    const QString roomImagePath = tempDir.path() + "/rooms/42.png";
+    {
+        QImage roomImage(64, 48, QImage::Format_ARGB32_Premultiplied);
+        roomImage.fill(Qt::red);
+        QVERIFY(roomImage.save(roomImagePath, "PNG"));
+    }
+
+    // MediaLibrary's constructor scans directories immediately, so the
+    // config override must be in place *before* library is constructed;
+    // TestQml's getAssetsPath() stub returns an empty path (see above), so
+    // resourcesDirectory is the only source scanPath() finds anything in.
+    const QString originalResourcesDir = getConfig().canvas.resourcesDirectory;
+    auto restoreConfig = qScopeGuard(
+        [originalResourcesDir]() { setConfig().canvas.resourcesDirectory = originalResourcesDir; });
+    setConfig().canvas.resourcesDirectory = tempDir.path();
+
+    MediaLibrary library;
+    QCOMPARE(library.numImages(), 2);
+
+    DescriptionAdapter adapter(library, nullptr);
+    DescriptionImageProvider provider(adapter.getStore());
+
+    auto requestSharpImage = [&provider](const QUrl &imageUrl, QSize *const size) {
+        // imageUrl is "image://description/sharp/<rev>"; requestImage()'s id
+        // parameter is everything after "image://description/", i.e. the
+        // URL's path with the leading '/' stripped.
+        const QString id = imageUrl.path().mid(1);
+        return provider.requestImage(id, size, QSize());
+    };
+
+    // --- Area-based resolution (no matching serverId) ---
+    {
+        ProgressCounter pc;
+        ExternalRawRoom raw;
+        raw.setId(ExternalRoomId{1});
+        raw.setArea(mmqt::makeRoomArea(QStringLiteral("The Blue Mountains")));
+        raw.setName(mmqt::makeRoomName(QStringLiteral("A Mountain Pass")));
+        raw.setDescription(mmqt::makeRoomDesc(QStringLiteral("A cold wind blows.")));
+
+        MapPair mapPair = Map::fromRooms(pc, {raw}, {});
+        const RoomHandle room = mapPair.modified.getRoomHandle(ExternalRoomId{1});
+        QVERIFY(room);
+
+        adapter.updateRoom(room);
+
+        const QUrl imageUrl = adapter.getImageUrl();
+        QVERIFY(!imageUrl.isEmpty());
+        QCOMPARE(imageUrl.toString(), QStringLiteral("image://description/sharp/1"));
+        QCOMPARE(adapter.getRoomName(), QStringLiteral("A Mountain Pass"));
+
+        QSize size;
+        const QImage img = requestSharpImage(imageUrl, &size);
+        QVERIFY(!img.isNull());
+        QCOMPARE(size, QSize(200, 150));
+        QCOMPARE(img.size(), QSize(200, 150));
+    }
+
+    // --- serverId-based resolution (rooms/<id> takes priority over area) ---
+    {
+        ProgressCounter pc;
+        ExternalRawRoom raw;
+        raw.setId(ExternalRoomId{2});
+        raw.setServerId(ServerRoomId{42});
+        // Deliberately a non-matching area, so a pass would prove the
+        // serverId lookup (not the area fallback) resolved the image.
+        raw.setArea(mmqt::makeRoomArea(QStringLiteral("Nowhere In Particular")));
+        raw.setName(mmqt::makeRoomName(QStringLiteral("Room 42")));
+        raw.setDescription(mmqt::makeRoomDesc(QStringLiteral("Some room.")));
+
+        MapPair mapPair = Map::fromRooms(pc, {raw}, {});
+        const RoomHandle room = mapPair.modified.getRoomHandle(ExternalRoomId{2});
+        QVERIFY(room);
+
+        adapter.updateRoom(room);
+
+        const QUrl imageUrl = adapter.getImageUrl();
+        QVERIFY(!imageUrl.isEmpty());
+
+        QSize size;
+        const QImage img = requestSharpImage(imageUrl, &size);
+        QVERIFY(!img.isNull());
+        QCOMPARE(size, QSize(64, 48));
+        QCOMPARE(img.size(), QSize(64, 48));
+    }
 }
 
 void TestQml::tasksModelEmpty()

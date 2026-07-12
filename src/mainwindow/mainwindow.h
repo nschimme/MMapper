@@ -70,6 +70,9 @@ class QWidget;
 class RoomEditAttrDlg;
 class RoomManager;
 class RoomSelection;
+#ifdef MMAPPER_WITH_QML
+class TasksModel;
+#endif
 #ifndef MMAPPER_WITH_QML
 class RoomWidget;
 #endif
@@ -151,6 +154,9 @@ private:
 #endif
 #ifndef MMAPPER_WITH_QML
     TimerWidget *m_timerWidget = nullptr;
+#endif
+#ifdef MMAPPER_WITH_QML
+    TasksModel *m_tasksModel = nullptr;
 #endif
     std::unique_ptr<HotkeyManager> m_hotkeyManager;
 

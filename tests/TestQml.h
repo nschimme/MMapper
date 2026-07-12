@@ -34,4 +34,5 @@ private Q_SLOTS:
     void tasksModelEmpty();
     void tasksModelHoldRemovalsRoundTrip();
     void tasksModelLifecycle();
+    void loadTasksPanel();
 };

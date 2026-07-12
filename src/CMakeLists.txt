@@ -261,8 +261,6 @@ set(mmapper_SRCS
     mainwindow/MapZoomSlider.h
     mainwindow/TasksModel.cpp
     mainwindow/TasksModel.h
-    mainwindow/TasksPanel.cpp
-    mainwindow/TasksPanel.h
     mainwindow/ThemeManager.cpp
     mainwindow/ThemeManager.h
     mainwindow/UpdateDialog.cpp
@@ -635,6 +633,8 @@ if(NOT WITH_QML)
         group/groupwidget.h
         media/DescriptionWidget.cpp
         media/DescriptionWidget.h
+        mainwindow/TasksPanel.cpp
+        mainwindow/TasksPanel.h
         roompanel/RoomWidget.cpp
         roompanel/RoomWidget.h
         timers/TimerDelegate.cpp
@@ -791,6 +791,7 @@ if(WITH_QML)
     set_source_files_properties(qml/LogPanel.qml PROPERTIES QT_RESOURCE_ALIAS "LogPanel.qml")
     set_source_files_properties(qml/GroupPanel.qml PROPERTIES QT_RESOURCE_ALIAS "GroupPanel.qml")
     set_source_files_properties(qml/DescriptionPanel.qml PROPERTIES QT_RESOURCE_ALIAS "DescriptionPanel.qml")
+    set_source_files_properties(qml/TasksPanel.qml PROPERTIES QT_RESOURCE_ALIAS "TasksPanel.qml")
 
     qt_add_qml_module(mm_qml
         STATIC
@@ -807,6 +808,7 @@ if(WITH_QML)
             qml/LogPanel.qml
             qml/GroupPanel.qml
             qml/DescriptionPanel.qml
+            qml/TasksPanel.qml
         SOURCES
             qml/QmlDockWidget.h
             qml/QmlDockWidget.cpp

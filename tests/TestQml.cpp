@@ -662,6 +662,28 @@ void TestQml::tasksModelLifecycle()
     QTRY_COMPARE_WITH_TIMEOUT(model.rowCount(), 0, 5000);
 }
 
+void TestQml::loadTasksPanel()
+{
+    // An empty registry is fine here: TasksPanel.qml must render (and show
+    // its "No running tasks" empty state) with zero rows.
+    TasksModel model;
+
+    QmlDockWidget dock("t", "TestDockTasks", nullptr);
+    dock.setContextProperty("tasksModel", &model);
+    dock.setQmlSource(QUrl(u"qrc:/qt/qml/MMapper/TasksPanel.qml"_qs));
+
+    QQuickWidget *const quick = dock.quickWidget();
+    QVERIFY(quick != nullptr);
+
+    while (quick->status() == QQuickWidget::Loading) {
+        QCoreApplication::processEvents();
+    }
+    QCoreApplication::processEvents();
+
+    QCOMPARE(quick->status(), QQuickWidget::Ready);
+    QVERIFY(quick->rootObject() != nullptr);
+}
+
 QTEST_MAIN(TestQml)
 
 #include "TestQml.moc"

@@ -48,7 +48,9 @@
 #include "../viewers/TopLevelWindows.h"
 #include "AudioVolumeSlider.h"
 #include "MapZoomSlider.h"
+#ifndef MMAPPER_WITH_QML
 #include "TasksPanel.h"
+#endif
 #include "UpdateDialog.h"
 #include "aboutdialog.h"
 #include "findroomsdlg.h"
@@ -69,6 +71,7 @@
 #include "../timers/TimerController.h"
 #include "../timers/TimerModel.h"
 #include "LogModel.h"
+#include "TasksModel.h"
 #endif
 
 #include <memory>
@@ -412,6 +415,19 @@ MainWindow::MainWindow()
 
     // Async commands
     std::invoke([this] {
+#ifdef MMAPPER_WITH_QML
+        auto *const model = new TasksModel(this);
+        auto *const dock = new QmlDockWidget(tr("Tasks Panel"), "DockWidgetTasks", this);
+        dock->setAllowedAreas(Qt::BottomDockWidgetArea | Qt::TopDockWidgetArea);
+        dock->setFeatures(QDockWidget::DockWidgetClosable | QDockWidget::DockWidgetFloatable
+                          | QDockWidget::DockWidgetMovable);
+        addDockWidget(Qt::BottomDockWidgetArea, dock);
+        dock->setContextProperty("tasksModel", model);
+        dock->setQmlSource(QUrl(QStringLiteral("qrc:/qt/qml/MMapper/TasksPanel.qml")));
+        dock->hide();
+
+        m_tasksModel = model;
+#else
         auto *const w = new TasksPanel{*this};
         auto *const dock = new QDockWidget(tr("Tasks Panel"), this);
         dock->setObjectName("DockWidgetTasks");
@@ -423,6 +439,7 @@ MainWindow::MainWindow()
         dock->hide();
 
         w->show();
+#endif
         m_dockDialogAsync = dock;
     });
 

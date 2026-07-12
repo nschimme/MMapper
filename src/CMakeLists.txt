@@ -814,6 +814,7 @@ if(WITH_QML)
     set_source_files_properties(qml/XpStatusItem.qml PROPERTIES QT_RESOURCE_ALIAS "XpStatusItem.qml")
     set_source_files_properties(qml/ClockStrip.qml PROPERTIES QT_RESOURCE_ALIAS "ClockStrip.qml")
     set_source_files_properties(qml/ClientDisplay.qml PROPERTIES QT_RESOURCE_ALIAS "ClientDisplay.qml")
+    set_source_files_properties(qml/ClientPanel.qml PROPERTIES QT_RESOURCE_ALIAS "ClientPanel.qml")
 
     qt_add_qml_module(mm_qml
         STATIC
@@ -834,6 +835,7 @@ if(WITH_QML)
             qml/XpStatusItem.qml
             qml/ClockStrip.qml
             qml/ClientDisplay.qml
+            qml/ClientPanel.qml
         SOURCES
             qml/QmlDockWidget.h
             qml/QmlDockWidget.cpp

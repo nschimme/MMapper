@@ -32,6 +32,30 @@ Rectangle {
         ? Math.max(1, Math.floor(listView.height / fm.lineSpacing))
         : 0
 
+    // True when the view is pinned to the bottom (the normal "live output"
+    // state); false once the user has scrolled up to read backlog. Callers
+    // (ClientPanel.qml) use this to decide whether to show the tail preview.
+    readonly property bool atEnd: stick
+
+    // PageUp/PageDown support for ClientPanel.qml's input area, mirroring
+    // ClientWidget.cpp's virt_scrollDisplay() (which nudges the widget's
+    // QScrollBar by one page). pageUp() disengages stick (the user is
+    // reading backlog now); pageDown() re-engages it using the same
+    // "were we already at the end" rule onMovementEnded uses, so paging all
+    // the way back down resumes autoscroll exactly like a manual drag-to-
+    // bottom would.
+    function pageUp() {
+        root.stick = false;
+        listView.contentY = Math.max(listView.originY, listView.contentY - listView.height);
+        listView.returnToBounds();
+    }
+    function pageDown() {
+        const maxY = listView.originY + Math.max(0, listView.contentHeight - listView.height);
+        listView.contentY = Math.min(maxY, listView.contentY + listView.height);
+        listView.returnToBounds();
+        root.stick = listView.atYEnd;
+    }
+
     ListView {
         id: listView
         objectName: "clientListView"

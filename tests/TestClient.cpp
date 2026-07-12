@@ -8,6 +8,7 @@
 #include "../src/client/HotkeyManager.h"
 #include "../src/client/InputHistory.h"
 #include "../src/configuration/configuration.h"
+#include "FakeClientBackend.h"
 
 #include <memory>
 
@@ -364,31 +365,6 @@ void TestClient::tabHistoryNextMatchCycling()
 
     setConfig().integratedClient.tabCompletionDictionarySize = savedCap;
 }
-
-namespace { // anonymous
-
-// Records every call made through the ClientControllerBackend seam so tests
-// can assert on them without a real ClientTelnet/socket.
-struct NODISCARD FakeBackend final : public ClientControllerBackend
-{
-    bool connected = false;
-    int connectCount = 0;
-    int disconnectCount = 0;
-    QStringList sentToMud;
-    QList<QPair<int, int>> windowSizes;
-
-private:
-    void virt_connectToMud() final { ++connectCount; }
-    void virt_disconnectFromMud() final { ++disconnectCount; }
-    NODISCARD bool virt_isConnected() const final { return connected; }
-    void virt_sendToMud(const QString &data) final { sentToMud.push_back(data); }
-    void virt_windowSizeChanged(const int width, const int height) final
-    {
-        windowSizes.push_back({width, height});
-    }
-};
-
-} // namespace
 
 void TestClient::controllerSplitCommands()
 {

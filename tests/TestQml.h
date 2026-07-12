@@ -40,4 +40,5 @@ private Q_SLOTS:
     void loadClockStrip();
     void clockAdapterNativeToolTip();
     void loadClientDisplay();
+    void loadClientPanel();
 };

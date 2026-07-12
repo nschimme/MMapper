@@ -6,7 +6,9 @@
 #include "../src/adventure/AdventureLogModel.h"
 #include "../src/adventure/XpStatusAdapter.h"
 #include "../src/adventure/adventuretracker.h"
+#include "../src/client/ClientController.h"
 #include "../src/client/ClientLineModel.h"
+#include "../src/client/HotkeyManager.h"
 #include "../src/clock/ClockAdapter.h"
 #include "../src/clock/mumeclock.h"
 #include "../src/configuration/configuration.h"
@@ -33,6 +35,7 @@
 #include "../src/timers/CTimers.h"
 #include "../src/timers/TimerController.h"
 #include "../src/timers/TimerModel.h"
+#include "FakeClientBackend.h"
 
 #include <algorithm>
 #include <atomic>
@@ -967,6 +970,93 @@ void TestQml::loadClientDisplay()
     } else {
         QVERIFY(foundGreen);
     }
+}
+
+void TestQml::loadClientPanel()
+{
+    ClientLineModel model;
+    HotkeyManager hotkeys;
+    hotkeys.resetToDefaults();
+    ClientController controller(model, hotkeys, nullptr);
+    auto backend = std::make_unique<FakeBackend>();
+    FakeBackend &fake = *backend;
+    fake.connected = true;
+    controller.setBackend(std::move(backend));
+    QmlConfig config;
+
+    QmlDockWidget dock("t", "TestDockClientPanel", nullptr);
+    dock.setContextProperty("clientController", &controller);
+    dock.setContextProperty("clientLineModel", &model);
+    dock.setContextProperty("config", &config);
+    dock.setQmlSource(QUrl(u"qrc:/qt/qml/MMapper/ClientPanel.qml"_qs));
+
+    QQuickWidget *const quick = dock.quickWidget();
+    QVERIFY(quick != nullptr);
+
+    while (quick->status() == QQuickWidget::Loading) {
+        QCoreApplication::processEvents();
+    }
+    QCoreApplication::processEvents();
+
+    QCOMPARE(quick->status(), QQuickWidget::Ready);
+    QVERIFY(quick->rootObject() != nullptr);
+
+    // Before play(), the welcome page is showing and there is no input area
+    // (or it is at least not the visible one). play() flips usingClient,
+    // which the QML binds the SplitView.visible / TextArea.visible off of.
+    controller.play();
+    QCoreApplication::processEvents();
+    QVERIFY(controller.getUsingClient());
+
+    QObject *const inputArea = quick->rootObject()->findChild<QObject *>(
+        QStringLiteral("clientInputArea"));
+    QVERIFY(inputArea != nullptr);
+    QVERIFY(inputArea->property("visible").toBool());
+
+    QObject *const passwordField = quick->rootObject()->findChild<QObject *>(
+        QStringLiteral("clientPasswordField"));
+    QVERIFY(passwordField != nullptr);
+    QVERIFY(!passwordField->property("visible").toBool());
+
+    // Toggling echo mode (as if a password prompt arrived) must swap which
+    // of the two input surfaces is visible.
+    controller.onEchoModeChanged(false);
+    QCoreApplication::processEvents();
+    QVERIFY(passwordField->property("visible").toBool());
+    QVERIFY(!inputArea->property("visible").toBool());
+
+    // Flip echo mode back on so the input area is the live one again for the
+    // key-delivery smoke test below.
+    controller.onEchoModeChanged(true);
+    QCoreApplication::processEvents();
+
+    // Text arriving from the "MUD" must grow the shared ClientLineModel
+    // (and therefore be visible through both the display and the panel).
+    const int rowsBefore = model.rowCount();
+    controller.onSendToUser(QStringLiteral("hello\n"));
+    QCoreApplication::processEvents();
+    QVERIFY(model.rowCount() > rowsBefore);
+
+    // Key-delivery smoke test: focus the input area and send a real F1 key
+    // press through the QQuickWidget's event pipeline (not a direct
+    // Q_INVOKABLE call), exercising Keys.onPressed's
+    // clientController.sendHotkey() path end-to-end. F1 is a default hotkey
+    // (see HotkeyManager.h's XFOREACH_DEFAULT_HOTKEYS) and, unlike letter
+    // keys, isn't claimed by any QAction/shortcut in this minimal test dock,
+    // so plain QTest::keyClick() delivery (no ShortcutOverride needed) is
+    // sufficient to reach Keys.onPressed.
+    dock.resize(300, 200);
+    dock.show();
+    QCoreApplication::processEvents();
+    QMetaObject::invokeMethod(inputArea, "forceActiveFocus");
+    QCoreApplication::processEvents();
+
+    QTest::keyClick(quick, Qt::Key_F1);
+    QCoreApplication::processEvents();
+
+    QVERIFY2(fake.sentToMud.contains(QStringLiteral("F1\n")),
+             qPrintable(QStringLiteral("sentToMud did not contain \"F1\\n\"; had: %1")
+                            .arg(fake.sentToMud.join(", "))));
 }
 
 QTEST_MAIN(TestQml)

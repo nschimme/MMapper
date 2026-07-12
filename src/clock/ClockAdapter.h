@@ -102,6 +102,17 @@ public:
     // the last sync epoch to now, and recomputes the countdown/tooltips.
     Q_INVOKABLE void clicked();
 
+    // ClockStrip.qml's HoverHandlers call these instead of using attached
+    // QtQuick.Controls ToolTip properties: a QtQuick.Controls ToolTip is a
+    // popup rendered *inside* the QQuickWidget's own (tiny, transparent)
+    // scene, so on macOS it ends up clipped by the widget's bounds,
+    // rendered transparently, or positioned relative to the wrong window --
+    // effectively illegible. QToolTip is a native, top-level, OS-drawn
+    // widget positioned at the screen cursor, so it renders correctly
+    // regardless of the QQuickWidget's own size/opacity/backend.
+    Q_INVOKABLE void showToolTip(const QString &text);
+    Q_INVOKABLE void hideToolTip();
+
 signals:
     void sig_changed();
 

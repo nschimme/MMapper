@@ -6,7 +6,9 @@
 #include "../configuration/configuration.h"
 #include "ClockStrings.h"
 
+#include <QCursor>
 #include <QDateTime>
+#include <QToolTip>
 
 ClockAdapter::ClockAdapter(GameObserver &observer, MumeClock &clock, QObject *const parent)
     : QObject(parent)
@@ -50,6 +52,16 @@ void ClockAdapter::clicked()
     auto moment = m_clock.getMumeMoment();
     updateTime(moment.toTimeOfDay());
     updateCountdown(moment);
+}
+
+void ClockAdapter::showToolTip(const QString &text)
+{
+    QToolTip::showText(QCursor::pos(), text);
+}
+
+void ClockAdapter::hideToolTip()
+{
+    QToolTip::hideText();
 }
 
 void ClockAdapter::updateTime(const MumeTimeEnum time)

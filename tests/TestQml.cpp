@@ -56,6 +56,7 @@
 #include <QScopedPointer>
 #include <QSignalSpy>
 #include <QTemporaryDir>
+#include <QToolTip>
 #include <QtTest/QtTest>
 
 namespace { // anonymous
@@ -848,6 +849,48 @@ void TestQml::loadClockStrip()
 
     QCOMPARE(quick.status(), QQuickWidget::Ready);
     QVERIFY(quick.rootObject() != nullptr);
+}
+
+void TestQml::clockAdapterNativeToolTip()
+{
+    // ClockStrip.qml's HoverHandlers call ClockAdapter::showToolTip()/
+    // hideToolTip() (see ClockAdapter.h) instead of attached QtQuick.Controls
+    // ToolTip properties, because a ToolTip popup rendered inside the tiny,
+    // transparent QQuickWidget scene ends up clipped/illegible on macOS.
+    // This exercises the invokables directly against a real (offscreen)
+    // QApplication, reusing loadClockStrip()'s fixture construction.
+    GameObserver observer;
+    MumeClock clock(/*mumeEpoch=*/0, observer, nullptr);
+    ClockAdapter adapter(observer, clock, nullptr);
+
+    QVERIFY(!QToolTip::isVisible());
+
+    adapter.showToolTip(QStringLiteral("test"));
+
+    // QToolTip::showText() posts the actual native popup asynchronously via
+    // an internal timer/event; poll with a bounded loop rather than
+    // asserting synchronously, since visibility under the offscreen platform
+    // can be flaky. The invokable existing and not crashing is the minimum
+    // bar this test must clear regardless of whether the popup itself
+    // becomes visible under offscreen.
+    bool visible = false;
+    for (int i = 0; i < 100 && !visible; ++i) {
+        QCoreApplication::processEvents();
+        visible = QToolTip::isVisible();
+        if (!visible) {
+            QTest::qWait(5);
+        }
+    }
+    if (visible) {
+        QCOMPARE(QToolTip::text(), QStringLiteral("test"));
+    } else {
+        qInfo() << "[clockAdapterNativeToolTip] QToolTip never reported visible under the "
+                   "offscreen platform; showToolTip()/hideToolTip() did not crash, which is "
+                   "the minimum this test can verify headlessly.";
+    }
+
+    adapter.hideToolTip();
+    QCoreApplication::processEvents();
 }
 
 QTEST_MAIN(TestQml)

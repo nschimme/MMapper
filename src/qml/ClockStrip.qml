@@ -1,5 +1,4 @@
 import QtQuick
-import QtQuick.Controls
 
 // QML-facing replacement for MumeClockWidget. A row of small text chips
 // (moon phase / season / weather / fog / countdown), each carrying the same
@@ -38,9 +37,9 @@ Item {
 
             HoverHandler {
                 id: moonHover
+                onHoveredChanged: hovered && clock.moonTooltip.length > 0
+                    ? clock.showToolTip(clock.moonTooltip) : clock.hideToolTip()
             }
-            ToolTip.visible: moonHover.hovered && clock.moonTooltip.length > 0
-            ToolTip.text: clock.moonTooltip
         }
 
         Rectangle {
@@ -57,9 +56,9 @@ Item {
 
             HoverHandler {
                 id: seasonHover
+                onHoveredChanged: hovered && clock.seasonTooltip.length > 0
+                    ? clock.showToolTip(clock.seasonTooltip) : clock.hideToolTip()
             }
-            ToolTip.visible: seasonHover.hovered && clock.seasonTooltip.length > 0
-            ToolTip.text: clock.seasonTooltip
         }
 
         Text {
@@ -68,9 +67,9 @@ Item {
 
             HoverHandler {
                 id: weatherHover
+                onHoveredChanged: hovered && clock.weatherTooltip.length > 0
+                    ? clock.showToolTip(clock.weatherTooltip) : clock.hideToolTip()
             }
-            ToolTip.visible: weatherHover.hovered && clock.weatherTooltip.length > 0
-            ToolTip.text: clock.weatherTooltip
         }
 
         Text {
@@ -79,9 +78,9 @@ Item {
 
             HoverHandler {
                 id: fogHover
+                onHoveredChanged: hovered && clock.fogTooltip.length > 0
+                    ? clock.showToolTip(clock.fogTooltip) : clock.hideToolTip()
             }
-            ToolTip.visible: fogHover.hovered && clock.fogTooltip.length > 0
-            ToolTip.text: clock.fogTooltip
         }
 
         Rectangle {
@@ -98,9 +97,9 @@ Item {
 
             HoverHandler {
                 id: countdownHover
+                onHoveredChanged: hovered && clock.countdownTooltip.length > 0
+                    ? clock.showToolTip(clock.countdownTooltip) : clock.hideToolTip()
             }
-            ToolTip.visible: countdownHover.hovered && clock.countdownTooltip.length > 0
-            ToolTip.text: clock.countdownTooltip
         }
     }
 

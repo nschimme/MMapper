@@ -823,9 +823,17 @@ if(WITH_QML)
         ${GLM_INCLUDE_DIR}
         ${IMMER_INCLUDE_DIR}
     )
-    add_dependencies(mm_qml glm immer mm_global mm_map)
+    add_dependencies(mm_qml mm_global mm_map)
+    if(NOT GLM_FOUND)
+        add_dependencies(mm_qml glm)
+    endif()
+    if(NOT IMMER_FOUND)
+        add_dependencies(mm_qml immer)
+    endif()
     # Qt's generated mm_qmlplugin_init.cpp lacks a trailing newline.
-    if(TARGET mm_qmlplugin_init)
+    # -Wnewline-eof is a Clang-only warning; GCC doesn't recognize the flag at all
+    # (not even to disable it), so only pass it under Clang.
+    if(TARGET mm_qmlplugin_init AND CMAKE_CXX_COMPILER_ID MATCHES "Clang")
         target_compile_options(mm_qmlplugin_init PRIVATE -Wno-error=newline-eof)
     endif()
 endif()

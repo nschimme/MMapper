@@ -87,6 +87,13 @@ TestQml::~TestQml() = default;
 void TestQml::initTestCase()
 {
     // Allows QQuickWidget to run without a GPU under the offscreen platform.
+    // This also now matches production: main.cpp pins the QML scene graph to the
+    // software backend for every platform (see the QQuickWindow::setGraphicsApi()
+    // call there), so this test exercises the same renderer the shipped app uses
+    // for its QQuickWidget dock panels, not just a headless-CI workaround.
+    // (Setting QQuickWindow::setGraphicsApi() here directly isn't an option: by the
+    // time initTestCase() runs, QTEST_MAIN has already constructed QApplication, and
+    // the graphics API must be fixed before the QGuiApplication is instantiated.)
     qputenv("QT_QUICK_BACKEND", "software");
     // Required before any getConfig()/setConfig() call (see
     // qmlConfigRoundTrip()); see also TestMainWindow and TestClock.

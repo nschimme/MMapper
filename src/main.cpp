@@ -181,8 +181,17 @@ int main(int argc, char **argv)
     }
 
 #ifdef MMAPPER_WITH_QML
-    QCoreApplication::setAttribute(Qt::AA_ShareOpenGLContexts);
-    QQuickWindow::setGraphicsApi(QSGRendererInterface::OpenGL);
+    // QQuickWidget dock panels are forced onto the software scene-graph backend.
+    // On macOS, the GL RHI backend composites via a QOpenGLContext that fights with the
+    // widget backing store's own Metal/CoreAnimation compositor once the same top-level
+    // window also hosts the map's native QOpenGLWindow (via createWindowContainer),
+    // corrupting the backing store with uninitialized garbage. The software backend
+    // renders each QQuickWidget into a QImage and blits it straight into the widget
+    // backing store, so no GL context is involved at all. The panels are simple 2D UI,
+    // so software rendering costs nothing noticeable. Once the map itself becomes a
+    // QQuickWindow scene-graph underlay (the end state of the QML migration, with no
+    // QQuickWidget in the picture), this can move back to a hardware-accelerated backend.
+    QQuickWindow::setGraphicsApi(QSGRendererInterface::Software);
     QQuickStyle::setStyle("Fusion");
 #endif
 

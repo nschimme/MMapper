@@ -84,27 +84,44 @@ that reference those properties at construction time silently fail.
 showing a blank dock. This is deliberate defense against a bad `.qml` file taking
 down the whole application.
 
-### Startup GL pinning (`main.cpp`)
+### Startup graphics API pinning (`main.cpp`)
 
-When `MMAPPER_WITH_QML` is defined, `main()` pins Qt Quick to the OpenGL RHI backend
-before `QApplication` is constructed:
+When `MMAPPER_WITH_QML` is defined, `main()` pins Qt Quick to the software scene-graph
+backend before `QApplication` is constructed:
 
 ```cpp
-QCoreApplication::setAttribute(Qt::AA_ShareOpenGLContexts);
-QQuickWindow::setGraphicsApi(QSGRendererInterface::OpenGL);
+QQuickWindow::setGraphicsApi(QSGRendererInterface::Software);
 QQuickStyle::setStyle("Fusion");
 ```
 
-This matters for two reasons:
+This was not the original design. Phase 1/2 pinned Quick to the OpenGL RHI backend
+instead (plus `Qt::AA_ShareOpenGLContexts`), on the theory that `QQuickWidget` needs a
+GL-based RHI backend to embed cleanly, and that keeping Quick and the map canvas's
+custom GL 3.3 / GLES 3.0 renderer (`OpenGLProber`/`OpenGLConfig`) on the same context
+family would let them eventually share a context.
 
-1. `QQuickWidget` needs a GL-based RHI backend to embed correctly inside a Widgets
-   window on all our target platforms; letting Qt auto-select (which can pick
-   Vulkan/Metal/Direct3D depending on platform) is not reliable here.
-2. MMapper's map canvas uses a custom GL 3.3 / GLES 3.0 renderer
-   (`OpenGLProber`/`OpenGLConfig`). Pinning Quick to OpenGL keeps both renderers on
-   the same GL context family, which is required for `AA_ShareOpenGLContexts` to do
-   anything useful and keeps the door open for sharing a context between the map
-   canvas and a future Quick-based overlay (see "Map canvas" below).
+That combination turned out to be broken on macOS: Qt 6.4 widget backing stores
+composite through Metal/CoreAnimation, not GL. Forcing the QQuickWidget dock panels
+onto the GL RHI backend gave each panel its own QOpenGLContext, and once the same
+top-level window also hosted the map's native `QOpenGLWindow` (via
+`createWindowContainer`), the two GL-vs-Metal compositing paths fought over the
+window's backing store. The visible symptom was severe artifacting: the native GL map
+rendered fine, but the surrounding widget backing store was left as uninitialized
+garbage, and the QML dock panels only partially composited on top of it.
+
+The software backend avoids the conflict entirely: each `QQuickWidget` renders its
+scene into a plain `QImage` and blits it into the widget backing store, with no GL
+context involved at all. `Qt::AA_ShareOpenGLContexts` is no longer needed either — it
+only mattered for sharing a GL-backed Quick context with the map canvas — so it has
+been removed. The panels are simple 2D UI (lists, text, buttons), so software
+rendering is not a meaningful performance cost.
+
+This is specific to the current `QQuickWidget`-in-a-Widgets-window architecture. Once
+the map canvas becomes a `QQuickWindow` scene-graph underlay (the phase described
+under "Map canvas" below), there is no more `QQuickWidget` and no more raw
+`QOpenGLWindow` sibling for it to conflict with — the whole top-level becomes a single
+Quick scene graph, and pinning back to a hardware-accelerated graphics API (OpenGL,
+Metal, or Vulkan/Direct3D via RHI auto-selection) will be revisited at that point.
 
 ### Qt 6.4 compatibility
 

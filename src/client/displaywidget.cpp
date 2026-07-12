@@ -417,42 +417,6 @@ void DisplayWidget::slot_displayText(const QStringView str)
     }
 }
 
-NODISCARD static QColor decodeColor(const AnsiColorRGB var)
-{
-    return QColor::fromRgb(var.r, var.g, var.b);
-}
-
-NODISCARD static QColor decodeColor(AnsiColor256 var, const bool intense)
-{
-    if (var.color < 8 && intense) {
-        var.color += 8;
-    }
-
-    return mmqt::ansi256toRgb(var.color);
-}
-
-NODISCARD static QColor decodeColor(const AnsiColorVariant var,
-                                    const QColor defaultColor,
-                                    const bool intense)
-{
-    if (var.hasRGB()) {
-        return decodeColor(var.getRGB());
-    }
-
-    if (var.has256()) {
-        return decodeColor(var.get256(), intense);
-    }
-
-    return defaultColor;
-}
-
-static void reverseInPlace(QColor &color)
-{
-    color.setRed(255 - color.red());
-    color.setGreen(255 - color.green());
-    color.setBlue(255 - color.blue());
-}
-
 RawAnsi updateFormat(QTextCharFormat &format,
                      const FontDefaults &defaults,
                      const RawAnsi &before,
@@ -527,15 +491,15 @@ RawAnsi updateFormat(QTextCharFormat &format,
     const bool reverse = updated.hasReverse();
     const bool intense = updated.hasBold();
 
-    auto bg = decodeColor(updated.bg, defaults.defaultBg, false);
-    auto fg = decodeColor(updated.fg, defaults.defaultFg, intense);
-    auto ul = decodeColor(updated.ul, defaults.getDefaultUl(), intense);
+    auto bg = mmqt::decodeColor(updated.bg, defaults.defaultBg, false);
+    auto fg = mmqt::decodeColor(updated.fg, defaults.defaultFg, intense);
+    auto ul = mmqt::decodeColor(updated.ul, defaults.getDefaultUl(), intense);
 
     if (reverse) {
         // was swap(fg, bg) before we supported underline color
-        ::reverseInPlace(fg);
-        ::reverseInPlace(bg);
-        ::reverseInPlace(ul);
+        mmqt::reverseInPlace(fg);
+        mmqt::reverseInPlace(bg);
+        mmqt::reverseInPlace(ul);
     }
 
     // Create a config setting and use it here if you really want to miss text that others will see!

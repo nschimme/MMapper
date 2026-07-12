@@ -25,6 +25,8 @@ set(mmapper_SRCS
     media/SfxManager.h
     media/StackBlur.cpp
     media/StackBlur.h
+    client/ClientLineModel.cpp
+    client/ClientLineModel.h
     client/ClientTelnet.cpp
     client/ClientTelnet.h
     client/ClientWidget.cpp
@@ -805,6 +807,7 @@ if(WITH_QML)
     set_source_files_properties(qml/TasksPanel.qml PROPERTIES QT_RESOURCE_ALIAS "TasksPanel.qml")
     set_source_files_properties(qml/XpStatusItem.qml PROPERTIES QT_RESOURCE_ALIAS "XpStatusItem.qml")
     set_source_files_properties(qml/ClockStrip.qml PROPERTIES QT_RESOURCE_ALIAS "ClockStrip.qml")
+    set_source_files_properties(qml/ClientDisplay.qml PROPERTIES QT_RESOURCE_ALIAS "ClientDisplay.qml")
 
     qt_add_qml_module(mm_qml
         STATIC
@@ -824,6 +827,7 @@ if(WITH_QML)
             qml/TasksPanel.qml
             qml/XpStatusItem.qml
             qml/ClockStrip.qml
+            qml/ClientDisplay.qml
         SOURCES
             qml/QmlDockWidget.h
             qml/QmlDockWidget.cpp

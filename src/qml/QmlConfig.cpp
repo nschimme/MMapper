@@ -5,11 +5,26 @@
 
 #include "../configuration/configuration.h"
 
+#include <QFont>
+
+namespace { // anonymous
+NODISCARD QFont resolveClientFont()
+{
+    QFont font;
+    font.fromString(getConfig().integratedClient.font);
+    return font;
+}
+} // namespace
+
 QmlConfig::QmlConfig(QObject *const parent)
     : QObject(parent)
     , m_npcHide(getConfig().groupManager.npcHide)
     , m_npcSortBottom(getConfig().groupManager.npcSortBottom)
     , m_groupColor(getConfig().groupManager.color)
+    , m_clientFontFamily(resolveClientFont().family())
+    , m_clientFontPointSize(resolveClientFont().pointSize())
+    , m_clientBgColor(getConfig().integratedClient.backgroundColor)
+    , m_clientFgColor(getConfig().integratedClient.foregroundColor)
 {}
 
 bool QmlConfig::getNpcHide() const
@@ -57,6 +72,26 @@ void QmlConfig::setGroupColor(const QColor &value)
     emit groupColorChanged();
 }
 
+QString QmlConfig::getClientFontFamily() const
+{
+    return resolveClientFont().family();
+}
+
+int QmlConfig::getClientFontPointSize() const
+{
+    return resolveClientFont().pointSize();
+}
+
+QColor QmlConfig::getClientBgColor() const
+{
+    return getConfig().integratedClient.backgroundColor;
+}
+
+QColor QmlConfig::getClientFgColor() const
+{
+    return getConfig().integratedClient.foregroundColor;
+}
+
 void QmlConfig::reload()
 {
     if (const bool value = getConfig().groupManager.npcHide; value != m_npcHide) {
@@ -70,5 +105,26 @@ void QmlConfig::reload()
     if (const QColor value = getConfig().groupManager.color; value != m_groupColor) {
         m_groupColor = value;
         emit groupColorChanged();
+    }
+    {
+        const QFont font = resolveClientFont();
+        if (const QString family = font.family(); family != m_clientFontFamily) {
+            m_clientFontFamily = family;
+            emit clientFontChanged();
+        }
+        if (const int pointSize = font.pointSize(); pointSize != m_clientFontPointSize) {
+            m_clientFontPointSize = pointSize;
+            emit clientFontChanged();
+        }
+    }
+    if (const QColor value = getConfig().integratedClient.backgroundColor;
+        value != m_clientBgColor) {
+        m_clientBgColor = value;
+        emit clientColorsChanged();
+    }
+    if (const QColor value = getConfig().integratedClient.foregroundColor;
+        value != m_clientFgColor) {
+        m_clientFgColor = value;
+        emit clientColorsChanged();
     }
 }

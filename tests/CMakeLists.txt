@@ -356,6 +356,24 @@ set_target_properties(
 )
 add_test(NAME TestRoomManager COMMAND TestRoomManager)
 
+# Client (ClientLineModel + shared ANSI decode helpers)
+set(client_line_model_SRCS
+        ../src/client/ClientLineModel.cpp
+        ../src/client/ClientLineModel.h
+)
+set(TestClient_SRCS TestClient.cpp TestClient.h)
+add_executable(TestClient ${TestClient_SRCS} ${client_line_model_SRCS})
+add_dependencies(TestClient mm_test mm_global)
+target_link_libraries(TestClient mm_test mm_global Qt6::Gui Qt6::Test coverage_config)
+set_target_properties(
+        TestClient PROPERTIES
+        CXX_STANDARD 20
+        CXX_STANDARD_REQUIRED ON
+        CXX_EXTENSIONS OFF
+        COMPILE_FLAGS "${WARNING_FLAGS}"
+)
+add_test(NAME TestClient COMMAND TestClient)
+
 # HotkeyManager
 set(hotkey_manager_SRCS
         ../src/client/Hotkey.cpp
@@ -435,7 +453,7 @@ if(WITH_QML)
     )
     add_executable(TestQml ${TestQml_SRCS} ${timer_test} ${adventure_SRCS} ${room_manager}
             ${log_model_SRCS} ${tasks_model_SRCS} ${group_SRCS} ${description_panel_SRCS}
-            ${clock_adapter_SRCS} ${xp_status_adapter_SRCS})
+            ${clock_adapter_SRCS} ${xp_status_adapter_SRCS} ${client_line_model_SRCS})
     add_dependencies(TestQml mm_qml mm_qmlplugin mm_test mm_global mm_map)
     target_link_libraries(TestQml
             mm_qml

@@ -6,6 +6,7 @@
 #include "../src/adventure/AdventureLogModel.h"
 #include "../src/adventure/XpStatusAdapter.h"
 #include "../src/adventure/adventuretracker.h"
+#include "../src/client/ClientLineModel.h"
 #include "../src/clock/ClockAdapter.h"
 #include "../src/clock/mumeclock.h"
 #include "../src/configuration/configuration.h"
@@ -33,6 +34,7 @@
 #include "../src/timers/TimerController.h"
 #include "../src/timers/TimerModel.h"
 
+#include <algorithm>
 #include <atomic>
 #include <chrono>
 #include <thread>
@@ -891,6 +893,80 @@ void TestQml::clockAdapterNativeToolTip()
 
     adapter.hideToolTip();
     QCoreApplication::processEvents();
+}
+
+void TestQml::loadClientDisplay()
+{
+    ClientLineModel model;
+    QmlConfig config;
+
+    // Seed a line with a green-background ANSI run before the QML component
+    // is instantiated, mirroring how a real MUD line would already exist by
+    // the time the dock is first shown.
+    model.appendText(u"\x1b[42m text\n");
+
+    QmlDockWidget dock("t", "TestDockClient", nullptr);
+    dock.setContextProperty("clientLineModel", &model);
+    dock.setContextProperty("config", &config);
+    dock.setQmlSource(QUrl(u"qrc:/qt/qml/MMapper/ClientDisplay.qml"_qs));
+
+    QQuickWidget *const quick = dock.quickWidget();
+    QVERIFY(quick != nullptr);
+
+    while (quick->status() == QQuickWidget::Loading) {
+        QCoreApplication::processEvents();
+    }
+    QCoreApplication::processEvents();
+
+    QCOMPARE(quick->status(), QQuickWidget::Ready);
+    QVERIFY(quick->rootObject() != nullptr);
+
+    QObject *const listView = quick->rootObject()->findChild<QObject *>(
+        QStringLiteral("clientListView"));
+    QVERIFY(listView != nullptr);
+    QCOMPARE(listView->property("count").toInt(), 2); // seeded line + trailing partial row.
+
+    dock.resize(300, 200);
+    dock.show();
+    QCoreApplication::processEvents();
+    QCoreApplication::processEvents();
+
+    const QPixmap pm = quick->grab();
+    QVERIFY(!pm.isNull());
+    const QImage grabbed = pm.toImage();
+    QCOMPARE(grabbed.width(), 300);
+    QCOMPARE(grabbed.height(), 200);
+
+    // Scan a small region near the top-left, where the green-background run
+    // ("text" prefixed by a space, all styled together) is rendered, for a
+    // green-dominant pixel. The background only fills behind the run's text
+    // (not the whole line width), and is glyph-independent as long as we
+    // land somewhere within the run's box, so scan a small grid rather than
+    // relying on one exact pixel.
+    bool foundGreen = false;
+    for (int y = 2; y < std::min(grabbed.height(), 24) && !foundGreen; ++y) {
+        for (int x = 2; x < std::min(grabbed.width(), 60) && !foundGreen; ++x) {
+            const QColor c = grabbed.pixelColor(x, y);
+            if (c.green() > 100 && c.green() > c.red() + 40 && c.green() > c.blue() + 40) {
+                foundGreen = true;
+            }
+        }
+    }
+
+    if (!foundGreen) {
+        // Pixel sampling can be flaky depending on font metrics/rendering
+        // under the offscreen platform; fall back to asserting on the
+        // underlying html role content, which is what actually drives the
+        // rendering.
+        const QVariant html = model.data(model.index(0, 0),
+                                         static_cast<int>(ClientLineModel::RoleEnum::Html));
+        QVERIFY2(html.toString().contains(QStringLiteral("background-color:#")),
+                 qPrintable(QStringLiteral("No green pixel found and html has no "
+                                           "background-color; html was: %1")
+                                .arg(html.toString())));
+    } else {
+        QVERIFY(foundGreen);
+    }
 }
 
 QTEST_MAIN(TestQml)

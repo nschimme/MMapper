@@ -6,6 +6,7 @@
 
 #include <QColor>
 #include <QObject>
+#include <QString>
 
 // Q_PROPERTY façade over the plain-struct GroupManagerSettings subgroup of
 // Configuration (see ../configuration/configuration.h). Unlike most other
@@ -28,12 +29,27 @@ class NODISCARD_QOBJECT QmlConfig final : public QObject
         bool npcSortBottom READ getNpcSortBottom WRITE setNpcSortBottom NOTIFY npcSortBottomChanged)
     Q_PROPERTY(QColor groupColor READ getGroupColor WRITE setGroupColor NOTIFY groupColorChanged)
 
+    // Read-only façade over integratedClient's font/color settings, resolved
+    // the same way DescriptionAdapter::resolveConfig() resolves its own
+    // font/color properties (see ../media/DescriptionAdapter.cpp). Used by
+    // ClientDisplay.qml. There are no setters: the integrated client's
+    // font/colors are only ever changed via the preferences dialog, which
+    // must call reload() afterward (same as every other property here).
+    Q_PROPERTY(QString clientFontFamily READ getClientFontFamily NOTIFY clientFontChanged)
+    Q_PROPERTY(int clientFontPointSize READ getClientFontPointSize NOTIFY clientFontChanged)
+    Q_PROPERTY(QColor clientBgColor READ getClientBgColor NOTIFY clientColorsChanged)
+    Q_PROPERTY(QColor clientFgColor READ getClientFgColor NOTIFY clientColorsChanged)
+
 private:
     // Cache of the last-known values, used only to detect external changes
     // in reload(); the getters below always read the live Configuration.
     bool m_npcHide = false;
     bool m_npcSortBottom = false;
     QColor m_groupColor;
+    QString m_clientFontFamily;
+    int m_clientFontPointSize = -1;
+    QColor m_clientBgColor;
+    QColor m_clientFgColor;
 
 public:
     explicit QmlConfig(QObject *parent = nullptr);
@@ -48,6 +64,11 @@ public:
     NODISCARD QColor getGroupColor() const;
     void setGroupColor(const QColor &value);
 
+    NODISCARD QString getClientFontFamily() const;
+    NODISCARD int getClientFontPointSize() const;
+    NODISCARD QColor getClientBgColor() const;
+    NODISCARD QColor getClientFgColor() const;
+
 public slots:
     // Re-syncs the cached values against the live Configuration and emits
     // the appropriate *Changed signals for anything that differs. Must be
@@ -59,4 +80,6 @@ signals:
     void npcHideChanged();
     void npcSortBottomChanged();
     void groupColorChanged();
+    void clientFontChanged();
+    void clientColorsChanged();
 };

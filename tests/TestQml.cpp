@@ -62,6 +62,7 @@
 #include <QSignalSpy>
 #include <QTemporaryDir>
 #include <QToolTip>
+#include <QWidget>
 #include <QtTest/QtTest>
 
 namespace { // anonymous
@@ -870,14 +871,13 @@ void TestQml::clockAdapterNativeToolTip()
 
     QVERIFY(!QToolTip::isVisible());
 
-    adapter.showToolTip(QStringLiteral("test"));
+    // No-widget fallback: setToolTipWidget() was never called, so
+    // showToolTip() must fall back to QCursor::pos() instead of
+    // dereferencing a null QPointer. This is the minimum contract the
+    // 3-argument invokable must uphold regardless of whether MainWindow
+    // wired up a hosting widget.
+    adapter.showToolTip(QStringLiteral("no widget"), 5, 5);
 
-    // QToolTip::showText() posts the actual native popup asynchronously via
-    // an internal timer/event; poll with a bounded loop rather than
-    // asserting synchronously, since visibility under the offscreen platform
-    // can be flaky. The invokable existing and not crashing is the minimum
-    // bar this test must clear regardless of whether the popup itself
-    // becomes visible under offscreen.
     bool visible = false;
     for (int i = 0; i < 100 && !visible; ++i) {
         QCoreApplication::processEvents();
@@ -887,11 +887,43 @@ void TestQml::clockAdapterNativeToolTip()
         }
     }
     if (visible) {
-        QCOMPARE(QToolTip::text(), QStringLiteral("test"));
+        QCOMPARE(QToolTip::text(), QStringLiteral("no widget"));
     } else {
         qInfo() << "[clockAdapterNativeToolTip] QToolTip never reported visible under the "
                    "offscreen platform; showToolTip()/hideToolTip() did not crash, which is "
                    "the minimum this test can verify headlessly.";
+    }
+
+    adapter.hideToolTip();
+    QCoreApplication::processEvents();
+
+    // With a hosting widget set, showToolTip()'s x/y scene coordinates must
+    // be mapped through that widget's mapToGlobal() rather than falling
+    // back to QCursor::pos(). There's no portable way to assert the exact
+    // resulting screen point under the offscreen platform, so this only
+    // verifies the widget-present path also doesn't crash and (when the
+    // popup does report visible) still carries the right text.
+    QWidget hostWidget;
+    hostWidget.resize(200, 100);
+    hostWidget.show();
+    adapter.setToolTipWidget(&hostWidget);
+
+    adapter.showToolTip(QStringLiteral("with widget"), 10, 10);
+
+    visible = false;
+    for (int i = 0; i < 100 && !visible; ++i) {
+        QCoreApplication::processEvents();
+        visible = QToolTip::isVisible();
+        if (!visible) {
+            QTest::qWait(5);
+        }
+    }
+    if (visible) {
+        QCOMPARE(QToolTip::text(), QStringLiteral("with widget"));
+    } else {
+        qInfo() << "[clockAdapterNativeToolTip] QToolTip never reported visible under the "
+                   "offscreen platform for the widget-mapped case either; showToolTip() did "
+                   "not crash, which is the minimum this test can verify headlessly.";
     }
 
     adapter.hideToolTip();

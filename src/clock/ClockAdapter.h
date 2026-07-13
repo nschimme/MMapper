@@ -10,7 +10,9 @@
 
 #include <QColor>
 #include <QObject>
+#include <QPointer>
 #include <QString>
+#include <QWidget>
 
 // QML-facing replacement for MumeClockWidget. Ports its update* logic (via
 // the shared clockstrings:: helpers in ClockStrings.h) and its
@@ -51,6 +53,13 @@ class NODISCARD_QOBJECT ClockAdapter final : public QObject
 private:
     Signal2Lifetime m_lifetime;
     MumeClock &m_clock;
+    // The QQuickWidget hosting ClockStrip.qml, used to translate the QML
+    // scene coordinates showToolTip() receives into global screen
+    // coordinates. Set post-construction (the widget doesn't exist yet when
+    // MainWindow constructs this adapter); QPointer so a widget destroyed
+    // out from under us just falls back to QCursor::pos() instead of
+    // dangling.
+    QPointer<QWidget> m_toolTipWidget;
 
     QString m_moonText;
     QString m_moonTooltip;
@@ -97,6 +106,12 @@ public:
     NODISCARD bool isShown() const { return m_shown; }
 
 public:
+    // Must be called once after the QQuickWidget hosting ClockStrip.qml is
+    // constructed (see MainWindow::setupStatusBar()); used by showToolTip()
+    // to map QML scene coordinates to global screen coordinates.
+    void setToolTipWidget(QWidget *widget) { m_toolTipWidget = widget; }
+
+public:
     // QML calls this from a TapHandler; replicates
     // MumeClockWidget::mousePressEvent(): forces precision to MINUTE, resets
     // the last sync epoch to now, and recomputes the countdown/tooltips.
@@ -110,7 +125,13 @@ public:
     // effectively illegible. QToolTip is a native, top-level, OS-drawn
     // widget positioned at the screen cursor, so it renders correctly
     // regardless of the QQuickWidget's own size/opacity/backend.
-    Q_INVOKABLE void showToolTip(const QString &text);
+    // x/y are the scene coordinates (relative to the hovered chip's
+    // top-left) reported by ClockStrip.qml's HoverHandlers via
+    // mapToItem(null, 0, 0); showToolTip() maps those to global screen
+    // coordinates via m_toolTipWidget before handing off to QToolTip, so the
+    // native popup lands next to the actual mouse position instead of at
+    // the QQuickWidget's own top-left corner (see setToolTipWidget()).
+    Q_INVOKABLE void showToolTip(const QString &text, qreal x, qreal y);
     Q_INVOKABLE void hideToolTip();
 
 signals:

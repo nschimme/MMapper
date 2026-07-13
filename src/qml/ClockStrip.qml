@@ -37,8 +37,14 @@ Item {
 
             HoverHandler {
                 id: moonHover
-                onHoveredChanged: hovered && clock.moonTooltip.length > 0
-                    ? clock.showToolTip(clock.moonTooltip) : clock.hideToolTip()
+                onHoveredChanged: {
+                    if (hovered && clock.moonTooltip.length > 0) {
+                        const p = parent.mapToItem(null, 0, 0);
+                        clock.showToolTip(clock.moonTooltip, p.x, p.y);
+                    } else {
+                        clock.hideToolTip();
+                    }
+                }
             }
         }
 
@@ -56,8 +62,14 @@ Item {
 
             HoverHandler {
                 id: seasonHover
-                onHoveredChanged: hovered && clock.seasonTooltip.length > 0
-                    ? clock.showToolTip(clock.seasonTooltip) : clock.hideToolTip()
+                onHoveredChanged: {
+                    if (hovered && clock.seasonTooltip.length > 0) {
+                        const p = parent.mapToItem(null, 0, 0);
+                        clock.showToolTip(clock.seasonTooltip, p.x, p.y);
+                    } else {
+                        clock.hideToolTip();
+                    }
+                }
             }
         }
 
@@ -67,8 +79,14 @@ Item {
 
             HoverHandler {
                 id: weatherHover
-                onHoveredChanged: hovered && clock.weatherTooltip.length > 0
-                    ? clock.showToolTip(clock.weatherTooltip) : clock.hideToolTip()
+                onHoveredChanged: {
+                    if (hovered && clock.weatherTooltip.length > 0) {
+                        const p = parent.mapToItem(null, 0, 0);
+                        clock.showToolTip(clock.weatherTooltip, p.x, p.y);
+                    } else {
+                        clock.hideToolTip();
+                    }
+                }
             }
         }
 
@@ -78,8 +96,14 @@ Item {
 
             HoverHandler {
                 id: fogHover
-                onHoveredChanged: hovered && clock.fogTooltip.length > 0
-                    ? clock.showToolTip(clock.fogTooltip) : clock.hideToolTip()
+                onHoveredChanged: {
+                    if (hovered && clock.fogTooltip.length > 0) {
+                        const p = parent.mapToItem(null, 0, 0);
+                        clock.showToolTip(clock.fogTooltip, p.x, p.y);
+                    } else {
+                        clock.hideToolTip();
+                    }
+                }
             }
         }
 
@@ -97,8 +121,14 @@ Item {
 
             HoverHandler {
                 id: countdownHover
-                onHoveredChanged: hovered && clock.countdownTooltip.length > 0
-                    ? clock.showToolTip(clock.countdownTooltip) : clock.hideToolTip()
+                onHoveredChanged: {
+                    if (hovered && clock.countdownTooltip.length > 0) {
+                        const p = parent.mapToItem(null, 0, 0);
+                        clock.showToolTip(clock.countdownTooltip, p.x, p.y);
+                    } else {
+                        clock.hideToolTip();
+                    }
+                }
             }
         }
     }

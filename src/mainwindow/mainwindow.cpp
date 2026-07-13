@@ -1800,6 +1800,11 @@ void MainWindow::setupStatusBar()
     clockQuick->rootContext()->setContextProperty("clock", clockAdapter);
     clockQuick->setSource(QUrl(QStringLiteral("qrc:/qt/qml/MMapper/ClockStrip.qml")));
     statusBar()->insertPermanentWidget(0, clockQuick);
+    // showToolTip() needs the hosting widget to map the QML scene
+    // coordinates ClockStrip.qml reports into global screen coordinates
+    // (see ClockAdapter::showToolTip()); clockQuick must already exist,
+    // hence this can't happen in ClockAdapter's own constructor.
+    clockAdapter->setToolTipWidget(clockQuick);
 
     m_clockAdapter = clockAdapter;
 

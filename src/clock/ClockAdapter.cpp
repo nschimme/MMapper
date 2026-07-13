@@ -6,9 +6,13 @@
 #include "../configuration/configuration.h"
 #include "ClockStrings.h"
 
+#include <cmath>
+
 #include <QCursor>
 #include <QDateTime>
+#include <QPoint>
 #include <QToolTip>
+#include <QWidget>
 
 ClockAdapter::ClockAdapter(GameObserver &observer, MumeClock &clock, QObject *const parent)
     : QObject(parent)
@@ -54,9 +58,13 @@ void ClockAdapter::clicked()
     updateCountdown(moment);
 }
 
-void ClockAdapter::showToolTip(const QString &text)
+void ClockAdapter::showToolTip(const QString &text, const qreal x, const qreal y)
 {
-    QToolTip::showText(QCursor::pos(), text);
+    const QPoint global = m_toolTipWidget ? m_toolTipWidget->mapToGlobal(
+                                                QPoint(static_cast<int>(std::lround(x)),
+                                                       static_cast<int>(std::lround(y))))
+                                          : QCursor::pos();
+    QToolTip::showText(global, text, m_toolTipWidget);
 }
 
 void ClockAdapter::hideToolTip()

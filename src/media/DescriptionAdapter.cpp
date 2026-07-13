@@ -152,6 +152,7 @@ void DescriptionAdapter::updateRoom(const RoomHandle &r)
     if (!r) {
         m_roomName.clear();
         m_roomDesc.clear();
+        m_lastLookupSummary.clear();
         if (!m_fileName.isEmpty()) {
             m_fileName.clear();
             resolveImage(); // emits sig_changed()
@@ -180,11 +181,17 @@ void DescriptionAdapter::updateRoom(const RoomHandle &r)
     m_roomName = r.getName().toQString();
     m_roomDesc = r.getDescription().toQString().simplified();
 
+    const QString roomsTried = "rooms/" + roomKey;
+    const QString areasTried = "areas/" + areaName;
+    m_lastLookupSummary = newFileName.isEmpty()
+                              ? QStringLiteral("no image: %1, %2").arg(roomsTried, areasTried)
+                              : QString();
+
     if (newFileName != m_fileName) {
         m_fileName = newFileName;
         if (newFileName.isEmpty()) {
             qInfo() << "[description] updateRoom: no image found for room; serverId" << roomKey
-                    << "tried rooms/" + roomKey << "and areas/" + areaName;
+                    << "tried" << roomsTried << "and" << areasTried;
         } else {
             qInfo() << "[description] updateRoom: serverId" << roomKey << "resolved to"
                     << newFileName;

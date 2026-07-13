@@ -95,4 +95,22 @@ PanelFrame {
             }
         }
     }
+
+    // Diagnostic for "no image showing" bug reports (see
+    // DescriptionAdapter::lastLookupSummary): only shown once a room is
+    // selected and no image resolved for it, so it never appears in the
+    // normal case where everything is working.
+    Text {
+        id: lookupSummaryText
+        objectName: "lookupSummaryText"
+        anchors.right: parent.right
+        anchors.bottom: parent.bottom
+        anchors.margins: 4
+        opacity: 0.4
+        color: adapter.fgColor
+        font.family: adapter.fontFamily
+        font.pointSize: Math.max(1, fm.font.pointSize - 2)
+        text: adapter.lastLookupSummary
+        visible: adapter.imageUrl.toString() === "" && adapter.roomName !== ""
+    }
 }

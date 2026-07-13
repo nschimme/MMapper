@@ -40,6 +40,7 @@
 #include <algorithm>
 #include <atomic>
 #include <chrono>
+#include <memory>
 #include <thread>
 
 #include <QDir>
@@ -612,6 +613,103 @@ void TestQml::descriptionPanelBlurVisible()
                             .arg(sample.blue())));
 }
 
+namespace { // anonymous
+
+// Shared tempdir/room fixtures for the "real production image-resolution
+// path" tests (descriptionAdapterRealResolution and
+// descriptionPanelRealResolutionRenders): a MediaLibrary resourcesDirectory
+// with area- and serverId-keyed fixture images on disk, plus RoomHandles set
+// up to resolve via each path (and one that resolves via neither, for the
+// lastLookupSummary "miss" assertions). RoomHandle keeps the room data alive
+// via its own internal Map (COW) handle, so the MapPair used to build them
+// doesn't need to be kept alive by the caller.
+struct NODISCARD DescriptionRealResolutionFixture final
+{
+    QTemporaryDir tempDir;
+    QString originalResourcesDir;
+    // "The Blue Mountains" is the room's RoomArea; DescriptionAdapter::
+    // updateRoom lowercases it, strips a leading "the ", replaces spaces
+    // with dashes, and ASCII-fies the result, so it must resolve to
+    // areas/blue-mountains.<ext>. Fill color is blue, 200x150.
+    RoomHandle areaRoom;
+    // rooms/<serverId>.<ext> takes priority over the area fallback; uses a
+    // deliberately non-matching area so a pass proves the serverId lookup
+    // (not the area fallback) resolved the image. Fill color is red, 64x48.
+    RoomHandle roomIdRoom;
+    // Matches neither rooms/<serverId> nor areas/<areaKey>; used to assert
+    // DescriptionAdapter::lastLookupSummary on a lookup miss.
+    RoomHandle unknownRoom;
+
+    ~DescriptionRealResolutionFixture()
+    {
+        setConfig().canvas.resourcesDirectory = originalResourcesDir;
+    }
+};
+
+NODISCARD std::unique_ptr<DescriptionRealResolutionFixture> makeDescriptionRealResolutionFixture()
+{
+    auto fixture = std::make_unique<DescriptionRealResolutionFixture>();
+
+    if (!fixture->tempDir.isValid() || !QDir(fixture->tempDir.path()).mkpath("areas")
+        || !QDir(fixture->tempDir.path()).mkpath("rooms")) {
+        return nullptr;
+    }
+
+    const QString areaImagePath = fixture->tempDir.path() + "/areas/blue-mountains.png";
+    {
+        QImage areaImage(200, 150, QImage::Format_ARGB32_Premultiplied);
+        areaImage.fill(Qt::blue);
+        if (!areaImage.save(areaImagePath, "PNG")) {
+            return nullptr;
+        }
+    }
+
+    const QString roomImagePath = fixture->tempDir.path() + "/rooms/42.png";
+    {
+        QImage roomImage(64, 48, QImage::Format_ARGB32_Premultiplied);
+        roomImage.fill(Qt::red);
+        if (!roomImage.save(roomImagePath, "PNG")) {
+            return nullptr;
+        }
+    }
+
+    // MediaLibrary's constructor scans directories immediately, so the
+    // config override must be in place *before* the caller constructs it;
+    // TestQml's getAssetsPath() stub returns an empty path (see above), so
+    // resourcesDirectory is the only source scanPath() finds anything in.
+    fixture->originalResourcesDir = getConfig().canvas.resourcesDirectory;
+    setConfig().canvas.resourcesDirectory = fixture->tempDir.path();
+
+    ProgressCounter pc;
+    ExternalRawRoom areaRaw;
+    areaRaw.setId(ExternalRoomId{1});
+    areaRaw.setArea(mmqt::makeRoomArea(QStringLiteral("The Blue Mountains")));
+    areaRaw.setName(mmqt::makeRoomName(QStringLiteral("A Mountain Pass")));
+    areaRaw.setDescription(mmqt::makeRoomDesc(QStringLiteral("A cold wind blows.")));
+
+    ExternalRawRoom roomIdRaw;
+    roomIdRaw.setId(ExternalRoomId{2});
+    roomIdRaw.setServerId(ServerRoomId{42});
+    roomIdRaw.setArea(mmqt::makeRoomArea(QStringLiteral("Nowhere In Particular")));
+    roomIdRaw.setName(mmqt::makeRoomName(QStringLiteral("Room 42")));
+    roomIdRaw.setDescription(mmqt::makeRoomDesc(QStringLiteral("Some room.")));
+
+    ExternalRawRoom unknownRaw;
+    unknownRaw.setId(ExternalRoomId{3});
+    unknownRaw.setArea(mmqt::makeRoomArea(QStringLiteral("Totally Unknown Place")));
+    unknownRaw.setName(mmqt::makeRoomName(QStringLiteral("Nowhere")));
+    unknownRaw.setDescription(mmqt::makeRoomDesc(QStringLiteral("You are lost.")));
+
+    MapPair mapPair = Map::fromRooms(pc, {areaRaw, roomIdRaw, unknownRaw}, {});
+    fixture->areaRoom = mapPair.modified.getRoomHandle(ExternalRoomId{1});
+    fixture->roomIdRoom = mapPair.modified.getRoomHandle(ExternalRoomId{2});
+    fixture->unknownRoom = mapPair.modified.getRoomHandle(ExternalRoomId{3});
+
+    return fixture;
+}
+
+} // namespace
+
 void TestQml::descriptionAdapterRealResolution()
 {
     // Exercises the real production image-resolution path end to end:
@@ -622,41 +720,10 @@ void TestQml::descriptionAdapterRealResolution()
     // bypasses this whole chain, so a regression anywhere in it (e.g. a
     // MediaLibrary scan/key mismatch, or a resourcesDirectory that isn't
     // being picked up) would ship undetected.
-    QTemporaryDir tempDir;
-    QVERIFY(tempDir.isValid());
-
-    QVERIFY(QDir(tempDir.path()).mkpath("areas"));
-    QVERIFY(QDir(tempDir.path()).mkpath("rooms"));
-
-    // "The Blue Mountains" is the room's RoomArea; DescriptionAdapter::
-    // updateRoom (DescriptionAdapter.cpp:~156-159) lowercases it, strips a
-    // leading "the ", replaces spaces with dashes, and ASCII-fies the
-    // result, so it must resolve to areas/blue-mountains.<ext>.
-    const QString areaImagePath = tempDir.path() + "/areas/blue-mountains.png";
-    {
-        QImage areaImage(200, 150, QImage::Format_ARGB32_Premultiplied);
-        areaImage.fill(Qt::blue);
-        QVERIFY(areaImage.save(areaImagePath, "PNG"));
-    }
-
-    // Nice-to-have: also cover the higher-priority rooms/<serverId>.<ext>
-    // lookup with a second, differently-sized fixture image so the two
-    // paths can't be confused with each other.
-    const QString roomImagePath = tempDir.path() + "/rooms/42.png";
-    {
-        QImage roomImage(64, 48, QImage::Format_ARGB32_Premultiplied);
-        roomImage.fill(Qt::red);
-        QVERIFY(roomImage.save(roomImagePath, "PNG"));
-    }
-
-    // MediaLibrary's constructor scans directories immediately, so the
-    // config override must be in place *before* library is constructed;
-    // TestQml's getAssetsPath() stub returns an empty path (see above), so
-    // resourcesDirectory is the only source scanPath() finds anything in.
-    const QString originalResourcesDir = getConfig().canvas.resourcesDirectory;
-    auto restoreConfig = qScopeGuard(
-        [originalResourcesDir]() { setConfig().canvas.resourcesDirectory = originalResourcesDir; });
-    setConfig().canvas.resourcesDirectory = tempDir.path();
+    auto fixture = makeDescriptionRealResolutionFixture();
+    QVERIFY(fixture != nullptr);
+    QVERIFY(fixture->areaRoom);
+    QVERIFY(fixture->roomIdRoom);
 
     MediaLibrary library;
     QCOMPARE(library.numImages(), 2);
@@ -674,23 +741,14 @@ void TestQml::descriptionAdapterRealResolution()
 
     // --- Area-based resolution (no matching serverId) ---
     {
-        ProgressCounter pc;
-        ExternalRawRoom raw;
-        raw.setId(ExternalRoomId{1});
-        raw.setArea(mmqt::makeRoomArea(QStringLiteral("The Blue Mountains")));
-        raw.setName(mmqt::makeRoomName(QStringLiteral("A Mountain Pass")));
-        raw.setDescription(mmqt::makeRoomDesc(QStringLiteral("A cold wind blows.")));
-
-        MapPair mapPair = Map::fromRooms(pc, {raw}, {});
-        const RoomHandle room = mapPair.modified.getRoomHandle(ExternalRoomId{1});
-        QVERIFY(room);
-
-        adapter.updateRoom(room);
+        adapter.updateRoom(fixture->areaRoom);
 
         const QUrl imageUrl = adapter.getImageUrl();
         QVERIFY(!imageUrl.isEmpty());
         QCOMPARE(imageUrl.toString(), QStringLiteral("image://description/sharp/1"));
         QCOMPARE(adapter.getRoomName(), QStringLiteral("A Mountain Pass"));
+        // A hit must clear any previous lookup-miss diagnostic.
+        QCOMPARE(adapter.getLastLookupSummary(), QString());
 
         QSize size;
         const QImage img = requestSharpImage(imageUrl, &size);
@@ -701,24 +759,11 @@ void TestQml::descriptionAdapterRealResolution()
 
     // --- serverId-based resolution (rooms/<id> takes priority over area) ---
     {
-        ProgressCounter pc;
-        ExternalRawRoom raw;
-        raw.setId(ExternalRoomId{2});
-        raw.setServerId(ServerRoomId{42});
-        // Deliberately a non-matching area, so a pass would prove the
-        // serverId lookup (not the area fallback) resolved the image.
-        raw.setArea(mmqt::makeRoomArea(QStringLiteral("Nowhere In Particular")));
-        raw.setName(mmqt::makeRoomName(QStringLiteral("Room 42")));
-        raw.setDescription(mmqt::makeRoomDesc(QStringLiteral("Some room.")));
-
-        MapPair mapPair = Map::fromRooms(pc, {raw}, {});
-        const RoomHandle room = mapPair.modified.getRoomHandle(ExternalRoomId{2});
-        QVERIFY(room);
-
-        adapter.updateRoom(room);
+        adapter.updateRoom(fixture->roomIdRoom);
 
         const QUrl imageUrl = adapter.getImageUrl();
         QVERIFY(!imageUrl.isEmpty());
+        QCOMPARE(adapter.getLastLookupSummary(), QString());
 
         QSize size;
         const QImage img = requestSharpImage(imageUrl, &size);
@@ -726,6 +771,116 @@ void TestQml::descriptionAdapterRealResolution()
         QCOMPARE(size, QSize(64, 48));
         QCOMPARE(img.size(), QSize(64, 48));
     }
+
+    // --- lookup miss: lastLookupSummary must name both keys that were tried ---
+    {
+        QVERIFY(fixture->unknownRoom);
+        adapter.updateRoom(fixture->unknownRoom);
+
+        QVERIFY(adapter.getImageUrl().isEmpty());
+        const QString summary = adapter.getLastLookupSummary();
+        QVERIFY2(summary.contains(QStringLiteral("rooms/")), qPrintable(summary));
+        QVERIFY2(summary.contains(QStringLiteral("areas/")), qPrintable(summary));
+    }
+}
+
+void TestQml::descriptionPanelRealResolutionRenders()
+{
+    // Closes the last untested link in the description-image pipeline: the
+    // other DescriptionPanel tests (loadDescriptionPanel,
+    // descriptionPanelBlurVisible) go through setImageForTesting(), and
+    // descriptionAdapterRealResolution exercises real resolution but talks
+    // to DescriptionImageProvider::requestImage() directly rather than
+    // through an actual QML Image element. This test wires up a REAL
+    // MediaLibrary + DescriptionAdapter + REAL DescriptionImageProvider
+    // registered on a QmlDockWidget loading DescriptionPanel.qml, so a
+    // regression anywhere in QML Image -> image:// URL -> provider dispatch
+    // under the software backend -- with a real resolved file, not a
+    // synthetic in-memory image -- would be caught here.
+    auto fixture = makeDescriptionRealResolutionFixture();
+    QVERIFY(fixture != nullptr);
+    QVERIFY(fixture->areaRoom);
+    QVERIFY(fixture->unknownRoom);
+
+    MediaLibrary library;
+    QCOMPARE(library.numImages(), 2);
+
+    DescriptionAdapter adapter(library, nullptr);
+
+    QmlDockWidget dock("t", "TestDockDescriptionRealResolution", nullptr);
+    // Must be registered before setQmlSource(); the engine takes ownership.
+    dock.addImageProvider("description", new DescriptionImageProvider(adapter.getStore()));
+    dock.setContextProperty("adapter", &adapter);
+    dock.setQmlSource(QUrl(u"qrc:/qt/qml/MMapper/DescriptionPanel.qml"_qs));
+
+    QQuickWidget *const quick = dock.quickWidget();
+    QVERIFY(quick != nullptr);
+
+    while (quick->status() == QQuickWidget::Loading) {
+        QCoreApplication::processEvents();
+    }
+    QCoreApplication::processEvents();
+    QCOMPARE(quick->status(), QQuickWidget::Ready);
+    QVERIFY(quick->rootObject() != nullptr);
+
+    adapter.updateRoom(fixture->areaRoom);
+    QCoreApplication::processEvents();
+
+    QObject *const sharpImage = quick->rootObject()->findChild<QObject *>(
+        QStringLiteral("sharpImage"));
+    QVERIFY(sharpImage != nullptr);
+
+    // Image.Ready == 1. Poll with a bounded loop: the image provider request
+    // (which, unlike descriptionPanelBlurVisible's setImageForTesting() path,
+    // round-trips through real MediaLibrary file I/O) is dispatched
+    // asynchronously.
+    bool ready = false;
+    for (int i = 0; i < 200 && !ready; ++i) {
+        QCoreApplication::processEvents();
+        ready = sharpImage->property("status").toInt() == 1;
+        if (!ready) {
+            QTest::qWait(5);
+        }
+    }
+    QVERIFY2(ready, "sharpImage never reached Image.Ready status");
+
+    dock.resize(400, 300);
+    dock.show();
+    QCoreApplication::processEvents();
+    QCoreApplication::processEvents();
+
+    const QPixmap pm = quick->grab();
+    QVERIFY(!pm.isNull());
+    const QImage grabbed = pm.toImage();
+    QCOMPARE(grabbed.width(), 400);
+    QCOMPARE(grabbed.height(), 300);
+
+    // sharpImage is centered (PreserveAspectFit) over the panel; the fixture
+    // image is solid blue, so the panel's exact center must land inside it
+    // and read back blue-dominant.
+    const QColor sample = grabbed.pixelColor(grabbed.width() / 2, grabbed.height() / 2);
+    QVERIFY2(sample.blue() > 100 && sample.blue() > sample.red() + 40
+                 && sample.blue() > sample.green() + 40,
+             qPrintable(QStringLiteral("Center pixel not blue-dominant: rgb(%1,%2,%3)")
+                            .arg(sample.red())
+                            .arg(sample.green())
+                            .arg(sample.blue())));
+
+    // lastLookupSummary text visibility parity: known room -> empty/hidden;
+    // unknown room -> both lookup keys present in the on-screen diagnostic.
+    QObject *const lookupSummaryText = quick->rootObject()->findChild<QObject *>(
+        QStringLiteral("lookupSummaryText"));
+    QVERIFY(lookupSummaryText != nullptr);
+    QVERIFY(!lookupSummaryText->property("visible").toBool());
+    QCOMPARE(adapter.getLastLookupSummary(), QString());
+
+    adapter.updateRoom(fixture->unknownRoom);
+    QCoreApplication::processEvents();
+
+    QVERIFY(lookupSummaryText->property("visible").toBool());
+    const QString summaryText = lookupSummaryText->property("text").toString();
+    QVERIFY2(summaryText.contains(QStringLiteral("rooms/")), qPrintable(summaryText));
+    QVERIFY2(summaryText.contains(QStringLiteral("areas/")), qPrintable(summaryText));
 }
 
 void TestQml::tasksModelEmpty()

@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // Copyright (C) 2026 The MMapper Authors
 
-#include "../map/RoomHandle.h"
 #include "../global/macros.h"
+#include "../map/RoomHandle.h"
 #include "DescriptionImageStore.h"
 
 #include <memory>
@@ -43,6 +43,13 @@ class NODISCARD_QOBJECT DescriptionAdapter final : public QObject
     Q_PROPERTY(int fontPointSize READ getFontPointSize NOTIFY sig_changed)
     Q_PROPERTY(QUrl imageUrl READ getImageUrl NOTIFY sig_changed)
     Q_PROPERTY(QUrl blurUrl READ getBlurUrl NOTIFY sig_changed)
+    // Diagnostic for the "no image showing" bug reports: set to
+    // "no image: rooms/<id>, areas/<areaKey>" whenever updateRoom() can't
+    // resolve an image for the current room (empty when it can, or when
+    // there is no current room). Surfaced in DescriptionPanel.qml so users
+    // can screenshot the exact lookup keys MMapper tried instead of us
+    // having to walk them through enabling debug logging.
+    Q_PROPERTY(QString lastLookupSummary READ getLastLookupSummary NOTIFY sig_changed)
 
 private:
     MediaLibrary &m_library;
@@ -60,6 +67,7 @@ private:
     QColor m_fgColor;
     QString m_fontFamily;
     int m_fontPointSize = -1;
+    QString m_lastLookupSummary;
 
 public:
     explicit DescriptionAdapter(MediaLibrary &library, QObject *parent = nullptr);
@@ -90,6 +98,7 @@ public:
     NODISCARD int getFontPointSize() const { return m_fontPointSize; }
     NODISCARD QUrl getImageUrl() const;
     NODISCARD QUrl getBlurUrl() const;
+    NODISCARD QString getLastLookupSummary() const { return m_lastLookupSummary; }
 
 public slots:
     // Re-resolves colors/font from the live Configuration and emits

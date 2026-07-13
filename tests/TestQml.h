@@ -32,6 +32,7 @@ private Q_SLOTS:
     void loadDescriptionPanel();
     void descriptionPanelBlurVisible();
     void descriptionAdapterRealResolution();
+    void descriptionPanelRealResolutionRenders();
     void tasksModelEmpty();
     void tasksModelHoldRemovalsRoundTrip();
     void tasksModelLifecycle();

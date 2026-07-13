@@ -78,8 +78,22 @@ QVariant ClientLineModel::data(const QModelIndex &index, const int role) const
 
     const bool isPartialRow = (row == numFinished);
     switch (static_cast<RoleEnum>(role)) {
-    case RoleEnum::Html:
-        return isPartialRow ? m_partialHtml : m_finishedLines[static_cast<size_t>(row)].html;
+    case RoleEnum::Html: {
+        const QString &html = isPartialRow ? m_partialHtml
+                                           : m_finishedLines[static_cast<size_t>(row)].html;
+        if (html.isEmpty()) {
+            // An empty <div> would still collapse the line height in the
+            // delegate, so leave genuinely-empty lines as an empty string.
+            return html;
+        }
+        // QML Text.RichText (a subset of HTML) collapses runs of
+        // whitespace like a browser unless white-space is overridden, so
+        // wrap each line's html at the delivery point to preserve leading
+        // (and internal) spaces without touching the cached/stored html
+        // used by toHtml() export, which already sets white-space:pre-wrap
+        // at the <body> level.
+        return QStringLiteral("<div style=\"white-space:pre-wrap;\">%1</div>").arg(html);
+    }
     case RoleEnum::Plain:
         return isPartialRow ? m_partialPlain : m_finishedLines[static_cast<size_t>(row)].plain;
     }
@@ -236,8 +250,7 @@ void ClientLineModel::trimScrollback()
         return;
     }
     beginRemoveRows(QModelIndex(), 0, excess - 1);
-    m_finishedLines.erase(m_finishedLines.begin(),
-                          m_finishedLines.begin() + excess);
+    m_finishedLines.erase(m_finishedLines.begin(), m_finishedLines.begin() + excess);
     endRemoveRows();
 }
 

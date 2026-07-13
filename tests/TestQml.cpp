@@ -972,6 +972,89 @@ void TestQml::loadClientDisplay()
     }
 }
 
+void TestQml::clientDisplayLeadingWhitespaceRenders()
+{
+    // Renders two lines that only differ by a leading indent ("XX" vs
+    // "  XX") and asserts the indented line's ink starts strictly to the
+    // right of the unindented line's, catching a regression in
+    // ClientLineModel's Html-role delivery-point wrapping (see
+    // ClientLineModel::data()) even if the html role's raw string content
+    // stayed superficially correct but QML's RichText subset ignored the
+    // white-space override.
+    ClientLineModel model;
+    QmlConfig config;
+
+    model.appendText(u"XX\n  XX\n");
+
+    QmlDockWidget dock("t", "TestDockClientWhitespace", nullptr);
+    dock.setContextProperty("clientLineModel", &model);
+    dock.setContextProperty("config", &config);
+    dock.setQmlSource(QUrl(u"qrc:/qt/qml/MMapper/ClientDisplay.qml"_qs));
+
+    QQuickWidget *const quick = dock.quickWidget();
+    QVERIFY(quick != nullptr);
+
+    while (quick->status() == QQuickWidget::Loading) {
+        QCoreApplication::processEvents();
+    }
+    QCoreApplication::processEvents();
+
+    QCOMPARE(quick->status(), QQuickWidget::Ready);
+    QVERIFY(quick->rootObject() != nullptr);
+
+    QObject *const listView = quick->rootObject()->findChild<QObject *>(
+        QStringLiteral("clientListView"));
+    QVERIFY(listView != nullptr);
+    QCOMPARE(listView->property("count").toInt(), 3); // 2 finished lines + trailing partial row.
+
+    dock.resize(300, 200);
+    dock.show();
+    QCoreApplication::processEvents();
+    QCoreApplication::processEvents();
+
+    const qreal contentHeight = listView->property("contentHeight").toReal();
+    QVERIFY(contentHeight > 0);
+    // All three rows use the same font, so they're all the same height;
+    // dividing by the row count gives each line's vertical band.
+    const qreal rowHeight = contentHeight / 3.0;
+    QVERIFY(rowHeight > 1);
+
+    const QPixmap pm = quick->grab();
+    QVERIFY(!pm.isNull());
+    const QImage grabbed = pm.toImage();
+    QCOMPARE(grabbed.width(), 300);
+    QCOMPARE(grabbed.height(), 200);
+
+    const QColor bg = getConfig().integratedClient.backgroundColor;
+    auto isBackground = [&bg](const QColor &c) {
+        return qAbs(c.red() - bg.red()) <= 20 && qAbs(c.green() - bg.green()) <= 20
+               && qAbs(c.blue() - bg.blue()) <= 20;
+    };
+    auto firstInkX = [&](const int bandTop, const int bandBottom) -> int {
+        for (int x = 0; x < grabbed.width(); ++x) {
+            for (int y = bandTop; y < bandBottom; ++y) {
+                if (!isBackground(grabbed.pixelColor(x, y))) {
+                    return x;
+                }
+            }
+        }
+        return -1;
+    };
+
+    const int line1Bottom = std::max(1, static_cast<int>(rowHeight));
+    const int line2Bottom = std::min(grabbed.height(), static_cast<int>(rowHeight * 2));
+
+    const int line1Ink = firstInkX(0, line1Bottom);
+    const int line2Ink = firstInkX(line1Bottom, line2Bottom);
+
+    QVERIFY2(line1Ink >= 0, "No ink found on line 1 (\"XX\")");
+    QVERIFY2(line2Ink >= 0, "No ink found on line 2 (\"  XX\")");
+    QVERIFY2(line2Ink > line1Ink,
+             qPrintable(QStringLiteral("line2 ink (%1) not strictly right of line1 ink (%2)")
+                            .arg(line2Ink)
+                            .arg(line1Ink)));
+}
+
 void TestQml::loadClientPanel()
 {
     ClientLineModel model;

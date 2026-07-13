@@ -16,6 +16,7 @@ public:
 
 private Q_SLOTS:
     void plainTextLine();
+    void leadingWhitespacePreserved();
     void foregroundColor();
     void backgroundColor();
     void boldStyle();

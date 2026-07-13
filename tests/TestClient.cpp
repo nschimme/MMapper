@@ -44,8 +44,25 @@ void TestClient::plainTextLine()
     QCOMPARE(model.rowCount(), 2);
     QCOMPARE(plain(model, 0), QStringLiteral("Hello world"));
     QCOMPARE(plain(model, 1), QString());
-    // No ANSI styling was applied, so the html must have no <span> wrapper.
-    QCOMPARE(html(model, 0), QStringLiteral("Hello world"));
+    // No ANSI styling was applied, so the html must have no <span> wrapper,
+    // just the delivery-point white-space:pre-wrap div.
+    QCOMPARE(html(model, 0),
+             QStringLiteral("<div style=\"white-space:pre-wrap;\">Hello world</div>"));
+}
+
+void TestClient::leadingWhitespacePreserved()
+{
+    ClientLineModel model;
+    model.appendText(u"  indented\n");
+
+    QCOMPARE(plain(model, 0), QStringLiteral("  indented"));
+    QCOMPARE(html(model, 0),
+             QStringLiteral("<div style=\"white-space:pre-wrap;\">  indented</div>"));
+
+    // The always-present trailing partial row is empty, and must stay a
+    // plain empty string (not an empty div, which would still collapse the
+    // line height in the delegate).
+    QCOMPARE(html(model, 1), QString());
 }
 
 void TestClient::foregroundColor()

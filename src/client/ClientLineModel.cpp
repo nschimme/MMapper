@@ -230,14 +230,14 @@ void ClientLineModel::regeneratePartialCache()
 
 void ClientLineModel::trimScrollback()
 {
-    const int limit = std::max(0, getConfig().integratedClient.linesOfScrollback);
-    const int excess = static_cast<int>(m_finishedLines.size()) - limit;
+    const auto limit = std::max(0, getConfig().integratedClient.linesOfScrollback);
+    const auto excess = static_cast<int>(m_finishedLines.size()) - limit;
     if (excess <= 0) {
         return;
     }
     beginRemoveRows(QModelIndex(), 0, excess - 1);
     m_finishedLines.erase(m_finishedLines.begin(),
-                          m_finishedLines.begin() + static_cast<size_t>(excess));
+                          m_finishedLines.begin() + excess);
     endRemoveRows();
 }
 

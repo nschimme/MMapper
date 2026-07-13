@@ -370,7 +370,7 @@ set(client_line_model_SRCS
         ../src/client/InputHistory.cpp
         ../src/client/InputHistory.h
 )
-set(TestClient_SRCS TestClient.cpp TestClient.h)
+set(TestClient_SRCS TestClient.cpp TestClient.h FakeClientBackend.cpp FakeClientBackend.h)
 add_executable(TestClient ${TestClient_SRCS} ${client_line_model_SRCS})
 add_dependencies(TestClient mm_test mm_global mm_map)
 target_link_libraries(TestClient mm_map mm_test mm_global Qt6::Gui Qt6::Test Qt6::Network coverage_config)
@@ -423,7 +423,7 @@ add_test(NAME TestMedia COMMAND TestMedia)
 
 # QML
 if(WITH_QML)
-    set(TestQml_SRCS TestQml.cpp TestQml.h)
+    set(TestQml_SRCS TestQml.cpp TestQml.h FakeClientBackend.cpp FakeClientBackend.h)
     set(log_model_SRCS
             ../src/mainwindow/LogModel.cpp
             ../src/mainwindow/LogModel.h

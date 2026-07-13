@@ -12,6 +12,7 @@ public:
     explicit Outputs(ClientController &controller)
         : m_controller{controller}
     {}
+    ~Outputs() final;
 
 private:
     void virt_connected() final { m_controller.onConnected(); }
@@ -20,6 +21,8 @@ private:
     void virt_echoModeChanged(const bool echo) final { m_controller.onEchoModeChanged(echo); }
     void virt_sendToUser(const QString &data) final { m_controller.onSendToUser(data); }
 };
+
+ClientTelnetBackend::Outputs::~Outputs() = default;
 
 ClientTelnetBackend::ClientTelnetBackend(ConnectionListener &listener, ClientController &controller)
     : m_listener{listener}

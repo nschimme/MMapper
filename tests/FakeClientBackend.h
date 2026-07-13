@@ -22,6 +22,8 @@ struct NODISCARD FakeBackend final : public ClientControllerBackend
     QStringList sentToMud;
     QList<QPair<int, int>> windowSizes;
 
+    ~FakeBackend() final;
+
 private:
     void virt_connectToMud() final { ++connectCount; }
     void virt_disconnectFromMud() final { ++disconnectCount; }

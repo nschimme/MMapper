@@ -18,6 +18,33 @@ Rectangle {
     // must not yank the view back down.
     property bool stick: true
 
+    // Guards listView's onContentYChanged while autoscroll() itself is
+    // repositioning the view, so that programmatic repositioning doesn't
+    // get misread as the user scrolling away from the end. Without this,
+    // positionViewAtEnd()'s own contentY change would immediately flip
+    // stick back off (or on) based on a transient mid-scroll position.
+    property bool programmaticScroll: false
+
+    // Re-pins the view to the end. Unlike the old onMovementEnded-only
+    // approach (which only ever ran after a flick gesture finished), this
+    // is invoked any time content grows while stick is true, so wheel
+    // scrolling and scrollbar dragging -- which never fire
+    // onMovementEnded -- are covered too (see onContentYChanged below,
+    // which is what actually keeps `stick` accurate for those interactions).
+    function autoscroll() {
+        // Re-check `stick` at execution time, not just at schedule time:
+        // this can run one or more event-loop turns after Qt.callLater()
+        // queued it (see the ListView handlers below), and the user may
+        // have scrolled away in the meantime -- in which case jumping to
+        // the end now would silently undo that scroll.
+        if (!root.stick) {
+            return;
+        }
+        root.programmaticScroll = true;
+        listView.positionViewAtEnd();
+        root.programmaticScroll = false;
+    }
+
     FontMetrics {
         id: fm
         font.family: config.clientFontFamily
@@ -39,13 +66,12 @@ Rectangle {
 
     // PageUp/PageDown support for ClientPanel.qml's input area, mirroring
     // ClientWidget.cpp's virt_scrollDisplay() (which nudges the widget's
-    // QScrollBar by one page). pageUp() disengages stick (the user is
-    // reading backlog now); pageDown() re-engages it using the same
-    // "were we already at the end" rule onMovementEnded uses, so paging all
-    // the way back down resumes autoscroll exactly like a manual drag-to-
-    // bottom would.
+    // QScrollBar by one page). Neither function writes `stick` directly
+    // any more: setting contentY below triggers listView's
+    // onContentYChanged, which derives stick from atYEnd exactly the same
+    // way wheel/scrollbar scrolling does, so paging all the way back down
+    // resumes autoscroll exactly like a manual drag-to-bottom would.
     function pageUp() {
-        root.stick = false;
         listView.contentY = Math.max(listView.originY, listView.contentY - listView.height);
         listView.returnToBounds();
     }
@@ -53,7 +79,6 @@ Rectangle {
         const maxY = listView.originY + Math.max(0, listView.contentHeight - listView.height);
         listView.contentY = Math.min(maxY, listView.contentY + listView.height);
         listView.returnToBounds();
-        root.stick = listView.atYEnd;
     }
 
     ListView {
@@ -65,9 +90,26 @@ Rectangle {
 
         ScrollBar.vertical: ScrollBar {}
 
-        onMovementEnded: root.stick = listView.atYEnd
+        // Tracks `stick` off of every contentY change -- not just the end
+        // of a flick gesture -- so wheel scrolling and scrollbar dragging
+        // (neither of which fire onMovementEnded) also disengage/re-engage
+        // autoscroll correctly. Guarded so autoscroll()'s own repositioning
+        // isn't misread as user scrolling.
+        onContentYChanged: if (!root.programmaticScroll) {
+            root.stick = listView.atYEnd;
+        }
+        // New rows land as a contentHeight change (and, for the very first
+        // rows, possibly a height change too); re-pin whenever the view is
+        // supposed to be stuck. Qt.callLater coalesces bursts of appends
+        // into a single reposition after layout settles.
         onCountChanged: if (root.stick) {
-            positionViewAtEnd()
+            Qt.callLater(root.autoscroll);
+        }
+        onContentHeightChanged: if (root.stick) {
+            Qt.callLater(root.autoscroll);
+        }
+        onHeightChanged: if (root.stick) {
+            Qt.callLater(root.autoscroll);
         }
 
         delegate: Text {

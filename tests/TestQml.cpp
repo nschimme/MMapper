@@ -1055,6 +1055,89 @@ void TestQml::clientDisplayLeadingWhitespaceRenders()
                             .arg(line1Ink)));
 }
 
+void TestQml::clientDisplayStickTracking()
+{
+    // Exercises ClientDisplay.qml's stick/atEnd tracking against direct
+    // contentY writes -- standing in for wheel scrolling and scrollbar
+    // dragging, neither of which fires onMovementEnded, which is exactly
+    // the bug this test guards against regressing.
+    ClientLineModel model;
+    QmlConfig config;
+
+    QmlDockWidget dock("t", "TestDockClientStick", nullptr);
+    dock.setContextProperty("clientLineModel", &model);
+    dock.setContextProperty("config", &config);
+    dock.setQmlSource(QUrl(u"qrc:/qt/qml/MMapper/ClientDisplay.qml"_qs));
+
+    QQuickWidget *const quick = dock.quickWidget();
+    QVERIFY(quick != nullptr);
+
+    while (quick->status() == QQuickWidget::Loading) {
+        QCoreApplication::processEvents();
+    }
+    QCoreApplication::processEvents();
+
+    QCOMPARE(quick->status(), QQuickWidget::Ready);
+    QObject *const rootObject = quick->rootObject();
+    QVERIFY(rootObject != nullptr);
+
+    // Force a small viewport so a handful of lines already overflow it.
+    dock.resize(300, 60);
+    dock.show();
+    QCoreApplication::processEvents();
+    QCoreApplication::processEvents();
+
+    QObject *const listView = rootObject->findChild<QObject *>(QStringLiteral("clientListView"));
+    QVERIFY(listView != nullptr);
+
+    // A burst of synchronous appends outruns the ListView's own incremental
+    // delegate layout under the offscreen platform: contentHeight and
+    // positionViewAtEnd()'s own effect can both take several event-loop
+    // turns to fully settle, so poll (QTRY_VERIFY) rather than asserting
+    // synchronously after a fixed number of processEvents() calls.
+    for (int i = 0; i < 30; ++i) {
+        model.appendText(QStringLiteral("line %1\n").arg(i));
+    }
+    QTRY_VERIFY_WITH_TIMEOUT(rootObject->property("atEnd").toBool(), 2000);
+    QTRY_COMPARE_WITH_TIMEOUT(listView->property("count").toInt(), 31, 2000);
+    // contentHeight must have grown past the viewport for the rest of this
+    // test (which relies on there being something to scroll) to be
+    // meaningful.
+    QTRY_VERIFY_WITH_TIMEOUT(listView->property("contentHeight").toReal()
+                                 > listView->property("height").toReal(),
+                             2000);
+
+    // Simulate wheel/scrollbar: write contentY toward the top directly.
+    // Neither fires onMovementEnded, which is exactly the bug this guards
+    // against regressing.
+    listView->setProperty("contentY", 0.0);
+    QTRY_VERIFY_WITH_TIMEOUT(!rootObject->property("atEnd").toBool(), 2000);
+
+    // Append-while-unstuck guard: neither contentY nor atEnd may move once
+    // the user has scrolled away, even though new rows keep arriving.
+    const qreal contentYAfterScroll = listView->property("contentY").toReal();
+    model.appendText(QStringLiteral("late line\n"));
+    for (int i = 0; i < 10; ++i) {
+        QCoreApplication::processEvents();
+    }
+
+    QCOMPARE(listView->property("contentY").toReal(), contentYAfterScroll);
+    QVERIFY(!rootObject->property("atEnd").toBool());
+
+    // Scroll back down to the bottom -- re-engages stick, mirroring a
+    // manual drag-to-bottom.
+    const qreal height = listView->property("height").toReal();
+    const qreal contentHeight = listView->property("contentHeight").toReal();
+    listView->setProperty("contentY", std::max(0.0, contentHeight - height));
+    QTRY_VERIFY_WITH_TIMEOUT(rootObject->property("atEnd").toBool(), 2000);
+
+    // Appending while stuck must re-pin the view to the (new) end.
+    model.appendText(QStringLiteral("final line\n"));
+    QTRY_VERIFY_WITH_TIMEOUT(rootObject->property("atEnd").toBool()
+                                 && listView->property("atYEnd").toBool(),
+                             2000);
+}
+
 void TestQml::loadClientPanel()
 {
     ClientLineModel model;

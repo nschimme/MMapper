@@ -77,8 +77,9 @@ FocusScope {
         }
     }
 
-    // CLIENT page: display + preview tail + input, mirroring ClientWidget.ui's
-    // clientPage QSplitter (display/preview/input, vertical, not collapsible).
+    // CLIENT page: display + input, mirroring ClientWidget.ui's clientPage
+    // QSplitter (display/preview/input, vertical, not collapsible) except
+    // that the preview tail is no longer a SplitView child (see below).
     SplitView {
         id: clientPage
         visible: clientController.usingClient
@@ -93,34 +94,69 @@ FocusScope {
             // wiring; see ClientController::reportWindowSize().
             onColsChanged: clientController.reportWindowSize(display.cols, display.rows)
             onRowsChanged: clientController.reportWindowSize(display.cols, display.rows)
-        }
 
-        // Peek preview of the trailing scrollback while the user has
-        // scrolled the main display up to read backlog (display.atEnd ==
-        // false), mirroring PreviewWidget's role in ClientWidget.ui.
-        ListView {
-            id: preview
-            objectName: "clientPreviewListView"
-            visible: !display.atEnd
-            SplitView.preferredHeight: config.clientPreviewLines * clientFm.lineSpacing
-            clip: true
-            model: clientLineModel
+            // Peek preview of the trailing scrollback while the user has
+            // scrolled the main display up to read backlog (display.atEnd
+            // == false), mirroring PreviewWidget's role in ClientWidget.ui.
+            // Deliberately NOT a SplitView child (unlike the legacy
+            // QSplitter): QQC2's SplitView (pre-6.5) re-allocates its
+            // layout whenever a child's `visible` toggles, which made the
+            // display and input panes visibly jump every time the preview
+            // showed/hid. Anchoring it as an overlay on top of `display`
+            // instead means toggling its visibility never touches
+            // SplitView's layout at all.
+            Rectangle {
+                id: previewFrame
+                objectName: "clientPreviewFrame"
+                visible: !display.atEnd
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.bottom: parent.bottom
+                height: config.clientPreviewLines * clientFm.lineSpacing
+                color: config.clientBgColor
 
-            onCountChanged: if (visible) {
-                positionViewAtEnd();
-            }
-            onVisibleChanged: if (visible) {
-                positionViewAtEnd();
-            }
+                Rectangle {
+                    // Subtle 1px separator so the preview reads as an
+                    // overlay distinct from the live display behind it.
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.top: parent.top
+                    height: 1
+                    color: config.clientFgColor
+                    opacity: 0.3
+                }
 
-            delegate: Text {
-                width: ListView.view.width
-                textFormat: Text.RichText
-                text: model.html
-                wrapMode: Text.Wrap
-                font.family: config.clientFontFamily
-                font.pointSize: config.clientFontPointSize > 0 ? config.clientFontPointSize : 10
-                color: config.clientFgColor
+                ListView {
+                    id: preview
+                    objectName: "clientPreviewListView"
+                    anchors.fill: parent
+                    anchors.topMargin: 1
+                    clip: true
+                    model: clientLineModel
+
+                    onCountChanged: if (previewFrame.visible) {
+                        positionViewAtEnd();
+                    }
+
+                    Connections {
+                        target: previewFrame
+                        function onVisibleChanged() {
+                            if (previewFrame.visible) {
+                                preview.positionViewAtEnd();
+                            }
+                        }
+                    }
+
+                    delegate: Text {
+                        width: ListView.view.width
+                        textFormat: Text.RichText
+                        text: model.html
+                        wrapMode: Text.Wrap
+                        font.family: config.clientFontFamily
+                        font.pointSize: config.clientFontPointSize > 0 ? config.clientFontPointSize : 10
+                        color: config.clientFgColor
+                    }
+                }
             }
         }
 

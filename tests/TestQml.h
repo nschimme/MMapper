@@ -41,5 +41,6 @@ private Q_SLOTS:
     void clockAdapterNativeToolTip();
     void loadClientDisplay();
     void clientDisplayLeadingWhitespaceRenders();
+    void clientDisplayStickTracking();
     void loadClientPanel();
 };

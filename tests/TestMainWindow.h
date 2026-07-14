@@ -21,4 +21,7 @@ private Q_SLOTS:
     void pathMachinePageAdapterRoundTrip();
     void groupPageAdapterRoundTrip();
     void preferencesControllerCancelReloadsAdapters();
+    void graphicsPageAdapterRoundTrip();
+    void advancedGraphicsModelRoundTrip();
+    void parserPageAdapterRoundTrip();
 };

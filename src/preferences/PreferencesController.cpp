@@ -6,8 +6,10 @@
 #include "../configuration/configuration.h"
 #include "AudioPageAdapter.h"
 #include "AutoLogPageAdapter.h"
+#include "GraphicsPageAdapter.h"
 #include "GroupPageAdapter.h"
 #include "MumeProtocolPageAdapter.h"
+#include "ParserPageAdapter.h"
 #include "PathMachinePageAdapter.h"
 
 PreferencesController::PreferencesController(QWidget *const dialogParent, QObject *const parent)
@@ -18,11 +20,17 @@ PreferencesController::PreferencesController(QWidget *const dialogParent, QObjec
     , m_autoLog(new AutoLogPageAdapter(dialogParent, this))
     , m_group(new GroupPageAdapter(dialogParent, this))
     , m_audio(new AudioPageAdapter(this))
+    , m_graphics(new GraphicsPageAdapter(dialogParent, this))
+    , m_parser(new ParserPageAdapter(dialogParent, this))
 {
     connect(m_group,
             &GroupPageAdapter::sig_groupSettingsChanged,
             this,
             &PreferencesController::sig_groupSettingsChanged);
+    connect(m_graphics,
+            &GraphicsPageAdapter::sig_graphicsSettingsChanged,
+            this,
+            &PreferencesController::sig_graphicsSettingsChanged);
 }
 
 void PreferencesController::ok()
@@ -44,4 +52,6 @@ void PreferencesController::reloadAll()
     m_autoLog->reload();
     m_group->reload();
     m_audio->reload();
+    m_graphics->reload();
+    m_parser->reload();
 }

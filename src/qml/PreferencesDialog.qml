@@ -13,12 +13,11 @@ import MMapper
 // configdialog.ui's left-nav-plus-page layout (minus search) without a .ui
 // file.
 //
-// This round (Phase 6, Commits 10-11 of the QML migration) only ports the
-// five SIMPLE pages that PreferencesController exposes adapters for; the
-// other four ConfigDialog pages (General, Graphics, Parser, Integrated
-// Client) have no QML page yet, so the nav below deliberately lists only
-// these five. See PreferencesController.h for why MainWindow does not yet
-// switch to this dialog.
+// Phase 6, Commits 10-11 of the QML migration ported the five SIMPLE pages;
+// Commits 12-13 add Graphics and Parser (two of the four COMPLEX pages).
+// General and Integrated Client still have no QML page yet. See
+// PreferencesController.h for why MainWindow does not yet switch to this
+// dialog.
 Item {
     id: root
     implicitWidth: 800
@@ -33,6 +32,8 @@ Item {
         ListElement { label: qsTr("Auto Logger"); source: "qrc:/qt/qml/MMapper/PrefsAutoLogPage.qml" }
         ListElement { label: qsTr("Group Manager"); source: "qrc:/qt/qml/MMapper/PrefsGroupPage.qml" }
         ListElement { label: qsTr("Audio"); source: "qrc:/qt/qml/MMapper/PrefsAudioPage.qml" }
+        ListElement { label: qsTr("Graphics"); source: "qrc:/qt/qml/MMapper/PrefsGraphicsPage.qml" }
+        ListElement { label: qsTr("Parser"); source: "qrc:/qt/qml/MMapper/PrefsParserPage.qml" }
     }
 
     SystemPalette {

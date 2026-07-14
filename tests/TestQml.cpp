@@ -1641,7 +1641,7 @@ void TestQml::loadPreferencesDialog()
     // Navigate to every page in turn and confirm the Loader instantiates
     // each one without error, the same "does it load" bar loadGroupPanel()/
     // loadDescriptionPanel() above hold their panels to.
-    for (int i = 0; i < 5; ++i) {
+    for (int i = 0; i < 7; ++i) {
         navList->setProperty("currentIndex", i);
         QCoreApplication::processEvents();
         QCoreApplication::processEvents();

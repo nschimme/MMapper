@@ -521,6 +521,8 @@ set(mmapper_SRCS
     pathmachine/syncing.h
     preferences/AdvancedGraphics.cpp
     preferences/AdvancedGraphics.h
+    preferences/AdvancedGraphicsModel.cpp
+    preferences/AdvancedGraphicsModel.h
     preferences/audiopage.cpp
     preferences/audiopage.h
     preferences/AudioPageAdapter.cpp
@@ -533,10 +535,14 @@ set(mmapper_SRCS
     preferences/autologpage.h
     preferences/AutoLogPageAdapter.cpp
     preferences/AutoLogPageAdapter.h
+    preferences/GraphicsPageAdapter.cpp
+    preferences/GraphicsPageAdapter.h
     preferences/GroupPageAdapter.cpp
     preferences/GroupPageAdapter.h
     preferences/MumeProtocolPageAdapter.cpp
     preferences/MumeProtocolPageAdapter.h
+    preferences/ParserPageAdapter.cpp
+    preferences/ParserPageAdapter.h
     preferences/PathMachinePageAdapter.cpp
     preferences/PathMachinePageAdapter.h
     preferences/PreferencesController.cpp
@@ -851,6 +857,8 @@ if(WITH_QML)
     set_source_files_properties(qml/PrefsAutoLogPage.qml PROPERTIES QT_RESOURCE_ALIAS "PrefsAutoLogPage.qml")
     set_source_files_properties(qml/PrefsGroupPage.qml PROPERTIES QT_RESOURCE_ALIAS "PrefsGroupPage.qml")
     set_source_files_properties(qml/PrefsAudioPage.qml PROPERTIES QT_RESOURCE_ALIAS "PrefsAudioPage.qml")
+    set_source_files_properties(qml/PrefsGraphicsPage.qml PROPERTIES QT_RESOURCE_ALIAS "PrefsGraphicsPage.qml")
+    set_source_files_properties(qml/PrefsParserPage.qml PROPERTIES QT_RESOURCE_ALIAS "PrefsParserPage.qml")
 
     qt_add_qml_module(mm_qml
         STATIC
@@ -881,6 +889,8 @@ if(WITH_QML)
             qml/PrefsAutoLogPage.qml
             qml/PrefsGroupPage.qml
             qml/PrefsAudioPage.qml
+            qml/PrefsGraphicsPage.qml
+            qml/PrefsParserPage.qml
         SOURCES
             qml/QmlDockWidget.h
             qml/QmlDockWidget.cpp

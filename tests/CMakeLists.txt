@@ -159,18 +159,31 @@ set(mainwindow_SRCS
 # keeping their round-trip coverage available in both the WITH_QML and
 # non-QML build variants.
 set(preferences_adapter_SRCS
+    ../src/preferences/AdvancedGraphicsModel.cpp
+    ../src/preferences/AdvancedGraphicsModel.h
+    ../src/preferences/AnsiColorDialog.cpp
+    ../src/preferences/AnsiColorDialog.h
+    ../src/preferences/AnsiColorDialog.ui
+    ../src/preferences/ansicombo.cpp
+    ../src/preferences/ansicombo.h
     ../src/preferences/AudioPageAdapter.cpp
     ../src/preferences/AudioPageAdapter.h
     ../src/preferences/AutoLogPageAdapter.cpp
     ../src/preferences/AutoLogPageAdapter.h
+    ../src/preferences/GraphicsPageAdapter.cpp
+    ../src/preferences/GraphicsPageAdapter.h
     ../src/preferences/GroupPageAdapter.cpp
     ../src/preferences/GroupPageAdapter.h
     ../src/preferences/MumeProtocolPageAdapter.cpp
     ../src/preferences/MumeProtocolPageAdapter.h
+    ../src/preferences/ParserPageAdapter.cpp
+    ../src/preferences/ParserPageAdapter.h
     ../src/preferences/PathMachinePageAdapter.cpp
     ../src/preferences/PathMachinePageAdapter.h
     ../src/preferences/PreferencesController.cpp
     ../src/preferences/PreferencesController.h
+    ../src/opengl/OpenGLConfig.cpp
+    ../src/opengl/OpenGLConfig.h
     )
 set(TestMainWindow_SRCS TestMainWindow.cpp)
 add_executable(TestMainWindow ${TestMainWindow_SRCS} ${mainwindow_SRCS} ${preferences_adapter_SRCS})
@@ -460,7 +473,9 @@ if(WITH_QML)
     # Sources for loadDescriptionPanel(). Deliberately excludes
     # display/Filenames.cpp (whose getParserCommandName() use would drag the
     # parser/mapdata graph into this small binary); TestQml.cpp provides a
-    # stub getAssetsPath() instead.
+    # stub getAssetsPath() instead. ansicombo.cpp/.h moved to
+    # preferences_adapter_SRCS (ParserPageAdapter now also needs it); not
+    # duplicated here to avoid double-linking it into TestQml.
     set(description_panel_SRCS
             ../src/media/DescriptionAdapter.cpp
             ../src/media/DescriptionAdapter.h
@@ -469,8 +484,6 @@ if(WITH_QML)
             ../src/media/MediaLibrary.h
             ../src/media/StackBlur.cpp
             ../src/media/StackBlur.h
-            ../src/preferences/ansicombo.cpp
-            ../src/preferences/ansicombo.h
     )
     # Sources for loadClockStrip(): mumeclock/mumemoment (also linked into
     # TestClock via clock_SRCS above) plus ClockAdapter and the shared

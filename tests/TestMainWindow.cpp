@@ -7,9 +7,13 @@
 #include "../src/global/Version.h"
 #include "../src/mainwindow/AudioVolumeSlider.h"
 #include "../src/mainwindow/UpdateChecker.h"
+#include "../src/preferences/AdvancedGraphicsModel.h"
+#include "../src/preferences/GraphicsPageAdapter.h"
 #include "../src/preferences/GroupPageAdapter.h"
+#include "../src/preferences/ParserPageAdapter.h"
 #include "../src/preferences/PathMachinePageAdapter.h"
 #include "../src/preferences/PreferencesController.h"
+#include "../src/preferences/ansicombo.h"
 
 #include <QDebug>
 #include <QScopeGuard>
@@ -189,6 +193,106 @@ void TestMainWindow::preferencesControllerCancelReloadsAdapters()
     controller.reloadAll();
     QCOMPARE(pathMachineChangedSpy.count(), 1);
     QCOMPARE(groupChangedSpy.count(), 1);
+}
+
+void TestMainWindow::graphicsPageAdapterRoundTrip()
+{
+    setEnteredMain();
+
+    // CanvasSettings holds NamedConfig<T>/FixedPoint<D> members and is
+    // non-copyable, so restore only the individual fields this test mutates
+    // (rather than snapshotting the whole struct like the other adapter
+    // tests above).
+    const QColor originalBackground = getConfig().canvas.backgroundColor.getColor().getQColor();
+    const int originalWeather = getConfig().canvas.weatherAtmosphereIntensity.get();
+    const bool originalDrawDoorNames = getConfig().canvas.drawDoorNames;
+    auto cleanup = qScopeGuard([=]() {
+        setConfig().canvas.backgroundColor = Color(originalBackground);
+        setConfig().canvas.weatherAtmosphereIntensity.set(originalWeather);
+        setConfig().canvas.drawDoorNames = originalDrawDoorNames;
+    });
+
+    GraphicsPageAdapter adapter(nullptr, nullptr);
+    QSignalSpy changedSpy(&adapter, &GraphicsPageAdapter::sig_changed);
+    QSignalSpy graphicsSettingsSpy(&adapter, &GraphicsPageAdapter::sig_graphicsSettingsChanged);
+
+    // Every setter must also emit sig_graphicsSettingsChanged, mirroring
+    // GraphicsPage's per-control emit graphicsSettingsChanged() calls (see
+    // graphicspage.cpp).
+    const QColor newColor{Qt::red};
+    QVERIFY(adapter.setProperty("backgroundColor", newColor));
+    QCOMPARE(getConfig().canvas.backgroundColor.getColor().getQColor(), newColor);
+    QCOMPARE(changedSpy.count(), 1);
+    QCOMPARE(graphicsSettingsSpy.count(), 1);
+
+    QVERIFY(adapter.setProperty("weatherAtmosphereIntensity", 42));
+    QCOMPARE(getConfig().canvas.weatherAtmosphereIntensity.get(), 42);
+    QCOMPARE(graphicsSettingsSpy.count(), 2);
+
+    QVERIFY(adapter.setProperty("drawDoorNames", true));
+    QCOMPARE(getConfig().canvas.drawDoorNames, true);
+    QCOMPARE(graphicsSettingsSpy.count(), 3);
+}
+
+void TestMainWindow::advancedGraphicsModelRoundTrip()
+{
+    setEnteredMain();
+
+    const auto original = getConfig().canvas.advanced.maximumFps.get();
+    auto cleanup = qScopeGuard([=]() { setConfig().canvas.advanced.maximumFps.set(original); });
+
+    AdvancedGraphicsModel model(nullptr);
+    QCOMPARE(model.rowCount(), 5);
+
+    QSignalSpy graphicsSettingsSpy(&model, &AdvancedGraphicsModel::sig_graphicsSettingsChanged);
+
+    // Row 4 ("Maximum FPS") is a global (not 3d-only) FixedPoint<0> row; see
+    // AdvancedGraphicsModel's ctor row order.
+    const QModelIndex idx = model.index(4, 0);
+    QCOMPARE(model.data(idx, AdvancedGraphicsModel::Is3DOnlyRole).toBool(), false);
+
+    model.setValue(4, 100);
+    QCOMPARE(getConfig().canvas.advanced.maximumFps.get(), 100);
+    QCOMPARE(model.data(idx, AdvancedGraphicsModel::ValueRole).toInt(), 100);
+    QCOMPARE(graphicsSettingsSpy.count(), 1);
+
+    model.reset(4);
+    QCOMPARE(getConfig().canvas.advanced.maximumFps.get(),
+             getConfig().canvas.advanced.maximumFps.defaultValue);
+    QCOMPARE(graphicsSettingsSpy.count(), 2);
+}
+
+void TestMainWindow::parserPageAdapterRoundTrip()
+{
+    setEnteredMain();
+
+    const auto original = getConfig().parser;
+    auto cleanup = qScopeGuard([=]() { setConfig().parser = original; });
+
+    ParserPageAdapter adapter(nullptr, nullptr);
+    QSignalSpy changedSpy(&adapter, &ParserPageAdapter::sig_changed);
+
+    // A punctuation character is a valid prefix, mirroring
+    // CommandPrefixValidator/isValidPrefix() (ascii::isPunct); a letter is
+    // rejected and must leave the config untouched.
+    QVERIFY(adapter.setPrefixChar(QStringLiteral("@")));
+    QCOMPARE(getConfig().parser.prefixChar, '@');
+    QCOMPARE(adapter.getPrefixChar(), QStringLiteral("@"));
+    QCOMPARE(changedSpy.count(), 1);
+
+    QVERIFY(!adapter.setPrefixChar(QStringLiteral("a")));
+    QCOMPARE(getConfig().parser.prefixChar, '@');
+    QCOMPARE(changedSpy.count(), 1);
+
+    QVERIFY(!adapter.setPrefixChar(QStringLiteral("ab")));
+    QCOMPARE(changedSpy.count(), 1);
+
+    // roomNameColorFg/Bg mirror AnsiCombo::colorFromString()'s decoding of
+    // the raw ANSI escape-sequence string stored in Configuration.
+    setConfig().parser.roomNameColor = QStringLiteral("[1;32m");
+    const auto expected = AnsiCombo::colorFromString(QStringLiteral("[1;32m"));
+    QCOMPARE(adapter.getRoomNameColorFg(), expected.getFgColor());
+    QCOMPARE(adapter.getRoomNameColorBg(), expected.getBgColor());
 }
 
 QTEST_MAIN(TestMainWindow)

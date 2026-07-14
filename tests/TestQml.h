@@ -47,4 +47,6 @@ private Q_SLOTS:
     void qmlDialogLoads();
     void qmlDialogFallback();
     void qmlDialogRejectFromQml();
+    void loadAboutDialog();
+    void loadUpdateDialog();
 };

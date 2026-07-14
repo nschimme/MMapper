@@ -84,7 +84,12 @@ class TasksModel;
 #ifndef MMAPPER_WITH_QML
 class RoomWidget;
 #endif
+#ifdef MMAPPER_WITH_QML
+class UpdateChecker;
+class QmlDialog;
+#else
 class UpdateDialog;
+#endif
 #ifdef MMAPPER_WITH_QML
 class DescriptionAdapter;
 #else
@@ -154,7 +159,12 @@ private:
 #else
     ClientWidget *m_clientWidget = nullptr;
 #endif
+#ifdef MMAPPER_WITH_QML
+    UpdateChecker *m_updateChecker = nullptr;
+    QmlDialog *m_updateDialog = nullptr;
+#else
     UpdateDialog *m_updateDialog = nullptr;
+#endif
 
     AdventureTracker *m_adventureTracker = nullptr;
 #ifndef MMAPPER_WITH_QML

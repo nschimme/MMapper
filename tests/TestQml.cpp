@@ -17,8 +17,10 @@
 #include "../src/global/progresscounter.h"
 #include "../src/group/CGroupChar.h"
 #include "../src/group/GroupModel.h"
+#include "../src/mainwindow/AboutInfo.h"
 #include "../src/mainwindow/LogModel.h"
 #include "../src/mainwindow/TasksModel.h"
+#include "../src/mainwindow/UpdateChecker.h"
 #include "../src/map/Map.h"
 #include "../src/map/RawRoom.h"
 #include "../src/map/RoomHandle.h"
@@ -107,6 +109,24 @@ public:
 QString getAssetsPath()
 {
     return QString();
+}
+
+// UpdateChecker.cpp uses the generated Version.cpp's symbols; stub them the
+// same way TestMainWindow.cpp does so this test binary needs no generated
+// sources.
+const char *getMMapperVersion()
+{
+    return "v0.0.0-test";
+}
+
+const char *getMMapperBranch()
+{
+    return "test";
+}
+
+bool isMMapperBeta()
+{
+    return false;
 }
 
 TestQml::TestQml() = default;
@@ -1496,6 +1516,49 @@ void TestQml::qmlDialogRejectFromQml()
 
     QCOMPARE(rejectedSpy.count(), 1);
     QCOMPARE(finishedSpy.count(), 1);
+}
+
+void TestQml::loadAboutDialog()
+{
+    AboutInfo info(nullptr);
+    QVERIFY(info.getLicenses() != nullptr);
+    QVERIFY(info.getLicenses()->rowCount() > 0);
+
+    QmlDialog dialog("t", "TestAboutDialog", nullptr);
+    dialog.setContextProperty("aboutInfo", &info);
+    dialog.setQmlSource(QUrl(u"qrc:/qt/qml/MMapper/AboutDialog.qml"_qs));
+
+    QQuickWidget *const quick = dialog.quickWidget();
+    QVERIFY(quick != nullptr);
+    while (quick->status() == QQuickWidget::Loading) {
+        QCoreApplication::processEvents();
+    }
+    QCoreApplication::processEvents();
+
+    QCOMPARE(quick->status(), QQuickWidget::Ready);
+    QVERIFY(quick->rootObject() != nullptr);
+}
+
+void TestQml::loadUpdateDialog()
+{
+    // No network call is made here: UpdateChecker::check() is never invoked,
+    // so this only exercises loading the QML against the checker's initial
+    // (pre-check) property values.
+    UpdateChecker checker(nullptr);
+
+    QmlDialog dialog("t", "TestUpdateDialog", nullptr);
+    dialog.setContextProperty("updateChecker", &checker);
+    dialog.setQmlSource(QUrl(u"qrc:/qt/qml/MMapper/UpdateDialog.qml"_qs));
+
+    QQuickWidget *const quick = dialog.quickWidget();
+    QVERIFY(quick != nullptr);
+    while (quick->status() == QQuickWidget::Loading) {
+        QCoreApplication::processEvents();
+    }
+    QCoreApplication::processEvents();
+
+    QCOMPARE(quick->status(), QQuickWidget::Ready);
+    QVERIFY(quick->rootObject() != nullptr);
 }
 
 QTEST_MAIN(TestQml)

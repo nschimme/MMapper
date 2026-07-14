@@ -250,6 +250,8 @@ set(mmapper_SRCS
     group/mmapper2group.h
     logger/autologger.cpp
     logger/autologger.h
+    mainwindow/AboutInfo.cpp
+    mainwindow/AboutInfo.h
     mainwindow/AsyncTypes.h
     mainwindow/AudioVolumeSlider.cpp
     mainwindow/AudioVolumeSlider.h
@@ -261,10 +263,8 @@ set(mmapper_SRCS
     mainwindow/TasksModel.h
     mainwindow/ThemeManager.cpp
     mainwindow/ThemeManager.h
-    mainwindow/UpdateDialog.cpp
-    mainwindow/UpdateDialog.h
-    mainwindow/aboutdialog.cpp
-    mainwindow/aboutdialog.h
+    mainwindow/UpdateChecker.cpp
+    mainwindow/UpdateChecker.h
     mainwindow/findroomsdlg.cpp
     mainwindow/findroomsdlg.h
     mainwindow/infomarkseditdlg.cpp
@@ -654,7 +654,11 @@ if(NOT WITH_QML)
         timers/TimerDelegate.cpp
         timers/TimerDelegate.h
         timers/TimerWidget.cpp
-        timers/TimerWidget.h)
+        timers/TimerWidget.h
+        mainwindow/aboutdialog.cpp
+        mainwindow/aboutdialog.h
+        mainwindow/UpdateDialog.cpp
+        mainwindow/UpdateDialog.h)
 endif()
 
 qt_add_resources(mmapper_QRC resources/mmapper2.qrc)
@@ -707,7 +711,6 @@ if(EMSCRIPTEN)
 endif()
 
 set(mmapper_UIS
-    mainwindow/aboutdialog.ui
     mainwindow/infomarkseditdlg.ui
     mainwindow/findroomsdlg.ui
     mainwindow/roomeditattrdlg.ui
@@ -732,6 +735,9 @@ if(NOT WITH_QML)
     # ClientWidget's .ui; ClientPanel.qml (used instead when WITH_QML) is
     # driven by ClientController rather than a generated ui_ClientWidget.h.
     list(APPEND mmapper_UIS client/ClientWidget.ui)
+    # AboutDialog's .ui; AboutDialog.qml (used instead when WITH_QML) is
+    # driven by AboutInfo rather than a generated ui_aboutdialog.h.
+    list(APPEND mmapper_UIS mainwindow/aboutdialog.ui)
 endif()
 
 if(MMAPPER_IS_DEBUG)
@@ -817,6 +823,8 @@ if(WITH_QML)
     set_source_files_properties(qml/ClockStrip.qml PROPERTIES QT_RESOURCE_ALIAS "ClockStrip.qml")
     set_source_files_properties(qml/ClientDisplay.qml PROPERTIES QT_RESOURCE_ALIAS "ClientDisplay.qml")
     set_source_files_properties(qml/ClientPanel.qml PROPERTIES QT_RESOURCE_ALIAS "ClientPanel.qml")
+    set_source_files_properties(qml/AboutDialog.qml PROPERTIES QT_RESOURCE_ALIAS "AboutDialog.qml")
+    set_source_files_properties(qml/UpdateDialog.qml PROPERTIES QT_RESOURCE_ALIAS "UpdateDialog.qml")
 
     qt_add_qml_module(mm_qml
         STATIC
@@ -838,6 +846,8 @@ if(WITH_QML)
             qml/ClockStrip.qml
             qml/ClientDisplay.qml
             qml/ClientPanel.qml
+            qml/AboutDialog.qml
+            qml/UpdateDialog.qml
         SOURCES
             qml/QmlDockWidget.h
             qml/QmlDockWidget.cpp

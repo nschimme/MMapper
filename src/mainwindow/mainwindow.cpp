@@ -55,8 +55,10 @@
 #ifndef MMAPPER_WITH_QML
 #include "TasksPanel.h"
 #endif
+#ifndef MMAPPER_WITH_QML
 #include "UpdateDialog.h"
 #include "aboutdialog.h"
+#endif
 #include "findroomsdlg.h"
 #include "infomarkseditdlg.h"
 #include "mainwindow-async.h"
@@ -75,12 +77,15 @@
 #include "../qml/DescriptionImageProvider.h"
 #include "../qml/GroupIconProvider.h"
 #include "../qml/QmlConfig.h"
+#include "../qml/QmlDialog.h"
 #include "../qml/QmlDockWidget.h"
 #include "../roompanel/RoomModel.h"
 #include "../timers/TimerController.h"
 #include "../timers/TimerModel.h"
+#include "AboutInfo.h"
 #include "LogModel.h"
 #include "TasksModel.h"
+#include "UpdateChecker.h"
 
 #include <QQmlContext>
 #include <QQuickWidget>
@@ -460,7 +465,20 @@ MainWindow::MainWindow()
 
     m_mumeClock = new MumeClock(getConfig().mumeClock.startEpoch, deref(m_gameObserver), this);
     if constexpr (!NO_UPDATER) {
+#ifdef MMAPPER_WITH_QML
+        m_updateChecker = new UpdateChecker(this);
+        auto *const dialog = new QmlDialog(tr("MMapper Updater"), "UpdateDialog", this);
+        dialog->setContextProperty("updateChecker", m_updateChecker);
+        dialog->setQmlSource(QUrl(QStringLiteral("qrc:/qt/qml/MMapper/UpdateDialog.qml")));
+        connect(m_updateChecker, &UpdateChecker::sig_showDialog, dialog, [dialog]() {
+            dialog->show();
+            dialog->raise();
+            dialog->activateWindow();
+        });
+        m_updateDialog = dialog;
+#else
         m_updateDialog = new UpdateDialog(this);
+#endif
     }
 
     m_logger = new AutoLogger(this);
@@ -603,7 +621,11 @@ void MainWindow::startServices()
         auto should_check_for_update = []() -> bool { return getConfig().general.checkForUpdate; };
         // Raise the update dialog if an update is found
         if (should_check_for_update()) {
+#ifdef MMAPPER_WITH_QML
+            m_updateChecker->check();
+#else
             m_updateDialog->open();
+#endif
         }
     }
 }
@@ -2131,9 +2153,18 @@ void MainWindow::slot_reload()
 
 void MainWindow::slot_about()
 {
+#ifdef MMAPPER_WITH_QML
+    auto *const dialog = new QmlDialog(tr("About MMapper"), "AboutDialog", this);
+    dialog->setAttribute(Qt::WA_DeleteOnClose);
+    auto *const info = new AboutInfo(dialog);
+    dialog->setContextProperty("aboutInfo", info);
+    dialog->setQmlSource(QUrl(QStringLiteral("qrc:/qt/qml/MMapper/AboutDialog.qml")));
+    dialog->open();
+#else
     auto *about = new AboutDialog(this);
     about->setAttribute(Qt::WA_DeleteOnClose);
     about->open();
+#endif
 }
 
 void MainWindow::setMapModified(bool modified)
@@ -2468,7 +2499,12 @@ void MainWindow::slot_onCheckForUpdate()
 {
     assert(!NO_UPDATER);
     m_updateDialog->show();
+#ifdef MMAPPER_WITH_QML
+    m_updateDialog->raise();
+    m_updateChecker->check();
+#else
     m_updateDialog->open();
+#endif
 }
 #ifdef __clang__
 #pragma clang diagnostic pop

@@ -6,7 +6,7 @@
 #include "../src/configuration/configuration.h"
 #include "../src/global/Version.h"
 #include "../src/mainwindow/AudioVolumeSlider.h"
-#include "../src/mainwindow/UpdateDialog.h"
+#include "../src/mainwindow/UpdateChecker.h"
 
 #include <QDebug>
 #include <QScopeGuard>

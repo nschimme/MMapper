@@ -150,8 +150,8 @@ set(mainwindow_SRCS
     ../src/global/Version.h
     ../src/mainwindow/AudioVolumeSlider.cpp
     ../src/mainwindow/AudioVolumeSlider.h
-    ../src/mainwindow/UpdateDialog.cpp
-    ../src/mainwindow/UpdateDialog.h
+    ../src/mainwindow/UpdateChecker.cpp
+    ../src/mainwindow/UpdateChecker.h
     )
 set(TestMainWindow_SRCS TestMainWindow.cpp)
 add_executable(TestMainWindow ${TestMainWindow_SRCS} ${mainwindow_SRCS})
@@ -460,9 +460,21 @@ if(WITH_QML)
             ../src/adventure/XpStatusAdapter.cpp
             ../src/adventure/XpStatusAdapter.h
     )
+    # Sources for loadAboutDialog().
+    set(about_info_SRCS
+            ../src/mainwindow/AboutInfo.cpp
+            ../src/mainwindow/AboutInfo.h
+    )
+    # Sources for loadUpdateDialog(). TestQml.cpp stubs the generated
+    # Version.cpp symbols UpdateChecker uses (same approach as TestMainWindow).
+    set(update_checker_SRCS
+            ../src/mainwindow/UpdateChecker.cpp
+            ../src/mainwindow/UpdateChecker.h
+    )
     add_executable(TestQml ${TestQml_SRCS} ${timer_test} ${adventure_SRCS} ${room_manager}
             ${log_model_SRCS} ${tasks_model_SRCS} ${group_SRCS} ${description_panel_SRCS}
-            ${clock_adapter_SRCS} ${xp_status_adapter_SRCS} ${client_line_model_SRCS})
+            ${clock_adapter_SRCS} ${xp_status_adapter_SRCS} ${client_line_model_SRCS}
+            ${about_info_SRCS} ${update_checker_SRCS})
     add_dependencies(TestQml mm_qml mm_qmlplugin mm_test mm_global mm_map)
     target_link_libraries(TestQml
             mm_qml

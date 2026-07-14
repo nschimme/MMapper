@@ -507,7 +507,8 @@ if(WITH_QML)
     add_executable(TestQml ${TestQml_SRCS} ${timer_test} ${adventure_SRCS} ${room_manager}
             ${log_model_SRCS} ${tasks_model_SRCS} ${group_SRCS} ${description_panel_SRCS}
             ${clock_adapter_SRCS} ${xp_status_adapter_SRCS} ${client_line_model_SRCS}
-            ${about_info_SRCS} ${update_checker_SRCS} ${find_rooms_model_SRCS})
+            ${about_info_SRCS} ${update_checker_SRCS} ${find_rooms_model_SRCS}
+            ${preferences_adapter_SRCS})
     add_dependencies(TestQml mm_qml mm_qmlplugin mm_test mm_global mm_map)
     target_link_libraries(TestQml
             mm_qml

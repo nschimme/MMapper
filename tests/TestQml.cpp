@@ -29,6 +29,7 @@
 #include "../src/media/DescriptionAdapter.h"
 #include "../src/media/MediaLibrary.h"
 #include "../src/observer/gameobserver.h"
+#include "../src/preferences/PreferencesController.h"
 #include "../src/proxy/GmcpMessage.h"
 #include "../src/qml/DescriptionImageProvider.h"
 #include "../src/qml/QmlConfig.h"
@@ -1607,6 +1608,47 @@ void TestQml::findRoomsModelBasics()
     resetSpy.clear();
     model.clear();
     QCOMPARE(resetSpy.count(), 0);
+}
+
+void TestQml::loadPreferencesDialog()
+{
+    // dialogParent may legitimately be nullptr here: the shell never opens
+    // a native picker during this test (chooseColor()/browseForEditor()/
+    // browseForDirectory() are never invoked), so PreferencesController's
+    // QPointer<QWidget> fields simply stay null.
+    PreferencesController controller(nullptr, nullptr);
+
+    QmlDialog dialog("t", "TestPreferencesDialog", nullptr);
+    dialog.setContextProperty("preferencesController", &controller);
+    dialog.setQmlSource(QUrl(u"qrc:/qt/qml/MMapper/PreferencesDialog.qml"_qs));
+
+    QQuickWidget *const quick = dialog.quickWidget();
+    QVERIFY(quick != nullptr);
+    while (quick->status() == QQuickWidget::Loading) {
+        QCoreApplication::processEvents();
+    }
+    QCoreApplication::processEvents();
+
+    QCOMPARE(quick->status(), QQuickWidget::Ready);
+    QQuickItem *const rootItem = quick->rootObject();
+    QVERIFY(rootItem != nullptr);
+
+    auto *const navList = rootItem->findChild<QObject *>(QStringLiteral("preferencesNavList"));
+    QVERIFY(navList != nullptr);
+    auto *const pageLoader = rootItem->findChild<QObject *>(QStringLiteral("preferencesPageLoader"));
+    QVERIFY(pageLoader != nullptr);
+
+    // Navigate to every page in turn and confirm the Loader instantiates
+    // each one without error, the same "does it load" bar loadGroupPanel()/
+    // loadDescriptionPanel() above hold their panels to.
+    for (int i = 0; i < 5; ++i) {
+        navList->setProperty("currentIndex", i);
+        QCoreApplication::processEvents();
+        QCoreApplication::processEvents();
+
+        QCOMPARE(pageLoader->property("status").toInt(), int(QQmlComponent::Ready));
+        QVERIFY(pageLoader->property("item").value<QObject *>() != nullptr);
+    }
 }
 
 QTEST_MAIN(TestQml)

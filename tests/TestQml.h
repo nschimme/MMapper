@@ -50,4 +50,5 @@ private Q_SLOTS:
     void loadAboutDialog();
     void loadUpdateDialog();
     void findRoomsModelBasics();
+    void loadPreferencesDialog();
 };

@@ -845,6 +845,12 @@ if(WITH_QML)
     set_source_files_properties(qml/AboutDialog.qml PROPERTIES QT_RESOURCE_ALIAS "AboutDialog.qml")
     set_source_files_properties(qml/UpdateDialog.qml PROPERTIES QT_RESOURCE_ALIAS "UpdateDialog.qml")
     set_source_files_properties(qml/FindRoomsDialog.qml PROPERTIES QT_RESOURCE_ALIAS "FindRoomsDialog.qml")
+    set_source_files_properties(qml/PreferencesDialog.qml PROPERTIES QT_RESOURCE_ALIAS "PreferencesDialog.qml")
+    set_source_files_properties(qml/PrefsPathMachinePage.qml PROPERTIES QT_RESOURCE_ALIAS "PrefsPathMachinePage.qml")
+    set_source_files_properties(qml/PrefsMumeProtocolPage.qml PROPERTIES QT_RESOURCE_ALIAS "PrefsMumeProtocolPage.qml")
+    set_source_files_properties(qml/PrefsAutoLogPage.qml PROPERTIES QT_RESOURCE_ALIAS "PrefsAutoLogPage.qml")
+    set_source_files_properties(qml/PrefsGroupPage.qml PROPERTIES QT_RESOURCE_ALIAS "PrefsGroupPage.qml")
+    set_source_files_properties(qml/PrefsAudioPage.qml PROPERTIES QT_RESOURCE_ALIAS "PrefsAudioPage.qml")
 
     qt_add_qml_module(mm_qml
         STATIC
@@ -869,6 +875,12 @@ if(WITH_QML)
             qml/AboutDialog.qml
             qml/UpdateDialog.qml
             qml/FindRoomsDialog.qml
+            qml/PreferencesDialog.qml
+            qml/PrefsPathMachinePage.qml
+            qml/PrefsMumeProtocolPage.qml
+            qml/PrefsAutoLogPage.qml
+            qml/PrefsGroupPage.qml
+            qml/PrefsAudioPage.qml
         SOURCES
             qml/QmlDockWidget.h
             qml/QmlDockWidget.cpp

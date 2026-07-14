@@ -39,7 +39,11 @@ class ClientLineModel;
 #else
 class ClientWidget;
 #endif
+#ifdef MMAPPER_WITH_QML
+class PreferencesController;
+#else
 class ConfigDialog;
+#endif
 class ConnectionListener;
 class ConnectionSelection;
 #ifdef MMAPPER_WITH_QML
@@ -173,6 +177,13 @@ private:
     QmlDialog *m_updateDialog = nullptr;
 #else
     UpdateDialog *m_updateDialog = nullptr;
+#endif
+
+#ifdef MMAPPER_WITH_QML
+    PreferencesController *m_preferencesController = nullptr;
+    QmlDialog *m_preferencesDialog = nullptr;
+#else
+    std::unique_ptr<ConfigDialog> m_configDialog;
 #endif
 
     AdventureTracker *m_adventureTracker = nullptr;
@@ -317,8 +328,6 @@ private:
     QAction *forceRoomAct = nullptr;
     QAction *releaseAllPathsAct = nullptr;
     QAction *rebuildMeshesAct = nullptr;
-
-    std::unique_ptr<ConfigDialog> m_configDialog;
 
 #ifdef MMAPPER_WITH_QML
     // Q_PROPERTY façade over Configuration::groupManager, shared by the

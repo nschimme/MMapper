@@ -39,7 +39,9 @@
 #endif
 #include "../media/MediaLibrary.h"
 #include "../pathmachine/mmapper2pathmachine.h"
+#ifndef MMAPPER_WITH_QML
 #include "../preferences/configdialog.h"
+#endif
 #include "../proxy/connectionlistener.h"
 #include "../roompanel/RoomManager.h"
 #ifndef MMAPPER_WITH_QML
@@ -76,6 +78,7 @@
 #include "../clock/ClockAdapter.h"
 #include "../group/GroupController.h"
 #include "../media/DescriptionAdapter.h"
+#include "../preferences/PreferencesController.h"
 #include "../qml/DescriptionImageProvider.h"
 #include "../qml/GroupIconProvider.h"
 #include "../qml/QmlConfig.h"
@@ -1907,6 +1910,56 @@ void MainWindow::setupStatusBar()
 
 void MainWindow::slot_onPreferences()
 {
+#ifdef MMAPPER_WITH_QML
+    if (m_preferencesDialog == nullptr) {
+        std::ignore = deref(m_mapWindow);
+        std::ignore = deref(m_groupManager);
+
+        auto *const controller = new PreferencesController(this, this);
+        auto *const dialog = new QmlDialog(tr("Preferences"), "ConfigDialog", this);
+        dialog->setContextProperty("preferencesController", controller);
+        dialog->setQmlSource(QUrl(QStringLiteral("qrc:/qt/qml/MMapper/PreferencesDialog.qml")));
+
+        connect(controller,
+                &PreferencesController::sig_graphicsSettingsChanged,
+                m_mapWindow,
+                &MapWindow::slot_graphicsSettingsChanged);
+        connect(controller,
+                &PreferencesController::sig_groupSettingsChanged,
+                m_groupManager,
+                &Mmapper2Group::slot_groupSettingsChanged);
+        // GroupManagerSettings has no ChangeMonitor (see QmlConfig.h), so
+        // QmlConfig cannot observe the controller's writes on its own;
+        // re-sync it explicitly whenever the dialog reports a group settings
+        // change or closes (mirrors the widget ConfigDialog's equivalent
+        // wiring; see git history for src/mainwindow/mainwindow.cpp).
+        connect(controller,
+                &PreferencesController::sig_groupSettingsChanged,
+                m_qmlConfig,
+                &QmlConfig::reload);
+        connect(dialog, &QDialog::finished, this, [this](MAYBE_UNUSED int result) {
+            m_qmlConfig->reload();
+            // Likewise, the Description panel's colors/font (parser.roomName/
+            // DescColor, integratedClient.font/colors) have no ChangeMonitor;
+            // re-resolve them after the dialog closes.
+            deref(m_descriptionAdapter).reloadConfig();
+        });
+
+        m_preferencesController = controller;
+        m_preferencesDialog = dialog;
+    }
+
+    // Mirrors ConfigDialog::showEvent()'s sig_loadConfig() fan-out: re-sync
+    // every adapter against the live Configuration each time the dialog is
+    // (re)shown, since the controller/dialog persist across opens instead of
+    // being recreated per-open like the widget ConfigDialog was.
+    deref(m_preferencesController).reloadAll();
+
+    auto &dialog = deref(m_preferencesDialog);
+    dialog.show();
+    dialog.raise();
+    dialog.activateWindow();
+#else
     if (m_configDialog == nullptr) {
         auto unique_configDialog = std::make_unique<ConfigDialog>(this);
         auto *const configDialog = unique_configDialog.get();
@@ -1923,23 +1976,6 @@ void MainWindow::slot_onPreferences()
                 &ConfigDialog::sig_groupSettingsChanged,
                 m_groupManager,
                 &Mmapper2Group::slot_groupSettingsChanged);
-#ifdef MMAPPER_WITH_QML
-        // GroupManagerSettings has no ChangeMonitor (see QmlConfig.h), so
-        // QmlConfig cannot observe ConfigDialog's writes on its own; re-sync
-        // it explicitly whenever the dialog reports a group settings change
-        // or closes.
-        connect(configDialog,
-                &ConfigDialog::sig_groupSettingsChanged,
-                m_qmlConfig,
-                &QmlConfig::reload);
-        connect(configDialog, &QDialog::finished, this, [this](MAYBE_UNUSED int result) {
-            m_qmlConfig->reload();
-            // Likewise, the Description panel's colors/font (parser.roomName/
-            // DescColor, integratedClient.font/colors) have no ChangeMonitor;
-            // re-resolve them after the dialog closes.
-            deref(m_descriptionAdapter).reloadConfig();
-        });
-#endif
         connect(configDialog, &QDialog::finished, this, [this](MAYBE_UNUSED int result) {
             m_configDialog.reset();
         });
@@ -1951,6 +1987,7 @@ void MainWindow::slot_onPreferences()
     configDialog.show();
     configDialog.raise();
     configDialog.activateWindow();
+#endif
 }
 
 void MainWindow::slot_newRoomSelection(const SigRoomSelection &rs)

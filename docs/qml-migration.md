@@ -164,6 +164,10 @@ Controls types only where there's no reasonable primitive substitute (e.g. `Butt
 | Status bar: clock | `src/qml/ClockStrip.qml` | `clock/ClockAdapter.{h,cpp}` + `clock/ClockStrings.{h,cpp}` (shared) | `clock/mumeclockwidget.{h,cpp,ui}` |
 | Status bar: XP status | `src/qml/XpStatusItem.qml` | `adventure/XpStatusAdapter.{h,cpp}` | `adventure/xpstatuswidget.{h,cpp}` |
 | Client | `src/qml/ClientPanel.qml` + `src/qml/ClientDisplay.qml` | `client/ClientController.{h,cpp}` + `client/ClientLineModel.{h,cpp}` + `client/ClientTelnetBackend.{h,cpp}` | `client/ClientWidget.{h,cpp,ui}`, `client/inputwidget.{h,cpp}`, `client/stackedinputwidget.{h,cpp}`, `client/PasswordDialog.{h,cpp}`, `client/PreviewWidget.{h,cpp}`, `client/PaletteManager.{h,cpp}` |
+| About dialog | `src/qml/AboutDialog.qml` | `mainwindow/AboutInfo.{h,cpp}` (incl. `LicenseModel`) | `mainwindow/aboutdialog.{h,cpp,ui}` |
+| Updater dialog | `src/qml/UpdateDialog.qml` | `mainwindow/UpdateChecker.{h,cpp}` | `mainwindow/UpdateDialog.{h,cpp}` |
+| Find Rooms dialog | `src/qml/FindRoomsDialog.qml` | `mainwindow/FindRoomsController.{h,cpp}` + `mainwindow/FindRoomsModel.{h,cpp}` | `mainwindow/findroomsdlg.{h,cpp,ui}` |
+| Preferences dialog | `src/qml/PreferencesDialog.qml` + 9 `src/qml/Prefs*Page.qml` | `preferences/PreferencesController.{h,cpp}` + 9 `preferences/*PageAdapter.{h,cpp}` | `preferences/configdialog.{h,cpp,ui}` + 9 widget pages (`audiopage`, `autologpage`, `clientpage`, `generalpage`, `graphicspage` (+`AdvancedGraphics.{h,cpp}`), `grouppage`, `mumeprotocolpage`, `parserpage`, `pathmachinepage`, each `.{h,cpp,ui}`) |
 
 The Widget classes are excluded from the build entirely when `WITH_QML=ON`
 (`src/CMakeLists.txt` only appends them to `mmapper_SRCS` under `if(NOT WITH_QML)`).
@@ -177,7 +181,17 @@ retire — it replaces an inline `QTextBrowser` that was created directly in
 `mainwindow.cpp`, not a separate widget file. The status bar's two widgets are
 always-on, non-dockable status bar contents rather than `QDockWidget` panels (see
 "Status bar" under "Phase 3 notes" below), but otherwise follow the same
-`WITH_QML`-gated Widget-vs-adapter split as every other row in this table. All of
+`WITH_QML`-gated Widget-vs-adapter split as every other row in this table. As of
+phase 6 this also covers the four top-level dialogs: `aboutdialog` (+ its
+`.ui`), `UpdateDialog`, `findroomsdlg` (+ its `.ui`), and `configdialog`
+together with all nine preferences page widgets — `audiopage`, `autologpage`,
+`clientpage`, `generalpage`, `graphicspage` (+ its `AdvancedGraphics` helper),
+`grouppage`, `mumeprotocolpage`, `parserpage`, and
+`pathmachinepage` — each `.cpp`/`.h`/`.ui` (`AdvancedGraphics` has no `.ui` of
+its own). Two preferences-adjacent widgets
+deliberately did *not* move into this block and stay compiled unconditionally
+in both builds: `AnsiColorDialog` and `ManagePasswordDialog` (see
+"Preferences" under "Phase 6 notes" below for why). All of
 the Widget classes exist solely as the `WITH_QML=OFF` escape hatch and are planned
 for deletion about one release cycle after the WebAssembly build ships with QML,
 once we're confident nobody needs to fall back to Widgets.
@@ -587,6 +601,194 @@ Unlike every other Widget class this phase retired, `client/displaywidget.{h,cpp
 was *not* moved into the `if(NOT WITH_QML)` block — see "Ported panels" above
 for why (`AnsiTextHelper` has consumers outside the client:
 `AnsiViewWindow.cpp`, `roomeditattrdlg.cpp`, `remoteeditwidget.cpp`).
+
+## Phase 6 notes
+
+Phase 6 ported the remaining top-level dialogs — About, MMapper Updater, Find
+Rooms, and the Preferences dialog (nine pages) — from `QDialog`s built around
+generated `ui_*.h` forms to `QmlDialog`-hosted `.qml` files driven by plain
+`QObject` controllers/adapters, following the same widget-vs-QML,
+`WITH_QML`-gated split as every panel before it.
+
+### `QmlDialog`: the dialog equivalent of `QmlDockWidget`
+
+`src/qml/QmlDialog.{h,cpp}` is `QmlDockWidget`'s counterpart for top-level
+dialogs: a `QDialog` subclass that fills its client area with a single
+`QQuickWidget`, exposes the same `setContextProperty()`/`addImageProvider()`/
+`setQmlSource()` surface (context properties and image providers still have to
+be registered **before** `setQmlSource()`, for the same reason as
+`QmlDockWidget` — see "`QmlDockWidget`" above), and has the same QML-load-error
+fallback (`QLabel("QML load failed")` swapped in for the `QQuickWidget`).
+
+Two differences from `QmlDockWidget`, both because a dialog is modal-shaped
+where a dock is not:
+
+- `QmlDialog` exposes itself as the `"dialog"` context property, so QML can
+  call `dialog.accept()`/`dialog.reject()` directly (`QDialog::accept()`/
+  `reject()` are slots) — e.g. a Close button binds `onClicked:
+  dialog.reject()`. This is set up in the constructor, before any caller-supplied
+  context properties, so it's always available.
+- `QmlDialog` resizes itself to the QML root item's
+  `implicitWidth`/`implicitHeight` (floored at a 320×200 minimum) the first
+  time the QML finishes loading, mirroring a `QDialog`'s usual
+  size-to-contents behavior on first show — a dock has no equivalent concept
+  since `QDockWidget` sizing is driven by the surrounding `QMainWindow`
+  layout instead.
+
+Usage pattern (mirrors the `QmlDockWidget` snippet above; see
+`src/mainwindow/mainwindow.cpp`):
+
+```cpp
+auto *const dialog = new QmlDialog(tr("Find Rooms"), "FindRoomsDlg", this);
+dialog->setContextProperty("findRoomsController", m_findRoomsController);
+dialog->setContextProperty("findRoomsModel", m_findRoomsController->getModel());
+dialog->setQmlSource(QUrl(QStringLiteral("qrc:/qt/qml/MMapper/FindRoomsDialog.qml")));
+```
+
+About, Update, and Find Rooms are all created once, eagerly, alongside their
+Widgets counterparts during `MainWindow`'s constructor (same
+`#ifdef MMAPPER_WITH_QML` / `#else` pattern as every dock), and simply
+`show()`/`raise()`/`activateWindow()`d on demand — there is no per-open
+recreate/destroy cycle for these three. `objectName` is kept identical to the
+Widgets dialog it replaces (`"FindRoomsDlg"`, `"UpdateDialog"`,
+`"AboutDialog"`, `"ConfigDialog"`) so any saved window geometry/state keyed
+on that name still applies.
+
+### About dialog: `AboutInfo` + `LicenseModel`
+
+`src/mainwindow/AboutInfo.{h,cpp}` is a widget-free content provider: it
+builds the same about/authors HTML and license text `AboutDialog` (the
+widget) builds in its constructor, once, and exposes it to `AboutDialog.qml`
+via `CONSTANT` `Q_PROPERTY`s (`aboutHtml`, `authorsHtml`, `licenses`) — the
+content never changes for the process lifetime, so there's no `NOTIFY`
+plumbing needed.
+
+The Licenses tab is backed by `LicenseModel`, a `QAbstractListModel`
+(`TitleRole`/`IntroRole`/`TextRole`) rather than a `QVariantList` of
+`QVariantMap`s — a plain `QVariantList`-of-`QVariantMap` model crashes the
+QML engine's identifier interning when bound to a `Repeater`, so a real
+role-based list model is required here even though the data is static.
+
+### Find Rooms: `FindRoomsController` lifting `FindRoomsDlg`'s slots
+
+`src/mainwindow/FindRoomsController.{h,cpp}` lifts `FindRoomsDlg`'s
+search/select/edit/activate slots into a plain `QObject`, owning a
+`FindRoomsModel` and re-emitting the same signal surface the widget dialog
+emitted (`sig_newRoomSelection`, `sig_center`, `sig_log`,
+`sig_editSelection`) — `MainWindow`'s existing downstream connections
+(`MapWindow::slot_centerOnWorldPos`, `MapCanvas::slot_setRoomSelection`,
+`MainWindow::slot_log`, `MainWindow::slot_onEditRoomSelection`) attach to the
+controller exactly as they did to the widget, unchanged.
+
+### Update checker: `UpdateChecker` extracted from `UpdateDialog`
+
+`src/mainwindow/UpdateChecker.{h,cpp}` is the network-check/version-compare
+logic (`CompareVersion`, the GitHub releases JSON fetch/parse) factored out
+of `UpdateDialog` into a widget-free `QObject`, exposed to
+`UpdateDialog.qml` as the `updateChecker` context property. `UpdateDialog`
+(`WITH_QML=OFF`) keeps its own copy of the equivalent logic; the extraction
+exists so the QML dialog has something to bind to, not to deduplicate the
+two (a further follow-up could share `UpdateChecker` between both builds,
+but that wasn't required to unblock this port).
+
+### Preferences: `PreferencesController` + nine per-page adapters + `QmlDialog` host
+
+The Preferences dialog is the largest single port in phase 6: nine pages
+(Path Machine, Mume Protocol, Auto Logger, Group Manager, Audio, Graphics,
+Parser, General, Integrated Client), each previously a `QWidget` subclass
+generated from a `.ui` file, ported to a `.qml` page plus a small
+`QObject` adapter (`src/preferences/*PageAdapter.{h,cpp}`) exposing that
+page's slice of `Configuration` via `Q_PROPERTY`/`Q_INVOKABLE`.
+
+**Apply-on-change, not apply-on-OK.** Every adapter setter writes
+`getConfig()` immediately when QML calls it (e.g. toggling a checkbox),
+mirroring the legacy widget pages' own `ChangeMonitor`-driven immediate-write
+behavior — `ConfigDialog` never buffered edits and wrote them only on OK. The
+same is true here: `ok()`/`cancel()` are not a transactional commit/rollback
+of in-memory edits, they mirror `ConfigDialog::slot_ok()`/`slot_cancel()`
+exactly:
+
+- `PreferencesController::ok()` calls `getConfig().write()` (flush the
+  already-applied live `Configuration` to disk) and emits `sig_accepted()`.
+- `PreferencesController::cancel()` calls `setConfig().read()` (re-read
+  `Configuration` from disk, discarding any apply-on-change writes made while
+  the dialog was open) and `reloadAll()`, which re-syncs every adapter so the
+  QML pages resync to the on-disk values.
+
+`PreferencesController` (`src/preferences/PreferencesController.{h,cpp}`)
+owns all nine adapters as children and exposes each as a `CONSTANT`
+`Q_PROPERTY` (`pathMachine`, `mumeProtocol`, `autoLog`, `group`, `audio`,
+`graphics`, `parser`, `general`, `client`); `PreferencesDialog.qml`
+(`src/qml/PreferencesDialog.qml`) is a `ListView` nav + `Loader` shell —
+`configdialog.ui`'s left-nav-plus-stacked-pages layout without a `.ui`
+file — with each nav entry's `Loader.source` pointing at one `Prefs*Page.qml`
+file (`PrefsPathMachinePage.qml`, ..., `PrefsClientPage.qml`), and Cancel/OK
+buttons calling `preferencesController.cancel()`/`ok()` followed by
+`dialog.reject()`/`accept()`.
+
+`MainWindow::slot_onPreferences()` creates the controller and dialog once
+(lazily, on first open — unlike About/Update/Find Rooms, `PreferencesController`
+needs `m_mapWindow`/`m_groupManager`/`m_qmlConfig`/`m_descriptionAdapter`,
+which aren't guaranteed constructed yet at `MainWindow` construction time) and
+keeps both alive across opens, calling `reloadAll()` immediately before every
+`show()` — this replaces `ConfigDialog::showEvent()`'s `sig_loadConfig()`
+fan-out, which the legacy widget triggered every time it was shown because it
+was destroyed and recreated per-open (`MainWindow::slot_onPreferences()`'s
+`m_configDialog.reset()` on `finished`). The QML controller/dialog pair is
+never destroyed once created, so an explicit `reloadAll()` on each open takes
+its place. Signal wiring is otherwise identical to the widget:
+`sig_graphicsSettingsChanged` → `MapWindow::slot_graphicsSettingsChanged`,
+`sig_groupSettingsChanged` → `Mmapper2Group::slot_groupSettingsChanged` and
+`QmlConfig::reload()`, and the dialog's `finished` signal → `QmlConfig::reload()`
++ `DescriptionAdapter::reloadConfig()` (covers both OK and Cancel, same as the
+widget's `finished` handler did — `sig_accepted()` needs no separate
+connection of its own because `dialog.accept()` always follows `ok()` in the
+same QML click handler, which fires `finished`).
+
+**Two pieces intentionally stayed native widgets, always compiled.** Unlike
+every other widget page, `AnsiColorDialog` (`src/preferences/AnsiColorDialog.{h,cpp,ui}`,
+with its `ansicombo.{h,cpp}` combo-box helper) and `ManagePasswordDialog`
+(`src/preferences/ManagePasswordDialog.{h,cpp,ui}`) were **not** ported to
+QML and were **not** moved into the `if(NOT WITH_QML)` block — they stay
+compiled unconditionally in both builds. `ParserPageAdapter` launches
+`AnsiColorDialog` and `GeneralPageAdapter` launches `ManagePasswordDialog` as
+plain native `Q_INVOKABLE`-triggered `QDialog::exec()` calls even when
+`WITH_QML=ON`, the same way a `Q_INVOKABLE` on any other adapter opens a
+native `QColorDialog`/`QFileDialog` (see `GroupController::recolorCharacter()`'s
+`QColorDialog` in phase 2, "Group panel design notes" above, for the same
+pattern). Porting either dialog's fairly intricate custom painting
+(`AnsiColorDialog`'s live ANSI color grid) or secure-entry semantics
+(`ManagePasswordDialog`) to QML was judged not worth it for a rarely-opened
+dialog reached from one preferences page each — plain `QDialog::exec()` from
+an otherwise-QML build is a fully supported pattern, not a gap.
+
+### Deferred / not ported in phase 6
+
+- **`roomeditattrdlg`/`infomarkseditdlg`.** Both remain widget-only
+  (`mainwindow/roomeditattrdlg.{h,cpp,ui}`, `mainwindow/infomarkseditdlg.{h,cpp,ui}`),
+  compiled unconditionally in both builds (their `.ui` files were never added
+  to any `WITH_QML`-gated block). They're complex, map-canvas-adjacent editor
+  dialogs; porting them is deferred to a future phase, most naturally
+  alongside or after the map canvas port itself (see "Map canvas" below),
+  since both dialogs manipulate the same room/infomark selection state the
+  canvas does.
+- **Preferences search bar.** `configdialog.ui`'s search box (fuzzy-filters
+  pages/controls and jumps to the match) has no QML equivalent —
+  `PreferencesDialog.qml`'s nav is a plain `ListView` with no search field.
+  Deferred as a follow-up rather than blocking the rest of the dialog port.
+
+### `.ui` gating
+
+`preferences/AnsiColorDialog.ui` and `preferences/ManagePasswordDialog.ui`
+stay in the unconditional `mmapper_UIS` list (see "Two pieces intentionally
+stayed native widgets" above). The other ten `.ui` files —
+`configdialog.ui` and the nine page `.ui`s (`audiopage.ui`, `autologpage.ui`,
+`clientpage.ui`, `generalpage.ui`, `graphicspage.ui`, `grouppage.ui`,
+`mumeprotocolpage.ui`, `parserpage.ui`, `pathmachinepage.ui`) — moved into
+the `if(NOT WITH_QML)`-gated `mmapper_UIS` block in `src/CMakeLists.txt`,
+alongside their `.cpp`/`.h` files, following the same pattern
+`mumeclockwidget.ui`/`ClientWidget.ui`/`aboutdialog.ui`/`findroomsdlg.ui`
+established in earlier phases.
 
 ## Map canvas (future work, not started)
 

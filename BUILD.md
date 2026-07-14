@@ -132,7 +132,8 @@ cmake --build . --parallel
 
 Some UI panels (Timers, Adventure, Room, Log, Group, Description, Tasks, Client) and
 the status bar's clock/XP status widgets are built with Qt Quick/QML instead of
-Widgets, controlled by the `WITH_QML` CMake option (default `ON`). This requires the
+Widgets, as are the About, Updater, Find Rooms, and Preferences dialogs,
+controlled by the `WITH_QML` CMake option (default `ON`). This requires the
 Qt `Qml`, `Quick`, `QuickWidgets`, and `QuickControls2` modules; on Debian/Ubuntu:
 
 ```bash

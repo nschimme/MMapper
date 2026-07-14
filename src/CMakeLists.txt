@@ -519,20 +519,14 @@ set(mmapper_SRCS
     pathmachine/roomsignalhandler.h
     pathmachine/syncing.cpp
     pathmachine/syncing.h
-    preferences/AdvancedGraphics.cpp
-    preferences/AdvancedGraphics.h
     preferences/AdvancedGraphicsModel.cpp
     preferences/AdvancedGraphicsModel.h
-    preferences/audiopage.cpp
-    preferences/audiopage.h
     preferences/AudioPageAdapter.cpp
     preferences/AudioPageAdapter.h
     preferences/AnsiColorDialog.cpp
     preferences/AnsiColorDialog.h
     preferences/ansicombo.cpp
     preferences/ansicombo.h
-    preferences/autologpage.cpp
-    preferences/autologpage.h
     preferences/AutoLogPageAdapter.cpp
     preferences/AutoLogPageAdapter.h
     preferences/ClientPageAdapter.cpp
@@ -551,24 +545,8 @@ set(mmapper_SRCS
     preferences/PathMachinePageAdapter.h
     preferences/PreferencesController.cpp
     preferences/PreferencesController.h
-    preferences/clientpage.cpp
-    preferences/clientpage.h
-    preferences/configdialog.cpp
-    preferences/configdialog.h
-    preferences/generalpage.cpp
-    preferences/generalpage.h
-    preferences/graphicspage.cpp
-    preferences/graphicspage.h
-    preferences/grouppage.cpp
-    preferences/grouppage.h
-    preferences/mumeprotocolpage.cpp
-    preferences/mumeprotocolpage.h
     preferences/ManagePasswordDialog.cpp
     preferences/ManagePasswordDialog.h
-    preferences/parserpage.cpp
-    preferences/parserpage.h
-    preferences/pathmachinepage.cpp
-    preferences/pathmachinepage.h
     proxy/AbstractSocket.h
     proxy/AbstractTelnet.cpp
     proxy/AbstractTelnet.h
@@ -684,7 +662,29 @@ if(NOT WITH_QML)
         mainwindow/UpdateDialog.cpp
         mainwindow/UpdateDialog.h
         mainwindow/findroomsdlg.cpp
-        mainwindow/findroomsdlg.h)
+        mainwindow/findroomsdlg.h
+        preferences/AdvancedGraphics.cpp
+        preferences/AdvancedGraphics.h
+        preferences/audiopage.cpp
+        preferences/audiopage.h
+        preferences/autologpage.cpp
+        preferences/autologpage.h
+        preferences/clientpage.cpp
+        preferences/clientpage.h
+        preferences/configdialog.cpp
+        preferences/configdialog.h
+        preferences/generalpage.cpp
+        preferences/generalpage.h
+        preferences/graphicspage.cpp
+        preferences/graphicspage.h
+        preferences/grouppage.cpp
+        preferences/grouppage.h
+        preferences/mumeprotocolpage.cpp
+        preferences/mumeprotocolpage.h
+        preferences/parserpage.cpp
+        preferences/parserpage.h
+        preferences/pathmachinepage.cpp
+        preferences/pathmachinepage.h)
 endif()
 
 qt_add_resources(mmapper_QRC resources/mmapper2.qrc)
@@ -740,17 +740,7 @@ set(mmapper_UIS
     mainwindow/infomarkseditdlg.ui
     mainwindow/roomeditattrdlg.ui
     preferences/AnsiColorDialog.ui
-    preferences/audiopage.ui
-    preferences/autologpage.ui
-    preferences/configdialog.ui
-    preferences/clientpage.ui
-    preferences/generalpage.ui
-    preferences/graphicspage.ui
-    preferences/grouppage.ui
-    preferences/mumeprotocolpage.ui
     preferences/ManagePasswordDialog.ui
-    preferences/parserpage.ui
-    preferences/pathmachinepage.ui
 )
 
 if(NOT WITH_QML)
@@ -767,6 +757,20 @@ if(NOT WITH_QML)
     # driven by FindRoomsController rather than a generated
     # ui_findroomsdlg.h.
     list(APPEND mmapper_UIS mainwindow/findroomsdlg.ui)
+    # ConfigDialog and its nine widget pages' .ui files; PreferencesDialog.qml
+    # (used instead when WITH_QML) is driven by PreferencesController and the
+    # per-page adapters rather than generated ui_*.h headers.
+    list(APPEND mmapper_UIS
+        preferences/audiopage.ui
+        preferences/autologpage.ui
+        preferences/configdialog.ui
+        preferences/clientpage.ui
+        preferences/generalpage.ui
+        preferences/graphicspage.ui
+        preferences/grouppage.ui
+        preferences/mumeprotocolpage.ui
+        preferences/parserpage.ui
+        preferences/pathmachinepage.ui)
 endif()
 
 if(MMAPPER_IS_DEBUG)

@@ -15,6 +15,8 @@ class GroupPageAdapter;
 class AudioPageAdapter;
 class GraphicsPageAdapter;
 class ParserPageAdapter;
+class GeneralPageAdapter;
+class ClientPageAdapter;
 
 // QML-facing controller for the preferences dialog, mirroring ConfigDialog's
 // (see configdialog.h/.cpp) apply-on-change + OK/Cancel semantics without
@@ -22,9 +24,10 @@ class ParserPageAdapter;
 //
 // Phase 6, Commits 10-11 of the QML migration ported the five SIMPLE pages
 // (Path Machine, Mume Protocol, Auto Logger, Group Manager, Audio); Commits
-// 12-13 add the Graphics and Parser adapters (of the four COMPLEX pages).
-// General and Integrated Client still live only in the widget ConfigDialog
-// and have no QML adapter yet.
+// 12-13 add all four COMPLEX pages (Graphics, Parser, General, Integrated
+// Client). MainWindow does not yet switch slot_onPreferences to this
+// controller/dialog -- that happens in a later commit once every page has
+// been ported and cross-checked.
 //
 // Each adapter is created as a child of this controller and is given
 // dialogParent so its native pickers (QFileDialog/QColorDialog) parent
@@ -46,6 +49,8 @@ class NODISCARD_QOBJECT PreferencesController final : public QObject
     Q_PROPERTY(AudioPageAdapter *audio READ getAudio CONSTANT)
     Q_PROPERTY(GraphicsPageAdapter *graphics READ getGraphics CONSTANT)
     Q_PROPERTY(ParserPageAdapter *parser READ getParser CONSTANT)
+    Q_PROPERTY(GeneralPageAdapter *general READ getGeneral CONSTANT)
+    Q_PROPERTY(ClientPageAdapter *client READ getClient CONSTANT)
 
 private:
     QPointer<QWidget> m_dialogParent;
@@ -56,6 +61,8 @@ private:
     AudioPageAdapter *m_audio = nullptr;
     GraphicsPageAdapter *m_graphics = nullptr;
     ParserPageAdapter *m_parser = nullptr;
+    GeneralPageAdapter *m_general = nullptr;
+    ClientPageAdapter *m_client = nullptr;
 
 public:
     explicit PreferencesController(QWidget *dialogParent, QObject *parent = nullptr);
@@ -68,6 +75,8 @@ public:
     NODISCARD AudioPageAdapter *getAudio() const { return m_audio; }
     NODISCARD GraphicsPageAdapter *getGraphics() const { return m_graphics; }
     NODISCARD ParserPageAdapter *getParser() const { return m_parser; }
+    NODISCARD GeneralPageAdapter *getGeneral() const { return m_general; }
+    NODISCARD ClientPageAdapter *getClient() const { return m_client; }
 
     NODISCARD QWidget *dialogParent() const { return m_dialogParent; }
 
@@ -100,4 +109,9 @@ signals:
 
     // Emitted after ok() writes and accepts.
     void sig_accepted();
+
+    // Forwarded from GeneralPageAdapter::sig_reloadConfig(); triggers
+    // reloadAll() the same way GeneralPage::sig_reloadConfig() ->
+    // ConfigDialog::slot_loadConfig() does.
+    void sig_generalReloadRequested();
 };

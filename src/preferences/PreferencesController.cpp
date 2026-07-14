@@ -6,6 +6,8 @@
 #include "../configuration/configuration.h"
 #include "AudioPageAdapter.h"
 #include "AutoLogPageAdapter.h"
+#include "ClientPageAdapter.h"
+#include "GeneralPageAdapter.h"
 #include "GraphicsPageAdapter.h"
 #include "GroupPageAdapter.h"
 #include "MumeProtocolPageAdapter.h"
@@ -22,6 +24,8 @@ PreferencesController::PreferencesController(QWidget *const dialogParent, QObjec
     , m_audio(new AudioPageAdapter(this))
     , m_graphics(new GraphicsPageAdapter(dialogParent, this))
     , m_parser(new ParserPageAdapter(dialogParent, this))
+    , m_general(new GeneralPageAdapter(dialogParent, this))
+    , m_client(new ClientPageAdapter(dialogParent, this))
 {
     connect(m_group,
             &GroupPageAdapter::sig_groupSettingsChanged,
@@ -31,6 +35,10 @@ PreferencesController::PreferencesController(QWidget *const dialogParent, QObjec
             &GraphicsPageAdapter::sig_graphicsSettingsChanged,
             this,
             &PreferencesController::sig_graphicsSettingsChanged);
+    connect(m_general, &GeneralPageAdapter::sig_reloadConfig, this, [this]() {
+        reloadAll();
+        emit sig_generalReloadRequested();
+    });
 }
 
 void PreferencesController::ok()
@@ -54,4 +62,6 @@ void PreferencesController::reloadAll()
     m_audio->reload();
     m_graphics->reload();
     m_parser->reload();
+    m_general->reload();
+    m_client->reload();
 }

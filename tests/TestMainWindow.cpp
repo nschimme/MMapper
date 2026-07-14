@@ -8,6 +8,8 @@
 #include "../src/mainwindow/AudioVolumeSlider.h"
 #include "../src/mainwindow/UpdateChecker.h"
 #include "../src/preferences/AdvancedGraphicsModel.h"
+#include "../src/preferences/ClientPageAdapter.h"
+#include "../src/preferences/GeneralPageAdapter.h"
 #include "../src/preferences/GraphicsPageAdapter.h"
 #include "../src/preferences/GroupPageAdapter.h"
 #include "../src/preferences/ParserPageAdapter.h"
@@ -293,6 +295,86 @@ void TestMainWindow::parserPageAdapterRoundTrip()
     const auto expected = AnsiCombo::colorFromString(QStringLiteral("[1;32m"));
     QCOMPARE(adapter.getRoomNameColorFg(), expected.getFgColor());
     QCOMPARE(adapter.getRoomNameColorBg(), expected.getBgColor());
+}
+
+void TestMainWindow::generalPageAdapterRoundTrip()
+{
+    setEnteredMain();
+
+    // GeneralSettings holds a ChangeMonitor and is non-copyable, so restore
+    // its individual fields; the other touched groups are plain copyable
+    // structs and can be snapshotted whole.
+    const auto originalConnection = getConfig().connection;
+    const auto originalMumeNative = getConfig().mumeNative;
+    const auto originalAutoLoad = getConfig().autoLoad;
+    const auto originalCharacterEncoding = getConfig().general.characterEncoding;
+    const auto originalTheme = getConfig().general.getTheme();
+    const bool originalCheckForUpdate = getConfig().general.checkForUpdate;
+    auto cleanup = qScopeGuard([=]() {
+        setConfig().connection = originalConnection;
+        setConfig().mumeNative = originalMumeNative;
+        setConfig().autoLoad = originalAutoLoad;
+        setConfig().general.characterEncoding = originalCharacterEncoding;
+        setConfig().general.setTheme(originalTheme);
+        setConfig().general.checkForUpdate = originalCheckForUpdate;
+    });
+
+    GeneralPageAdapter adapter(nullptr, nullptr);
+    QSignalSpy changedSpy(&adapter, &GeneralPageAdapter::sig_changed);
+
+    QVERIFY(adapter.setProperty("remoteName", QStringLiteral("mume.org")));
+    QCOMPARE(getConfig().connection.remoteServerName, QStringLiteral("mume.org"));
+    QCOMPARE(changedSpy.count(), 1);
+
+    QVERIFY(adapter.setProperty("remotePort", 4242));
+    QCOMPARE(getConfig().connection.remotePort, static_cast<uint16_t>(4242));
+
+    // themeIndex/characterEncodingIndex map 1:1 onto ThemeEnum/
+    // CharacterEncodingEnum's declaration order; see the static_asserts at
+    // the top of GeneralPageAdapter.cpp.
+    QVERIFY(adapter.setProperty("themeIndex", 1));
+    QCOMPARE(getConfig().general.getTheme(), ThemeEnum::Dark);
+
+    QVERIFY(adapter.setProperty("characterEncodingIndex", 1));
+    QCOMPARE(getConfig().general.characterEncoding, CharacterEncodingEnum::UTF8);
+
+    QVERIFY(adapter.setProperty("emulatedExits", true));
+    QCOMPARE(getConfig().mumeNative.emulatedExits, true);
+
+    QVERIFY(adapter.setProperty("autoLoadMap", true));
+    QCOMPARE(getConfig().autoLoad.autoLoadMap, true);
+}
+
+void TestMainWindow::clientPageAdapterRoundTrip()
+{
+    setEnteredMain();
+
+    const auto original = getConfig().integratedClient;
+    auto cleanup = qScopeGuard([=]() { setConfig().integratedClient = original; });
+
+    ClientPageAdapter adapter(nullptr, nullptr);
+    QSignalSpy changedSpy(&adapter, &ClientPageAdapter::sig_changed);
+
+    QVERIFY(adapter.setProperty("columns", 100));
+    QCOMPARE(getConfig().integratedClient.columns, 100);
+    QCOMPARE(changedSpy.count(), 1);
+
+    const QColor newColor{Qt::blue};
+    QVERIFY(adapter.setProperty("foregroundColor", newColor));
+    QCOMPARE(getConfig().integratedClient.foregroundColor, newColor);
+
+    // A separator must be exactly one printable, non-space, non-backslash
+    // character, mirroring CustomSeparatorValidator (see clientpage.cpp).
+    QVERIFY(adapter.setCommandSeparator(QStringLiteral(";")));
+    QCOMPARE(getConfig().integratedClient.commandSeparator, QStringLiteral(";"));
+
+    QVERIFY(!adapter.setCommandSeparator(QStringLiteral("\\")));
+    QCOMPARE(getConfig().integratedClient.commandSeparator, QStringLiteral(";"));
+
+    QVERIFY(!adapter.setCommandSeparator(QStringLiteral(" ")));
+    QCOMPARE(getConfig().integratedClient.commandSeparator, QStringLiteral(";"));
+
+    QVERIFY(!adapter.setCommandSeparator(QStringLiteral("ab")));
 }
 
 QTEST_MAIN(TestMainWindow)

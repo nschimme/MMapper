@@ -170,10 +170,17 @@ set(preferences_adapter_SRCS
     ../src/preferences/AudioPageAdapter.h
     ../src/preferences/AutoLogPageAdapter.cpp
     ../src/preferences/AutoLogPageAdapter.h
+    ../src/preferences/ClientPageAdapter.cpp
+    ../src/preferences/ClientPageAdapter.h
+    ../src/preferences/GeneralPageAdapter.cpp
+    ../src/preferences/GeneralPageAdapter.h
     ../src/preferences/GraphicsPageAdapter.cpp
     ../src/preferences/GraphicsPageAdapter.h
     ../src/preferences/GroupPageAdapter.cpp
     ../src/preferences/GroupPageAdapter.h
+    ../src/preferences/ManagePasswordDialog.cpp
+    ../src/preferences/ManagePasswordDialog.h
+    ../src/preferences/ManagePasswordDialog.ui
     ../src/preferences/MumeProtocolPageAdapter.cpp
     ../src/preferences/MumeProtocolPageAdapter.h
     ../src/preferences/ParserPageAdapter.cpp
@@ -182,6 +189,8 @@ set(preferences_adapter_SRCS
     ../src/preferences/PathMachinePageAdapter.h
     ../src/preferences/PreferencesController.cpp
     ../src/preferences/PreferencesController.h
+    ../src/configuration/PasswordConfig.cpp
+    ../src/configuration/PasswordConfig.h
     ../src/opengl/OpenGLConfig.cpp
     ../src/opengl/OpenGLConfig.h
     )
@@ -200,6 +209,17 @@ if(WITH_AUDIO)
     # MMAPPER_NO_AUDIO is defined (see ../src/preferences/AudioPageAdapter.cpp),
     # same as TestQml's equivalent guard above.
     target_link_libraries(TestMainWindow Qt6::Multimedia)
+endif()
+if(WITH_QTKEYCHAIN)
+    # ../src/configuration/PasswordConfig.h includes <keychain.h> unless
+    # MMAPPER_NO_QTKEYCHAIN is defined; mirror src/CMakeLists.txt's mmapper
+    # target so PasswordConfig.cpp (pulled in via preferences_adapter_SRCS
+    # for GeneralPageAdapter's account/password round-trip) can find it here.
+    target_include_directories(TestMainWindow SYSTEM PRIVATE ${QTKEYCHAIN_INCLUDE_DIR})
+    target_link_libraries(TestMainWindow ${QTKEYCHAIN_LIBRARY})
+    if(NOT QTKEYCHAIN_FOUND)
+        add_dependencies(TestMainWindow qtkeychain)
+    endif()
 endif()
 set_target_properties(
   TestMainWindow PROPERTIES
@@ -540,6 +560,18 @@ if(WITH_QML)
         # MediaLibrary.cpp uses QMediaFormat unless MMAPPER_NO_AUDIO is
         # defined (which the top-level CMakeLists only does when audio is off).
         target_link_libraries(TestQml Qt6::Multimedia)
+    endif()
+    if(WITH_QTKEYCHAIN)
+        # preferences_adapter_SRCS pulls in GeneralPageAdapter.cpp/.h and
+        # PasswordConfig.cpp/.h; ../src/configuration/PasswordConfig.h
+        # includes <keychain.h> unless MMAPPER_NO_QTKEYCHAIN is defined.
+        # Mirror src/CMakeLists.txt's mmapper target (and TestMainWindow's
+        # equivalent guard above) so it can find it here.
+        target_include_directories(TestQml SYSTEM PRIVATE ${QTKEYCHAIN_INCLUDE_DIR})
+        target_link_libraries(TestQml ${QTKEYCHAIN_LIBRARY})
+        if(NOT QTKEYCHAIN_FOUND)
+            add_dependencies(TestQml qtkeychain)
+        endif()
     endif()
     set_target_properties(
             TestQml PROPERTIES

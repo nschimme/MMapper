@@ -24,4 +24,6 @@ private Q_SLOTS:
     void graphicsPageAdapterRoundTrip();
     void advancedGraphicsModelRoundTrip();
     void parserPageAdapterRoundTrip();
+    void generalPageAdapterRoundTrip();
+    void clientPageAdapterRoundTrip();
 };

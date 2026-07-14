@@ -535,6 +535,10 @@ set(mmapper_SRCS
     preferences/autologpage.h
     preferences/AutoLogPageAdapter.cpp
     preferences/AutoLogPageAdapter.h
+    preferences/ClientPageAdapter.cpp
+    preferences/ClientPageAdapter.h
+    preferences/GeneralPageAdapter.cpp
+    preferences/GeneralPageAdapter.h
     preferences/GraphicsPageAdapter.cpp
     preferences/GraphicsPageAdapter.h
     preferences/GroupPageAdapter.cpp
@@ -859,6 +863,8 @@ if(WITH_QML)
     set_source_files_properties(qml/PrefsAudioPage.qml PROPERTIES QT_RESOURCE_ALIAS "PrefsAudioPage.qml")
     set_source_files_properties(qml/PrefsGraphicsPage.qml PROPERTIES QT_RESOURCE_ALIAS "PrefsGraphicsPage.qml")
     set_source_files_properties(qml/PrefsParserPage.qml PROPERTIES QT_RESOURCE_ALIAS "PrefsParserPage.qml")
+    set_source_files_properties(qml/PrefsGeneralPage.qml PROPERTIES QT_RESOURCE_ALIAS "PrefsGeneralPage.qml")
+    set_source_files_properties(qml/PrefsClientPage.qml PROPERTIES QT_RESOURCE_ALIAS "PrefsClientPage.qml")
 
     qt_add_qml_module(mm_qml
         STATIC
@@ -891,6 +897,8 @@ if(WITH_QML)
             qml/PrefsAudioPage.qml
             qml/PrefsGraphicsPage.qml
             qml/PrefsParserPage.qml
+            qml/PrefsGeneralPage.qml
+            qml/PrefsClientPage.qml
         SOURCES
             qml/QmlDockWidget.h
             qml/QmlDockWidget.cpp

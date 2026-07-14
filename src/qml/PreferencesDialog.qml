@@ -14,10 +14,9 @@ import MMapper
 // file.
 //
 // Phase 6, Commits 10-11 of the QML migration ported the five SIMPLE pages;
-// Commits 12-13 add Graphics and Parser (two of the four COMPLEX pages).
-// General and Integrated Client still have no QML page yet. See
-// PreferencesController.h for why MainWindow does not yet switch to this
-// dialog.
+// Commits 12-13 add all four COMPLEX pages (Graphics, Parser, General,
+// Integrated Client). See PreferencesController.h for why MainWindow does
+// not yet switch to this dialog.
 Item {
     id: root
     implicitWidth: 800
@@ -34,6 +33,8 @@ Item {
         ListElement { label: qsTr("Audio"); source: "qrc:/qt/qml/MMapper/PrefsAudioPage.qml" }
         ListElement { label: qsTr("Graphics"); source: "qrc:/qt/qml/MMapper/PrefsGraphicsPage.qml" }
         ListElement { label: qsTr("Parser"); source: "qrc:/qt/qml/MMapper/PrefsParserPage.qml" }
+        ListElement { label: qsTr("General"); source: "qrc:/qt/qml/MMapper/PrefsGeneralPage.qml" }
+        ListElement { label: qsTr("Client"); source: "qrc:/qt/qml/MMapper/PrefsClientPage.qml" }
     }
 
     SystemPalette {

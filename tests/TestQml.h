@@ -49,4 +49,5 @@ private Q_SLOTS:
     void qmlDialogRejectFromQml();
     void loadAboutDialog();
     void loadUpdateDialog();
+    void findRoomsModelBasics();
 };

@@ -42,7 +42,11 @@ class ClientWidget;
 class ConfigDialog;
 class ConnectionListener;
 class ConnectionSelection;
+#ifdef MMAPPER_WITH_QML
+class FindRoomsController;
+#else
 class FindRoomsDlg;
+#endif
 class GameObserver;
 #ifdef MMAPPER_WITH_QML
 class GroupController;
@@ -140,7 +144,12 @@ private:
     CTimers *m_timers = nullptr;
 
     // Pandora Ported
+#ifdef MMAPPER_WITH_QML
+    FindRoomsController *m_findRoomsController = nullptr;
+    QmlDialog *m_findRoomsDlg = nullptr;
+#else
     FindRoomsDlg *m_findRoomsDlg = nullptr;
+#endif
     Mmapper2Group *m_groupManager = nullptr;
 #ifdef MMAPPER_WITH_QML
     GroupController *m_groupController = nullptr;

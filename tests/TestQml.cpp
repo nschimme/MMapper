@@ -18,6 +18,7 @@
 #include "../src/group/CGroupChar.h"
 #include "../src/group/GroupModel.h"
 #include "../src/mainwindow/AboutInfo.h"
+#include "../src/mainwindow/FindRoomsModel.h"
 #include "../src/mainwindow/LogModel.h"
 #include "../src/mainwindow/TasksModel.h"
 #include "../src/mainwindow/UpdateChecker.h"
@@ -1559,6 +1560,53 @@ void TestQml::loadUpdateDialog()
 
     QCOMPARE(quick->status(), QQuickWidget::Ready);
     QVERIFY(quick->rootObject() != nullptr);
+}
+
+void TestQml::findRoomsModelBasics()
+{
+    // FindRoomsController needs a live MapData (mapfrontend/parser/mapstorage),
+    // which no test binary currently links against TestQml (see
+    // GroupControllerStub's comment above for the same tradeoff with
+    // GroupController); loadFindRoomsDialog() below covers the QML-facing
+    // surface with a stub controller instead. This test exercises the model
+    // in isolation, the same way roomModelLongestTextInColumn() covers
+    // RoomModel without a live RoomManager feed.
+    FindRoomsModel model(nullptr);
+    QCOMPARE(model.rowCount(), 0);
+    QVERIFY(!model.isValidRow(0));
+    QCOMPARE(model.externalIdAt(0), 0u);
+    QCOMPARE(model.toolTipAt(0), QString());
+
+    std::vector<FindRoomsModel::Entry> entries;
+    entries.push_back(FindRoomsModel::Entry{1u, QStringLiteral("Room One"), QStringLiteral("tip1")});
+    entries.push_back(FindRoomsModel::Entry{2u, QStringLiteral("Room Two"), QStringLiteral("tip2")});
+
+    QSignalSpy resetSpy(&model, &QAbstractItemModel::modelReset);
+    model.setRooms(entries);
+    QCOMPARE(resetSpy.count(), 1);
+    QCOMPARE(model.rowCount(), 2);
+    QVERIFY(model.isValidRow(0));
+    QVERIFY(model.isValidRow(1));
+    QVERIFY(!model.isValidRow(2));
+
+    const QModelIndex idx0 = model.index(0, 0);
+    QCOMPARE(model.data(idx0, FindRoomsModel::ExternalIdRole).toUInt(), 1u);
+    QCOMPARE(model.data(idx0, FindRoomsModel::NameRole).toString(), QStringLiteral("Room One"));
+    QCOMPARE(model.data(idx0, FindRoomsModel::ToolTipRole).toString(), QStringLiteral("tip1"));
+    QCOMPARE(model.externalIdAt(1), 2u);
+    QCOMPARE(model.toolTipAt(1), QStringLiteral("tip2"));
+
+    const auto roles = model.roleNames();
+    QCOMPARE(roles.value(FindRoomsModel::ExternalIdRole), QByteArray("externalId"));
+    QCOMPARE(roles.value(FindRoomsModel::NameRole), QByteArray("name"));
+    QCOMPARE(roles.value(FindRoomsModel::ToolTipRole), QByteArray("toolTip"));
+
+    model.clear();
+    QCOMPARE(model.rowCount(), 0);
+    // Clearing an already-empty model must not emit a spurious reset.
+    resetSpy.clear();
+    model.clear();
+    QCOMPARE(resetSpy.count(), 0);
 }
 
 QTEST_MAIN(TestQml)

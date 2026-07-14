@@ -265,8 +265,10 @@ set(mmapper_SRCS
     mainwindow/ThemeManager.h
     mainwindow/UpdateChecker.cpp
     mainwindow/UpdateChecker.h
-    mainwindow/findroomsdlg.cpp
-    mainwindow/findroomsdlg.h
+    mainwindow/FindRoomsController.cpp
+    mainwindow/FindRoomsController.h
+    mainwindow/FindRoomsModel.cpp
+    mainwindow/FindRoomsModel.h
     mainwindow/infomarkseditdlg.cpp
     mainwindow/infomarkseditdlg.h
     mainwindow/mainwindow-async.cpp
@@ -658,7 +660,9 @@ if(NOT WITH_QML)
         mainwindow/aboutdialog.cpp
         mainwindow/aboutdialog.h
         mainwindow/UpdateDialog.cpp
-        mainwindow/UpdateDialog.h)
+        mainwindow/UpdateDialog.h
+        mainwindow/findroomsdlg.cpp
+        mainwindow/findroomsdlg.h)
 endif()
 
 qt_add_resources(mmapper_QRC resources/mmapper2.qrc)
@@ -712,7 +716,6 @@ endif()
 
 set(mmapper_UIS
     mainwindow/infomarkseditdlg.ui
-    mainwindow/findroomsdlg.ui
     mainwindow/roomeditattrdlg.ui
     preferences/AnsiColorDialog.ui
     preferences/audiopage.ui
@@ -738,6 +741,10 @@ if(NOT WITH_QML)
     # AboutDialog's .ui; AboutDialog.qml (used instead when WITH_QML) is
     # driven by AboutInfo rather than a generated ui_aboutdialog.h.
     list(APPEND mmapper_UIS mainwindow/aboutdialog.ui)
+    # FindRoomsDlg's .ui; FindRoomsDialog.qml (used instead when WITH_QML) is
+    # driven by FindRoomsController rather than a generated
+    # ui_findroomsdlg.h.
+    list(APPEND mmapper_UIS mainwindow/findroomsdlg.ui)
 endif()
 
 if(MMAPPER_IS_DEBUG)
@@ -825,6 +832,7 @@ if(WITH_QML)
     set_source_files_properties(qml/ClientPanel.qml PROPERTIES QT_RESOURCE_ALIAS "ClientPanel.qml")
     set_source_files_properties(qml/AboutDialog.qml PROPERTIES QT_RESOURCE_ALIAS "AboutDialog.qml")
     set_source_files_properties(qml/UpdateDialog.qml PROPERTIES QT_RESOURCE_ALIAS "UpdateDialog.qml")
+    set_source_files_properties(qml/FindRoomsDialog.qml PROPERTIES QT_RESOURCE_ALIAS "FindRoomsDialog.qml")
 
     qt_add_qml_module(mm_qml
         STATIC
@@ -848,6 +856,7 @@ if(WITH_QML)
             qml/ClientPanel.qml
             qml/AboutDialog.qml
             qml/UpdateDialog.qml
+            qml/FindRoomsDialog.qml
         SOURCES
             qml/QmlDockWidget.h
             qml/QmlDockWidget.cpp

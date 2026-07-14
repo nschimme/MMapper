@@ -59,7 +59,9 @@
 #include "UpdateDialog.h"
 #include "aboutdialog.h"
 #endif
+#ifndef MMAPPER_WITH_QML
 #include "findroomsdlg.h"
+#endif
 #include "infomarkseditdlg.h"
 #include "mainwindow-async.h"
 #include "metatypes.h"
@@ -83,6 +85,8 @@
 #include "../timers/TimerController.h"
 #include "../timers/TimerModel.h"
 #include "AboutInfo.h"
+#include "FindRoomsController.h"
+#include "FindRoomsModel.h"
 #include "LogModel.h"
 #include "TasksModel.h"
 #include "UpdateChecker.h"
@@ -332,10 +336,19 @@ MainWindow::MainWindow()
 
     // Find Room Dialog
     std::invoke([this] {
+#ifdef MMAPPER_WITH_QML
+        m_findRoomsController = new FindRoomsController(deref(m_mapData), this);
+        auto *const dialog = new QmlDialog(tr("Find Rooms"), "FindRoomsDlg", this);
+        dialog->setContextProperty("findRoomsController", m_findRoomsController);
+        dialog->setContextProperty("findRoomsModel", m_findRoomsController->getModel());
+        dialog->setQmlSource(QUrl(QStringLiteral("qrc:/qt/qml/MMapper/FindRoomsDialog.qml")));
+        m_findRoomsDlg = dialog;
+#else
         auto *const findRoomsDlg = new FindRoomsDlg(deref(m_mapData), this);
         findRoomsDlg->setObjectName("FindRoomsDlg");
 
         m_findRoomsDlg = findRoomsDlg;
+#endif
     });
 
     std::invoke([this] {
@@ -833,6 +846,24 @@ void MainWindow::wireConnections()
 #endif
 
     // Find Room Dialog Connections
+#ifdef MMAPPER_WITH_QML
+    connect(m_findRoomsController,
+            &FindRoomsController::sig_newRoomSelection,
+            canvas,
+            &MapCanvas::slot_setRoomSelection);
+    connect(m_findRoomsController,
+            &FindRoomsController::sig_center,
+            m_mapWindow,
+            &MapWindow::slot_centerOnWorldPos);
+    connect(m_findRoomsController, &FindRoomsController::sig_log, this, &MainWindow::slot_log);
+    connect(m_findRoomsController,
+            &FindRoomsController::sig_editSelection,
+            this,
+            &MainWindow::slot_onEditRoomSelection);
+    connect(m_findRoomsDlg, &QDialog::finished, this, [this](int /*result*/) {
+        setConfig().findRoomsDialog.geometry = m_findRoomsDlg->saveGeometry();
+    });
+#else
     connect(m_findRoomsDlg,
             &FindRoomsDlg::sig_newRoomSelection,
             canvas,
@@ -846,6 +877,7 @@ void MainWindow::wireConnections()
             &FindRoomsDlg::sig_editSelection,
             this,
             &MainWindow::slot_onEditRoomSelection);
+#endif
 }
 
 void MainWindow::slot_log(const QString &mod, const QString &message)
@@ -2201,7 +2233,14 @@ void MainWindow::showAsyncFailure(const QString &fileName,
 
 void MainWindow::slot_onFindRoom()
 {
+#ifdef MMAPPER_WITH_QML
+    m_findRoomsDlg->restoreGeometry(getConfig().findRoomsDialog.geometry);
     m_findRoomsDlg->show();
+    m_findRoomsDlg->raise();
+    m_findRoomsDlg->activateWindow();
+#else
+    m_findRoomsDlg->show();
+#endif
 }
 
 void MainWindow::slot_onLaunchClient()

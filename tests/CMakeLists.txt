@@ -471,10 +471,18 @@ if(WITH_QML)
             ../src/mainwindow/UpdateChecker.cpp
             ../src/mainwindow/UpdateChecker.h
     )
+    # Sources for findRoomsModelBasics()/loadFindRoomsDialog(). Only the model
+    # is linked here; FindRoomsController needs a live MapData (see
+    # GroupControllerStub's comment in TestQml.cpp for why that whole
+    # mapfrontend/parser/mapstorage graph isn't linked into this test binary).
+    set(find_rooms_model_SRCS
+            ../src/mainwindow/FindRoomsModel.cpp
+            ../src/mainwindow/FindRoomsModel.h
+    )
     add_executable(TestQml ${TestQml_SRCS} ${timer_test} ${adventure_SRCS} ${room_manager}
             ${log_model_SRCS} ${tasks_model_SRCS} ${group_SRCS} ${description_panel_SRCS}
             ${clock_adapter_SRCS} ${xp_status_adapter_SRCS} ${client_line_model_SRCS}
-            ${about_info_SRCS} ${update_checker_SRCS})
+            ${about_info_SRCS} ${update_checker_SRCS} ${find_rooms_model_SRCS})
     add_dependencies(TestQml mm_qml mm_qmlplugin mm_test mm_global mm_map)
     target_link_libraries(TestQml
             mm_qml

@@ -153,8 +153,27 @@ set(mainwindow_SRCS
     ../src/mainwindow/UpdateChecker.cpp
     ../src/mainwindow/UpdateChecker.h
     )
+# PreferencesController + the five SIMPLE-page adapters (see
+# ../src/preferences/PreferencesController.h); these are plain QObjects with
+# no Qt Quick dependency, so they are exercised here rather than in TestQml,
+# keeping their round-trip coverage available in both the WITH_QML and
+# non-QML build variants.
+set(preferences_adapter_SRCS
+    ../src/preferences/AudioPageAdapter.cpp
+    ../src/preferences/AudioPageAdapter.h
+    ../src/preferences/AutoLogPageAdapter.cpp
+    ../src/preferences/AutoLogPageAdapter.h
+    ../src/preferences/GroupPageAdapter.cpp
+    ../src/preferences/GroupPageAdapter.h
+    ../src/preferences/MumeProtocolPageAdapter.cpp
+    ../src/preferences/MumeProtocolPageAdapter.h
+    ../src/preferences/PathMachinePageAdapter.cpp
+    ../src/preferences/PathMachinePageAdapter.h
+    ../src/preferences/PreferencesController.cpp
+    ../src/preferences/PreferencesController.h
+    )
 set(TestMainWindow_SRCS TestMainWindow.cpp)
-add_executable(TestMainWindow ${TestMainWindow_SRCS} ${mainwindow_SRCS})
+add_executable(TestMainWindow ${TestMainWindow_SRCS} ${mainwindow_SRCS} ${preferences_adapter_SRCS})
 add_dependencies(TestMainWindow mm_test mm_global)
 target_link_libraries(TestMainWindow
         mm_test
@@ -163,6 +182,12 @@ target_link_libraries(TestMainWindow
         Qt6::Test
         Qt6::Widgets
         coverage_config)
+if(WITH_AUDIO)
+    # AudioPageAdapter.cpp uses QAudioDevice/QMediaDevices unless
+    # MMAPPER_NO_AUDIO is defined (see ../src/preferences/AudioPageAdapter.cpp),
+    # same as TestQml's equivalent guard above.
+    target_link_libraries(TestMainWindow Qt6::Multimedia)
+endif()
 set_target_properties(
   TestMainWindow PROPERTIES
   CXX_STANDARD 20

@@ -523,12 +523,24 @@ set(mmapper_SRCS
     preferences/AdvancedGraphics.h
     preferences/audiopage.cpp
     preferences/audiopage.h
+    preferences/AudioPageAdapter.cpp
+    preferences/AudioPageAdapter.h
     preferences/AnsiColorDialog.cpp
     preferences/AnsiColorDialog.h
     preferences/ansicombo.cpp
     preferences/ansicombo.h
     preferences/autologpage.cpp
     preferences/autologpage.h
+    preferences/AutoLogPageAdapter.cpp
+    preferences/AutoLogPageAdapter.h
+    preferences/GroupPageAdapter.cpp
+    preferences/GroupPageAdapter.h
+    preferences/MumeProtocolPageAdapter.cpp
+    preferences/MumeProtocolPageAdapter.h
+    preferences/PathMachinePageAdapter.cpp
+    preferences/PathMachinePageAdapter.h
+    preferences/PreferencesController.cpp
+    preferences/PreferencesController.h
     preferences/clientpage.cpp
     preferences/clientpage.h
     preferences/configdialog.cpp

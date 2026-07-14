@@ -18,4 +18,7 @@ private:
 private Q_SLOTS:
     void updaterTest();
     void audioToolbarTest();
+    void pathMachinePageAdapterRoundTrip();
+    void groupPageAdapterRoundTrip();
+    void preferencesControllerCancelReloadsAdapters();
 };

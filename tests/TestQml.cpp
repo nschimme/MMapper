@@ -29,6 +29,7 @@
 #include "../src/proxy/GmcpMessage.h"
 #include "../src/qml/DescriptionImageProvider.h"
 #include "../src/qml/QmlConfig.h"
+#include "../src/qml/QmlDialog.h"
 #include "../src/qml/QmlDockWidget.h"
 #include "../src/roompanel/RoomManager.h"
 #include "../src/roompanel/RoomModel.h"
@@ -44,6 +45,7 @@
 #include <thread>
 
 #include <QDir>
+#include <QFile>
 #include <QFontMetricsF>
 #include <QImage>
 #include <QJSEngine>
@@ -1410,6 +1412,90 @@ void TestQml::loadClientPanel()
     QVERIFY2(fake.sentToMud.contains(QStringLiteral("F1\n")),
              qPrintable(QStringLiteral("sentToMud did not contain \"F1\\n\"; had: %1")
                             .arg(fake.sentToMud.join(", "))));
+}
+
+void TestQml::qmlDialogLoads()
+{
+    // setQmlSource() only takes a QUrl (no setData()-style inline-string
+    // overload), so write a tiny fixture with explicit implicit sizes to a
+    // temp file and load it via a file:// URL, exercising the same
+    // statusChanged-driven resize path production QML sources go through.
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    const QString path = dir.filePath(QStringLiteral("QmlDialogTest.qml"));
+    {
+        QFile file(path);
+        QVERIFY(file.open(QIODevice::WriteOnly));
+        file.write(QByteArrayLiteral("import QtQuick\n"
+                                     "Item {\n"
+                                     "    implicitWidth: 500\n"
+                                     "    implicitHeight: 400\n"
+                                     "}\n"));
+    }
+
+    QmlDialog dialog("t", "TestDialog", nullptr);
+    QVERIFY(dialog.quickWidget() != nullptr);
+    dialog.setQmlSource(QUrl::fromLocalFile(path));
+
+    QQuickWidget *const quick = dialog.quickWidget();
+    while (quick->status() == QQuickWidget::Loading) {
+        QCoreApplication::processEvents();
+    }
+    QCOMPARE(quick->status(), QQuickWidget::Ready);
+    // Give the queued statusChanged connection a chance to resize the dialog.
+    QCoreApplication::processEvents();
+
+    QVERIFY(dialog.width() >= 500);
+    QVERIFY(dialog.height() >= 400);
+}
+
+void TestQml::qmlDialogFallback()
+{
+    QmlDialog dialog("t", "TestDialogFallback", nullptr);
+    QVERIFY(dialog.quickWidget() != nullptr);
+
+    dialog.setQmlSource(QUrl(u"qrc:/qt/qml/MMapper/DoesNotExist.qml"_qs));
+
+    while (dialog.quickWidget() != nullptr
+           && dialog.quickWidget()->status() == QQuickWidget::Loading) {
+        QCoreApplication::processEvents();
+    }
+    // Give the queued statusChanged connection a chance to run.
+    QCoreApplication::processEvents();
+
+    if (dialog.quickWidget() != nullptr) {
+        QCOMPARE(dialog.quickWidget()->status(), QQuickWidget::Error);
+    } else {
+        auto *const label = dialog.findChild<QLabel *>();
+        QVERIFY(label != nullptr);
+    }
+}
+
+void TestQml::qmlDialogRejectFromQml()
+{
+    QmlDialog dialog("t", "TestDialogReject", nullptr);
+    dialog.setQmlSource(QUrl(u"qrc:/qt/qml/MMapper/PanelFrame.qml"_qs));
+
+    QQuickWidget *const quick = dialog.quickWidget();
+    QVERIFY(quick != nullptr);
+    while (quick->status() == QQuickWidget::Loading) {
+        QCoreApplication::processEvents();
+    }
+    QCOMPARE(quick->status(), QQuickWidget::Ready);
+
+    QSignalSpy rejectedSpy(&dialog, &QDialog::rejected);
+    QSignalSpy finishedSpy(&dialog, &QDialog::finished);
+
+    // Exercise the "dialog" context property exposed by the constructor:
+    // call reject() the same way QML button handlers would (dialog.reject()).
+    QObject *const dialogProperty = qvariant_cast<QObject *>(
+        quick->rootContext()->contextProperty("dialog"));
+    QVERIFY(dialogProperty != nullptr);
+    QMetaObject::invokeMethod(dialogProperty, "reject");
+    QCoreApplication::processEvents();
+
+    QCOMPARE(rejectedSpy.count(), 1);
+    QCOMPARE(finishedSpy.count(), 1);
 }
 
 QTEST_MAIN(TestQml)

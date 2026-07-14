@@ -44,4 +44,7 @@ private Q_SLOTS:
     void clientDisplayLeadingWhitespaceRenders();
     void clientDisplayStickTracking();
     void loadClientPanel();
+    void qmlDialogLoads();
+    void qmlDialogFallback();
+    void qmlDialogRejectFromQml();
 };

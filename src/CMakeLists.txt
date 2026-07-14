@@ -841,6 +841,8 @@ if(WITH_QML)
         SOURCES
             qml/QmlDockWidget.h
             qml/QmlDockWidget.cpp
+            qml/QmlDialog.h
+            qml/QmlDialog.cpp
             qml/QmlConfig.h
             qml/QmlConfig.cpp
             qml/GroupIconProvider.h

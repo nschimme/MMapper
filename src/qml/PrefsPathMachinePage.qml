@@ -20,103 +20,95 @@ import MMapper
 // et al.'s 0..100 range / 4 decimals in pathmachinepage.ui) that commits to
 // the adapter on editingFinished. This is the pattern used for every
 // double-valued field across the five ported pages.
-Flickable {
+Column {
     id: root
-    clip: true
-    contentWidth: width
-    contentHeight: column.implicitHeight
+    spacing: 8
 
     readonly property var pathMachine: preferencesController.pathMachine
 
-    Column {
-        id: column
-        width: root.width
+    Label { text: qsTr("WARNING: These settings are for advanced users only"); font.bold: true }
+
+    Row {
         spacing: 8
-
-        Label { text: qsTr("WARNING: These settings are for advanced users only"); font.bold: true }
-
-        Row {
-            spacing: 8
-            Label { text: qsTr("Max Paths:"); width: 180 }
-            SpinBox {
-                id: maxPathsBox
-                from: 0
-                to: 100000
-                value: root.pathMachine.maxPaths
-                onValueModified: root.pathMachine.maxPaths = value
-            }
+        Label { text: qsTr("Max Paths:"); width: 180 }
+        SpinBox {
+            id: maxPathsBox
+            from: 0
+            to: 100000
+            value: root.pathMachine.maxPaths
+            onValueModified: root.pathMachine.maxPaths = value
         }
+    }
 
-        Row {
-            spacing: 8
-            Label { text: qsTr("Matching Tolerance:"); width: 180 }
-            SpinBox {
-                id: matchingToleranceBox
-                from: 0
-                to: 100
-                value: root.pathMachine.matchingTolerance
-                onValueModified: root.pathMachine.matchingTolerance = value
-            }
+    Row {
+        spacing: 8
+        Label { text: qsTr("Matching Tolerance:"); width: 180 }
+        SpinBox {
+            id: matchingToleranceBox
+            from: 0
+            to: 100
+            value: root.pathMachine.matchingTolerance
+            onValueModified: root.pathMachine.matchingTolerance = value
         }
+    }
 
-        Row {
-            spacing: 8
-            Label { text: qsTr("Accept Best Relative:"); width: 180 }
-            TextField {
-                id: acceptBestRelativeField
-                width: 100
-                text: root.pathMachine.acceptBestRelative.toFixed(4)
-                validator: DoubleValidator { bottom: 0; top: 100; decimals: 4 }
-                onEditingFinished: root.pathMachine.acceptBestRelative = parseFloat(text)
-            }
+    Row {
+        spacing: 8
+        Label { text: qsTr("Accept Best Relative:"); width: 180 }
+        TextField {
+            id: acceptBestRelativeField
+            width: 100
+            text: root.pathMachine.acceptBestRelative.toFixed(4)
+            validator: DoubleValidator { bottom: 0; top: 100; decimals: 4 }
+            onEditingFinished: root.pathMachine.acceptBestRelative = parseFloat(text)
         }
+    }
 
-        Row {
-            spacing: 8
-            Label { text: qsTr("Accept Best Absolute:"); width: 180 }
-            TextField {
-                id: acceptBestAbsoluteField
-                width: 100
-                text: root.pathMachine.acceptBestAbsolute.toFixed(4)
-                validator: DoubleValidator { bottom: 0; top: 100; decimals: 4 }
-                onEditingFinished: root.pathMachine.acceptBestAbsolute = parseFloat(text)
-            }
+    Row {
+        spacing: 8
+        Label { text: qsTr("Accept Best Absolute:"); width: 180 }
+        TextField {
+            id: acceptBestAbsoluteField
+            width: 100
+            text: root.pathMachine.acceptBestAbsolute.toFixed(4)
+            validator: DoubleValidator { bottom: 0; top: 100; decimals: 4 }
+            onEditingFinished: root.pathMachine.acceptBestAbsolute = parseFloat(text)
         }
+    }
 
-        Row {
-            spacing: 8
-            Label { text: qsTr("New Room Penalty:"); width: 180 }
-            TextField {
-                id: newRoomPenaltyField
-                width: 100
-                text: root.pathMachine.newRoomPenalty.toFixed(4)
-                validator: DoubleValidator { bottom: 0; top: 100; decimals: 4 }
-                onEditingFinished: root.pathMachine.newRoomPenalty = parseFloat(text)
-            }
+    Row {
+        spacing: 8
+        Label { text: qsTr("New Room Penalty:"); width: 180 }
+        TextField {
+            id: newRoomPenaltyField
+            width: 100
+            text: root.pathMachine.newRoomPenalty.toFixed(4)
+            validator: DoubleValidator { bottom: 0; top: 100; decimals: 4 }
+            onEditingFinished: root.pathMachine.newRoomPenalty = parseFloat(text)
         }
+    }
 
-        Row {
-            spacing: 8
-            Label { text: qsTr("Correct Position bonus:"); width: 180 }
-            TextField {
-                id: correctPositionBonusField
-                width: 100
-                text: root.pathMachine.correctPositionBonus.toFixed(4)
-                validator: DoubleValidator { bottom: 0; top: 100; decimals: 4 }
-                onEditingFinished: root.pathMachine.correctPositionBonus = parseFloat(text)
-            }
+    Row {
+        spacing: 8
+        Label { text: qsTr("Correct Position bonus:"); width: 180 }
+        TextField {
+            id: correctPositionBonusField
+            width: 100
+            text: root.pathMachine.correctPositionBonus.toFixed(4)
+            validator: DoubleValidator { bottom: 0; top: 100; decimals: 4 }
+            onEditingFinished: root.pathMachine.correctPositionBonus = parseFloat(text)
         }
+    }
 
-        Row {
-            spacing: 8
-            Label { text: qsTr("Multiple Connections Penalty:"); width: 180 }
-            TextField {
-                id: multipleConnectionsPenaltyField
-                width: 100
-                text: root.pathMachine.multipleConnectionsPenalty.toFixed(4)
-                validator: DoubleValidator { bottom: 0; top: 100; decimals: 4 }
-                onEditingFinished: root.pathMachine.multipleConnectionsPenalty = parseFloat(text)
-            }
+    Row {
+        spacing: 8
+        Label { text: qsTr("Multiple Connections Penalty:"); width: 180 }
+        TextField {
+            id: multipleConnectionsPenaltyField
+            width: 100
+            text: root.pathMachine.multipleConnectionsPenalty.toFixed(4)
+            validator: DoubleValidator { bottom: 0; top: 100; decimals: 4 }
+            onEditingFinished: root.pathMachine.multipleConnectionsPenalty = parseFloat(text)
         }
     }
 }

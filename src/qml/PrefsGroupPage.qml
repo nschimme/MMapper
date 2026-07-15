@@ -13,72 +13,64 @@ import MMapper
 // icon-on-button swatch) since there is no packaged-module color-picker
 // button; the native QColorDialog is opened via the adapter's
 // chooseColor()/chooseNpcOverrideColor() invokables.
-Flickable {
+Column {
     id: root
-    clip: true
-    contentWidth: width
-    contentHeight: column.implicitHeight
+    spacing: 8
 
     readonly property var group: preferencesController.group
 
-    Column {
-        id: column
-        width: root.width
+    Label { text: qsTr("Appearance"); font.bold: true }
+
+    Row {
         spacing: 8
-
-        Label { text: qsTr("Appearance"); font.bold: true }
-
-        Row {
-            spacing: 8
-            Label { text: qsTr("Your color:"); width: 160 }
-            Rectangle {
-                width: 24
-                height: 16
-                border.color: "black"
-                border.width: 1
-                color: root.group.color
-            }
-            Button {
-                text: qsTr("Select")
-                onClicked: root.group.chooseColor()
-            }
+        Label { text: qsTr("Your color:"); width: 160 }
+        Rectangle {
+            width: 24
+            height: 16
+            border.color: "black"
+            border.width: 1
+            color: root.group.color
         }
-
-        Row {
-            spacing: 8
-            CheckBox {
-                id: npcOverrideColorCheckBox
-                checked: root.group.npcColorOverride
-                onToggled: root.group.npcColorOverride = checked
-            }
-            Label { text: qsTr("Override NPC color:"); width: 148; anchors.verticalCenter: parent.verticalCenter }
-            Rectangle {
-                width: 24
-                height: 16
-                border.color: "black"
-                border.width: 1
-                color: root.group.npcColor
-            }
-            Button {
-                text: qsTr("Select")
-                onClicked: root.group.chooseNpcOverrideColor()
-            }
+        Button {
+            text: qsTr("Select")
+            onClicked: root.group.chooseColor()
         }
+    }
 
-        Label { text: qsTr("Filtering and Order"); font.bold: true }
-
+    Row {
+        spacing: 8
         CheckBox {
-            id: npcSortBottomCheckBox
-            text: qsTr("Sort NPCs to bottom")
-            checked: root.group.npcSortBottom
-            onToggled: root.group.npcSortBottom = checked
+            id: npcOverrideColorCheckBox
+            checked: root.group.npcColorOverride
+            onToggled: root.group.npcColorOverride = checked
         }
+        Label { text: qsTr("Override NPC color:"); width: 148; anchors.verticalCenter: parent.verticalCenter }
+        Rectangle {
+            width: 24
+            height: 16
+            border.color: "black"
+            border.width: 1
+            color: root.group.npcColor
+        }
+        Button {
+            text: qsTr("Select")
+            onClicked: root.group.chooseNpcOverrideColor()
+        }
+    }
 
-        CheckBox {
-            id: npcHideCheckBox
-            text: qsTr("Hide NPCs")
-            checked: root.group.npcHide
-            onToggled: root.group.npcHide = checked
-        }
+    Label { text: qsTr("Filtering and Order"); font.bold: true }
+
+    CheckBox {
+        id: npcSortBottomCheckBox
+        text: qsTr("Sort NPCs to bottom")
+        checked: root.group.npcSortBottom
+        onToggled: root.group.npcSortBottom = checked
+    }
+
+    CheckBox {
+        id: npcHideCheckBox
+        text: qsTr("Hide NPCs")
+        checked: root.group.npcHide
+        onToggled: root.group.npcHide = checked
     }
 }

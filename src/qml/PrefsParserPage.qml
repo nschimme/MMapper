@@ -13,11 +13,9 @@ import MMapper
 // stay native (AnsiColorDialog, launched via the adapter's
 // chooseRoomNameColor()/chooseRoomDescColor() invokables) rather than being
 // re-implemented in QML; see ParserPageAdapter.h for why.
-Flickable {
+Column {
     id: root
-    clip: true
-    contentWidth: width
-    contentHeight: column.implicitHeight
+    spacing: 8
 
     readonly property var parser: preferencesController.parser
 
@@ -48,61 +46,55 @@ Flickable {
         }
     }
 
-    Column {
-        id: column
-        width: root.width
+    Label { text: qsTr("Offline Emulation"); font.bold: true }
+
+    AnsiColorRow {
+        label: qsTr("Room name color:")
+        fgColor: root.parser.roomNameColorFg
+        bgColor: root.parser.roomNameColorBg
+        previewText: qsTr("roomname")
+        onChooseRequested: root.parser.chooseRoomNameColor()
+    }
+
+    AnsiColorRow {
+        label: qsTr("Descriptions color:")
+        fgColor: root.parser.roomDescColorFg
+        bgColor: root.parser.roomDescColorBg
+        previewText: qsTr("roomdesc")
+        onChooseRequested: root.parser.chooseRoomDescColor()
+    }
+
+    Label { text: qsTr("Commands"); font.bold: true }
+
+    Row {
         spacing: 8
-
-        Label { text: qsTr("Offline Emulation"); font.bold: true }
-
-        AnsiColorRow {
-            label: qsTr("Room name color:")
-            fgColor: root.parser.roomNameColorFg
-            bgColor: root.parser.roomNameColorBg
-            previewText: qsTr("roomname")
-            onChooseRequested: root.parser.chooseRoomNameColor()
-        }
-
-        AnsiColorRow {
-            label: qsTr("Descriptions color:")
-            fgColor: root.parser.roomDescColorFg
-            bgColor: root.parser.roomDescColorBg
-            previewText: qsTr("roomdesc")
-            onChooseRequested: root.parser.chooseRoomDescColor()
-        }
-
-        Label { text: qsTr("Commands"); font.bold: true }
-
-        Row {
-            spacing: 8
-            Label { text: qsTr("Character prefix:"); width: 140 }
-            TextField {
-                id: prefixField
-                width: 40
-                maximumLength: 1
-                text: root.parser.prefixChar
-                onEditingFinished: {
-                    if (!root.parser.setPrefixChar(text)) {
-                        // Revert to the last valid value, mirroring
-                        // CommandPrefixValidator rejecting the keystroke.
-                        text = root.parser.prefixChar;
-                    }
+        Label { text: qsTr("Character prefix:"); width: 140 }
+        TextField {
+            id: prefixField
+            width: 40
+            maximumLength: 1
+            text: root.parser.prefixChar
+            onEditingFinished: {
+                if (!root.parser.setPrefixChar(text)) {
+                    // Revert to the last valid value, mirroring
+                    // CommandPrefixValidator rejecting the keystroke.
+                    text = root.parser.prefixChar;
                 }
             }
         }
+    }
 
-        Label { text: qsTr("Emoji Shortcodes"); font.bold: true }
+    Label { text: qsTr("Emoji Shortcodes"); font.bold: true }
 
-        CheckBox {
-            text: qsTr("Encode to shortcodes")
-            checked: root.parser.encodeEmoji
-            onToggled: root.parser.encodeEmoji = checked
-        }
+    CheckBox {
+        text: qsTr("Encode to shortcodes")
+        checked: root.parser.encodeEmoji
+        onToggled: root.parser.encodeEmoji = checked
+    }
 
-        CheckBox {
-            text: qsTr("Decode from shortcodes")
-            checked: root.parser.decodeEmoji
-            onToggled: root.parser.decodeEmoji = checked
-        }
+    CheckBox {
+        text: qsTr("Decode from shortcodes")
+        checked: root.parser.decodeEmoji
+        onToggled: root.parser.decodeEmoji = checked
     }
 }

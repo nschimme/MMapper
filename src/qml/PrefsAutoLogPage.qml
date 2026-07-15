@@ -13,118 +13,110 @@ import MMapper
 //
 // cleanupStrategy is an int matching AutoLoggerEnum's ordinal (see
 // AutoLogPageAdapter.h): KeepForever=0, DeleteDays=1, DeleteSize=2.
-Flickable {
+Column {
     id: root
-    clip: true
-    contentWidth: width
-    contentHeight: column.implicitHeight
+    spacing: 8
 
     readonly property var autoLog: preferencesController.autoLog
 
-    Column {
-        id: column
-        width: root.width
+    Label { text: qsTr("Automatic Logging"); font.bold: true }
+
+    CheckBox {
+        id: autoLogCheckBox
+        text: qsTr("Automatically log play sessions to disk")
+        checked: root.autoLog.autoLog
+        onToggled: root.autoLog.autoLog = checked
+    }
+
+    Row {
         spacing: 8
+        enabled: autoLogCheckBox.checked
 
-        Label { text: qsTr("Automatic Logging"); font.bold: true }
+        Label { text: qsTr("Log location:") }
 
-        CheckBox {
-            id: autoLogCheckBox
-            text: qsTr("Automatically log play sessions to disk")
-            checked: root.autoLog.autoLog
-            onToggled: root.autoLog.autoLog = checked
+        TextField {
+            id: autoLogLocationField
+            width: 260
+            text: root.autoLog.autoLogDirectory
+            onEditingFinished: root.autoLog.autoLogDirectory = text
         }
 
-        Row {
-            spacing: 8
-            enabled: autoLogCheckBox.checked
-
-            Label { text: qsTr("Log location:") }
-
-            TextField {
-                id: autoLogLocationField
-                width: 260
-                text: root.autoLog.autoLogDirectory
-                onEditingFinished: root.autoLog.autoLogDirectory = text
-            }
-
-            Button {
-                text: qsTr("Select")
-                onClicked: root.autoLog.browseForDirectory()
-            }
+        Button {
+            text: qsTr("Select")
+            onClicked: root.autoLog.browseForDirectory()
         }
+    }
 
-        Label { text: qsTr("Automatic Log Cleanup"); font.bold: true }
+    Label { text: qsTr("Automatic Log Cleanup"); font.bold: true }
 
-        ButtonGroup { id: cleanupGroup }
+    ButtonGroup { id: cleanupGroup }
 
+    RadioButton {
+        text: qsTr("Keep logs forever")
+        checked: root.autoLog.cleanupStrategy === 0
+        ButtonGroup.group: cleanupGroup
+        onToggled: if (checked) root.autoLog.cleanupStrategy = 0
+    }
+
+    Row {
+        spacing: 8
         RadioButton {
-            text: qsTr("Keep logs forever")
-            checked: root.autoLog.cleanupStrategy === 0
+            id: deleteDaysRadio
+            text: qsTr("Delete logs after")
+            checked: root.autoLog.cleanupStrategy === 1
             ButtonGroup.group: cleanupGroup
-            onToggled: if (checked) root.autoLog.cleanupStrategy = 0
+            onToggled: if (checked) root.autoLog.cleanupStrategy = 1
         }
-
-        Row {
-            spacing: 8
-            RadioButton {
-                id: deleteDaysRadio
-                text: qsTr("Delete logs after")
-                checked: root.autoLog.cleanupStrategy === 1
-                ButtonGroup.group: cleanupGroup
-                onToggled: if (checked) root.autoLog.cleanupStrategy = 1
-            }
-            SpinBox {
-                id: deleteDaysBox
-                from: 0
-                to: 9999999
-                enabled: deleteDaysRadio.checked
-                value: root.autoLog.deleteWhenLogsReachDays
-                onValueModified: root.autoLog.deleteWhenLogsReachDays = value
-            }
-            Label { text: qsTr("days"); anchors.verticalCenter: parent.verticalCenter }
+        SpinBox {
+            id: deleteDaysBox
+            from: 0
+            to: 9999999
+            enabled: deleteDaysRadio.checked
+            value: root.autoLog.deleteWhenLogsReachDays
+            onValueModified: root.autoLog.deleteWhenLogsReachDays = value
         }
+        Label { text: qsTr("days"); anchors.verticalCenter: parent.verticalCenter }
+    }
 
-        Row {
-            spacing: 8
-            RadioButton {
-                id: deleteSizeRadio
-                text: qsTr("Delete logs after")
-                checked: root.autoLog.cleanupStrategy === 2
-                ButtonGroup.group: cleanupGroup
-                onToggled: if (checked) root.autoLog.cleanupStrategy = 2
-            }
-            SpinBox {
-                id: deleteSizeBox
-                from: 1
-                to: 10000
-                enabled: deleteSizeRadio.checked
-                value: root.autoLog.deleteWhenLogsReachMB
-                onValueModified: root.autoLog.deleteWhenLogsReachMB = value
-            }
-            Label { text: qsTr("MBs"); anchors.verticalCenter: parent.verticalCenter }
+    Row {
+        spacing: 8
+        RadioButton {
+            id: deleteSizeRadio
+            text: qsTr("Delete logs after")
+            checked: root.autoLog.cleanupStrategy === 2
+            ButtonGroup.group: cleanupGroup
+            onToggled: if (checked) root.autoLog.cleanupStrategy = 2
         }
-
-        CheckBox {
-            id: askDeleteCheckBox
-            text: qsTr("Always ask before deleting logs")
-            checked: root.autoLog.askDelete
-            onToggled: root.autoLog.askDelete = checked
+        SpinBox {
+            id: deleteSizeBox
+            from: 1
+            to: 10000
+            enabled: deleteSizeRadio.checked
+            value: root.autoLog.deleteWhenLogsReachMB
+            onValueModified: root.autoLog.deleteWhenLogsReachMB = value
         }
+        Label { text: qsTr("MBs"); anchors.verticalCenter: parent.verticalCenter }
+    }
 
-        Label { text: qsTr("Advanced"); font.bold: true }
+    CheckBox {
+        id: askDeleteCheckBox
+        text: qsTr("Always ask before deleting logs")
+        checked: root.autoLog.askDelete
+        onToggled: root.autoLog.askDelete = checked
+    }
 
-        Row {
-            spacing: 8
-            Label { text: qsTr("Rotate logs after") }
-            SpinBox {
-                id: rotateBox
-                from: 1
-                to: 1000
-                value: root.autoLog.rotateWhenLogsReachMB
-                onValueModified: root.autoLog.rotateWhenLogsReachMB = value
-            }
-            Label { text: qsTr("MBs"); anchors.verticalCenter: parent.verticalCenter }
+    Label { text: qsTr("Advanced"); font.bold: true }
+
+    Row {
+        spacing: 8
+        Label { text: qsTr("Rotate logs after") }
+        SpinBox {
+            id: rotateBox
+            from: 1
+            to: 1000
+            value: root.autoLog.rotateWhenLogsReachMB
+            onValueModified: root.autoLog.rotateWhenLogsReachMB = value
         }
+        Label { text: qsTr("MBs"); anchors.verticalCenter: parent.verticalCenter }
     }
 }

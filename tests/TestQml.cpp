@@ -1847,20 +1847,128 @@ void TestQml::loadPreferencesDialog()
 
     auto *const navList = rootItem->findChild<QObject *>(QStringLiteral("preferencesNavList"));
     QVERIFY(navList != nullptr);
-    auto *const pageLoader = rootItem->findChild<QObject *>(QStringLiteral("preferencesPageLoader"));
-    QVERIFY(pageLoader != nullptr);
+    auto *const flickable = rootItem->findChild<QQuickItem *>(
+        QStringLiteral("preferencesFlickable"));
+    QVERIFY(flickable != nullptr);
 
-    // Navigate to every page in turn and confirm the Loader instantiates
-    // each one without error, the same "does it load" bar loadGroupPanel()/
-    // loadDescriptionPanel() above hold their panels to.
-    for (int i = 0; i < 9; ++i) {
-        navList->setProperty("currentIndex", i);
-        QCoreApplication::processEvents();
-        QCoreApplication::processEvents();
+    // All nine pages instantiate at once inside the content column (each
+    // wrapped in a Section header container), so simply reaching Ready above
+    // already exercised every page adapter; confirm the section count.
+    const auto sections = rootItem->findChildren<QQuickItem *>(QStringLiteral("preferencesSection"));
+    QCOMPARE(sections.size(), 9);
 
-        QCOMPARE(pageLoader->property("status").toInt(), int(QQmlComponent::Ready));
-        QVERIFY(pageLoader->property("item").value<QObject *>() != nullptr);
+    // Give the dialog real geometry so the flickable has a viewport to
+    // scroll (the content column is far taller than 600px with all nine
+    // pages stacked).
+    dialog.resize(800, 600);
+    dialog.show();
+    QCoreApplication::processEvents();
+    QTRY_VERIFY(flickable->height() > 0);
+    QTRY_VERIFY(flickable->property("contentHeight").toReal() > flickable->height());
+
+    // Nav click scrolls the flickable to the chosen section and keeps the
+    // nav selection there (the programmatic-scroll guard suppresses the
+    // scrollspy, like the widget's QSignalBlocker).
+    QCOMPARE(navList->property("currentIndex").toInt(), 0);
+    QVERIFY(QMetaObject::invokeMethod(rootItem, "scrollToSection", Q_ARG(QVariant, 8)));
+    QCoreApplication::processEvents();
+    QVERIFY(flickable->property("contentY").toReal() > 0);
+    QCOMPARE(navList->property("currentIndex").toInt(), 8);
+
+    // Scrollspy: scrolling back to the top must move the nav selection back
+    // to the first section (slot_onScroll's "last section whose top is at or
+    // above the viewport top" rule).
+    flickable->setProperty("contentY", 0.0);
+    QCoreApplication::processEvents();
+    QTRY_COMPARE(navList->property("currentIndex").toInt(), 0);
+
+    // And scrolling to the very bottom must clamp the selection to the last
+    // section even if its header is above the viewport top.
+    const qreal maxY = flickable->property("contentHeight").toReal() - flickable->height();
+    flickable->setProperty("contentY", maxY);
+    QCoreApplication::processEvents();
+    QTRY_COMPARE(navList->property("currentIndex").toInt(), 8);
+}
+
+void TestQml::preferencesDialogSearch()
+{
+    // dialogParent may legitimately be nullptr here: no native picker is
+    // opened during this test (see loadPreferencesDialog() above).
+    PreferencesController controller(nullptr, nullptr);
+
+    QmlDialog dialog("t", "TestPreferencesDialogSearch", nullptr);
+    dialog.setContextProperty("preferencesController", &controller);
+    dialog.setQmlSource(QUrl(u"qrc:/qt/qml/MMapper/PreferencesDialog.qml"_qs));
+
+    QQuickWidget *const quick = dialog.quickWidget();
+    QVERIFY(quick != nullptr);
+    while (quick->status() == QQuickWidget::Loading) {
+        QCoreApplication::processEvents();
     }
+    QCoreApplication::processEvents();
+
+    QCOMPARE(quick->status(), QQuickWidget::Ready);
+    QQuickItem *const rootItem = quick->rootObject();
+    QVERIFY(rootItem != nullptr);
+
+    dialog.resize(800, 600);
+    dialog.show();
+    QCoreApplication::processEvents();
+
+    auto *const searchField = rootItem->findChild<QObject *>(
+        QStringLiteral("preferencesSearchField"));
+    QVERIFY(searchField != nullptr);
+    auto *const flickable = rootItem->findChild<QQuickItem *>(
+        QStringLiteral("preferencesFlickable"));
+    QVERIFY(flickable != nullptr);
+    auto *const resultsList = rootItem->findChild<QQuickItem *>(
+        QStringLiteral("preferencesSearchResults"));
+    QVERIFY(resultsList != nullptr);
+    auto *const noResultsLabel = rootItem->findChild<QQuickItem *>(
+        QStringLiteral("preferencesNoResultsLabel"));
+    QVERIFY(noResultsLabel != nullptr);
+    auto *const navList = rootItem->findChild<QObject *>(QStringLiteral("preferencesNavList"));
+    QVERIFY(navList != nullptr);
+    QTRY_VERIFY(flickable->height() > 0);
+
+    // "Audible bell" appears only on the Integrated Client page, so past the
+    // 50ms debounce the results list must hold exactly two rows: the bold
+    // "Integrated Client" page header plus the matching checkbox text.
+    searchField->setProperty("text", QStringLiteral("Audible bell"));
+    QTRY_VERIFY(rootItem->property("searchActive").toBool());
+    QTRY_COMPARE(resultsList->property("count").toInt(), 2);
+    QVERIFY(resultsList->isVisible());
+    QVERIFY(!flickable->isVisible());
+
+    // Non-matching pages' nav entries are disabled while the search is
+    // active (slot_search clearing Qt::ItemIsEnabled); only index 3
+    // (Integrated Client) stays enabled.
+    const QVariantList navEnabled = rootItem->property("navEnabled").toList();
+    QCOMPARE(navEnabled.size(), 9);
+    for (int i = 0; i < 9; ++i) {
+        QCOMPARE(navEnabled.at(i).toBool(), i == 3);
+    }
+
+    // Activating the second row (the "Audible bell" checkbox itself) clears
+    // the search, restores the page column, scrolls to the control, and
+    // moves the nav selection to its page.
+    QVERIFY(QMetaObject::invokeMethod(rootItem, "activateResultAt", Q_ARG(QVariant, 1)));
+    QCoreApplication::processEvents();
+    QVERIFY(!rootItem->property("searchActive").toBool());
+    QCOMPARE(searchField->property("text").toString(), QString());
+    QTRY_VERIFY(flickable->isVisible());
+    QVERIFY(!resultsList->isVisible());
+    QVERIFY(flickable->property("contentY").toReal() > 0);
+    QCOMPARE(navList->property("currentIndex").toInt(), 3);
+    QCOMPARE(rootItem->property("navEnabled").toList().size(), 0);
+
+    // A search with no matches swaps in the "no matches" placeholder.
+    searchField->setProperty("text", QStringLiteral("zzz-no-such-setting"));
+    QTRY_VERIFY(rootItem->property("searchActive").toBool());
+    QTRY_COMPARE(resultsList->property("count").toInt(), 0);
+    QVERIFY(noResultsLabel->isVisible());
+    QVERIFY(!resultsList->isVisible());
+    QVERIFY(!flickable->isVisible());
 }
 
 QTEST_MAIN(TestQml)

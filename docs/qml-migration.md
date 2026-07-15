@@ -772,10 +772,47 @@ an otherwise-QML build is a fully supported pattern, not a gap.
   alongside or after the map canvas port itself (see "Map canvas" below),
   since both dialogs manipulate the same room/infomark selection state the
   canvas does.
-- **Preferences search bar.** `configdialog.ui`'s search box (fuzzy-filters
-  pages/controls and jumps to the match) has no QML equivalent —
-  `PreferencesDialog.qml`'s nav is a plain `ListView` with no search field.
-  Deferred as a follow-up rather than blocking the rest of the dialog port.
+- ~~**Preferences search bar.**~~ Ported in phase 7 (see below); no longer
+  deferred.
+
+### Phase 7: user-reported regression fixes (macOS pass on phase 6)
+
+- **Client line endings.** The telnet stream reaching `ClientLineModel`
+  keeps `\r\n` endings; the phase-6 `white-space:pre-wrap` wrapper made the
+  leftover `\r` render as a second break, doubling every line (the widget
+  was immune because `QTextCursor::insertText()` treats `\r\n` as one block
+  break). `appendRawWithAnsi()` now treats `\r\n` — including pairs split
+  across `appendText()` chunks, via an `m_pendingCr` carry flag — and lone
+  `\r` as single breaks.
+- **Autoscroll pin.** `ClientDisplay.qml` derived `stick` from every
+  `contentY` change, but ListView emits layout-driven `contentY`
+  adjustments during appends (contentHeight estimate refinement,
+  `dataChanged` on the trailing partial row); those transients unpinned
+  the view so new output immediately dropped into preview mode. `stick`
+  now only updates on user-driven movement (`listView.moving` /
+  scrollbar `pressed`) using the widget's 4px at-bottom tolerance, with
+  `pageUp()`/`pageDown()` updating it explicitly.
+- **Dialog theming.** Dialog roots were bare `Item`s over `QQuickWidget`'s
+  default white clear color with raw black `Text` — white dialogs on any
+  theme. `QmlDialog`/`QmlDockWidget` now set the clear color from the host
+  palette, dialog roots are `SystemPalette`-window Rectangles, and
+  unstyled `Text` became palette-aware `Label` throughout the dialogs and
+  preferences pages.
+- **Preferences behavior parity.** The widget `ConfigDialog` is a single
+  scrolling column of all nine pages (bold section headers with a rule),
+  an icon nav that scrolls to a section on click and follows scrolling
+  (scrollspy incl. bottom-clamp), a debounced search whose results list
+  replaces the page column (non-matching nav entries disabled; result
+  click scrolls to and focuses the control), and a back-to-top footer.
+  `PreferencesDialog.qml` was a page-per-click `Loader` in a different
+  order with different titles; it now mirrors the widget exactly, with
+  the nine `Prefs*Page.qml` roots converted from `Flickable` to plain
+  `Column`s so the dialog's single `Flickable` owns scrolling. Title-bar
+  close persists settings (`PreferencesQmlDialog::closeEvent` in
+  `mainwindow.cpp`, mirroring `ConfigDialog::closeEvent`), while the
+  Cancel button remains the only revert path and every show re-syncs the
+  adapters (`PreferencesController::reloadAll()`), both matching the
+  widget.
 
 ### `.ui` gating
 

@@ -1908,6 +1908,27 @@ void MainWindow::setupStatusBar()
     statusBar()->insertPermanentWidget(0, pathmachineStatus);
 }
 
+#ifdef MMAPPER_WITH_QML
+namespace { // anonymous
+// Parity with ConfigDialog::closeEvent(): closing the preferences window via
+// the title bar persists the (apply-on-change) settings to disk. Only the
+// explicit Cancel button reverts; Esc merely hides the dialog, exactly like
+// the widget (whose button-box, not the dialog, owned the revert path).
+class NODISCARD_QOBJECT PreferencesQmlDialog final : public QmlDialog
+{
+public:
+    using QmlDialog::QmlDialog;
+
+protected:
+    void closeEvent(QCloseEvent *const event) override
+    {
+        getConfig().write();
+        QmlDialog::closeEvent(event);
+    }
+};
+} // namespace
+#endif
+
 void MainWindow::slot_onPreferences()
 {
 #ifdef MMAPPER_WITH_QML
@@ -1916,7 +1937,7 @@ void MainWindow::slot_onPreferences()
         std::ignore = deref(m_groupManager);
 
         auto *const controller = new PreferencesController(this, this);
-        auto *const dialog = new QmlDialog(tr("Preferences"), "ConfigDialog", this);
+        auto *const dialog = new PreferencesQmlDialog(tr("Preferences"), "ConfigDialog", this);
         dialog->setContextProperty("preferencesController", controller);
         dialog->setQmlSource(QUrl(QStringLiteral("qrc:/qt/qml/MMapper/PreferencesDialog.qml")));
 

@@ -25,6 +25,14 @@ Rectangle {
     // stick back off (or on) based on a transient mid-scroll position.
     property bool programmaticScroll: false
 
+    // True when the view is close enough to the bottom to count as pinned.
+    // The 4px tolerance mirrors the old widget's ALMOST_ALL_THE_WAY slack
+    // (see displaywidget.cpp), which treated "within 4px of the scrollbar
+    // maximum" as at-bottom so tiny rounding offsets never broke autoscroll.
+    function atBottom() {
+        return listView.contentY >= listView.contentHeight - listView.height - 4;
+    }
+
     // Re-pins the view to the end. Unlike the old onMovementEnded-only
     // approach (which only ever ran after a flick gesture finished), this
     // is invoked any time content grows while stick is true, so wheel
@@ -66,19 +74,22 @@ Rectangle {
 
     // PageUp/PageDown support for ClientPanel.qml's input area, mirroring
     // ClientWidget.cpp's virt_scrollDisplay() (which nudges the widget's
-    // QScrollBar by one page). Neither function writes `stick` directly
-    // any more: setting contentY below triggers listView's
-    // onContentYChanged, which derives stick from atYEnd exactly the same
-    // way wheel/scrollbar scrolling does, so paging all the way back down
-    // resumes autoscroll exactly like a manual drag-to-bottom would.
+    // QScrollBar by one page). Paging sets contentY directly, which never
+    // sets listView.moving or vbar.pressed, so onContentYChanged's
+    // user-gesture gate ignores it; each function therefore updates `stick`
+    // explicitly from the post-move position, so paging away disengages
+    // autoscroll and paging all the way back down re-engages it exactly
+    // like a manual drag-to-bottom would.
     function pageUp() {
         listView.contentY = Math.max(listView.originY, listView.contentY - listView.height);
         listView.returnToBounds();
+        root.stick = root.atBottom();
     }
     function pageDown() {
         const maxY = listView.originY + Math.max(0, listView.contentHeight - listView.height);
         listView.contentY = Math.min(maxY, listView.contentY + listView.height);
         listView.returnToBounds();
+        root.stick = root.atBottom();
     }
 
     ListView {
@@ -88,15 +99,22 @@ Rectangle {
         clip: true
         model: clientLineModel
 
-        ScrollBar.vertical: ScrollBar {}
+        ScrollBar.vertical: ScrollBar {
+            id: vbar
+        }
 
-        // Tracks `stick` off of every contentY change -- not just the end
-        // of a flick gesture -- so wheel scrolling and scrollbar dragging
-        // (neither of which fire onMovementEnded) also disengage/re-engage
-        // autoscroll correctly. Guarded so autoscroll()'s own repositioning
-        // isn't misread as user scrolling.
-        onContentYChanged: if (!root.programmaticScroll) {
-            root.stick = listView.atYEnd;
+        // Only re-derive `stick` from a *user-driven* movement:
+        // listView.moving covers wheel/drag/flick, vbar.pressed covers an
+        // active scrollbar drag. ListView also emits contentY changes for
+        // purely layout-driven reasons while rows are appended
+        // (contentHeight estimate refinement, dataChanged on the trailing
+        // partial row), during which atYEnd is momentarily false -- deriving
+        // stick from every contentY change let those transients silently
+        // unpin the view, so new output stopped autoscrolling. The
+        // programmaticScroll guard still keeps autoscroll()'s own
+        // repositioning from being misread as user input.
+        onContentYChanged: if (!root.programmaticScroll && (listView.moving || vbar.pressed)) {
+            root.stick = root.atBottom();
         }
         // New rows land as a contentHeight change (and, for the very first
         // rows, possibly a height change too); re-pin whenever the view is

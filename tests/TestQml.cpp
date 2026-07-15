@@ -1268,10 +1268,15 @@ void TestQml::clientDisplayLeadingWhitespaceRenders()
 
 void TestQml::clientDisplayStickTracking()
 {
-    // Exercises ClientDisplay.qml's stick/atEnd tracking against direct
-    // contentY writes -- standing in for wheel scrolling and scrollbar
-    // dragging, neither of which fires onMovementEnded, which is exactly
-    // the bug this test guards against regressing.
+    // Exercises ClientDisplay.qml's stick/atEnd tracking. Direct contentY
+    // writes from C++ set neither listView.moving nor the scrollbar's
+    // pressed state, so under the gesture-gated onContentYChanged they
+    // stand in for ListView's own layout-driven contentY adjustments during
+    // appends -- which must NOT be able to unpin the view (that transient
+    // unpinning is exactly the regression this guards against). User-driven
+    // disengage/re-engage is covered via pageUp()/pageDown(), which update
+    // stick explicitly (see clientDisplayPageUpDownStick for deeper paging
+    // coverage).
     ClientLineModel model;
     QmlConfig config;
 
@@ -1318,16 +1323,32 @@ void TestQml::clientDisplayStickTracking()
                                  > listView->property("height").toReal(),
                              2000);
 
-    // Simulate wheel/scrollbar: write contentY toward the top directly.
-    // Neither fires onMovementEnded, which is exactly the bug this guards
-    // against regressing.
+    // A direct (non-gesture) contentY write -- the C++ stand-in for
+    // ListView's own layout-driven adjustments during appends -- must NOT
+    // flip stick off: atEnd stays true even though the view momentarily
+    // isn't at the bottom.
     listView->setProperty("contentY", 0.0);
+    for (int i = 0; i < 10; ++i) {
+        QCoreApplication::processEvents();
+    }
+    QVERIFY(rootObject->property("atEnd").toBool());
+
+    // ... and because stick survived, the next append re-pins the view to
+    // the end instead of leaving it stranded at the top.
+    model.appendText(QStringLiteral("late line\n"));
+    QTRY_VERIFY_WITH_TIMEOUT(rootObject->property("atEnd").toBool()
+                                 && listView->property("atYEnd").toBool(),
+                             2000);
+
+    // User-driven disengage: pageUp() sets stick explicitly from the
+    // post-move position.
+    QVERIFY(QMetaObject::invokeMethod(rootObject, "pageUp"));
     QTRY_VERIFY_WITH_TIMEOUT(!rootObject->property("atEnd").toBool(), 2000);
 
     // Append-while-unstuck guard: neither contentY nor atEnd may move once
     // the user has scrolled away, even though new rows keep arriving.
     const qreal contentYAfterScroll = listView->property("contentY").toReal();
-    model.appendText(QStringLiteral("late line\n"));
+    model.appendText(QStringLiteral("later line\n"));
     for (int i = 0; i < 10; ++i) {
         QCoreApplication::processEvents();
     }
@@ -1335,15 +1356,149 @@ void TestQml::clientDisplayStickTracking()
     QCOMPARE(listView->property("contentY").toReal(), contentYAfterScroll);
     QVERIFY(!rootObject->property("atEnd").toBool());
 
-    // Scroll back down to the bottom -- re-engages stick, mirroring a
-    // manual drag-to-bottom.
-    const qreal height = listView->property("height").toReal();
-    const qreal contentHeight = listView->property("contentHeight").toReal();
-    listView->setProperty("contentY", std::max(0.0, contentHeight - height));
-    QTRY_VERIFY_WITH_TIMEOUT(rootObject->property("atEnd").toBool(), 2000);
+    // Page back down to the bottom -- re-engages stick, mirroring a manual
+    // drag-to-bottom. One pageUp() moved one viewport height, but content
+    // grew ("later line") and estimated contentHeight can also refine as
+    // delegates instantiate, so allow a couple of (clamped) pages down.
+    bool reEngaged = false;
+    for (int i = 0; i < 5 && !reEngaged; ++i) {
+        QVERIFY(QMetaObject::invokeMethod(rootObject, "pageDown"));
+        QCoreApplication::processEvents();
+        reEngaged = rootObject->property("atEnd").toBool();
+    }
+    QVERIFY2(reEngaged, "pageDown() never re-engaged stick at the bottom");
 
     // Appending while stuck must re-pin the view to the (new) end.
     model.appendText(QStringLiteral("final line\n"));
+    QTRY_VERIFY_WITH_TIMEOUT(rootObject->property("atEnd").toBool()
+                                 && listView->property("atYEnd").toBool(),
+                             2000);
+}
+
+void TestQml::clientDisplayBurstAppendStaysPinned()
+{
+    // Regression test for the reported macOS bug: a burst of appends makes
+    // ListView emit layout-driven contentY adjustments (contentHeight
+    // estimate refinement, dataChanged on the trailing partial row) during
+    // which atYEnd is momentarily false. Deriving stick from every contentY
+    // change let those transients unpin the view mid-burst, so live output
+    // silently stopped autoscrolling; with the gesture-gated
+    // onContentYChanged the view must stay pinned throughout.
+    ClientLineModel model;
+    QmlConfig config;
+
+    QmlDockWidget dock("t", "TestDockClientBurst", nullptr);
+    dock.setContextProperty("clientLineModel", &model);
+    dock.setContextProperty("config", &config);
+    dock.setQmlSource(QUrl(u"qrc:/qt/qml/MMapper/ClientDisplay.qml"_qs));
+
+    QQuickWidget *const quick = dock.quickWidget();
+    QVERIFY(quick != nullptr);
+
+    while (quick->status() == QQuickWidget::Loading) {
+        QCoreApplication::processEvents();
+    }
+    QCoreApplication::processEvents();
+
+    QCOMPARE(quick->status(), QQuickWidget::Ready);
+    QObject *const rootObject = quick->rootObject();
+    QVERIFY(rootObject != nullptr);
+
+    // Force a small viewport so a handful of lines already overflow it.
+    dock.resize(300, 60);
+    dock.show();
+    QCoreApplication::processEvents();
+    QCoreApplication::processEvents();
+
+    QObject *const listView = rootObject->findChild<QObject *>(QStringLiteral("clientListView"));
+    QVERIFY(listView != nullptr);
+
+    // Repeated bursts, with event processing interleaved so the layout
+    // transients of one burst are live while the next arrives (the shape of
+    // the reported failure). atEnd must hold after every burst settles.
+    for (int burst = 0; burst < 5; ++burst) {
+        for (int i = 0; i < 20; ++i) {
+            model.appendText(QStringLiteral("burst %1 line %2\n").arg(burst).arg(i));
+        }
+        QTRY_VERIFY_WITH_TIMEOUT(rootObject->property("atEnd").toBool(), 2000);
+        for (int i = 0; i < 5; ++i) {
+            QCoreApplication::processEvents();
+        }
+        QVERIFY(rootObject->property("atEnd").toBool());
+    }
+
+    QTRY_COMPARE_WITH_TIMEOUT(listView->property("count").toInt(), 101, 2000);
+    // Not just the stick flag: the view must actually be following the
+    // bottom once everything settles.
+    QTRY_VERIFY_WITH_TIMEOUT(rootObject->property("atEnd").toBool()
+                                 && listView->property("atYEnd").toBool(),
+                             2000);
+}
+
+void TestQml::clientDisplayPageUpDownStick()
+{
+    // pageUp()/pageDown() set contentY directly, which never sets
+    // listView.moving or the scrollbar's pressed state, so they can't rely
+    // on onContentYChanged's user-gesture gate; each must update stick
+    // explicitly. Paging up disengages autoscroll, paging back down to the
+    // bottom re-engages it.
+    ClientLineModel model;
+    QmlConfig config;
+
+    QmlDockWidget dock("t", "TestDockClientPaging", nullptr);
+    dock.setContextProperty("clientLineModel", &model);
+    dock.setContextProperty("config", &config);
+    dock.setQmlSource(QUrl(u"qrc:/qt/qml/MMapper/ClientDisplay.qml"_qs));
+
+    QQuickWidget *const quick = dock.quickWidget();
+    QVERIFY(quick != nullptr);
+
+    while (quick->status() == QQuickWidget::Loading) {
+        QCoreApplication::processEvents();
+    }
+    QCoreApplication::processEvents();
+
+    QCOMPARE(quick->status(), QQuickWidget::Ready);
+    QObject *const rootObject = quick->rootObject();
+    QVERIFY(rootObject != nullptr);
+
+    dock.resize(300, 60);
+    dock.show();
+    QCoreApplication::processEvents();
+    QCoreApplication::processEvents();
+
+    QObject *const listView = rootObject->findChild<QObject *>(QStringLiteral("clientListView"));
+    QVERIFY(listView != nullptr);
+
+    for (int i = 0; i < 30; ++i) {
+        model.appendText(QStringLiteral("line %1\n").arg(i));
+    }
+    QTRY_VERIFY_WITH_TIMEOUT(rootObject->property("atEnd").toBool(), 2000);
+    QTRY_VERIFY_WITH_TIMEOUT(listView->property("contentHeight").toReal()
+                                 > listView->property("height").toReal(),
+                             2000);
+
+    // Scroll well away from the end: several pages up.
+    for (int i = 0; i < 3; ++i) {
+        QVERIFY(QMetaObject::invokeMethod(rootObject, "pageUp"));
+        QCoreApplication::processEvents();
+    }
+    QVERIFY(!rootObject->property("atEnd").toBool());
+
+    // Page back down until the bottom re-engages stick; each call moves one
+    // viewport height (clamped to the end), so a bounded number of calls
+    // must get there.
+    bool reEngaged = false;
+    for (int i = 0; i < 10 && !reEngaged; ++i) {
+        QVERIFY(QMetaObject::invokeMethod(rootObject, "pageDown"));
+        QCoreApplication::processEvents();
+        reEngaged = rootObject->property("atEnd").toBool();
+    }
+    QVERIFY2(reEngaged, "pageDown() never re-engaged stick at the bottom");
+    QTRY_VERIFY_WITH_TIMEOUT(listView->property("atYEnd").toBool(), 2000);
+
+    // Re-engaged stick means new output follows again.
+    model.appendText(QStringLiteral("post-paging line\n"));
     QTRY_VERIFY_WITH_TIMEOUT(rootObject->property("atEnd").toBool()
                                  && listView->property("atYEnd").toBool(),
                              2000);

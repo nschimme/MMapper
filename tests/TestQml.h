@@ -43,6 +43,8 @@ private Q_SLOTS:
     void loadClientDisplay();
     void clientDisplayLeadingWhitespaceRenders();
     void clientDisplayStickTracking();
+    void clientDisplayBurstAppendStaysPinned();
+    void clientDisplayPageUpDownStick();
     void loadClientPanel();
     void qmlDialogLoads();
     void qmlDialogFallback();

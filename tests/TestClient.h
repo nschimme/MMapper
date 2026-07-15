@@ -23,6 +23,9 @@ private Q_SLOTS:
     void color256();
     void reverseVideo();
     void partialLineAcrossCalls();
+    void crLfTreatedAsSingleBreak();
+    void loneCrTreatedAsBreak();
+    void crLfSplitAcrossAppendCalls();
     void scrollbackCap();
     void clearResetsModel();
 

@@ -179,17 +179,44 @@ void ClientLineModel::appendRawWithAnsi(const QStringView text, const RawAnsi &a
 {
     qsizetype start = 0;
     const qsizetype len = text.size();
-    while (true) {
+
+    if (m_pendingCr) {
+        // The previous call ended in a '\r' whose line break was already
+        // emitted then; if this call begins with the matching '\n', swallow
+        // it so "\r\n" split across two appendText() calls still produces
+        // exactly one break, matching QTextCursor::insertText().
+        m_pendingCr = false;
+        if (len > 0 && text.front() == char_consts::C_NEWLINE) {
+            start = 1;
+        }
+    }
+
+    while (start < len) {
+        // "\r\n" counts as ONE line break, and a lone '\r' breaks the line
+        // too, mirroring QTextCursor::insertText() -- which is why the
+        // legacy DisplayWidget never showed the raw telnet stream's '\r'
+        // bytes as extra blank lines.
+        const qsizetype cr = text.indexOf(char_consts::C_CARRIAGE_RETURN, start);
         const qsizetype nl = text.indexOf(char_consts::C_NEWLINE, start);
-        if (nl < 0) {
+        if (cr < 0 && nl < 0) {
             appendToPartial(text.mid(start), ansi);
             break;
         }
-        appendToPartial(text.mid(start, nl - start), ansi);
-        finishPartialLine();
-        start = nl + 1;
-        if (start >= len) {
-            break;
+
+        if (cr >= 0 && (nl < 0 || cr < nl)) {
+            appendToPartial(text.mid(start, cr - start), ansi);
+            finishPartialLine();
+            if (cr + 1 >= len) {
+                // Chunk ends in '\r': defer deciding whether it was the
+                // first half of a "\r\n" pair until the next call.
+                m_pendingCr = true;
+                return;
+            }
+            start = (text[cr + 1] == char_consts::C_NEWLINE) ? cr + 2 : cr + 1;
+        } else {
+            appendToPartial(text.mid(start, nl - start), ansi);
+            finishPartialLine();
+            start = nl + 1;
         }
     }
 }
@@ -262,6 +289,7 @@ void ClientLineModel::clear()
     m_partialHtml.clear();
     m_partialPlain.clear();
     m_currentAnsi = RawAnsi{};
+    m_pendingCr = false;
     endResetModel();
 }
 

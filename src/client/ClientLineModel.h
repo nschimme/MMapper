@@ -51,6 +51,10 @@ private:
     QString m_partialHtml;
     QString m_partialPlain;
     RawAnsi m_currentAnsi;
+    // True when the last appendText() call ended in a '\r' whose line break
+    // has already been emitted; a leading '\n' in the next call is then
+    // swallowed so a "\r\n" pair split across chunks yields ONE break.
+    bool m_pendingCr = false;
 
 public:
     explicit ClientLineModel(QObject *parent = nullptr);
@@ -64,8 +68,12 @@ public:
 public:
     // Parses `text` for ANSI escapes using the same decoding rules as
     // AnsiTextHelper::displayText(), carrying ANSI state across calls, and
-    // appends the result to the model (finishing lines at '\n' boundaries
-    // and always leaving a trailing partial-line row). After processing,
+    // appends the result to the model (finishing lines at line-break
+    // boundaries and always leaving a trailing partial-line row). "\r\n" is
+    // treated as a single line break and a lone '\r' breaks the line too,
+    // mirroring QTextCursor::insertText(); like the ANSI state, a trailing
+    // '\r' carries across calls so a split "\r\n" still yields one break.
+    // After processing,
     // finished lines are capped at getConfig().integratedClient.linesOfScrollback.
     void appendText(QStringView text);
 

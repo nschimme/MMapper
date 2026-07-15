@@ -129,6 +129,58 @@ void TestClient::partialLineAcrossCalls()
     QCOMPARE(plain(model, 1), QString());
 }
 
+void TestClient::crLfTreatedAsSingleBreak()
+{
+    // The raw telnet stream arrives with "\r\n" line endings (see
+    // ClientTelnet::virt_sendToMapper); each pair must produce exactly one
+    // line break -- mirroring QTextCursor::insertText(), which is why the
+    // legacy DisplayWidget never doubled lines -- and no '\r' may survive
+    // into the displayed text.
+    ClientLineModel model;
+    model.appendText(u"abc\r\ndef\r\n");
+
+    // 2 finished lines + the always-present trailing partial row.
+    QCOMPARE(model.rowCount(), 3);
+    QCOMPARE(plain(model, 0), QStringLiteral("abc"));
+    QCOMPARE(plain(model, 1), QStringLiteral("def"));
+    QCOMPARE(plain(model, 2), QString());
+    for (int row = 0; row < model.rowCount(); ++row) {
+        QVERIFY2(!plain(model, row).contains(QChar::fromLatin1('\r')),
+                 qPrintable(QStringLiteral("row %1 plain contains '\\r'").arg(row)));
+        QVERIFY2(!html(model, row).contains(QChar::fromLatin1('\r')),
+                 qPrintable(QStringLiteral("row %1 html contains '\\r'").arg(row)));
+    }
+}
+
+void TestClient::loneCrTreatedAsBreak()
+{
+    // A '\r' not followed by '\n' still breaks the line, matching
+    // QTextCursor::insertText() semantics.
+    ClientLineModel model;
+    model.appendText(u"abc\rdef\n");
+
+    QCOMPARE(model.rowCount(), 3);
+    QCOMPARE(plain(model, 0), QStringLiteral("abc"));
+    QCOMPARE(plain(model, 1), QStringLiteral("def"));
+    QCOMPARE(plain(model, 2), QString());
+}
+
+void TestClient::crLfSplitAcrossAppendCalls()
+{
+    // A "\r\n" pair split across two appendText() calls (a telnet chunk
+    // boundary) must still produce exactly ONE line break, not two.
+    ClientLineModel model;
+    model.appendText(u"abc\r");
+    QCOMPARE(model.rowCount(), 2);
+    QCOMPARE(plain(model, 0), QStringLiteral("abc"));
+    QCOMPARE(plain(model, 1), QString());
+
+    model.appendText(u"\ndef");
+    QCOMPARE(model.rowCount(), 2);
+    QCOMPARE(plain(model, 0), QStringLiteral("abc"));
+    QCOMPARE(plain(model, 1), QStringLiteral("def"));
+}
+
 void TestClient::scrollbackCap()
 {
     const int savedLimit = getConfig().integratedClient.linesOfScrollback;

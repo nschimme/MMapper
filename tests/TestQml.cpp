@@ -1718,6 +1718,63 @@ void TestQml::loadUpdateDialog()
     QVERIFY(quick->rootObject() != nullptr);
 }
 
+void TestQml::qmlDialogBackgroundThemed()
+{
+    // Regression test for the "dialogs look off with a white background"
+    // report: every QML dialog root used to be a bare Item, so the hosting
+    // QQuickWidget's default white clear color showed through regardless of
+    // the system palette. Both QmlDialog's clear color (set from the host
+    // palette in the constructor) and the dialog QML's own Rectangle root
+    // (see UpdateDialog.qml's "color: sysPalette.window") must now agree
+    // with QPalette::Window, so a corner pixel sampled from the rendered
+    // widget should exactly match it. UpdateDialog.qml is the smallest of
+    // the four dialogs, mirroring loadUpdateDialog()'s fixture.
+    UpdateChecker checker(nullptr);
+
+    QmlDialog dialog("t", "TestDialogBackgroundThemed", nullptr);
+    dialog.setContextProperty("updateChecker", &checker);
+    dialog.setQmlSource(QUrl(u"qrc:/qt/qml/MMapper/UpdateDialog.qml"_qs));
+
+    QQuickWidget *const quick = dialog.quickWidget();
+    QVERIFY(quick != nullptr);
+    while (quick->status() == QQuickWidget::Loading) {
+        QCoreApplication::processEvents();
+    }
+    QCoreApplication::processEvents();
+    QCOMPARE(quick->status(), QQuickWidget::Ready);
+    QVERIFY(quick->rootObject() != nullptr);
+
+    dialog.resize(420, 140);
+    dialog.show();
+    QCoreApplication::processEvents();
+    QCoreApplication::processEvents();
+
+    const QPixmap pm = quick->grab();
+    QVERIFY(!pm.isNull());
+    const QImage grabbed = pm.toImage();
+    QVERIFY(grabbed.width() > 0);
+    QVERIFY(grabbed.height() > 0);
+
+    const QColor expected = dialog.palette().color(QPalette::Window);
+    const QColor sample = grabbed.pixelColor(0, 0);
+
+    // Exact match should hold under the software backend; allow a small
+    // per-channel tolerance in case antialiasing/color-management ever
+    // nudges the corner pixel slightly.
+    constexpr int TOLERANCE = 2;
+    QVERIFY2(std::abs(sample.red() - expected.red()) <= TOLERANCE
+                 && std::abs(sample.green() - expected.green()) <= TOLERANCE
+                 && std::abs(sample.blue() - expected.blue()) <= TOLERANCE,
+             qPrintable(QStringLiteral("Corner pixel rgb(%1,%2,%3) does not match "
+                                       "QPalette::Window rgb(%4,%5,%6)")
+                            .arg(sample.red())
+                            .arg(sample.green())
+                            .arg(sample.blue())
+                            .arg(expected.red())
+                            .arg(expected.green())
+                            .arg(expected.blue())));
+}
+
 void TestQml::findRoomsModelBasics()
 {
     // FindRoomsController needs a live MapData (mapfrontend/parser/mapstorage),

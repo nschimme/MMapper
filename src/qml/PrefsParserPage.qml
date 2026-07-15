@@ -53,7 +53,7 @@ Flickable {
         width: root.width
         spacing: 8
 
-        Text { text: qsTr("Offline Emulation"); font.bold: true }
+        Label { text: qsTr("Offline Emulation"); font.bold: true }
 
         AnsiColorRow {
             label: qsTr("Room name color:")
@@ -71,7 +71,7 @@ Flickable {
             onChooseRequested: root.parser.chooseRoomDescColor()
         }
 
-        Text { text: qsTr("Commands"); font.bold: true }
+        Label { text: qsTr("Commands"); font.bold: true }
 
         Row {
             spacing: 8
@@ -91,7 +91,7 @@ Flickable {
             }
         }
 
-        Text { text: qsTr("Emoji Shortcodes"); font.bold: true }
+        Label { text: qsTr("Emoji Shortcodes"); font.bold: true }
 
         CheckBox {
             text: qsTr("Encode to shortcodes")

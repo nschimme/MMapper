@@ -33,7 +33,7 @@ Flickable {
         width: root.width
         spacing: 8
 
-        Text { text: qsTr("WARNING: These settings are for advanced users only"); font.bold: true }
+        Label { text: qsTr("WARNING: These settings are for advanced users only"); font.bold: true }
 
         Row {
             spacing: 8

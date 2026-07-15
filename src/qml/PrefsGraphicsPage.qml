@@ -46,7 +46,7 @@ Flickable {
         width: root.width
         spacing: 8
 
-        Text { text: qsTr("OpenGL"); font.bold: true }
+        Label { text: qsTr("OpenGL"); font.bold: true }
 
         Row {
             spacing: 8
@@ -66,7 +66,7 @@ Flickable {
             onToggled: root.graphics.trilinearFiltering = checked
         }
 
-        Text { text: qsTr("Room Details"); font.bold: true }
+        Label { text: qsTr("Room Details"); font.bold: true }
 
         CheckBox {
             text: qsTr("Texture upper layers")
@@ -80,7 +80,7 @@ Flickable {
             onToggled: root.graphics.drawDoorNames = checked
         }
 
-        Text { text: qsTr("Mapping Hints"); font.bold: true }
+        Label { text: qsTr("Mapping Hints"); font.bold: true }
 
         CheckBox {
             text: qsTr("Show unsaved changes")
@@ -100,7 +100,7 @@ Flickable {
             onToggled: root.graphics.showUnmappedExits = checked
         }
 
-        Text { text: qsTr("Colors"); font.bold: true }
+        Label { text: qsTr("Colors"); font.bold: true }
 
         ColorRow {
             label: qsTr("Background:")
@@ -123,7 +123,7 @@ Flickable {
             onChooseRequested: root.graphics.chooseConnectionNormalColor()
         }
 
-        Text { text: qsTr("Weather and Atmosphere"); font.bold: true }
+        Label { text: qsTr("Weather and Atmosphere"); font.bold: true }
 
         Row {
             spacing: 8
@@ -159,7 +159,7 @@ Flickable {
             }
         }
 
-        Text { text: qsTr("Advanced Settings"); font.bold: true }
+        Label { text: qsTr("Advanced Settings"); font.bold: true }
 
         CheckBox {
             text: qsTr("Show Performance Stats")

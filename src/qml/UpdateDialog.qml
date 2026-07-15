@@ -7,12 +7,18 @@ import MMapper
 // instantiated: updateChecker (UpdateChecker, see
 // ../mainwindow/UpdateChecker.h) and dialog (the enclosing QmlDialog, see
 // QmlDialog.h) for the Close button.
-Item {
+Rectangle {
     id: root
     implicitWidth: 420
     implicitHeight: 140
+    color: sysPalette.window
 
-    Text {
+    SystemPalette {
+        id: sysPalette
+        colorGroup: SystemPalette.Active
+    }
+
+    Label {
         id: statusText
         anchors.top: parent.top
         anchors.left: parent.left

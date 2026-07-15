@@ -25,7 +25,7 @@ Flickable {
         width: root.width
         spacing: 8
 
-        Text { text: qsTr("Font and Colors"); font.bold: true }
+        Label { text: qsTr("Font and Colors"); font.bold: true }
 
         Row {
             spacing: 8
@@ -77,7 +77,7 @@ Flickable {
             background: Rectangle { color: root.client.backgroundColor }
         }
 
-        Text { text: qsTr("Terminal"); font.bold: true }
+        Label { text: qsTr("Terminal"); font.bold: true }
 
         Row {
             spacing: 8

@@ -11,10 +11,16 @@ import MMapper
 // findroomsdlg.ui's layout (query field, search-kind radio group,
 // case/regex checkboxes, result table, select/edit buttons) without a .ui
 // file.
-Item {
+Rectangle {
     id: root
     implicitWidth: 500
     implicitHeight: 420
+    color: sysPalette.window
+
+    SystemPalette {
+        id: sysPalette
+        colorGroup: SystemPalette.Active
+    }
 
     // Row indices (into findRoomsModel) currently selected, kept as an
     // object used like a set (row -> true) so toggling is O(1) and QML's
@@ -186,14 +192,14 @@ Item {
                     anchors.margins: 2
                     spacing: 8
 
-                    Text {
+                    Label {
                         width: 60
                         height: parent.height
                         verticalAlignment: Text.AlignVCenter
                         elide: Text.ElideRight
                         text: model.externalId
                     }
-                    Text {
+                    Label {
                         width: delegateRoot.width - 60 - 12
                         height: parent.height
                         verticalAlignment: Text.AlignVCenter
@@ -211,7 +217,7 @@ Item {
             }
         }
 
-        Text {
+        Label {
             anchors.centerIn: parent
             visible: resultsListView.count === 0
             text: qsTr("No results")
@@ -227,7 +233,7 @@ Item {
         anchors.margins: 8
         spacing: 8
 
-        Text {
+        Label {
             id: resultSummaryText
             width: parent.width - selectButton.width - editButton.width - 16
             height: selectButton.height

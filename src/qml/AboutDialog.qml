@@ -8,10 +8,16 @@ import MMapper
 // and "dialog" (the enclosing QmlDialog, see QmlDialog.h) for the Close
 // button. Mirrors aboutdialog.ui's three-tab layout (About/Authors/
 // Licenses) without a .ui file.
-Item {
+Rectangle {
     id: root
     implicitWidth: 640
     implicitHeight: 520
+    color: sysPalette.window
+
+    SystemPalette {
+        id: sysPalette
+        colorGroup: SystemPalette.Active
+    }
 
     Image {
         id: logo
@@ -51,7 +57,7 @@ Item {
             contentWidth: width
             contentHeight: aboutText.implicitHeight
 
-            Text {
+            Label {
                 id: aboutText
                 width: parent.width
                 text: aboutInfo.aboutHtml
@@ -68,7 +74,7 @@ Item {
             contentWidth: width
             contentHeight: authorsText.implicitHeight
 
-            Text {
+            Label {
                 id: authorsText
                 width: parent.width
                 text: aboutInfo.authorsHtml
@@ -97,14 +103,14 @@ Item {
                         width: licensesColumn.width
                         spacing: 4
 
-                        Text {
+                        Label {
                             width: parent.width
                             text: "<h3>" + model.title + "</h3>"
                             textFormat: Text.RichText
                             wrapMode: Text.WordWrap
                         }
 
-                        Text {
+                        Label {
                             width: parent.width
                             visible: model.intro.length > 0
                             text: model.intro

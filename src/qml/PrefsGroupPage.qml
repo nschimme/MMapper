@@ -26,7 +26,7 @@ Flickable {
         width: root.width
         spacing: 8
 
-        Text { text: qsTr("Appearance"); font.bold: true }
+        Label { text: qsTr("Appearance"); font.bold: true }
 
         Row {
             spacing: 8
@@ -65,7 +65,7 @@ Flickable {
             }
         }
 
-        Text { text: qsTr("Filtering and Order"); font.bold: true }
+        Label { text: qsTr("Filtering and Order"); font.bold: true }
 
         CheckBox {
             id: npcSortBottomCheckBox

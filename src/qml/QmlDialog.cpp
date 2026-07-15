@@ -29,6 +29,10 @@ QmlDialog::QmlDialog(const QString &title, const QString &objectName, QWidget *c
     m_quick = new QQuickWidget(this);
     m_quick->setResizeMode(QQuickWidget::SizeRootObjectToView);
     m_quick->setFocusPolicy(Qt::StrongFocus);
+    // QQuickWidget's default clear color is white, which shows through until
+    // the QML root paints over it (and can bleed through translucent edges).
+    // Match the host palette so the dialog never flashes white on dark themes.
+    m_quick->setClearColor(palette().color(QPalette::Window));
 
     auto *const layout = new QVBoxLayout(this);
     layout->setContentsMargins(0, 0, 0, 0);

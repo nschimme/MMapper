@@ -17,10 +17,11 @@ import MMapper
 // Commits 12-13 add all four COMPLEX pages (Graphics, Parser, General,
 // Integrated Client). See PreferencesController.h for why MainWindow does
 // not yet switch to this dialog.
-Item {
+Rectangle {
     id: root
     implicitWidth: 800
     implicitHeight: 600
+    color: sysPalette.window
 
     // Each entry's "source" is a module-relative qrc path, resolved the same
     // way QmlDialog::setQmlSource() resolves top-level dialog sources.

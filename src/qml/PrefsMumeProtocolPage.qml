@@ -23,7 +23,7 @@ Flickable {
         width: root.width
         spacing: 8
 
-        Text { text: qsTr("Remote Editing"); font.bold: true }
+        Label { text: qsTr("Remote Editing"); font.bold: true }
 
         ButtonGroup { id: editorGroup }
 

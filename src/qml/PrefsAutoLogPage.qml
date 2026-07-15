@@ -26,7 +26,7 @@ Flickable {
         width: root.width
         spacing: 8
 
-        Text { text: qsTr("Automatic Logging"); font.bold: true }
+        Label { text: qsTr("Automatic Logging"); font.bold: true }
 
         CheckBox {
             id: autoLogCheckBox
@@ -54,7 +54,7 @@ Flickable {
             }
         }
 
-        Text { text: qsTr("Automatic Log Cleanup"); font.bold: true }
+        Label { text: qsTr("Automatic Log Cleanup"); font.bold: true }
 
         ButtonGroup { id: cleanupGroup }
 
@@ -112,7 +112,7 @@ Flickable {
             onToggled: root.autoLog.askDelete = checked
         }
 
-        Text { text: qsTr("Advanced"); font.bold: true }
+        Label { text: qsTr("Advanced"); font.bold: true }
 
         Row {
             spacing: 8

@@ -38,7 +38,7 @@ Flickable {
         width: root.width
         spacing: 8
 
-        Text { text: qsTr("Connection"); font.bold: true }
+        Label { text: qsTr("Connection"); font.bold: true }
 
         Row {
             spacing: 8
@@ -108,7 +108,7 @@ Flickable {
             }
         }
 
-        Text { text: qsTr("Mume Native"); font.bold: true }
+        Label { text: qsTr("Mume Native"); font.bold: true }
 
         CheckBox {
             text: qsTr("Emulated exits")
@@ -132,7 +132,7 @@ Flickable {
             onToggled: root.general.checkForUpdate = checked
         }
 
-        Text { text: qsTr("Startup"); font.bold: true }
+        Label { text: qsTr("Startup"); font.bold: true }
 
         Row {
             spacing: 8
@@ -164,7 +164,7 @@ Flickable {
             onToggled: root.general.displayXPStatus = checked
         }
 
-        Text { text: qsTr("Resources"); font.bold: true }
+        Label { text: qsTr("Resources"); font.bold: true }
 
         Row {
             spacing: 8
@@ -181,7 +181,7 @@ Flickable {
             }
         }
 
-        Text { text: qsTr("Account"); font.bold: true }
+        Label { text: qsTr("Account"); font.bold: true }
 
         CheckBox {
             text: qsTr("Remember login")
@@ -198,7 +198,7 @@ Flickable {
             }
         }
 
-        Text { text: qsTr("Configuration"); font.bold: true }
+        Label { text: qsTr("Configuration"); font.bold: true }
 
         Row {
             spacing: 8

@@ -62,6 +62,7 @@
 #include <QQmlComponent>
 #include <QQmlContext>
 #include <QQmlEngine>
+#include <QQmlIncubationController>
 #include <QQuickItem>
 #include <QQuickWidget>
 #include <QScopeGuard>
@@ -70,6 +71,7 @@
 #include <QTemporaryDir>
 #include <QToolTip>
 #include <QWidget>
+#include <QtMath>
 #include <QtTest/QtTest>
 
 namespace { // anonymous
@@ -259,6 +261,48 @@ void TestQml::qmlDockWidgetLoads()
     QVERIFY(quick->rootObject() != nullptr);
 }
 
+void TestQml::qmlDockWidgetMinimumFromImplicitSize()
+{
+    // Regression test for QML dock panels having no minimum size: unlike
+    // the widget-era panels (GroupWidget::sizeHint(),
+    // DisplayWidget::minimumSizeHint(), ...), QQuickWidget never reads its
+    // root item's implicitWidth/implicitHeight on its own, so a QML dock
+    // could be resized down to a sliver. QmlDockWidget::syncMinimumSize()
+    // (see QmlDockWidget.cpp) copies the root item's implicit size onto the
+    // QQuickWidget's minimumSize() once the root becomes Ready.
+    CTimers timers(nullptr);
+    timers.addCountdown("test-timer", "", 60000);
+
+    TimerModel model(timers, nullptr);
+    TimerController controller(timers, model, nullptr);
+
+    QmlDockWidget dock("t", "TestDockMinSize", nullptr);
+    dock.setContextProperty("timerModel", &model);
+    dock.setContextProperty("timerController", &controller);
+    dock.setQmlSource(QUrl(u"qrc:/qt/qml/MMapper/TimerPanel.qml"_qs));
+
+    QQuickWidget *const quick = dock.quickWidget();
+    QVERIFY(quick != nullptr);
+
+    while (quick->status() == QQuickWidget::Loading) {
+        QCoreApplication::processEvents();
+    }
+    QCOMPARE(quick->status(), QQuickWidget::Ready);
+
+    QQuickItem *const rootItem = quick->rootObject();
+    QVERIFY(rootItem != nullptr);
+    QVERIFY(rootItem->implicitWidth() > 0);
+    QVERIFY(rootItem->implicitHeight() > 0);
+
+    // The Ready->minimumSize() sync happens inside a queued statusChanged
+    // handler, so poll rather than asserting immediately.
+    QTRY_VERIFY(quick->minimumSize().width() > 0);
+    QTRY_VERIFY(quick->minimumSize().height() > 0);
+
+    QCOMPARE(quick->minimumSize().width(), qCeil(rootItem->implicitWidth()));
+    QCOMPARE(quick->minimumSize().height(), qCeil(rootItem->implicitHeight()));
+}
+
 void TestQml::loadTimerPanel()
 {
     CTimers timers(nullptr);
@@ -283,6 +327,147 @@ void TestQml::loadTimerPanel()
 
     QCOMPARE(quick->status(), QQuickWidget::Ready);
     QVERIFY(quick->rootObject() != nullptr);
+}
+
+void TestQml::timerModelTickUpdatesAllRoles()
+{
+    // Regression test: TimerModel's periodic refresh lambda used to emit
+    // dataChanged() with {Qt::DisplayRole, ProgressRole} as the changed
+    // roles, but TimerPanel.qml's delegate binds model.time/model.name/
+    // model.expired, which resolve to the custom TimeRole/NameRole/
+    // ExpiredRole (see TimerModel::roleNames()), not Qt::DisplayRole. Those
+    // QML bindings never re-evaluated, so a running count-up timer's
+    // on-screen time looked frozen even though the underlying data (and the
+    // widget-based TimerWidget, which repaints regardless of roles) kept
+    // updating. See TimerModel.cpp's refresh lambda: it must emit an
+    // *empty* roles vector (meaning "all roles changed").
+    CTimers timers(nullptr);
+    timers.addTimer("count-up", "");
+
+    TimerModel model(timers, nullptr);
+    const QModelIndex idx = model.index(0, TimerModel::ColTime);
+
+    QSignalSpy spy(&model, &TimerModel::dataChanged);
+    const QVariant before = model.data(idx, TimerModel::TimeRole);
+
+    // The refresh timer fires every 50ms; wait for at least one tick.
+    QTRY_VERIFY_WITH_TIMEOUT(!spy.isEmpty(), 2000);
+
+    const QList<QVariant> lastSignal = spy.constLast();
+    const auto roles = lastSignal.at(2).value<QList<int>>();
+    QVERIFY2(roles.isEmpty(),
+             "dataChanged() must report an empty roles list (\"all roles changed\") so QML's "
+             "custom-role bindings (model.time/model.name/model.expired) re-evaluate");
+
+    // formatMs() only has second granularity, so give it long enough for
+    // the displayed elapsed time to actually roll over and confirm the
+    // underlying data really is live, not just the signal shape.
+    QTRY_VERIFY_WITH_TIMEOUT(model.data(idx, TimerModel::TimeRole) != before, 2000);
+}
+
+namespace {
+// Fetches row 0's progress Rectangle (objectName "timerProgressRect") out of
+// TimerPanel.qml's ListView. findChild() from the root down doesn't see
+// delegate items directly (QQuickListView reparents delegates onto its
+// contentItem outside the QObject-child walk findChildren() follows), so go
+// through ListView's own itemAtIndex() instead, which is what QML/JS uses to
+// look up a concrete delegate instance.
+NODISCARD QQuickItem *timerPanelProgressRect(QQuickWidget &quick)
+{
+    auto *const listView = quick.rootObject()->findChild<QQuickItem *>(
+        QStringLiteral("timerListView"));
+    if (listView == nullptr) {
+        return nullptr;
+    }
+    QQuickItem *delegateItem = nullptr;
+    QMetaObject::invokeMethod(listView,
+                              "itemAtIndex",
+                              Q_RETURN_ARG(QQuickItem *, delegateItem),
+                              Q_ARG(int, 0));
+    if (delegateItem == nullptr) {
+        return nullptr;
+    }
+    return delegateItem->findChild<QQuickItem *>(QStringLiteral("timerProgressRect"));
+}
+} // namespace
+
+void TestQml::timerPanelProgressColor()
+{
+    // Ports TimerDelegate::paint()'s progress-bar coloring
+    // (TimerDelegate.cpp): green fading to yellow above 50% remaining,
+    // yellow fading to red below it. See TimerPanel.qml's progress
+    // Rectangle (objectName "timerProgressRect") and ListView (objectName
+    // "timerListView").
+    {
+        // Freshly-created long countdown: remaining/duration is ~1.0, so
+        // this should land solidly in the "green" end of the gradient.
+        CTimers timers(nullptr);
+        timers.addCountdown("fresh", "", 1000000);
+
+        TimerModel model(timers, nullptr);
+        TimerController controller(timers, model, nullptr);
+
+        QmlDockWidget dock("t", "TestDockTimerColorHigh", nullptr);
+        dock.setContextProperty("timerModel", &model);
+        dock.setContextProperty("timerController", &controller);
+        dock.setQmlSource(QUrl(u"qrc:/qt/qml/MMapper/TimerPanel.qml"_qs));
+
+        QQuickWidget *const quick = dock.quickWidget();
+        QVERIFY(quick != nullptr);
+        while (quick->status() == QQuickWidget::Loading) {
+            QCoreApplication::processEvents();
+        }
+        QCoreApplication::processEvents();
+        QCOMPARE(quick->status(), QQuickWidget::Ready);
+
+        // ListView needs a non-zero size to instantiate any delegates at
+        // all; give the dock a real size like the other panel tests do
+        // (e.g. loadDescriptionPanel()).
+        dock.resize(300, 200);
+        dock.show();
+        QCoreApplication::processEvents();
+        QCoreApplication::processEvents();
+
+        QQuickItem *rect = nullptr;
+        QTRY_VERIFY((rect = timerPanelProgressRect(*quick)) != nullptr);
+        const QColor color = rect->property("color").value<QColor>();
+        QCOMPARE(color.greenF(), 1.0f);
+        QVERIFY(color.redF() < 0.1f);
+    }
+    {
+        // Countdown that has already run out: remaining/duration is 0, so
+        // this should land solidly in the "red" end of the gradient.
+        CTimers timers(nullptr);
+        timers.addCountdown("expiring", "", 1);
+        QTest::qWait(20);
+
+        TimerModel model(timers, nullptr);
+        TimerController controller(timers, model, nullptr);
+
+        QmlDockWidget dock("t", "TestDockTimerColorLow", nullptr);
+        dock.setContextProperty("timerModel", &model);
+        dock.setContextProperty("timerController", &controller);
+        dock.setQmlSource(QUrl(u"qrc:/qt/qml/MMapper/TimerPanel.qml"_qs));
+
+        QQuickWidget *const quick = dock.quickWidget();
+        QVERIFY(quick != nullptr);
+        while (quick->status() == QQuickWidget::Loading) {
+            QCoreApplication::processEvents();
+        }
+        QCoreApplication::processEvents();
+        QCOMPARE(quick->status(), QQuickWidget::Ready);
+
+        dock.resize(300, 200);
+        dock.show();
+        QCoreApplication::processEvents();
+        QCoreApplication::processEvents();
+
+        QQuickItem *rect = nullptr;
+        QTRY_VERIFY((rect = timerPanelProgressRect(*quick)) != nullptr);
+        const QColor color = rect->property("color").value<QColor>();
+        QCOMPARE(color.redF(), 1.0f);
+        QVERIFY(color.greenF() < 0.1f);
+    }
 }
 
 void TestQml::loadAdventurePanel()

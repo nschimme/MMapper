@@ -9,6 +9,13 @@ PanelFrame {
     // Context properties expected to be set by C++ before this component is
     // instantiated: tasksModel (TasksModel).
 
+    // Modest minimum, mirroring the panel's widget-era layout minimum (a
+    // plain QListView had no dedicated sizeHint() override): tall enough
+    // for one task's status text + progress bar + cancel button, wide
+    // enough for the button's label.
+    implicitWidth: 260
+    implicitHeight: 110
+
     function openMenuFor(index) {
         contextMenu.rowIndex = index;
         contextMenu.popup();

@@ -8,8 +8,10 @@
 #include <QQmlEngine>
 #include <QQmlError>
 #include <QQuickImageProvider>
+#include <QQuickItem>
 #include <QQuickWidget>
 #include <QQuickWindow>
+#include <QtMath>
 
 QmlDockWidget::QmlDockWidget(const QString &title, const QString &objectName, QWidget *parent)
     : QDockWidget(title, parent)
@@ -81,7 +83,46 @@ void QmlDockWidget::setQmlSource(const QUrl &url)
                 [](QQuickWindow::SceneGraphError error, const QString &message) {
                     qWarning() << "QML scene graph error:" << static_cast<int>(error) << message;
                 });
+
+        // The QML panels (see e.g. ClientPanel.qml, GroupPanel.qml) declare
+        // an implicitWidth/implicitHeight on their root item to say how
+        // small they can usefully get, mirroring the widget-era
+        // sizeHint()/minimumSizeHint() overrides (e.g.
+        // GroupWidget::sizeHint(), DisplayWidget::minimumSizeHint()) that
+        // those panels replaced. QQuickWidget never reads implicitWidth/
+        // implicitHeight on its own, so without this the dock would let the
+        // user squash the panel down to nothing. Sync it once the root
+        // object is ready, then keep it live in case implicitWidth/Height
+        // ever changes at runtime (e.g. font/config changes).
+        connect(m_quick, &QQuickWidget::statusChanged, this, [this](QQuickWidget::Status status) {
+            if (status != QQuickWidget::Ready) {
+                return;
+            }
+            QQuickItem *const root = m_quick->rootObject();
+            if (root == nullptr) {
+                return;
+            }
+            syncMinimumSize();
+            connect(root, &QQuickItem::implicitWidthChanged, this, &QmlDockWidget::syncMinimumSize);
+            connect(root, &QQuickItem::implicitHeightChanged, this, &QmlDockWidget::syncMinimumSize);
+        });
     }
 
     m_quick->setSource(url);
+}
+
+void QmlDockWidget::syncMinimumSize()
+{
+    if (m_quick == nullptr) {
+        return;
+    }
+    QQuickItem *const root = m_quick->rootObject();
+    if (root == nullptr) {
+        return;
+    }
+    const qreal w = root->implicitWidth();
+    const qreal h = root->implicitHeight();
+    if (w > 0 && h > 0) {
+        m_quick->setMinimumSize(QSize(qCeil(w), qCeil(h)));
+    }
 }

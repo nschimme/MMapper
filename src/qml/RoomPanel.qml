@@ -9,6 +9,13 @@ PanelFrame {
     // Context property expected to be set by C++ before this component is
     // instantiated: roomModel (RoomModel).
 
+    // Modest "header + a couple of rows" minimum, mirroring the panel's
+    // widget-era layout minimum: wider than the other list panels since
+    // RoomModel has many columns (see RoomModel::ColumnTypeEnum) that would
+    // otherwise get squashed unreadably narrow.
+    implicitWidth: 320
+    implicitHeight: 100
+
     color: root.panelPalette.base
 
     // Used to measure the pixel width of header/cell text so columns can be

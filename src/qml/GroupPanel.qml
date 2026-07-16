@@ -25,6 +25,13 @@ PanelFrame {
     readonly property int statsVisibleCount: groupModel.anyMana ? 3 : 2
     readonly property real roomW: Math.max(40, width - nameW - stateW - statW * statsVisibleCount)
 
+    // Mirrors GroupWidget::sizeHint() (groupwidget.cpp): header height plus
+    // one data row, width the sum of the (minimum) column widths, so the
+    // dock can't be squashed below "header + one member visible" (see
+    // QmlDockWidget::syncMinimumSize()).
+    implicitWidth: nameW + stateW + statW * statsVisibleCount + 40
+    implicitHeight: headerRow.height + rowH
+
     // Rebuilt whenever groupModel.anyMana changes so the Mana column
     // appears/disappears and the Room Name column's width (roomW, which
     // itself depends on statsVisibleCount) stays in sync.

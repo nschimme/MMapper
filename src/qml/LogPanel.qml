@@ -9,6 +9,12 @@ PanelFrame {
     // Context properties expected to be set by C++ before this component is
     // instantiated: logModel (LogModel).
 
+    // Modest minimum, mirroring the panel's widget-era layout minimum (a
+    // plain QListView had no dedicated sizeHint() override): tall enough
+    // for a couple of wrapped log lines, wide enough to read them.
+    implicitWidth: 240
+    implicitHeight: 100
+
     Menu {
         id: contextMenu
 

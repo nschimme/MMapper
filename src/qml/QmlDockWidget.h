@@ -32,4 +32,10 @@ public:
     void setQmlSource(const QUrl &url);
 
     NODISCARD QQuickWidget *quickWidget() const { return m_quick; }
+
+private:
+    // Copies the root QML item's implicitWidth/implicitHeight (if positive)
+    // onto the QQuickWidget's minimumSize; see setQmlSource()'s Ready
+    // handler.
+    void syncMinimumSize();
 };

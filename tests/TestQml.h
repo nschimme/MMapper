@@ -21,7 +21,10 @@ private Q_SLOTS:
     void loadPanelHeaderRow();
     void qmlDockWidgetFallback();
     void qmlDockWidgetLoads();
+    void qmlDockWidgetMinimumFromImplicitSize();
     void loadTimerPanel();
+    void timerModelTickUpdatesAllRoles();
+    void timerPanelProgressColor();
     void loadAdventurePanel();
     void roomModelLongestTextInColumn();
     void loadRoomPanel();

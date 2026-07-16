@@ -19,6 +19,14 @@ PanelFrame {
     }
     readonly property real timeW: timeMetrics.advanceWidth + 16
 
+    // Modest "header + a couple of rows" minimum, mirroring the panel's
+    // widget-era layout minimum (no single dedicated sizeHint() override
+    // existed for the timer table, so this just keeps the dock from being
+    // squashed below something usable): the header row plus two 30px data
+    // rows, wide enough for the Time column plus a readable Name column.
+    implicitWidth: root.timeW + 150
+    implicitHeight: headerRow.height + 60
+
     function openMenuFor(index) {
         contextMenu.rowIndex = index;
         contextMenu.popup();
@@ -64,6 +72,7 @@ PanelFrame {
 
     ListView {
         id: listView
+        objectName: "timerListView"
         anchors.top: headerRow.bottom
         anchors.left: parent.left
         anchors.right: parent.right
@@ -81,12 +90,21 @@ PanelFrame {
                                     : root.panelPalette.alternateBase
 
             Rectangle {
+                objectName: "timerProgressRect"
+                // Ports TimerDelegate::paint()'s progress-bar coloring
+                // (TimerDelegate.cpp): green fading to yellow above 50%
+                // remaining, yellow fading to red below it, all at a fixed
+                // 30% alpha (folded into the color itself here, rather than
+                // a separate opacity, so the math matches QColor::fromRgbF's
+                // alpha channel exactly).
+                readonly property real p: model.progress ? model.progress : 0
+
                 anchors.left: parent.left
                 anchors.top: parent.top
                 anchors.bottom: parent.bottom
-                width: parent.width * (model.progress ? model.progress : 0)
-                color: root.panelPalette.highlight
-                opacity: 0.3
+                width: parent.width * p
+                color: p > 0.5 ? Qt.rgba(1.0 - (p - 0.5) * 2.0, 1.0, 0.0, 0.3)
+                                : Qt.rgba(1.0, p * 2.0, 0.0, 0.3)
             }
 
             Text {

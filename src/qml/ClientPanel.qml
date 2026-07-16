@@ -14,6 +14,21 @@ import MMapper
 FocusScope {
     id: root
 
+    // Mirrors DisplayWidget::sizeHint() (displaywidget.cpp): configured
+    // columns/rows in the client font's metrics, plus the same margin/
+    // scrollbar/frame fudge terms, so the QML dock can't be squashed
+    // smaller than the configured terminal size (see QmlDockWidget::
+    // syncMinimumSize()). Kept deliberately simple -- a few px of frame/
+    // margin plus a 12px scrollbar extent -- rather than querying the
+    // live style, since this only needs to be "close enough" to the
+    // widget-era minimum, not pixel-identical.
+    readonly property int clientMinMargin: 4
+    readonly property int clientMinScrollbar: 12
+    implicitWidth: config.clientColumns * clientFm.averageCharWidth + clientMinMargin * 2
+                   + clientMinScrollbar
+    implicitHeight: config.clientRows * clientFm.lineSpacing + clientMinMargin * 2
+                    + clientMinScrollbar
+
     Rectangle {
         anchors.fill: parent
         color: config.clientBgColor
@@ -29,8 +44,8 @@ FocusScope {
     }
 
     // WELCOME page: mirrors ClientWidget.ui's welcomePage (playLabel/
-    // playButton/helpLabel/hostname+port row) closely enough to read the
-    // same to a user, without replicating its QScrollArea/pixmap chrome.
+    // playButton/helpLabel/hostname+port row/pixmapLabel) closely enough to
+    // read the same to a user, without replicating its QScrollArea chrome.
     Column {
         id: welcomePage
         visible: !clientController.usingClient
@@ -51,6 +66,9 @@ FocusScope {
             anchors.horizontalCenter: parent.horizontalCenter
             text: qsTr("Play MUME")
             font.bold: true
+            icon.source: "qrc:/icons/terminal.png"
+            icon.width: 48
+            icon.height: 48
             onClicked: clientController.play()
         }
 
@@ -74,6 +92,14 @@ FocusScope {
             text: qsTr("hostname: localhost   port: %1").arg(clientController.port)
             horizontalAlignment: Text.AlignHCenter
             color: config.clientFgColor
+        }
+
+        // Mirrors ClientWidget.ui's pixmapLabel.
+        Image {
+            anchors.horizontalCenter: parent.horizontalCenter
+            source: "qrc:/pixmaps/mellon.png"
+            fillMode: Image.PreserveAspectFit
+            width: Math.min(implicitWidth, parent.width)
         }
     }
 

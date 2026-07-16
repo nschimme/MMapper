@@ -18,6 +18,12 @@ PanelFrame {
     // TOP_PADDING_LINES in DescriptionWidget.cpp.
     readonly property int topPaddingLines: 5
 
+    // Modest minimum, mirroring the panel's widget-era layout minimum (a
+    // plain QLabel background had no dedicated sizeHint() override): big
+    // enough to show a small room image plus a line or two of overlay text.
+    implicitWidth: 200
+    implicitHeight: 150
+
     // Mirrors DescriptionWidget::updateBackground()'s hasRoomRightOfTextEdit:
     // true when the sharp image's natural size fits in the space to the
     // right of the text overlay block, so it can sit beside the text

@@ -27,6 +27,8 @@ QmlConfig::QmlConfig(QObject *const parent)
     , m_clientFgColor(getConfig().integratedClient.foregroundColor)
     , m_clientClearInputOnEnter(getConfig().integratedClient.clearInputOnEnter)
     , m_clientPreviewLines(getConfig().integratedClient.linesOfPeekPreview)
+    , m_clientColumns(getConfig().integratedClient.columns)
+    , m_clientRows(getConfig().integratedClient.rows)
 {}
 
 bool QmlConfig::getNpcHide() const
@@ -104,6 +106,16 @@ int QmlConfig::getClientPreviewLines() const
     return getConfig().integratedClient.linesOfPeekPreview;
 }
 
+int QmlConfig::getClientColumns() const
+{
+    return getConfig().integratedClient.columns;
+}
+
+int QmlConfig::getClientRows() const
+{
+    return getConfig().integratedClient.rows;
+}
+
 void QmlConfig::reload()
 {
     if (const bool value = getConfig().groupManager.npcHide; value != m_npcHide) {
@@ -148,5 +160,13 @@ void QmlConfig::reload()
         value != m_clientPreviewLines) {
         m_clientPreviewLines = value;
         emit clientPreviewLinesChanged();
+    }
+    if (const int value = getConfig().integratedClient.columns; value != m_clientColumns) {
+        m_clientColumns = value;
+        emit clientSizeChanged();
+    }
+    if (const int value = getConfig().integratedClient.rows; value != m_clientRows) {
+        m_clientRows = value;
+        emit clientSizeChanged();
     }
 }

@@ -49,6 +49,13 @@ class NODISCARD_QOBJECT QmlConfig final : public QObject
                    clientClearInputOnEnterChanged)
     Q_PROPERTY(int clientPreviewLines READ getClientPreviewLines NOTIFY clientPreviewLinesChanged)
 
+    // Read-only façade over the integrated client's configured terminal
+    // size, used by ClientPanel.qml to mirror DisplayWidget::sizeHint()'s
+    // columns/rows-based minimum size (see displaywidget.cpp). Same
+    // reload()-driven staleness contract as every other property here.
+    Q_PROPERTY(int clientColumns READ getClientColumns NOTIFY clientSizeChanged)
+    Q_PROPERTY(int clientRows READ getClientRows NOTIFY clientSizeChanged)
+
 private:
     // Cache of the last-known values, used only to detect external changes
     // in reload(); the getters below always read the live Configuration.
@@ -61,6 +68,8 @@ private:
     QColor m_clientFgColor;
     bool m_clientClearInputOnEnter = false;
     int m_clientPreviewLines = 0;
+    int m_clientColumns = 0;
+    int m_clientRows = 0;
 
 public:
     explicit QmlConfig(QObject *parent = nullptr);
@@ -83,6 +92,9 @@ public:
     NODISCARD bool getClientClearInputOnEnter() const;
     NODISCARD int getClientPreviewLines() const;
 
+    NODISCARD int getClientColumns() const;
+    NODISCARD int getClientRows() const;
+
 public slots:
     // Re-syncs the cached values against the live Configuration and emits
     // the appropriate *Changed signals for anything that differs. Must be
@@ -98,4 +110,5 @@ signals:
     void clientColorsChanged();
     void clientClearInputOnEnterChanged();
     void clientPreviewLinesChanged();
+    void clientSizeChanged();
 };

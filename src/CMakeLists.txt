@@ -269,8 +269,8 @@ set(mmapper_SRCS
     mainwindow/FindRoomsController.h
     mainwindow/FindRoomsModel.cpp
     mainwindow/FindRoomsModel.h
-    mainwindow/infomarkseditdlg.cpp
-    mainwindow/infomarkseditdlg.h
+    mainwindow/InfomarkEditController.cpp
+    mainwindow/InfomarkEditController.h
     mainwindow/mainwindow-async.cpp
     mainwindow/mainwindow-async.h
     mainwindow/mainwindow-saveslots.cpp
@@ -663,6 +663,8 @@ if(NOT WITH_QML)
         mainwindow/UpdateDialog.h
         mainwindow/findroomsdlg.cpp
         mainwindow/findroomsdlg.h
+        mainwindow/infomarkseditdlg.cpp
+        mainwindow/infomarkseditdlg.h
         preferences/AdvancedGraphics.cpp
         preferences/AdvancedGraphics.h
         preferences/audiopage.cpp
@@ -737,7 +739,6 @@ if(EMSCRIPTEN)
 endif()
 
 set(mmapper_UIS
-    mainwindow/infomarkseditdlg.ui
     mainwindow/roomeditattrdlg.ui
     preferences/AnsiColorDialog.ui
     preferences/ManagePasswordDialog.ui
@@ -757,6 +758,10 @@ if(NOT WITH_QML)
     # driven by FindRoomsController rather than a generated
     # ui_findroomsdlg.h.
     list(APPEND mmapper_UIS mainwindow/findroomsdlg.ui)
+    # InfomarksEditDlg's .ui; InfomarkEditDialog.qml (used instead when
+    # WITH_QML) is driven by InfomarkEditController rather than a generated
+    # ui_infomarkseditdlg.h.
+    list(APPEND mmapper_UIS mainwindow/infomarkseditdlg.ui)
     # ConfigDialog and its nine widget pages' .ui files; PreferencesDialog.qml
     # (used instead when WITH_QML) is driven by PreferencesController and the
     # per-page adapters rather than generated ui_*.h headers.
@@ -859,6 +864,7 @@ if(WITH_QML)
     set_source_files_properties(qml/AboutDialog.qml PROPERTIES QT_RESOURCE_ALIAS "AboutDialog.qml")
     set_source_files_properties(qml/UpdateDialog.qml PROPERTIES QT_RESOURCE_ALIAS "UpdateDialog.qml")
     set_source_files_properties(qml/FindRoomsDialog.qml PROPERTIES QT_RESOURCE_ALIAS "FindRoomsDialog.qml")
+    set_source_files_properties(qml/InfomarkEditDialog.qml PROPERTIES QT_RESOURCE_ALIAS "InfomarkEditDialog.qml")
     set_source_files_properties(qml/PreferencesDialog.qml PROPERTIES QT_RESOURCE_ALIAS "PreferencesDialog.qml")
     set_source_files_properties(qml/PrefsPathMachinePage.qml PROPERTIES QT_RESOURCE_ALIAS "PrefsPathMachinePage.qml")
     set_source_files_properties(qml/PrefsMumeProtocolPage.qml PROPERTIES QT_RESOURCE_ALIAS "PrefsMumeProtocolPage.qml")
@@ -893,6 +899,7 @@ if(WITH_QML)
             qml/AboutDialog.qml
             qml/UpdateDialog.qml
             qml/FindRoomsDialog.qml
+            qml/InfomarkEditDialog.qml
             qml/PreferencesDialog.qml
             qml/PrefsPathMachinePage.qml
             qml/PrefsMumeProtocolPage.qml

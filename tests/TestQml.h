@@ -54,6 +54,7 @@ private Q_SLOTS:
     void qmlDialogRejectFromQml();
     void loadAboutDialog();
     void loadUpdateDialog();
+    void loadInfomarkEditDialog();
     void qmlDialogBackgroundThemed();
     void findRoomsModelBasics();
     void loadPreferencesDialog();

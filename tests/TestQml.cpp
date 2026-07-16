@@ -102,6 +102,108 @@ public:
     NODISCARD Q_INVOKABLE bool canCenter(int /*proxyRow*/) const { return false; }
 };
 
+// InfomarkEditController's real constructor needs setInfomarkSelection() to
+// be called with a live MapData (see ../src/mainwindow/InfomarkEditController.h),
+// and MapData drags in mapfrontend/parser/mapstorage, none of which are
+// linked into TestQml's small executable (same tradeoff as
+// GroupControllerStub above). This stub exposes InfomarkEditController's
+// exact Q_PROPERTY/Q_INVOKABLE surface (see that header's QML-contract doc
+// comment) so InfomarkEditDialog.qml's bindings resolve normally;
+// loadInfomarkEditDialog() below drives it directly to exercise the QML's
+// enable/disable wiring without needing a real map.
+class NODISCARD_QOBJECT InfomarkEditControllerStub final : public QObject
+{
+    Q_OBJECT
+
+    Q_PROPERTY(QStringList markerNames READ getMarkerNames NOTIFY sig_markerNamesChanged)
+    Q_PROPERTY(
+        int currentIndex READ getCurrentIndex WRITE setCurrentIndex NOTIFY sig_currentIndexChanged)
+    Q_PROPERTY(int type READ getType NOTIFY sig_typeChanged)
+    Q_PROPERTY(int markerClass READ getMarkerClass NOTIFY sig_markerClassChanged)
+    Q_PROPERTY(QString text READ getText NOTIFY sig_textChanged)
+    Q_PROPERTY(int x1 READ getX1 NOTIFY sig_x1Changed)
+    Q_PROPERTY(int y1 READ getY1 NOTIFY sig_y1Changed)
+    Q_PROPERTY(int x2 READ getX2 NOTIFY sig_x2Changed)
+    Q_PROPERTY(int y2 READ getY2 NOTIFY sig_y2Changed)
+    Q_PROPERTY(int layer READ getLayer NOTIFY sig_layerChanged)
+    Q_PROPERTY(int angle READ getAngle NOTIFY sig_angleChanged)
+    Q_PROPERTY(bool canModify READ getCanModify NOTIFY sig_canModifyChanged)
+
+public:
+    explicit InfomarkEditControllerStub(QObject *const parent)
+        : QObject(parent)
+    {
+        m_markerNames << QStringLiteral("Create New Marker") << QStringLiteral("MarkerOne");
+    }
+
+public:
+    NODISCARD QStringList getMarkerNames() const { return m_markerNames; }
+    NODISCARD int getCurrentIndex() const { return m_currentIndex; }
+    NODISCARD int getType() const { return m_type; }
+    NODISCARD int getMarkerClass() const { return m_markerClass; }
+    NODISCARD QString getText() const { return m_text; }
+    NODISCARD int getX1() const { return m_x1; }
+    NODISCARD int getY1() const { return m_y1; }
+    NODISCARD int getX2() const { return m_x2; }
+    NODISCARD int getY2() const { return m_y2; }
+    NODISCARD int getLayer() const { return m_layer; }
+    NODISCARD int getAngle() const { return m_angle; }
+    NODISCARD bool getCanModify() const { return m_canModify; }
+
+    void setCurrentIndex(int index)
+    {
+        m_currentIndex = index;
+        m_canModify = index > 0;
+        emit sig_currentIndexChanged();
+        emit sig_canModifyChanged();
+        emit sig_refreshed();
+    }
+
+    Q_INVOKABLE void setType(int type)
+    {
+        m_type = type;
+        emit sig_typeChanged();
+        emit sig_refreshed();
+    }
+    Q_INVOKABLE void setMarkerClass(int cls)
+    {
+        m_markerClass = cls;
+        emit sig_markerClassChanged();
+    }
+    Q_INVOKABLE void create(int, int, const QString &, int, int, int, int, int, int) {}
+    Q_INVOKABLE void modify(int, int, const QString &, int, int, int, int, int, int) {}
+
+signals:
+    void sig_markerNamesChanged();
+    void sig_currentIndexChanged();
+    void sig_typeChanged();
+    void sig_markerClassChanged();
+    void sig_textChanged();
+    void sig_x1Changed();
+    void sig_y1Changed();
+    void sig_x2Changed();
+    void sig_y2Changed();
+    void sig_layerChanged();
+    void sig_angleChanged();
+    void sig_canModifyChanged();
+    void sig_refreshed();
+    void sig_error(const QString &);
+
+private:
+    QStringList m_markerNames;
+    int m_currentIndex = 0;
+    int m_type = 0;
+    int m_markerClass = 0;
+    QString m_text;
+    int m_x1 = 0;
+    int m_y1 = 0;
+    int m_x2 = 0;
+    int m_y2 = 0;
+    int m_layer = 0;
+    int m_angle = 0;
+    bool m_canModify = false;
+};
+
 } // namespace
 
 // MediaLibrary.cpp calls getAssetsPath() (declared in display/Filenames.h),
@@ -1901,6 +2003,58 @@ void TestQml::loadUpdateDialog()
 
     QCOMPARE(quick->status(), QQuickWidget::Ready);
     QVERIFY(quick->rootObject() != nullptr);
+}
+
+void TestQml::loadInfomarkEditDialog()
+{
+    // InfomarkEditControllerStub starts at currentIndex 0 ("Create New
+    // Marker") with type 0 (TEXT), matching InfomarkEditController's state
+    // right after setInfomarkSelection() populates an empty-selection
+    // "create" dialog (see infomarkseditdlg.cpp's updateDialog()).
+    InfomarkEditControllerStub controller(nullptr);
+
+    QmlDialog dialog("t", "TestInfomarkEditDialog", nullptr);
+    dialog.setContextProperty("infomarkEditController", &controller);
+    dialog.setQmlSource(QUrl(u"qrc:/qt/qml/MMapper/InfomarkEditDialog.qml"_qs));
+
+    QQuickWidget *const quick = dialog.quickWidget();
+    QVERIFY(quick != nullptr);
+    while (quick->status() == QQuickWidget::Loading) {
+        QCoreApplication::processEvents();
+    }
+    QCoreApplication::processEvents();
+
+    QCOMPARE(quick->status(), QQuickWidget::Ready);
+    QQuickItem *const root = quick->rootObject();
+    QVERIFY(root != nullptr);
+
+    QQuickItem *const modifyButton = root->findChild<QQuickItem *>("modifyButton");
+    QVERIFY(modifyButton != nullptr);
+    QCOMPARE(modifyButton->property("enabled").toBool(), false);
+
+    QQuickItem *const createButton = root->findChild<QQuickItem *>("createButton");
+    QVERIFY(createButton != nullptr);
+    QCOMPARE(createButton->property("enabled").toBool(), true);
+
+    QQuickItem *const x2Box = root->findChild<QQuickItem *>("x2Box");
+    QQuickItem *const y2Box = root->findChild<QQuickItem *>("y2Box");
+    QVERIFY(x2Box != nullptr);
+    QVERIFY(y2Box != nullptr);
+    // type 0 == InfomarkTypeEnum::TEXT: X2/Y2 disabled.
+    QCOMPARE(x2Box->property("enabled").toBool(), false);
+    QCOMPARE(y2Box->property("enabled").toBool(), false);
+
+    controller.setType(1); // InfomarkTypeEnum::LINE
+    QCoreApplication::processEvents();
+    QCOMPARE(x2Box->property("enabled").toBool(), true);
+    QCOMPARE(y2Box->property("enabled").toBool(), true);
+
+    // Selecting an existing marker (index 1) flips canModify, enabling
+    // Modify and disabling Create, mirroring InfomarksEditDlg::updateDialog().
+    controller.setCurrentIndex(1);
+    QCoreApplication::processEvents();
+    QCOMPARE(modifyButton->property("enabled").toBool(), true);
+    QCOMPARE(createButton->property("enabled").toBool(), false);
 }
 
 void TestQml::qmlDialogBackgroundThemed()

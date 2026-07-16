@@ -64,7 +64,9 @@
 #ifndef MMAPPER_WITH_QML
 #include "findroomsdlg.h"
 #endif
+#ifndef MMAPPER_WITH_QML
 #include "infomarkseditdlg.h"
+#endif
 #include "mainwindow-async.h"
 #include "metatypes.h"
 #include "roomeditattrdlg.h"
@@ -90,6 +92,7 @@
 #include "AboutInfo.h"
 #include "FindRoomsController.h"
 #include "FindRoomsModel.h"
+#include "InfomarkEditController.h"
 #include "LogModel.h"
 #include "TasksModel.h"
 #include "UpdateChecker.h"
@@ -2393,10 +2396,25 @@ void MainWindow::slot_onEditInfomarkSelection()
         return;
     }
 
+#ifdef MMAPPER_WITH_QML
+    auto *const controller = new InfomarkEditController(this);
+    auto *const dlg = new QmlDialog(tr("Edit Markers"), "InfomarksEditDlg", this);
+    controller->setParent(dlg);
+    controller->setInfomarkSelection(m_infoMarkSelection, m_mapData);
+    dlg->setContextProperty("infomarkEditController", controller);
+    dlg->setQmlSource(QUrl(QStringLiteral("qrc:/qt/qml/MMapper/InfomarkEditDialog.qml")));
+    dlg->setAttribute(Qt::WA_DeleteOnClose);
+    dlg->restoreGeometry(getConfig().infomarksDialog.geometry);
+    connect(dlg, &QDialog::finished, this, [dlg](int /*result*/) {
+        setConfig().infomarksDialog.geometry = dlg->saveGeometry();
+    });
+    dlg->show();
+#else
     auto *dlg = new InfomarksEditDlg(this);
     dlg->setAttribute(Qt::WA_DeleteOnClose);
     dlg->setInfomarkSelection(m_infoMarkSelection, m_mapData, getCanvas());
     dlg->show();
+#endif
 }
 
 void MainWindow::slot_onCreateRoom()

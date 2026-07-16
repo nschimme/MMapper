@@ -45,9 +45,18 @@ TimerModel::TimerModel(CTimers &timers, QObject *parent)
     connect(&m_refreshTimer, &QTimer::timeout, this, [this]() {
         if (m_allTimers.empty())
             return;
+        // An empty roles vector means "all roles changed". This must stay
+        // empty rather than {Qt::DisplayRole, ProgressRole}: TimerPanel.qml's
+        // delegate binds model.time/model.name/model.expired, which are the
+        // custom TimeRole/NameRole/ExpiredRole (see roleNames() below), not
+        // Qt::DisplayRole, so a roles list naming only DisplayRole/
+        // ProgressRole left those QML bindings never re-evaluating and the
+        // on-screen time frozen. The widget-based TimerWidget/TimerDelegate
+        // repaint on every dataChanged() regardless of the roles list, so
+        // that path is unaffected either way.
         emit dataChanged(index(0, ColName),
                          index(static_cast<int>(m_allTimers.size()) - 1, ColCount - 1),
-                         {Qt::DisplayRole, ProgressRole});
+                         {});
         startRefreshTimer();
     });
 

@@ -537,11 +537,18 @@ if(WITH_QML)
             ../src/mainwindow/FindRoomsModel.cpp
             ../src/mainwindow/FindRoomsModel.h
     )
+    # Sources for checkableFlagModelBasics(). mmqt::ansiToHtml() (used by
+    # ansiToHtmlBasics()) needs no extra entry here: global/AnsiHtml.cpp is
+    # already part of mm_global, which TestQml links below.
+    set(checkable_flag_model_SRCS
+            ../src/mainwindow/CheckableFlagModel.cpp
+            ../src/mainwindow/CheckableFlagModel.h
+    )
     add_executable(TestQml ${TestQml_SRCS} ${timer_test} ${adventure_SRCS} ${room_manager}
             ${log_model_SRCS} ${tasks_model_SRCS} ${group_SRCS} ${description_panel_SRCS}
             ${clock_adapter_SRCS} ${xp_status_adapter_SRCS} ${client_line_model_SRCS}
             ${about_info_SRCS} ${update_checker_SRCS} ${find_rooms_model_SRCS}
-            ${preferences_adapter_SRCS})
+            ${checkable_flag_model_SRCS} ${preferences_adapter_SRCS})
     add_dependencies(TestQml mm_qml mm_qmlplugin mm_test mm_global mm_map)
     target_link_libraries(TestQml
             mm_qml

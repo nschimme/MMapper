@@ -96,6 +96,8 @@ set(mmapper_SRCS
     display/mapwindow.h
     display/prespammedpath.cpp
     display/prespammedpath.h
+    global/AnsiHtml.cpp
+    global/AnsiHtml.h
     global/AnsiOstream.cpp
     global/AnsiOstream.h
     global/AnsiTextUtils.cpp
@@ -255,6 +257,8 @@ set(mmapper_SRCS
     mainwindow/AsyncTypes.h
     mainwindow/AudioVolumeSlider.cpp
     mainwindow/AudioVolumeSlider.h
+    mainwindow/CheckableFlagModel.cpp
+    mainwindow/CheckableFlagModel.h
     mainwindow/LogModel.cpp
     mainwindow/LogModel.h
     mainwindow/MapZoomSlider.cpp

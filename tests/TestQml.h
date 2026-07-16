@@ -59,4 +59,6 @@ private Q_SLOTS:
     void findRoomsModelBasics();
     void loadPreferencesDialog();
     void preferencesDialogSearch();
+    void checkableFlagModelBasics();
+    void ansiToHtmlBasics();
 };

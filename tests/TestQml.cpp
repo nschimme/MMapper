@@ -13,11 +13,13 @@
 #include "../src/clock/mumeclock.h"
 #include "../src/configuration/configuration.h"
 #include "../src/display/Filenames.h"
+#include "../src/global/AnsiHtml.h"
 #include "../src/global/AsyncTasks.h"
 #include "../src/global/progresscounter.h"
 #include "../src/group/CGroupChar.h"
 #include "../src/group/GroupModel.h"
 #include "../src/mainwindow/AboutInfo.h"
+#include "../src/mainwindow/CheckableFlagModel.h"
 #include "../src/mainwindow/FindRoomsModel.h"
 #include "../src/mainwindow/LogModel.h"
 #include "../src/mainwindow/TasksModel.h"
@@ -2308,6 +2310,122 @@ void TestQml::preferencesDialogSearch()
     QVERIFY(noResultsLabel->isVisible());
     QVERIFY(!resultsList->isVisible());
     QVERIFY(!flickable->isVisible());
+}
+
+void TestQml::checkableFlagModelBasics()
+{
+    CheckableFlagModel model(nullptr);
+    QCOMPARE(model.rowCount(), 0);
+    QVERIFY(model.rowAt(0) == nullptr);
+
+    const auto roles = model.roleNames();
+    QCOMPARE(roles.value(CheckableFlagModel::NameRole), QByteArray("name"));
+    QCOMPARE(roles.value(CheckableFlagModel::IconSourceRole), QByteArray("iconSource"));
+    QCOMPARE(roles.value(CheckableFlagModel::CheckStateRole), QByteArray("checkState"));
+    QCOMPARE(roles.value(CheckableFlagModel::CheckableRole), QByteArray("checkable"));
+
+    std::vector<CheckableFlagModel::Row> rows;
+    rows.push_back(CheckableFlagModel::Row{1,
+                                           QStringLiteral("Attack"),
+                                           CheckableFlagModel::iconUrl(":/icons/attack.png"),
+                                           Qt::Unchecked,
+                                           true});
+    rows.push_back(CheckableFlagModel::Row{2, QStringLiteral("Guard"), QUrl(), Qt::Checked, true});
+
+    QSignalSpy resetSpy(&model, &QAbstractItemModel::modelReset);
+    model.setRows(rows);
+    QCOMPARE(resetSpy.count(), 1);
+    QCOMPARE(model.rowCount(), 2);
+
+    const QModelIndex idx0 = model.index(0, 0);
+    QCOMPARE(model.data(idx0, CheckableFlagModel::NameRole).toString(), QStringLiteral("Attack"));
+    QCOMPARE(model.data(idx0, CheckableFlagModel::IconSourceRole).toUrl(),
+             QUrl(QStringLiteral("qrc:/icons/attack.png")));
+    QCOMPARE(model.data(idx0, CheckableFlagModel::CheckStateRole).toInt(),
+             static_cast<int>(Qt::Unchecked));
+    QCOMPARE(model.data(idx0, CheckableFlagModel::CheckableRole).toBool(), true);
+
+    const auto *const row0 = model.rowAt(0);
+    QVERIFY(row0 != nullptr);
+    QCOMPARE(row0->flagValue, 1);
+
+    // setState() on a known flag emits a granular dataChanged(), not a reset.
+    QSignalSpy dataChangedSpy(&model, &QAbstractItemModel::dataChanged);
+    model.setState(1, Qt::PartiallyChecked);
+    QCOMPARE(dataChangedSpy.count(), 1);
+    QCOMPARE(resetSpy.count(), 1);
+    {
+        const QList<QVariant> args = dataChangedSpy.takeFirst();
+        QCOMPARE(args.at(0).toModelIndex(), model.index(0));
+        QCOMPARE(args.at(1).toModelIndex(), model.index(0));
+    }
+    QCOMPARE(model.data(idx0, CheckableFlagModel::CheckStateRole).toInt(),
+             static_cast<int>(Qt::PartiallyChecked));
+
+    // Redundant state is a no-op: no signal, no change.
+    model.setState(1, Qt::PartiallyChecked);
+    QCOMPARE(dataChangedSpy.count(), 0);
+
+    // Unknown flagValue is a no-op.
+    model.setState(999, Qt::Checked);
+    QCOMPARE(dataChangedSpy.count(), 0);
+
+    // setCheckable() likewise emits a granular dataChanged().
+    model.setCheckable(2, false);
+    QCOMPARE(dataChangedSpy.count(), 1);
+    dataChangedSpy.clear();
+    QCOMPARE(model.data(model.index(1), CheckableFlagModel::CheckableRole).toBool(), false);
+    model.setCheckable(999, false);
+    QCOMPARE(dataChangedSpy.count(), 0);
+
+    // setAllStates() spans every row in a single dataChanged().
+    model.setAllStates(Qt::Checked);
+    QCOMPARE(dataChangedSpy.count(), 1);
+    {
+        const QList<QVariant> args = dataChangedSpy.takeFirst();
+        QCOMPARE(args.at(0).toModelIndex(), model.index(0));
+        QCOMPARE(args.at(1).toModelIndex(), model.index(1));
+    }
+    QCOMPARE(model.data(model.index(0), CheckableFlagModel::CheckStateRole).toInt(),
+             static_cast<int>(Qt::Checked));
+    QCOMPARE(model.data(model.index(1), CheckableFlagModel::CheckStateRole).toInt(),
+             static_cast<int>(Qt::Checked));
+
+    // iconUrl(): qrc-style, absolute local path, and empty.
+    QCOMPARE(CheckableFlagModel::iconUrl(QStringLiteral(":/a/b.png")),
+             QUrl(QStringLiteral("qrc:/a/b.png")));
+    QCOMPARE(CheckableFlagModel::iconUrl(QStringLiteral("/tmp/icon.png")),
+             QUrl::fromLocalFile(QStringLiteral("/tmp/icon.png")));
+    QCOMPARE(CheckableFlagModel::iconUrl(QString()), QUrl());
+}
+
+void TestQml::ansiToHtmlBasics()
+{
+    // No QTextEdit/QTextBrowser (QtWidgets) is involved anywhere in this path;
+    // ansiToHtml() renders into a bare QTextDocument (QtGui).
+    const QString ansiText = QStringLiteral(
+        "\x1b[31mred\x1b[0m plain \x1b[1mbold\x1b[0m\nnext line");
+    const QString html = mmqt::ansiToHtml(ansiText, QColor(Qt::lightGray), QColor(Qt::black));
+
+    QVERIFY(html.contains(QStringLiteral("red")));
+    QVERIFY(html.contains(QStringLiteral("plain")));
+    QVERIFY(html.contains(QStringLiteral("bold")));
+    QVERIFY(html.contains(QStringLiteral("next line")));
+
+    // Red foreground shows up as a color/style declaration in the generated markup.
+    QVERIFY(html.contains(QStringLiteral("color:"), Qt::CaseInsensitive));
+
+    // Bold text is rendered with a heavier font-weight declaration.
+    QVERIFY(html.contains(QStringLiteral("font-weight"), Qt::CaseInsensitive));
+
+    // "next line" must land in a separate block/paragraph from "plain", i.e. the newline
+    // survived as a QTextDocument block break rather than being collapsed.
+    const int plainPos = static_cast<int>(html.indexOf(QStringLiteral("plain")));
+    const int nextLinePos = static_cast<int>(html.indexOf(QStringLiteral("next line")));
+    QVERIFY(plainPos >= 0);
+    QVERIFY(nextLinePos > plainPos);
+    const QString between = html.mid(plainPos, nextLinePos - plainPos);
+    QVERIFY(between.contains(QStringLiteral("<p"), Qt::CaseInsensitive));
 }
 
 QTEST_MAIN(TestQml)

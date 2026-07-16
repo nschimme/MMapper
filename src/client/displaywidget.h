@@ -3,8 +3,10 @@
 // Copyright (C) 2019 The MMapper Authors
 // Author: Nils Schimmelmann <nschimme@gmail.com> (Jahara)
 
+#include "../global/AnsiHtml.h"
 #include "../global/AnsiTextUtils.h"
 #include "../global/macros.h"
+#include "../global/utils.h"
 
 #include <optional>
 
@@ -34,28 +36,24 @@ struct NODISCARD FontDefaults final
 
     explicit FontDefaults();
     NODISCARD QColor getDefaultUl() const { return defaultUl.value_or(defaultFg); }
+    NODISCARD mmqt::AnsiHtmlDefaults toAnsiHtmlDefaults() const
+    {
+        return mmqt::AnsiHtmlDefaults{defaultBg, defaultFg, defaultUl};
+    }
 };
 
-extern void setDefaultFormat(QTextCharFormat &format, const FontDefaults &defaults);
-
-NODISCARD extern RawAnsi updateFormat(QTextCharFormat &format,
-                                      const FontDefaults &defaults,
-                                      const RawAnsi &before,
-                                      RawAnsi updated);
-
+// AnsiTextHelper is a thin QTextEdit-flavored wrapper around mmqt::AnsiTextToDocument
+// (see global/AnsiHtml.h), which does the widget-free rendering work.
 struct NODISCARD AnsiTextHelper final
 {
     QTextEdit &textEdit;
-    QTextCursor cursor;
-    QTextCharFormat format;
     const FontDefaults defaults;
-    RawAnsi currentAnsi;
+    mmqt::AnsiTextToDocument core;
 
     explicit AnsiTextHelper(QTextEdit &input_textEdit, FontDefaults def)
         : textEdit{input_textEdit}
-        , cursor{textEdit.document()->rootFrame()->firstCursorPosition()}
-        , format{cursor.charFormat()}
         , defaults{std::move(def)}
+        , core{deref(textEdit.document()), defaults.toAnsiHtmlDefaults()}
     {}
 
     explicit AnsiTextHelper(QTextEdit &input_textEdit)
@@ -63,8 +61,8 @@ struct NODISCARD AnsiTextHelper final
     {}
 
     void init();
-    void displayText(const QStringView str);
-    void limitScrollback(int lineLimit);
+    void displayText(const QStringView str) { core.displayText(str); }
+    void limitScrollback(const int lineLimit) { core.limitScrollback(lineLimit); }
 };
 
 extern void setAnsiText(QTextEdit *pEdit, std::string_view text);

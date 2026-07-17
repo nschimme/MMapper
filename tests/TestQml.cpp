@@ -19,6 +19,7 @@
 #include "../src/group/CGroupChar.h"
 #include "../src/group/GroupModel.h"
 #include "../src/mainwindow/AboutInfo.h"
+#include "../src/mainwindow/AnsiColorPickerController.h"
 #include "../src/mainwindow/CheckableFlagModel.h"
 #include "../src/mainwindow/FindRoomsModel.h"
 #include "../src/mainwindow/LogModel.h"
@@ -42,6 +43,7 @@
 #include "../src/timers/CTimers.h"
 #include "../src/timers/TimerController.h"
 #include "../src/timers/TimerModel.h"
+#include "../src/viewers/AnsiViewContent.h"
 #include "FakeClientBackend.h"
 
 #include <algorithm>
@@ -2785,6 +2787,93 @@ void TestQml::ansiToHtmlBasics()
     QVERIFY(nextLinePos > plainPos);
     const QString between = html.mid(plainPos, nextLinePos - plainPos);
     QVERIFY(between.contains(QStringLiteral("<p"), Qt::CaseInsensitive));
+}
+
+void TestQml::loadAnsiViewDialog()
+{
+    // Mirrors AnsiViewWindow's constructor arguments (see
+    // ../src/viewers/AnsiViewWindow.h's makeAnsiViewWindow()); AnsiViewContent
+    // is the widget-free content holder qml/AnsiViewDialog.cpp builds for the
+    // real dialog (see ../src/viewers/AnsiViewContent.h).
+    AnsiViewContent content(QStringLiteral("MMapper Ansi Viewer"),
+                            QStringLiteral("Test Viewer"),
+                            "\x1b[31mred\x1b[0m https://mume.org plain",
+                            nullptr);
+
+    QmlDialog dialog("t", "TestAnsiViewDialog", nullptr);
+    dialog.setContextProperty("ansiViewContent", &content);
+    dialog.setQmlSource(QUrl(u"qrc:/qt/qml/MMapper/AnsiViewDialog.qml"_qs));
+
+    QQuickWidget *const quick = dialog.quickWidget();
+    QVERIFY(quick != nullptr);
+    while (quick->status() == QQuickWidget::Loading) {
+        QCoreApplication::processEvents();
+    }
+    QCOMPARE(quick->status(), QQuickWidget::Ready);
+    QQuickItem *const root = quick->rootObject();
+    QVERIFY(root != nullptr);
+
+    QQuickItem *const textArea = root->findChild<QQuickItem *>("ansiViewTextArea");
+    QVERIFY(textArea != nullptr);
+    const QString rendered = textArea->property("text").toString();
+    QVERIFY(rendered.contains(QStringLiteral("red")));
+    QVERIFY(rendered.contains(QStringLiteral("plain")));
+    QVERIFY(rendered.contains(QStringLiteral("href"), Qt::CaseInsensitive));
+}
+
+void TestQml::loadAnsiColorPickerDialog()
+{
+    // AnsiColorPickerController is widget-free and config-independent, so
+    // the real controller (not a stub) is used here, mirroring
+    // loadRoomEditDialog()'s use of a real CheckableFlagModel.
+    AnsiColorPickerController controller(nullptr);
+    controller.init(QStringLiteral("[0m"));
+
+    QmlDialog dialog("t", "TestAnsiColorPickerDialog", nullptr);
+    dialog.setContextProperty("ansiColorPickerController", &controller);
+    dialog.setQmlSource(QUrl(u"qrc:/qt/qml/MMapper/AnsiColorPickerDialog.qml"_qs));
+
+    QQuickWidget *const quick = dialog.quickWidget();
+    QVERIFY(quick != nullptr);
+    while (quick->status() == QQuickWidget::Loading) {
+        QCoreApplication::processEvents();
+    }
+    QCOMPARE(quick->status(), QQuickWidget::Ready);
+    QQuickItem *const root = quick->rootObject();
+    QVERIFY(root != nullptr);
+
+    QQuickItem *const fgCombo = root->findChild<QQuickItem *>("fgCombo");
+    QVERIFY(fgCombo != nullptr);
+    // Default entry + one row per XFOREACH_ANSI_COLOR_0_7 color, low and high.
+    QCOMPARE(fgCombo->property("count").toInt(), 17);
+
+    // Parses "[<codes>m" into the semicolon-separated code list, so "1"
+    // (bold) can be checked for without also matching the "1" inside "91"
+    // (bright-red fg).
+    const auto codes = [](const QString &ansiString) -> QStringList {
+        QString inner = ansiString;
+        inner.chop(1);      // trailing 'm'
+        inner.remove(0, 1); // leading '['
+        return inner.split(QStringLiteral(";"));
+    };
+
+    // Selecting index 4 ("RED", see AnsiColorTables::colorTable()'s
+    // low-then-high ordering: 0 none, 1 black, 2 BLACK, 3 red, 4 RED, ...)
+    // must update resultAnsiString/previewFg via setFgIndex(), matching
+    // AnsiColorTables::generateAnsiString()'s "91" bright-red aixterm
+    // encoding (ANSI_FG_COLOR_HI == 90, red's offset is 1).
+    controller.setFgIndex(4);
+    QVERIFY(codes(controller.getResultAnsiString()).contains(QStringLiteral("91")));
+    QCOMPARE(controller.getPreviewFg(), mmqt::toQColor(AnsiColor16Enum::RED));
+
+    controller.setBold(true);
+    QVERIFY(codes(controller.getResultAnsiString()).contains(QStringLiteral("1")));
+    controller.setUnderline(true);
+    QVERIFY(codes(controller.getResultAnsiString()).contains(QStringLiteral("4")));
+
+    QQuickItem *const boldCheckBox = root->findChild<QQuickItem *>("boldCheckBox");
+    QVERIFY(boldCheckBox != nullptr);
+    QCOMPARE(boldCheckBox->property("checked").toBool(), true);
 }
 
 QTEST_MAIN(TestQml)

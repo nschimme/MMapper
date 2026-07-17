@@ -10,6 +10,7 @@
 #include <QDialog>
 #include <QString>
 
+#ifndef MMAPPER_WITH_QML
 class QTextBrowser;
 
 class NODISCARD AnsiViewWindow final : public QDialog
@@ -21,10 +22,18 @@ public:
     explicit AnsiViewWindow(const QString &program, const QString &title, std::string_view message);
     ~AnsiViewWindow() final;
 };
+#endif
 
 // Yes, this interface is a bit silly to mix Qt and std types,
 // but the program/title are for the UI,
 // while the body is interpreted to format text into a document.
-NODISCARD std::unique_ptr<AnsiViewWindow> makeAnsiViewWindow(const QString &program,
-                                                             const QString &title,
-                                                             std::string_view body);
+//
+// Returns a QDialog rather than a concrete AnsiViewWindow so callers (see
+// mpi/remoteeditwidget.h's m_preview and viewers/LaunchAsyncViewer.h) never
+// need AnsiViewWindow to be a complete type: under MMAPPER_WITH_QML the
+// widget class above doesn't even exist, and the real object returned is a
+// QmlDialog (see qml/AnsiViewDialog.{h,cpp}); under the NOT WITH_QML build,
+// it's an AnsiViewWindow, which is-a QDialog.
+NODISCARD std::unique_ptr<QDialog> makeAnsiViewWindow(const QString &program,
+                                                      const QString &title,
+                                                      std::string_view body);

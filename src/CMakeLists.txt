@@ -269,6 +269,8 @@ set(mmapper_SRCS
     mainwindow/ThemeManager.h
     mainwindow/UpdateChecker.cpp
     mainwindow/UpdateChecker.h
+    mainwindow/AnsiColorPickerController.cpp
+    mainwindow/AnsiColorPickerController.h
     mainwindow/FindRoomsController.cpp
     mainwindow/FindRoomsController.h
     mainwindow/FindRoomsModel.cpp
@@ -527,10 +529,8 @@ set(mmapper_SRCS
     preferences/AdvancedGraphicsModel.h
     preferences/AudioPageAdapter.cpp
     preferences/AudioPageAdapter.h
-    preferences/AnsiColorDialog.cpp
-    preferences/AnsiColorDialog.h
-    preferences/ansicombo.cpp
-    preferences/ansicombo.h
+    preferences/AnsiColorTables.cpp
+    preferences/AnsiColorTables.h
     preferences/AutoLogPageAdapter.cpp
     preferences/AutoLogPageAdapter.h
     preferences/ClientPageAdapter.cpp
@@ -616,7 +616,8 @@ set(mmapper_SRCS
     timers/TimerController.h
     timers/TimerModel.cpp
     timers/TimerModel.h
-    viewers/AnsiViewWindow.cpp
+    viewers/AnsiViewContent.cpp
+    viewers/AnsiViewContent.h
     viewers/AnsiViewWindow.h
     viewers/LaunchAsyncViewer.h
     viewers/TopLevelWindows.cpp
@@ -673,6 +674,10 @@ if(NOT WITH_QML)
         mainwindow/roomeditattrdlg.h
         preferences/AdvancedGraphics.cpp
         preferences/AdvancedGraphics.h
+        preferences/AnsiColorDialog.cpp
+        preferences/AnsiColorDialog.h
+        preferences/ansicombo.cpp
+        preferences/ansicombo.h
         preferences/audiopage.cpp
         preferences/audiopage.h
         preferences/autologpage.cpp
@@ -692,7 +697,8 @@ if(NOT WITH_QML)
         preferences/parserpage.cpp
         preferences/parserpage.h
         preferences/pathmachinepage.cpp
-        preferences/pathmachinepage.h)
+        preferences/pathmachinepage.h
+        viewers/AnsiViewWindow.cpp)
 endif()
 
 qt_add_resources(mmapper_QRC resources/mmapper2.qrc)
@@ -745,7 +751,6 @@ if(EMSCRIPTEN)
 endif()
 
 set(mmapper_UIS
-    preferences/AnsiColorDialog.ui
     preferences/ManagePasswordDialog.ui
 )
 
@@ -771,6 +776,10 @@ if(NOT WITH_QML)
     # is driven by RoomEditController rather than a generated
     # ui_roomeditattrdlg.h.
     list(APPEND mmapper_UIS mainwindow/roomeditattrdlg.ui)
+    # AnsiColorDialog's .ui; AnsiColorPickerDialog.qml (used instead when
+    # WITH_QML) is driven by AnsiColorPickerController rather than a
+    # generated ui_AnsiColorDialog.h.
+    list(APPEND mmapper_UIS preferences/AnsiColorDialog.ui)
     # ConfigDialog and its nine widget pages' .ui files; PreferencesDialog.qml
     # (used instead when WITH_QML) is driven by PreferencesController and the
     # per-page adapters rather than generated ui_*.h headers.
@@ -870,6 +879,8 @@ if(WITH_QML)
     set_source_files_properties(qml/ClockStrip.qml PROPERTIES QT_RESOURCE_ALIAS "ClockStrip.qml")
     set_source_files_properties(qml/ClientDisplay.qml PROPERTIES QT_RESOURCE_ALIAS "ClientDisplay.qml")
     set_source_files_properties(qml/ClientPanel.qml PROPERTIES QT_RESOURCE_ALIAS "ClientPanel.qml")
+    set_source_files_properties(qml/AnsiViewDialog.qml PROPERTIES QT_RESOURCE_ALIAS "AnsiViewDialog.qml")
+    set_source_files_properties(qml/AnsiColorPickerDialog.qml PROPERTIES QT_RESOURCE_ALIAS "AnsiColorPickerDialog.qml")
     set_source_files_properties(qml/AboutDialog.qml PROPERTIES QT_RESOURCE_ALIAS "AboutDialog.qml")
     set_source_files_properties(qml/UpdateDialog.qml PROPERTIES QT_RESOURCE_ALIAS "UpdateDialog.qml")
     set_source_files_properties(qml/FindRoomsDialog.qml PROPERTIES QT_RESOURCE_ALIAS "FindRoomsDialog.qml")
@@ -906,6 +917,8 @@ if(WITH_QML)
             qml/ClockStrip.qml
             qml/ClientDisplay.qml
             qml/ClientPanel.qml
+            qml/AnsiViewDialog.qml
+            qml/AnsiColorPickerDialog.qml
             qml/AboutDialog.qml
             qml/UpdateDialog.qml
             qml/FindRoomsDialog.qml
@@ -922,6 +935,9 @@ if(WITH_QML)
             qml/PrefsGeneralPage.qml
             qml/PrefsClientPage.qml
         SOURCES
+            qml/AnsiViewDialog.cpp
+            qml/AnsiColorPickerLauncher.h
+            qml/AnsiColorPickerLauncher.cpp
             qml/QmlDockWidget.h
             qml/QmlDockWidget.cpp
             qml/QmlDialog.h

@@ -62,4 +62,6 @@ private Q_SLOTS:
     void preferencesDialogSearch();
     void checkableFlagModelBasics();
     void ansiToHtmlBasics();
+    void loadAnsiViewDialog();
+    void loadAnsiColorPickerDialog();
 };

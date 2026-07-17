@@ -82,7 +82,9 @@
 #include "../clock/ClockAdapter.h"
 #include "../group/GroupController.h"
 #include "../media/DescriptionAdapter.h"
+#include "../preferences/ParserPageAdapter.h"
 #include "../preferences/PreferencesController.h"
+#include "../qml/AnsiColorPickerLauncher.h"
 #include "../qml/DescriptionImageProvider.h"
 #include "../qml/GroupIconProvider.h"
 #include "../qml/QmlConfig.h"
@@ -1946,6 +1948,15 @@ void MainWindow::slot_onPreferences()
         auto *const dialog = new PreferencesQmlDialog(tr("Preferences"), "ConfigDialog", this);
         dialog->setContextProperty("preferencesController", controller);
         dialog->setQmlSource(QUrl(QStringLiteral("qrc:/qt/qml/MMapper/PreferencesDialog.qml")));
+
+        // See ParserPageAdapter.h's ColorPicker doc comment for why this
+        // can't be wired up inside ParserPageAdapter.cpp itself.
+        deref(controller->getParser())
+            .setColorPicker([this](const QString &ansiString,
+                                   QWidget *const colorDialogParent,
+                                   std::function<void(QString)> callback) {
+                ansi_color_picker::getColor(ansiString, colorDialogParent, std::move(callback));
+            });
 
         connect(controller,
                 &PreferencesController::sig_graphicsSettingsChanged,

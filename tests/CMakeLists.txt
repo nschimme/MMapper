@@ -164,6 +164,8 @@ set(preferences_adapter_SRCS
     ../src/preferences/AnsiColorDialog.cpp
     ../src/preferences/AnsiColorDialog.h
     ../src/preferences/AnsiColorDialog.ui
+    ../src/preferences/AnsiColorTables.cpp
+    ../src/preferences/AnsiColorTables.h
     ../src/preferences/ansicombo.cpp
     ../src/preferences/ansicombo.h
     ../src/preferences/AudioPageAdapter.cpp
@@ -523,6 +525,18 @@ if(WITH_QML)
             ../src/mainwindow/AboutInfo.cpp
             ../src/mainwindow/AboutInfo.h
     )
+    # Sources for loadAnsiViewDialog().
+    set(ansi_view_content_SRCS
+            ../src/viewers/AnsiViewContent.cpp
+            ../src/viewers/AnsiViewContent.h
+    )
+    # Sources for loadAnsiColorPickerDialog(). AnsiColorTables.cpp/.h is
+    # already part of preferences_adapter_SRCS below (ParserPageAdapter now
+    # also needs it); not duplicated here.
+    set(ansi_color_picker_controller_SRCS
+            ../src/mainwindow/AnsiColorPickerController.cpp
+            ../src/mainwindow/AnsiColorPickerController.h
+    )
     # Sources for loadUpdateDialog(). TestQml.cpp stubs the generated
     # Version.cpp symbols UpdateChecker uses (same approach as TestMainWindow).
     set(update_checker_SRCS
@@ -548,7 +562,8 @@ if(WITH_QML)
             ${log_model_SRCS} ${tasks_model_SRCS} ${group_SRCS} ${description_panel_SRCS}
             ${clock_adapter_SRCS} ${xp_status_adapter_SRCS} ${client_line_model_SRCS}
             ${about_info_SRCS} ${update_checker_SRCS} ${find_rooms_model_SRCS}
-            ${checkable_flag_model_SRCS} ${preferences_adapter_SRCS})
+            ${checkable_flag_model_SRCS} ${preferences_adapter_SRCS}
+            ${ansi_view_content_SRCS} ${ansi_color_picker_controller_SRCS})
     add_dependencies(TestQml mm_qml mm_qmlplugin mm_test mm_global mm_map)
     target_link_libraries(TestQml
             mm_qml

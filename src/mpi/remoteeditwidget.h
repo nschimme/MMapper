@@ -19,7 +19,6 @@
 struct EditViewCommand;
 struct EditCommand2;
 
-class AnsiViewWindow;
 class QCloseEvent;
 class QMenu;
 class QMenuBar;
@@ -151,7 +150,9 @@ private:
     QScopedPointer<Editor> m_textEdit;
     QScopedPointer<GotoWidget> m_gotoWidget;
     QScopedPointer<FindReplaceWidget> m_findReplaceWidget;
-    std::unique_ptr<AnsiViewWindow> m_preview;
+    // See AnsiViewWindow.h's makeAnsiViewWindow() doc comment for why this
+    // holds a plain QDialog rather than AnsiViewWindow.
+    std::unique_ptr<QDialog> m_preview;
 
 public:
     explicit RemoteEditWidget(bool editSession, QString title, QString body, QWidget *parent);

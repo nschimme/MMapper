@@ -4,6 +4,8 @@
 
 #include "../global/macros.h"
 
+#include <functional>
+
 #include <QColor>
 #include <QObject>
 #include <QPointer>
@@ -18,18 +20,30 @@ class QWidget;
 //
 // roomNameColor/roomDescColor are raw ANSI escape-sequence strings (e.g.
 // "[1;32m"), same representation ParserSettings stores; QML never parses
-// them directly. Instead of porting AnsiColorDialog's fg/bg AnsiCombo +
-// bold/italic/underline UI to QML (Option A), this adapter keeps
-// AnsiColorDialog as a native QDialog launched via the chooseX() invokables
-// (Option B) — AnsiColorDialog is a small, well-tested, currently-widget-only
-// dialog, and re-deriving its 16-color swatch tables and live-preview logic
-// in QML would be a large surface for no behavioral gain in this round.
+// them directly.
+//
+// The fg/bg/bold/italic/underline picker itself is now ported to QML (see
+// qml/AnsiColorPickerDialog.qml + mainwindow/AnsiColorPickerController.h),
+// but chooseRoomNameColor()/chooseRoomDescColor() below can't construct a
+// QmlDialog directly: this .cpp is compiled straight into TestMainWindow
+// (see tests/CMakeLists.txt's preferences_adapter_SRCS), which links neither
+// Qt6::Quick nor mm_qml. Instead, the actual dialog-construction is injected
+// via setColorPicker() -- MainWindow wires it to
+// qml/AnsiColorPickerLauncher.h's ansi_color_picker::getColor() in
+// slot_onPreferences() (a file that's only ever compiled into the real
+// "mmapper" binary) -- and defaults to the native AnsiColorDialog (kept
+// under NOT WITH_QML) so this class still behaves correctly if nothing calls
+// setColorPicker(), same as the WITH_QML=OFF build does today.
 // roomNameColorPreview/roomDescColorPreview expose a QColor pair (fg/bg) so
 // the QML page can still render an in-page swatch, mirroring
 // AnsiCombo::makeWidgetColoured()'s palette-based preview.
 class NODISCARD_QOBJECT ParserPageAdapter final : public QObject
 {
     Q_OBJECT
+
+public:
+    using ColorPicker = std::function<
+        void(const QString &ansiString, QWidget *parent, std::function<void(QString)> callback)>;
 
     Q_PROPERTY(QString roomNameColor READ getRoomNameColor NOTIFY sig_changed)
     Q_PROPERTY(QString roomDescColor READ getRoomDescColor NOTIFY sig_changed)
@@ -43,9 +57,10 @@ class NODISCARD_QOBJECT ParserPageAdapter final : public QObject
     Q_PROPERTY(bool decodeEmoji READ getDecodeEmoji WRITE setDecodeEmoji NOTIFY sig_changed)
 
 private:
-    // Parent for the native AnsiColorDialog invoked by the chooseX()
+    // Parent for the color-picker dialog invoked by the chooseX()
     // invokables; owned by PreferencesController, not by this adapter.
     QPointer<QWidget> m_dialogParent;
+    ColorPicker m_colorPicker;
 
 public:
     explicit ParserPageAdapter(QWidget *dialogParent, QObject *parent);
@@ -71,7 +86,12 @@ public:
     void setDecodeEmoji(bool value);
 
 public:
-    // Native AnsiColorDialog pickers, mirroring
+    // Overrides the default (native AnsiColorDialog) picker; see the
+    // ColorPicker/chooseX() doc comment above. Not Q_INVOKABLE: only
+    // MainWindow (C++) calls this, never QML.
+    void setColorPicker(ColorPicker picker) { m_colorPicker = std::move(picker); }
+
+    // Color pickers, mirroring
     // ParserPage::slot_roomNameColorClicked()/slot_roomDescColorClicked().
     Q_INVOKABLE void chooseRoomNameColor();
     Q_INVOKABLE void chooseRoomDescColor();

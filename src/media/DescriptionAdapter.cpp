@@ -7,7 +7,7 @@
 #include "../global/Charset.h"
 #include "../global/ConfigConsts-Computed.h"
 #include "../map/mmapper2room.h"
-#include "../preferences/ansicombo.h"
+#include "../preferences/AnsiColorTables.h"
 #include "MediaLibrary.h"
 
 #include <memory>
@@ -41,7 +41,7 @@ DescriptionAdapter::DescriptionAdapter(MediaLibrary &library, QObject *const par
 void DescriptionAdapter::resolveConfig()
 {
     auto toColor = [](const QString &str) -> QColor {
-        AnsiCombo::AnsiColor color = AnsiCombo::colorFromString(str);
+        AnsiColorTables::ParsedColor color = AnsiColorTables::colorFromString(str);
         if (color.fg.hasColor()) {
             return color.getFgColor();
         }

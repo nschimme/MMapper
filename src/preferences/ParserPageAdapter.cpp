@@ -5,13 +5,30 @@
 
 #include "../configuration/configuration.h"
 #include "../global/Charset.h"
+#include "AnsiColorTables.h"
+
+#include <QDebug>
+
+#ifndef MMAPPER_WITH_QML
 #include "AnsiColorDialog.h"
-#include "ansicombo.h"
+#endif
 
 ParserPageAdapter::ParserPageAdapter(QWidget *const dialogParent, QObject *const parent)
     : QObject(parent)
     , m_dialogParent(dialogParent)
-{}
+{
+#ifndef MMAPPER_WITH_QML
+    // See the ColorPicker doc comment in ParserPageAdapter.h: under
+    // MMAPPER_WITH_QML, MainWindow overrides this via setColorPicker() once
+    // it constructs the QmlDialog-hosting equivalent; this .cpp can't do
+    // that itself (see the class doc comment for why).
+    m_colorPicker = [](const QString &ansiString,
+                       QWidget *const parent,
+                       std::function<void(QString)> callback) {
+        AnsiColorDialog::getColor(ansiString, parent, std::move(callback));
+    };
+#endif
+}
 
 QString ParserPageAdapter::getRoomNameColor() const
 {
@@ -25,22 +42,22 @@ QString ParserPageAdapter::getRoomDescColor() const
 
 QColor ParserPageAdapter::getRoomNameColorFg() const
 {
-    return AnsiCombo::colorFromString(getRoomNameColor()).getFgColor();
+    return AnsiColorTables::colorFromString(getRoomNameColor()).getFgColor();
 }
 
 QColor ParserPageAdapter::getRoomNameColorBg() const
 {
-    return AnsiCombo::colorFromString(getRoomNameColor()).getBgColor();
+    return AnsiColorTables::colorFromString(getRoomNameColor()).getBgColor();
 }
 
 QColor ParserPageAdapter::getRoomDescColorFg() const
 {
-    return AnsiCombo::colorFromString(getRoomDescColor()).getFgColor();
+    return AnsiColorTables::colorFromString(getRoomDescColor()).getFgColor();
 }
 
 QColor ParserPageAdapter::getRoomDescColorBg() const
 {
-    return AnsiCombo::colorFromString(getRoomDescColor()).getBgColor();
+    return AnsiColorTables::colorFromString(getRoomDescColor()).getBgColor();
 }
 
 QString ParserPageAdapter::getPrefixChar() const
@@ -91,7 +108,11 @@ void ParserPageAdapter::setDecodeEmoji(const bool value)
 
 void ParserPageAdapter::chooseRoomNameColor()
 {
-    AnsiColorDialog::getColor(getRoomNameColor(), m_dialogParent, [this](QString ansiString) {
+    if (!m_colorPicker) {
+        qWarning() << "ParserPageAdapter::chooseRoomNameColor() called with no color picker set";
+        return;
+    }
+    m_colorPicker(getRoomNameColor(), m_dialogParent, [this](QString ansiString) {
         setConfig().parser.roomNameColor = ansiString;
         emit sig_changed();
     });
@@ -99,7 +120,11 @@ void ParserPageAdapter::chooseRoomNameColor()
 
 void ParserPageAdapter::chooseRoomDescColor()
 {
-    AnsiColorDialog::getColor(getRoomDescColor(), m_dialogParent, [this](QString ansiString) {
+    if (!m_colorPicker) {
+        qWarning() << "ParserPageAdapter::chooseRoomDescColor() called with no color picker set";
+        return;
+    }
+    m_colorPicker(getRoomDescColor(), m_dialogParent, [this](QString ansiString) {
         setConfig().parser.roomDescColor = ansiString;
         emit sig_changed();
     });

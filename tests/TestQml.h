@@ -55,6 +55,7 @@ private Q_SLOTS:
     void loadAboutDialog();
     void loadUpdateDialog();
     void loadInfomarkEditDialog();
+    void loadRoomEditDialog();
     void qmlDialogBackgroundThemed();
     void findRoomsModelBasics();
     void loadPreferencesDialog();

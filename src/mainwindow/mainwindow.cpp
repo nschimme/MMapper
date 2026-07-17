@@ -67,9 +67,11 @@
 #ifndef MMAPPER_WITH_QML
 #include "infomarkseditdlg.h"
 #endif
+#ifndef MMAPPER_WITH_QML
+#include "roomeditattrdlg.h"
+#endif
 #include "mainwindow-async.h"
 #include "metatypes.h"
-#include "roomeditattrdlg.h"
 #include "utils.h"
 
 #ifdef MMAPPER_WITH_QML
@@ -94,6 +96,7 @@
 #include "FindRoomsModel.h"
 #include "InfomarkEditController.h"
 #include "LogModel.h"
+#include "RoomEditController.h"
 #include "TasksModel.h"
 #include "UpdateChecker.h"
 
@@ -2422,6 +2425,99 @@ void MainWindow::slot_onCreateRoom()
     deref(getCanvas()).slot_createRoom();
 }
 
+#ifdef MMAPPER_WITH_QML
+namespace { // anonymous
+// Ports roomeditattrdlg.cpp's closeEvent()/QDialog::finished handler pair:
+// the [X]/Alt+F4 path (closeEvent()) is flatly refused while the note has
+// unsaved edits (mirrors the widget's closeButton being disabled the same
+// way, via RoomEditDialog.qml's "enabled: !roomEditController.noteDirty");
+// the Escape path (QDialog::reject(), which bypasses closeEvent() entirely)
+// is allowed through, but pops the widget's "ignored note" warning box
+// first, quoting the about-to-be-discarded text.
+class NODISCARD_QOBJECT RoomEditQmlDialog final : public QmlDialog
+{
+private:
+    RoomEditController *m_controller = nullptr;
+
+public:
+    explicit RoomEditQmlDialog(RoomEditController *const controller,
+                               const QString &title,
+                               const QString &objectName,
+                               QWidget *const parent)
+        : QmlDialog(title, objectName, parent)
+        , m_controller(controller)
+    {}
+
+protected:
+    void closeEvent(QCloseEvent *const event) override
+    {
+        if (m_controller != nullptr && m_controller->getNoteDirty()) {
+            deref(event).ignore();
+            return;
+        }
+        QmlDialog::closeEvent(event);
+    }
+
+    void reject() override
+    {
+        if (m_controller != nullptr && m_controller->getNoteDirty()) {
+            auto *const box = new QMessageBox(this);
+            box->setAttribute(Qt::WA_DeleteOnClose);
+            box->setWindowTitle(tr("[mmapper] warning: ignored note"));
+            box->setText(m_controller->getNoteText());
+            box->open();
+        }
+        QmlDialog::reject();
+    }
+};
+} // namespace
+#endif
+
+#ifdef MMAPPER_WITH_QML
+void MainWindow::slot_onEditRoomSelection()
+{
+    if (m_roomSelection == nullptr) {
+        return;
+    }
+
+    if (m_roomEditDialog != nullptr) {
+        m_roomEditDialog->setFocus();
+        m_roomEditDialog->raise();
+        m_roomEditDialog->activateWindow();
+        return;
+    }
+
+    auto *const controller = new RoomEditController(nullptr);
+    auto dialog = std::make_unique<RoomEditQmlDialog>(controller,
+                                                      tr("Room properties"),
+                                                      "RoomEditAttrDlg",
+                                                      this);
+    controller->setParent(dialog.get());
+    controller->setRoomSelection(m_roomSelection, m_mapData);
+    connect(controller,
+            &RoomEditController::sig_requestUpdate,
+            getCanvas(),
+            &MapCanvas::slot_requestUpdate);
+    connect(controller, &RoomEditController::sig_error, this, [this](const QString &message) {
+        statusBar()->showMessage(message, 5000);
+    });
+
+    dialog->setContextProperty("roomEditController", controller);
+    dialog->setQmlSource(QUrl(QStringLiteral("qrc:/qt/qml/MMapper/RoomEditDialog.qml")));
+    dialog->restoreGeometry(getConfig().roomEditDialog.geometry);
+
+    m_roomEditController = controller;
+    m_roomEditDialog = std::move(dialog);
+
+    auto &roomEditDialog = deref(m_roomEditDialog);
+    roomEditDialog.show();
+    connect(&roomEditDialog, &QDialog::finished, this, [this](MAYBE_UNUSED int result) {
+        setConfig().roomEditDialog.geometry = m_roomEditDialog->saveGeometry();
+        m_roomEditController = nullptr;
+        m_roomEditDialog.reset();
+    });
+}
+#else
 void MainWindow::slot_onEditRoomSelection()
 {
     if (m_roomSelection == nullptr) {
@@ -2443,6 +2539,7 @@ void MainWindow::slot_onEditRoomSelection()
         });
     }
 }
+#endif
 
 void MainWindow::slot_onDeleteInfomarkSelection()
 {

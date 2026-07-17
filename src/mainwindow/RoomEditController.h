@@ -119,6 +119,11 @@ class RoomFieldVariant;
 //   Q_INVOKABLE toggleHiddenDoor() -- the Ctrl+H shortcut's action: flips the
 //     HIDDEN door flag through the same path as toggleDoorFlag(); a no-op
 //     when doorFieldsEnabled is false.
+//   Q_INVOKABLE QUrl terrainIcon(int type) -- the pixmap for an arbitrary
+//     RoomTerrainEnum ordinal (unlike terrainPreviewIcon, which only reports
+//     the *current* room's terrain); used by the Terrain tab to render all 15
+//     selectable terrain buttons without needing 15 separate properties.
+//     Shares the ROAD 3-way-junction special case with terrainPreviewIcon.
 // Signals: sig_requestUpdate() (canvas repaint request), sig_error(QString)
 // (replaces QMessageBox::warning()), a NOTIFY signal per property above, and
 // sig_refreshed() fired at the end of every bulk refresh (setRoomSelection(),
@@ -249,6 +254,8 @@ public:
     Q_INVOKABLE void toggleExitFlag(int row);
     Q_INVOKABLE void toggleDoorFlag(int row);
     Q_INVOKABLE void toggleHiddenDoor();
+
+    NODISCARD Q_INVOKABLE QUrl terrainIcon(int type) const;
 
     Q_INVOKABLE void applyNote();
     Q_INVOKABLE void revertNote();

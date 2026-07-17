@@ -83,7 +83,11 @@ class QShowEvent;
 class QTextBrowser;
 class QToolBar;
 class QWidget;
+#ifdef MMAPPER_WITH_QML
+class RoomEditController;
+#else
 class RoomEditAttrDlg;
+#endif
 class RoomManager;
 class RoomSelection;
 #ifdef MMAPPER_WITH_QML
@@ -214,7 +218,12 @@ private:
     std::shared_ptr<ConnectionSelection> m_connectionSelection;
     std::shared_ptr<InfomarkSelection> m_infoMarkSelection;
 
+#ifdef MMAPPER_WITH_QML
+    RoomEditController *m_roomEditController = nullptr;
+    std::unique_ptr<QmlDialog> m_roomEditDialog;
+#else
     std::unique_ptr<RoomEditAttrDlg> m_roomEditAttrDlg;
+#endif
 
     QToolBar *fileToolBar = nullptr;
     QToolBar *mouseModeToolBar = nullptr;

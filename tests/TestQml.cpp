@@ -206,6 +206,287 @@ private:
     bool m_canModify = false;
 };
 
+// RoomEditController's real constructor is fine to link (it takes no
+// MapData), but setRoomSelection() needs a live MapData/SharedRoomSelection,
+// which drags in mapfrontend/parser/mapstorage the same way
+// InfomarkEditController's setInfomarkSelection() does (see
+// InfomarkEditControllerStub above). This stub exposes the controller's
+// exact Q_PROPERTY/Q_INVOKABLE surface (see
+// ../src/mainwindow/RoomEditController.h's doc comment) using four REAL
+// CheckableFlagModel instances (seeded with a handful of rows, including one
+// PartiallyChecked row so loadRoomEditDialog() can assert tri-state
+// rendering), so RoomEditDialog.qml's bindings resolve normally without
+// needing a real map.
+class NODISCARD_QOBJECT RoomEditControllerStub final : public QObject
+{
+    Q_OBJECT
+
+    Q_PROPERTY(QStringList roomNames READ getRoomNames NOTIFY sig_roomNamesChanged)
+    Q_PROPERTY(int currentRoomIndex READ getCurrentRoomIndex WRITE setCurrentRoomIndex NOTIFY
+                   sig_currentRoomIndexChanged)
+    Q_PROPERTY(bool hasSelectedRoom READ getHasSelectedRoom NOTIFY sig_hasSelectedRoomChanged)
+
+    Q_PROPERTY(CheckableFlagModel *mobFlagsModel READ getMobFlagsModel CONSTANT)
+    Q_PROPERTY(CheckableFlagModel *loadFlagsModel READ getLoadFlagsModel CONSTANT)
+    Q_PROPERTY(CheckableFlagModel *exitFlagsModel READ getExitFlagsModel CONSTANT)
+    Q_PROPERTY(CheckableFlagModel *doorFlagsModel READ getDoorFlagsModel CONSTANT)
+
+    Q_PROPERTY(int selectedExitDir READ getSelectedExitDir WRITE setSelectedExitDir NOTIFY
+                   sig_selectedExitDirChanged)
+    Q_PROPERTY(QString doorName READ getDoorName WRITE setDoorName NOTIFY sig_doorNameChanged)
+    Q_PROPERTY(bool doorFieldsEnabled READ getDoorFieldsEnabled NOTIFY sig_doorFieldsEnabledChanged)
+
+    Q_PROPERTY(int align READ getAlign WRITE setAlign NOTIFY sig_alignChanged)
+    Q_PROPERTY(int portable READ getPortable WRITE setPortable NOTIFY sig_portableChanged)
+    Q_PROPERTY(int rideable READ getRideable WRITE setRideable NOTIFY sig_rideableChanged)
+    Q_PROPERTY(int light READ getLight WRITE setLight NOTIFY sig_lightChanged)
+    Q_PROPERTY(int sundeath READ getSundeath WRITE setSundeath NOTIFY sig_sundeathChanged)
+    Q_PROPERTY(int terrainType READ getTerrainType WRITE setTerrain NOTIFY sig_terrainTypeChanged)
+    Q_PROPERTY(
+        QUrl terrainPreviewIcon READ getTerrainPreviewIcon NOTIFY sig_terrainPreviewIconChanged)
+
+    Q_PROPERTY(QString noteText READ getNoteText WRITE setNoteText NOTIFY sig_noteTextChanged)
+    Q_PROPERTY(bool noteDirty READ getNoteDirty NOTIFY sig_noteDirtyChanged)
+
+    Q_PROPERTY(QString descriptionHtml READ getDescriptionHtml NOTIFY sig_descriptionHtmlChanged)
+    Q_PROPERTY(QString statsHtml READ getStatsHtml NOTIFY sig_statsHtmlChanged)
+    Q_PROPERTY(QString diffHtml READ getDiffHtml NOTIFY sig_diffHtmlChanged)
+    Q_PROPERTY(bool revertEnabled READ getRevertEnabled NOTIFY sig_revertEnabledChanged)
+
+public:
+    explicit RoomEditControllerStub(QObject *const parent)
+        : QObject(parent)
+        , m_mobFlagsModel(new CheckableFlagModel(this))
+        , m_loadFlagsModel(new CheckableFlagModel(this))
+        , m_exitFlagsModel(new CheckableFlagModel(this))
+        , m_doorFlagsModel(new CheckableFlagModel(this))
+    {
+        m_roomNames << QStringLiteral("Room 1: Test Room");
+
+        {
+            std::vector<CheckableFlagModel::Row> rows;
+            CheckableFlagModel::Row r1;
+            r1.flagValue = 0;
+            r1.name = QStringLiteral("Rent");
+            r1.state = Qt::Checked;
+            r1.checkable = true;
+            rows.push_back(r1);
+            CheckableFlagModel::Row r2;
+            r2.flagValue = 1;
+            r2.name = QStringLiteral("Shop");
+            // A PartiallyChecked row so loadRoomEditDialog() can assert
+            // tri-state rendering makes it through to the delegate.
+            r2.state = Qt::PartiallyChecked;
+            r2.checkable = true;
+            rows.push_back(r2);
+            m_mobFlagsModel->setRows(rows);
+            m_loadFlagsModel->setRows(rows);
+        }
+        {
+            std::vector<CheckableFlagModel::Row> rows;
+            CheckableFlagModel::Row r1;
+            r1.flagValue = 0;
+            r1.name = QStringLiteral("Exit");
+            r1.state = Qt::Unchecked;
+            r1.checkable = true;
+            rows.push_back(r1);
+            CheckableFlagModel::Row r2;
+            r2.flagValue = 1;
+            r2.name = QStringLiteral("Door");
+            r2.state = Qt::PartiallyChecked;
+            r2.checkable = true;
+            rows.push_back(r2);
+            m_exitFlagsModel->setRows(rows);
+            m_doorFlagsModel->setRows(rows);
+        }
+    }
+
+public:
+    NODISCARD QStringList getRoomNames() const { return m_roomNames; }
+    NODISCARD int getCurrentRoomIndex() const { return m_currentRoomIndex; }
+    NODISCARD bool getHasSelectedRoom() const { return m_hasSelectedRoom; }
+
+    NODISCARD CheckableFlagModel *getMobFlagsModel() const { return m_mobFlagsModel; }
+    NODISCARD CheckableFlagModel *getLoadFlagsModel() const { return m_loadFlagsModel; }
+    NODISCARD CheckableFlagModel *getExitFlagsModel() const { return m_exitFlagsModel; }
+    NODISCARD CheckableFlagModel *getDoorFlagsModel() const { return m_doorFlagsModel; }
+
+    NODISCARD int getSelectedExitDir() const { return m_selectedExitDir; }
+    NODISCARD QString getDoorName() const { return m_doorName; }
+    NODISCARD bool getDoorFieldsEnabled() const { return m_doorFieldsEnabled; }
+
+    NODISCARD int getAlign() const { return m_align; }
+    NODISCARD int getPortable() const { return m_portable; }
+    NODISCARD int getRideable() const { return m_rideable; }
+    NODISCARD int getLight() const { return m_light; }
+    NODISCARD int getSundeath() const { return m_sundeath; }
+    NODISCARD int getTerrainType() const { return m_terrainType; }
+    NODISCARD QUrl getTerrainPreviewIcon() const { return m_terrainPreviewIcon; }
+
+    NODISCARD QString getNoteText() const { return m_noteText; }
+    NODISCARD bool getNoteDirty() const { return m_noteDirty; }
+
+    NODISCARD QString getDescriptionHtml() const { return m_descriptionHtml; }
+    NODISCARD QString getStatsHtml() const { return m_statsHtml; }
+    NODISCARD QString getDiffHtml() const { return m_diffHtml; }
+    NODISCARD bool getRevertEnabled() const { return m_revertEnabled; }
+
+    void setCurrentRoomIndex(int index)
+    {
+        m_currentRoomIndex = index;
+        emit sig_currentRoomIndexChanged();
+        emit sig_refreshed();
+    }
+    void setSelectedExitDir(int dir)
+    {
+        m_selectedExitDir = dir;
+        emit sig_selectedExitDirChanged();
+        emit sig_refreshed();
+    }
+    void setDoorName(const QString &name)
+    {
+        m_doorName = name;
+        emit sig_doorNameChanged();
+    }
+
+    void setAlign(int value)
+    {
+        m_align = value;
+        emit sig_alignChanged();
+    }
+    void setPortable(int value)
+    {
+        m_portable = value;
+        emit sig_portableChanged();
+    }
+    void setRideable(int value)
+    {
+        m_rideable = value;
+        emit sig_rideableChanged();
+    }
+    void setLight(int value)
+    {
+        m_light = value;
+        emit sig_lightChanged();
+    }
+    void setSundeath(int value)
+    {
+        m_sundeath = value;
+        emit sig_sundeathChanged();
+    }
+    void setTerrain(int value)
+    {
+        m_terrainType = value;
+        emit sig_terrainTypeChanged();
+    }
+
+    void setNoteText(const QString &text)
+    {
+        m_noteText = text;
+        emit sig_noteTextChanged();
+        m_noteDirty = true;
+        emit sig_noteDirtyChanged();
+    }
+
+    Q_INVOKABLE void toggleMobFlag(int row) { m_lastToggledMobRow = row; }
+    Q_INVOKABLE void toggleLoadFlag(int row) { m_lastToggledLoadRow = row; }
+    Q_INVOKABLE void toggleExitFlag(int row) { m_lastToggledExitRow = row; }
+    Q_INVOKABLE void toggleDoorFlag(int row) { m_lastToggledDoorRow = row; }
+    Q_INVOKABLE void toggleHiddenDoor() { ++m_hiddenDoorToggleCount; }
+
+    NODISCARD Q_INVOKABLE QUrl terrainIcon(int /*type*/) const { return QUrl(); }
+
+    Q_INVOKABLE void applyNote()
+    {
+        m_noteDirty = false;
+        emit sig_noteDirtyChanged();
+        emit sig_refreshed();
+    }
+    Q_INVOKABLE void revertNote()
+    {
+        m_noteDirty = false;
+        emit sig_noteDirtyChanged();
+    }
+    Q_INVOKABLE void clearNote()
+    {
+        m_noteText.clear();
+        emit sig_noteTextChanged();
+        m_noteDirty = false;
+        emit sig_noteDirtyChanged();
+    }
+
+    Q_INVOKABLE void revertDiff() { ++m_revertDiffCount; }
+
+public:
+    // Call-recording, inspected by loadRoomEditDialog().
+    int m_lastToggledMobRow = -1;
+    int m_lastToggledLoadRow = -1;
+    int m_lastToggledExitRow = -1;
+    int m_lastToggledDoorRow = -1;
+    int m_hiddenDoorToggleCount = 0;
+    int m_revertDiffCount = 0;
+
+signals:
+    void sig_requestUpdate();
+    void sig_error(const QString &);
+
+    void sig_roomNamesChanged();
+    void sig_currentRoomIndexChanged();
+    void sig_hasSelectedRoomChanged();
+
+    void sig_selectedExitDirChanged();
+    void sig_doorNameChanged();
+    void sig_doorFieldsEnabledChanged();
+
+    void sig_alignChanged();
+    void sig_portableChanged();
+    void sig_rideableChanged();
+    void sig_lightChanged();
+    void sig_sundeathChanged();
+    void sig_terrainTypeChanged();
+    void sig_terrainPreviewIconChanged();
+
+    void sig_noteTextChanged();
+    void sig_noteDirtyChanged();
+
+    void sig_descriptionHtmlChanged();
+    void sig_statsHtmlChanged();
+    void sig_diffHtmlChanged();
+    void sig_revertEnabledChanged();
+
+    void sig_refreshed();
+
+private:
+    QStringList m_roomNames;
+    int m_currentRoomIndex = 0;
+    bool m_hasSelectedRoom = true;
+
+    CheckableFlagModel *m_mobFlagsModel = nullptr;
+    CheckableFlagModel *m_loadFlagsModel = nullptr;
+    CheckableFlagModel *m_exitFlagsModel = nullptr;
+    CheckableFlagModel *m_doorFlagsModel = nullptr;
+
+    int m_selectedExitDir = 0;
+    QString m_doorName;
+    bool m_doorFieldsEnabled = true;
+
+    int m_align = -1;
+    int m_portable = -1;
+    int m_rideable = -1;
+    int m_light = -1;
+    int m_sundeath = -1;
+    int m_terrainType = -1;
+    QUrl m_terrainPreviewIcon;
+
+    QString m_noteText;
+    bool m_noteDirty = false;
+
+    QString m_descriptionHtml;
+    QString m_statsHtml;
+    QString m_diffHtml;
+    bool m_revertEnabled = false;
+};
+
 } // namespace
 
 // MediaLibrary.cpp calls getAssetsPath() (declared in display/Filenames.h),
@@ -2057,6 +2338,84 @@ void TestQml::loadInfomarkEditDialog()
     QCoreApplication::processEvents();
     QCOMPARE(modifyButton->property("enabled").toBool(), true);
     QCOMPARE(createButton->property("enabled").toBool(), false);
+}
+
+void TestQml::loadRoomEditDialog()
+{
+    RoomEditControllerStub controller(nullptr);
+
+    QmlDialog dialog("t", "TestRoomEditDialog", nullptr);
+    dialog.setContextProperty("roomEditController", &controller);
+    dialog.setQmlSource(QUrl(u"qrc:/qt/qml/MMapper/RoomEditDialog.qml"_qs));
+
+    QQuickWidget *const quick = dialog.quickWidget();
+    QVERIFY(quick != nullptr);
+    while (quick->status() == QQuickWidget::Loading) {
+        QCoreApplication::processEvents();
+    }
+    QCoreApplication::processEvents();
+
+    QCOMPARE(quick->status(), QQuickWidget::Ready);
+    QQuickItem *const root = quick->rootObject();
+    QVERIFY(root != nullptr);
+
+    QQuickItem *const closeButton = root->findChild<QQuickItem *>("closeButton");
+    QVERIFY(closeButton != nullptr);
+    QCOMPARE(closeButton->property("enabled").toBool(), true);
+
+    // Dirtying the note (as if the user typed in the Note tab) must disable
+    // Close, mirroring roomeditattrdlg.cpp's setRoomNoteDirty(); reverting
+    // clears it again.
+    controller.setNoteText(QStringLiteral("a pending edit"));
+    QCoreApplication::processEvents();
+    QTRY_COMPARE(closeButton->property("enabled").toBool(), false);
+
+    controller.revertNote();
+    QCoreApplication::processEvents();
+    QTRY_COMPARE(closeButton->property("enabled").toBool(), true);
+
+    // Tri-state rendering: mobFlagsListView's row 1 (PartiallyChecked, see
+    // RoomEditControllerStub's constructor) must reach a CheckBox delegate
+    // with checkState == 1 (Qt::PartiallyChecked).
+    QQuickItem *const mobFlagsListView = root->findChild<QQuickItem *>("mobFlagsListView");
+    QVERIFY(mobFlagsListView != nullptr);
+    QQuickItem *rowItem = nullptr;
+    QMetaObject::invokeMethod(mobFlagsListView,
+                              "itemAtIndex",
+                              Q_RETURN_ARG(QQuickItem *, rowItem),
+                              Q_ARG(int, 1));
+    QVERIFY(rowItem != nullptr);
+
+    // Search the delegate row's subtree (Row -> CheckBox) for a CheckBox
+    // whose checkState is PartiallyChecked (1); the delegate has exactly
+    // one.
+    bool foundPartial = false;
+    for (QQuickItem *const candidate : rowItem->findChildren<QQuickItem *>()) {
+        if (candidate->property("checkState").isValid()
+            && candidate->property("checkState").toInt() == 1) {
+            foundPartial = true;
+            break;
+        }
+    }
+    QVERIFY2(foundPartial, "expected a PartiallyChecked (checkState==1) CheckBox delegate");
+
+    // Exit-direction click must call the controller's selectedExitDir
+    // setter; the D-pad's South button (objectName-less, so locate it by
+    // text) is exercised via the exit grid.
+    QCOMPARE(controller.getSelectedExitDir(), 0); // NORTH, matching the widget's default.
+    QQuickItem *const exitsFrame = root->findChild<QQuickItem *>("exitsFrame");
+    QVERIFY(exitsFrame != nullptr);
+    QQuickItem *southButton = nullptr;
+    for (QQuickItem *const candidate : exitsFrame->findChildren<QQuickItem *>()) {
+        if (candidate->property("text").toString() == QStringLiteral("S")) {
+            southButton = candidate;
+            break;
+        }
+    }
+    QVERIFY(southButton != nullptr);
+    QMetaObject::invokeMethod(southButton, "clicked");
+    QCoreApplication::processEvents();
+    QTRY_COMPARE(controller.getSelectedExitDir(), 1); // SOUTH
 }
 
 void TestQml::qmlDialogBackgroundThemed()

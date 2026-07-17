@@ -284,8 +284,6 @@ set(mmapper_SRCS
     mainwindow/mainwindow.h
     mainwindow/metatypes.cpp
     mainwindow/metatypes.h
-    mainwindow/roomeditattrdlg.cpp
-    mainwindow/roomeditattrdlg.h
     mainwindow/utils.cpp
     mainwindow/utils.h
     map/AbstractChangeVisitor.cpp
@@ -671,6 +669,8 @@ if(NOT WITH_QML)
         mainwindow/findroomsdlg.h
         mainwindow/infomarkseditdlg.cpp
         mainwindow/infomarkseditdlg.h
+        mainwindow/roomeditattrdlg.cpp
+        mainwindow/roomeditattrdlg.h
         preferences/AdvancedGraphics.cpp
         preferences/AdvancedGraphics.h
         preferences/audiopage.cpp
@@ -745,7 +745,6 @@ if(EMSCRIPTEN)
 endif()
 
 set(mmapper_UIS
-    mainwindow/roomeditattrdlg.ui
     preferences/AnsiColorDialog.ui
     preferences/ManagePasswordDialog.ui
 )
@@ -768,6 +767,10 @@ if(NOT WITH_QML)
     # WITH_QML) is driven by InfomarkEditController rather than a generated
     # ui_infomarkseditdlg.h.
     list(APPEND mmapper_UIS mainwindow/infomarkseditdlg.ui)
+    # RoomEditAttrDlg's .ui; RoomEditDialog.qml (used instead when WITH_QML)
+    # is driven by RoomEditController rather than a generated
+    # ui_roomeditattrdlg.h.
+    list(APPEND mmapper_UIS mainwindow/roomeditattrdlg.ui)
     # ConfigDialog and its nine widget pages' .ui files; PreferencesDialog.qml
     # (used instead when WITH_QML) is driven by PreferencesController and the
     # per-page adapters rather than generated ui_*.h headers.
@@ -871,6 +874,7 @@ if(WITH_QML)
     set_source_files_properties(qml/UpdateDialog.qml PROPERTIES QT_RESOURCE_ALIAS "UpdateDialog.qml")
     set_source_files_properties(qml/FindRoomsDialog.qml PROPERTIES QT_RESOURCE_ALIAS "FindRoomsDialog.qml")
     set_source_files_properties(qml/InfomarkEditDialog.qml PROPERTIES QT_RESOURCE_ALIAS "InfomarkEditDialog.qml")
+    set_source_files_properties(qml/RoomEditDialog.qml PROPERTIES QT_RESOURCE_ALIAS "RoomEditDialog.qml")
     set_source_files_properties(qml/PreferencesDialog.qml PROPERTIES QT_RESOURCE_ALIAS "PreferencesDialog.qml")
     set_source_files_properties(qml/PrefsPathMachinePage.qml PROPERTIES QT_RESOURCE_ALIAS "PrefsPathMachinePage.qml")
     set_source_files_properties(qml/PrefsMumeProtocolPage.qml PROPERTIES QT_RESOURCE_ALIAS "PrefsMumeProtocolPage.qml")
@@ -906,6 +910,7 @@ if(WITH_QML)
             qml/UpdateDialog.qml
             qml/FindRoomsDialog.qml
             qml/InfomarkEditDialog.qml
+            qml/RoomEditDialog.qml
             qml/PreferencesDialog.qml
             qml/PrefsPathMachinePage.qml
             qml/PrefsMumeProtocolPage.qml

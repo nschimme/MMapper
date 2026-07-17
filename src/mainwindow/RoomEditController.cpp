@@ -175,7 +175,12 @@ RoomEditController::RoomEditController(QObject *const parent)
         m_doorFlagsModel->setRows(std::move(rows));
     }
 
-    m_terrainPreviewIcon = terrainIcon(RoomTerrainEnum::UNDEFINED);
+    m_terrainPreviewIcon = ::terrainIcon(RoomTerrainEnum::UNDEFINED);
+}
+
+QUrl RoomEditController::terrainIcon(const int type) const
+{
+    return ::terrainIcon(static_cast<RoomTerrainEnum>(type));
 }
 
 RoomHandle RoomEditController::getSelectedRoom()
@@ -542,7 +547,7 @@ void RoomEditController::refresh()
 
         m_terrainType = -1;
         emit sig_terrainTypeChanged();
-        m_terrainPreviewIcon = terrainIcon(RoomTerrainEnum::UNDEFINED);
+        m_terrainPreviewIcon = ::terrainIcon(RoomTerrainEnum::UNDEFINED);
         emit sig_terrainPreviewIconChanged();
 
         m_align = -1;
@@ -618,7 +623,7 @@ void RoomEditController::refresh()
 
         m_terrainType = static_cast<int>(r.getTerrainType());
         emit sig_terrainTypeChanged();
-        m_terrainPreviewIcon = terrainIcon(r.getTerrainType());
+        m_terrainPreviewIcon = ::terrainIcon(r.getTerrainType());
         emit sig_terrainPreviewIconChanged();
 
         m_align = static_cast<int>(r.getAlignType());

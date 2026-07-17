@@ -49,4 +49,14 @@ private Q_SLOTS:
     void controllerSendToUserWhileHidden();
     void controllerDisconnectedReconnectHint();
     void controllerHotkeys();
+
+    // RemoteEditDocumentOps (widget-free core of the MPI remote editor)
+    void remoteEditJustifyTextRewrapsLongLines();
+    void remoteEditExpandTabsExpandsSelection();
+    void remoteEditRemoveDuplicateSpacesCollapses();
+    void remoteEditJoinLinesCombinesBlocks();
+    void remoteEditPrefixPartialSelectionQuotesLines();
+    void remoteEditFindWrapsAround();
+    void remoteEditReplaceAllReplacesEveryOccurrence();
+    void remoteEditStatusReportsTabsLongLinesAndTrailingSpace();
 };

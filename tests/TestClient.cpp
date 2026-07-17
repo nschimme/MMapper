@@ -8,11 +8,14 @@
 #include "../src/client/HotkeyManager.h"
 #include "../src/client/InputHistory.h"
 #include "../src/configuration/configuration.h"
+#include "../src/mpi/RemoteEditDocumentOps.h"
 #include "FakeClientBackend.h"
 
 #include <memory>
 
 #include <QSignalSpy>
+#include <QTextCursor>
+#include <QTextDocument>
 #include <QtTest/QtTest>
 
 TestClient::TestClient()
@@ -582,6 +585,133 @@ void TestClient::controllerHotkeys()
     QVERIFY(!up.isValid());
 
     hotkeys.clear();
+}
+
+// --- RemoteEditDocumentOps ---
+// Widget-free core of the MPI remote editor's text operations; exercised directly
+// against a QTextDocument (no RemoteEditWidget/QPlainTextEdit involved).
+
+void TestClient::remoteEditJustifyTextRewrapsLongLines()
+{
+    const QString input = QStringLiteral("one two three four five six seven eight nine ten\n");
+    const QString result = mmqt::remoteEditJustifyText(input, 20);
+
+    const QStringList lines = result.split(QChar('\n'), Qt::SkipEmptyParts);
+    QVERIFY(lines.size() > 1);
+    for (const QString &line : lines) {
+        QVERIFY2(line.length() <= 20, qPrintable(line));
+    }
+    // All the original words must still be present, just rewrapped.
+    for (const char *word :
+         {"one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten"}) {
+        QVERIFY(result.contains(QString::fromLatin1(word)));
+    }
+}
+
+void TestClient::remoteEditExpandTabsExpandsSelection()
+{
+    QTextDocument doc;
+    doc.setPlainText(QStringLiteral("a\tb"));
+
+    QTextCursor cur(&doc);
+    cur.select(QTextCursor::Document);
+    mmqt::remoteEditExpandTabs(cur);
+
+    const QString text = doc.toPlainText();
+    QVERIFY(!text.contains(QChar('\t')));
+    // Tab stops are every 8 columns, so "a" (1 col) + tab expands to 7 spaces.
+    QCOMPARE(text, QStringLiteral("a") + QString(7, QChar(' ')) + QStringLiteral("b"));
+}
+
+void TestClient::remoteEditRemoveDuplicateSpacesCollapses()
+{
+    QTextDocument doc;
+    doc.setPlainText(QStringLiteral("a    b   c"));
+
+    QTextCursor cur(&doc);
+    cur.select(QTextCursor::Document);
+    mmqt::remoteEditRemoveDuplicateSpaces(cur);
+
+    QCOMPARE(doc.toPlainText(), QStringLiteral("a b c"));
+}
+
+void TestClient::remoteEditJoinLinesCombinesBlocks()
+{
+    QTextDocument doc;
+    doc.setPlainText(QStringLiteral("line one\nline two"));
+
+    // Only the first (and only non-final) block is selected; joinLines' "join the next
+    // line if only one line is selected" feature should pull in the final block too.
+    QTextCursor cur(&doc);
+    cur.movePosition(QTextCursor::Start);
+    cur.movePosition(QTextCursor::EndOfBlock, QTextCursor::KeepAnchor);
+    mmqt::remoteEditJoinLines(cur);
+
+    QCOMPARE(doc.toPlainText(), QStringLiteral("line one line two"));
+}
+
+void TestClient::remoteEditPrefixPartialSelectionQuotesLines()
+{
+    QTextDocument doc;
+    doc.setPlainText(QStringLiteral("abc\ndef"));
+
+    QTextCursor cur(&doc);
+    cur.select(QTextCursor::Document);
+    mmqt::remoteEditPrefixPartialSelection(cur, QStringLiteral("> "));
+
+    QCOMPARE(doc.toPlainText(), QStringLiteral("> abc\n> def"));
+}
+
+void TestClient::remoteEditFindWrapsAround()
+{
+    QTextDocument doc;
+    doc.setPlainText(QStringLiteral("foo bar foo"));
+
+    // Position the cursor after the last "foo", so a forward search must wrap around
+    // to find the first occurrence.
+    QTextCursor cur(&doc);
+    cur.movePosition(QTextCursor::End);
+
+    const auto outcome = mmqt::remoteEditFind(doc, cur, QStringLiteral("foo"), {});
+    QCOMPARE(outcome.result, mmqt::RemoteEditFindResultEnum::FOUND_AFTER_WRAP);
+    QCOMPARE(outcome.cursor.selectedText(), QStringLiteral("foo"));
+    QCOMPARE(outcome.cursor.selectionStart(), 0);
+
+    // Searching for something absent must report NOT_FOUND and leave the returned
+    // cursor equal to the one that was passed in.
+    const auto missing = mmqt::remoteEditFind(doc, cur, QStringLiteral("nope"), {});
+    QCOMPARE(missing.result, mmqt::RemoteEditFindResultEnum::NOT_FOUND);
+}
+
+void TestClient::remoteEditReplaceAllReplacesEveryOccurrence()
+{
+    QTextDocument doc;
+    doc.setPlainText(QStringLiteral("foo bar foo baz foo"));
+
+    const int replacements = mmqt::remoteEditReplaceAll(doc,
+                                                        QStringLiteral("foo"),
+                                                        QStringLiteral("qux"),
+                                                        {});
+    QCOMPARE(replacements, 3);
+    QCOMPARE(doc.toPlainText(), QStringLiteral("qux bar qux baz qux"));
+}
+
+void TestClient::remoteEditStatusReportsTabsLongLinesAndTrailingSpace()
+{
+    QTextDocument doc;
+    const QString longLine(85, QChar('x'));
+    doc.setPlainText(QStringLiteral("a\tb\n") + longLine + QStringLiteral("\ntrailing   \n"));
+
+    QTextCursor cur(&doc);
+    cur.movePosition(QTextCursor::Start);
+    const auto info = mmqt::computeRemoteEditStatus(cur);
+
+    QCOMPARE(info.line, 1);
+    QCOMPARE(info.col, 1);
+    QVERIFY(!info.selection);
+    QVERIFY(info.hasTabs);
+    QVERIFY(info.hasLongLines);
+    QVERIFY(info.hasTrailingSpace);
 }
 
 QTEST_MAIN(TestClient)

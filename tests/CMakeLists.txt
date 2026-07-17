@@ -430,8 +430,15 @@ set(client_line_model_SRCS
         ../src/client/InputHistory.cpp
         ../src/client/InputHistory.h
 )
+# RemoteEditDocumentOps is the widget-free (QtGui-only) core of the MPI remote
+# editor's text operations; RemoteEditHighlighter is not linked here since it's
+# QSyntaxHighlighter-only and has no free functions worth unit testing directly.
+set(remote_edit_document_ops_SRCS
+        ../src/mpi/RemoteEditDocumentOps.cpp
+        ../src/mpi/RemoteEditDocumentOps.h
+)
 set(TestClient_SRCS TestClient.cpp TestClient.h FakeClientBackend.cpp FakeClientBackend.h)
-add_executable(TestClient ${TestClient_SRCS} ${client_line_model_SRCS})
+add_executable(TestClient ${TestClient_SRCS} ${client_line_model_SRCS} ${remote_edit_document_ops_SRCS})
 add_dependencies(TestClient mm_test mm_global mm_map)
 target_link_libraries(TestClient mm_map mm_test mm_global Qt6::Gui Qt6::Test Qt6::Network coverage_config)
 set_target_properties(

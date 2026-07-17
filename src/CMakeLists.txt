@@ -821,6 +821,10 @@ if(CHECK_ODR)
         # GroupIconProvider.h's QQuickImageProvider base) can't be included
         # standalone without Qt6::Quick, which this build doesn't link.
         list(FILTER mmapper_HDRS EXCLUDE REGEX "^qml/")
+        # mpi/RemoteEditController.h takes a QQuickTextDocument*, same reason
+        # as the qml/ exclusion above; it's only compiled (as part of mm_qml)
+        # when WITH_QML is on -- see the WITH_QML block below.
+        list(FILTER mmapper_HDRS EXCLUDE REGEX "^mpi/RemoteEditController.h$")
     endif()
     list(SORT mmapper_HDRS)
     file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/odr.cpp "// This generated file exists to help detect ODR violations.\n"
@@ -890,6 +894,7 @@ if(WITH_QML)
     set_source_files_properties(qml/FindRoomsDialog.qml PROPERTIES QT_RESOURCE_ALIAS "FindRoomsDialog.qml")
     set_source_files_properties(qml/InfomarkEditDialog.qml PROPERTIES QT_RESOURCE_ALIAS "InfomarkEditDialog.qml")
     set_source_files_properties(qml/RoomEditDialog.qml PROPERTIES QT_RESOURCE_ALIAS "RoomEditDialog.qml")
+    set_source_files_properties(qml/RemoteEditDialog.qml PROPERTIES QT_RESOURCE_ALIAS "RemoteEditDialog.qml")
     set_source_files_properties(qml/PreferencesDialog.qml PROPERTIES QT_RESOURCE_ALIAS "PreferencesDialog.qml")
     set_source_files_properties(qml/PrefsPathMachinePage.qml PROPERTIES QT_RESOURCE_ALIAS "PrefsPathMachinePage.qml")
     set_source_files_properties(qml/PrefsMumeProtocolPage.qml PROPERTIES QT_RESOURCE_ALIAS "PrefsMumeProtocolPage.qml")
@@ -928,6 +933,7 @@ if(WITH_QML)
             qml/FindRoomsDialog.qml
             qml/InfomarkEditDialog.qml
             qml/RoomEditDialog.qml
+            qml/RemoteEditDialog.qml
             qml/PreferencesDialog.qml
             qml/PrefsPathMachinePage.qml
             qml/PrefsMumeProtocolPage.qml
@@ -952,6 +958,10 @@ if(WITH_QML)
             qml/GroupIconProvider.cpp
             qml/DescriptionImageProvider.h
             qml/DescriptionImageProvider.cpp
+            mpi/RemoteEditController.h
+            mpi/RemoteEditController.cpp
+            qml/RemoteEditDialogHost.h
+            qml/RemoteEditDialogHost.cpp
     )
     set_target_properties(mm_qml PROPERTIES
         CXX_STANDARD 20

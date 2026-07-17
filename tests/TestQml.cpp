@@ -31,6 +31,7 @@
 #include "../src/map/mmapper2room.h"
 #include "../src/media/DescriptionAdapter.h"
 #include "../src/media/MediaLibrary.h"
+#include "../src/mpi/RemoteEditController.h"
 #include "../src/observer/gameobserver.h"
 #include "../src/preferences/PreferencesController.h"
 #include "../src/proxy/GmcpMessage.h"
@@ -38,6 +39,7 @@
 #include "../src/qml/QmlConfig.h"
 #include "../src/qml/QmlDialog.h"
 #include "../src/qml/QmlDockWidget.h"
+#include "../src/qml/RemoteEditDialogHost.h"
 #include "../src/roompanel/RoomManager.h"
 #include "../src/roompanel/RoomModel.h"
 #include "../src/timers/CTimers.h"
@@ -61,8 +63,10 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QLabel>
+#include <QMessageBox>
 #include <QPainter>
 #include <QPixmap>
+#include <QPushButton>
 #include <QQmlComponent>
 #include <QQmlContext>
 #include <QQmlEngine>
@@ -73,6 +77,7 @@
 #include <QScopedPointer>
 #include <QSignalSpy>
 #include <QTemporaryDir>
+#include <QTimer>
 #include <QToolTip>
 #include <QWidget>
 #include <QtMath>
@@ -2874,6 +2879,242 @@ void TestQml::loadAnsiColorPickerDialog()
     QQuickItem *const boldCheckBox = root->findChild<QQuickItem *>("boldCheckBox");
     QVERIFY(boldCheckBox != nullptr);
     QCOMPARE(boldCheckBox->property("checked").toBool(), true);
+}
+
+void TestQml::loadRemoteEditDialog()
+{
+    RemoteEditController controller(true, QStringLiteral("Test Title"), QStringLiteral("hello\n"));
+
+    QmlDialog dialog("t", "TestRemoteEditDialogLoad", nullptr);
+    dialog.setContextProperty("remoteEditController", &controller);
+    dialog.setQmlSource(QUrl(u"qrc:/qt/qml/MMapper/RemoteEditDialog.qml"_qs));
+
+    QQuickWidget *const quick = dialog.quickWidget();
+    QVERIFY(quick != nullptr);
+    while (quick->status() == QQuickWidget::Loading) {
+        QCoreApplication::processEvents();
+    }
+    QCoreApplication::processEvents();
+    QCOMPARE(quick->status(), QQuickWidget::Ready);
+
+    QQuickItem *const root = quick->rootObject();
+    QVERIFY(root != nullptr);
+
+    QQuickItem *const textArea = root->findChild<QQuickItem *>("remoteTextArea");
+    QVERIFY(textArea != nullptr);
+    QCOMPARE(textArea->property("text").toString(), QStringLiteral("hello\n"));
+    QCOMPARE(textArea->property("readOnly").toBool(), false);
+
+    QQuickItem *const footerLabel = root->findChild<QQuickItem *>("footerLabel");
+    QVERIFY(footerLabel != nullptr);
+    QVERIFY(!footerLabel->property("text").toString().isEmpty());
+}
+
+void TestQml::remoteEditControllerOps()
+{
+    // "hello\tworld\n": h(0)e(1)l(2)l(3)o(4)\t(5)w(6)o(7)r(8)l(9)d(10)\n(11)
+    RemoteEditController controller(true,
+                                    QStringLiteral("Test Title"),
+                                    QStringLiteral("hello\tworld\n"));
+
+    QmlDialog dialog("t", "TestRemoteEditDialogOps", nullptr);
+    dialog.setContextProperty("remoteEditController", &controller);
+    dialog.setQmlSource(QUrl(u"qrc:/qt/qml/MMapper/RemoteEditDialog.qml"_qs));
+
+    QQuickWidget *const quick = dialog.quickWidget();
+    QVERIFY(quick != nullptr);
+    while (quick->status() == QQuickWidget::Loading) {
+        QCoreApplication::processEvents();
+    }
+    QCoreApplication::processEvents();
+    QCOMPARE(quick->status(), QQuickWidget::Ready);
+
+    QQuickItem *const root = quick->rootObject();
+    QVERIFY(root != nullptr);
+    QQuickItem *const textArea = root->findChild<QQuickItem *>("remoteTextArea");
+    QVERIFY(textArea != nullptr);
+    QCOMPARE(textArea->property("text").toString(), QStringLiteral("hello\tworld\n"));
+
+    // attachDocument() ran via Component.onCompleted; dirty starts false.
+    QCOMPARE(controller.getDirty(), false);
+
+    // find(): a plain C++ call against the controller, independent of QML --
+    // "world" occupies [6, 11) in the initial text.
+    QVariantMap found = controller.find(QStringLiteral("world"), false, 0, 0);
+    QCOMPARE(found.value("found").toBool(), true);
+    QCOMPARE(found.value("start").toInt(), 6);
+    QCOMPARE(found.value("end").toInt(), 11);
+    QCOMPARE(found.value("message").toString(), QStringLiteral("Found: 'world'"));
+
+    QVariantMap notFound = controller.find(QStringLiteral("xyzzy"), false, 0, 0);
+    QCOMPARE(notFound.value("found").toBool(), false);
+    QCOMPARE(notFound.value("message").toString(), QStringLiteral("Not found: 'xyzzy'"));
+
+    // gotoLine(): the text is "hello\tworld\n" -- QTextDocument's trailing
+    // newline creates a second (empty) block, so lines 1 and 2 both exist;
+    // line 3 does not.
+    QVariantMap gotoOk = controller.gotoLine(1);
+    QCOMPARE(gotoOk.value("found").toBool(), true);
+    QCOMPARE(gotoOk.value("start").toInt(), 0);
+    QVariantMap gotoOk2 = controller.gotoLine(2);
+    QCOMPARE(gotoOk2.value("found").toBool(), true);
+    QVariantMap gotoBad = controller.gotoLine(3);
+    QCOMPARE(gotoBad.value("found").toBool(), false);
+
+    // toggleWhitespace() flips the property each call.
+    QCOMPARE(controller.getShowingWhitespace(), false);
+    controller.toggleWhitespace();
+    QCOMPARE(controller.getShowingWhitespace(), true);
+    controller.toggleWhitespace();
+    QCOMPARE(controller.getShowingWhitespace(), false);
+
+    // expandTabs() over the whole document removes the tab and dirties the
+    // controller; the change is visible through the QML TextArea because
+    // it shares the same QTextDocument attachDocument() installed.
+    controller.expandTabs(0, static_cast<int>(controller.getBody().length()));
+    QCoreApplication::processEvents();
+    QCOMPARE(controller.getDirty(), true);
+    QTRY_VERIFY(!textArea->property("text").toString().contains(QLatin1Char('\t')));
+
+    // Undo (through the shared QTextDocument, via the TextArea's own
+    // invokable undo()) restores the original text and clears dirty again --
+    // this exercises attachDocument()'s contentsChanged-driven recompute.
+    QMetaObject::invokeMethod(textArea, "undo");
+    QCoreApplication::processEvents();
+    QTRY_COMPARE(controller.getDirty(), false);
+    QTRY_COMPARE(textArea->property("text").toString(), QStringLiteral("hello\tworld\n"));
+
+    // insertAnsiReset() inserts at the given position and returns the new
+    // caret position, which must land after the inserted text.
+    const int posBefore = 0;
+    const int posAfter = controller.insertAnsiReset(posBefore);
+    QVERIFY(posAfter > posBefore);
+    QCOMPARE(controller.getDirty(), true);
+    QMetaObject::invokeMethod(textArea, "undo");
+    QCoreApplication::processEvents();
+    QTRY_COMPARE(controller.getDirty(), false);
+
+    // submit() emits sig_save with the current document text and sets
+    // submitted; mirrors RemoteEditWidget::slot_finishEdit().
+    QSignalSpy saveSpy(&controller, &RemoteEditController::sig_save);
+    QCOMPARE(controller.getSubmitted(), false);
+    controller.submit();
+    QCOMPARE(saveSpy.count(), 1);
+    QCOMPARE(saveSpy.at(0).at(0).toString(), QStringLiteral("hello\tworld\n"));
+    QCOMPARE(controller.getSubmitted(), true);
+
+    // A second submit()/cancel() call is a no-op (mirrors m_submitted
+    // latching in the widget).
+    controller.cancel();
+    QCOMPARE(saveSpy.count(), 1);
+}
+
+void TestQml::remoteEditDialogCloseGuard()
+{
+    // Viewer session: RemoteEditDialogHost::closeEvent() always accepts
+    // immediately (no confirmation), mirroring RemoteEditWidget::
+    // closeEvent()'s !m_editSession branch.
+    {
+        auto *const controller = new RemoteEditController(false,
+                                                          QStringLiteral("View Title"),
+                                                          QStringLiteral("line one\n"));
+        auto *const host = new RemoteEditDialogHost(controller, nullptr);
+        controller->setParent(host);
+        QCoreApplication::processEvents();
+
+        QSignalSpy destroyedSpy(host, &QObject::destroyed);
+        host->close();
+        // closeEvent() ran synchronously inside close(); WA_DeleteOnClose
+        // only *schedules* deleteLater(), so controller/host are still alive
+        // here -- read them before pumping events below actually deletes
+        // them.
+        QCOMPARE(controller->getSubmitted(), true);
+        QTRY_VERIFY(destroyedSpy.count() > 0);
+    }
+
+    // Edit session, not dirty: also closes immediately, no prompt.
+    {
+        auto *const controller = new RemoteEditController(true,
+                                                          QStringLiteral("Edit Title"),
+                                                          QStringLiteral("line one\n"));
+        auto *const host = new RemoteEditDialogHost(controller, nullptr);
+        controller->setParent(host);
+        QCoreApplication::processEvents();
+
+        QSignalSpy destroyedSpy(host, &QObject::destroyed);
+        host->close();
+        QCOMPARE(controller->getSubmitted(), true);
+        QTRY_VERIFY(destroyedSpy.count() > 0);
+    }
+
+    // Edit session, dirty: closeEvent() shows a discard-confirmation
+    // QMessageBox (Discard | Cancel, Cancel default/escape). QMessageBox::
+    // exec() blocks, so this drives it via a deferred QTimer that fires
+    // while that nested event loop is spinning -- a standard technique for
+    // testing modal dialogs -- first clicking Cancel (the close must be
+    // refused, submitted stays false, the host survives), then Discard (the
+    // close proceeds, submitted becomes true and sig_cancel fires).
+    {
+        auto *const controller = new RemoteEditController(true,
+                                                          QStringLiteral("Edit Title 2"),
+                                                          QStringLiteral("line one\n"));
+        auto *const host = new RemoteEditDialogHost(controller, nullptr);
+        controller->setParent(host);
+
+        QQuickWidget *const quick = host->quickWidget();
+        QVERIFY(quick != nullptr);
+        while (quick->status() == QQuickWidget::Loading) {
+            QCoreApplication::processEvents();
+        }
+        QCoreApplication::processEvents();
+        QQuickItem *const root = quick->rootObject();
+        QVERIFY(root != nullptr);
+        QQuickItem *const textArea = root->findChild<QQuickItem *>("remoteTextArea");
+        QVERIFY(textArea != nullptr);
+
+        // Dirty the shared document directly through the TextArea's own
+        // invokable insert(), independent of any RemoteEditController op.
+        QMetaObject::invokeMethod(textArea,
+                                  "insert",
+                                  Q_ARG(int, 0),
+                                  Q_ARG(QString, QStringLiteral("X")));
+        QCoreApplication::processEvents();
+        QTRY_VERIFY(controller->getDirty());
+
+        QSignalSpy cancelSpy(controller, &RemoteEditController::sig_cancel);
+
+        // First attempt: Cancel keeps the dialog open.
+        QTimer::singleShot(0, host, [] {
+            for (QWidget *const w : QApplication::topLevelWidgets()) {
+                if (auto *const box = qobject_cast<QMessageBox *>(w)) {
+                    box->button(QMessageBox::Cancel)->click();
+                    return;
+                }
+            }
+        });
+        host->close();
+        QCOMPARE(controller->getSubmitted(), false);
+        QCOMPARE(cancelSpy.count(), 0);
+        QVERIFY(host->isVisible());
+
+        // Second attempt: Discard actually closes it.
+        QSignalSpy destroyedSpy(host, &QObject::destroyed);
+        QTimer::singleShot(0, host, [] {
+            for (QWidget *const w : QApplication::topLevelWidgets()) {
+                if (auto *const box = qobject_cast<QMessageBox *>(w)) {
+                    box->button(QMessageBox::Discard)->click();
+                    return;
+                }
+            }
+        });
+        host->close();
+        // Same ordering caveat as above: check controller state before the
+        // QTRY_VERIFY wait actually lets WA_DeleteOnClose's deleteLater()
+        // run.
+        QCOMPARE(controller->getSubmitted(), true);
+        QCOMPARE(cancelSpy.count(), 1);
+        QTRY_VERIFY(destroyedSpy.count() > 0);
+    }
 }
 
 QTEST_MAIN(TestQml)

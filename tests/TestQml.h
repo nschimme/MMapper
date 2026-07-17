@@ -64,4 +64,7 @@ private Q_SLOTS:
     void ansiToHtmlBasics();
     void loadAnsiViewDialog();
     void loadAnsiColorPickerDialog();
+    void loadRemoteEditDialog();
+    void remoteEditControllerOps();
+    void remoteEditDialogCloseGuard();
 };

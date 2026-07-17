@@ -565,12 +565,26 @@ if(WITH_QML)
             ../src/mainwindow/CheckableFlagModel.cpp
             ../src/mainwindow/CheckableFlagModel.h
     )
+    # Sources for remoteEditControllerOps()/remoteEditDialogCloseGuard()/
+    # loadRemoteEditDialog(). RemoteEditController.cpp/.h and
+    # RemoteEditDialogHost.cpp/.h are NOT listed here: they're already
+    # compiled into mm_qml (see src/CMakeLists.txt's qt_add_qml_module
+    # SOURCES), which TestQml links below, so #include-ing their headers is
+    # enough. RemoteEditHighlighter.cpp/.h is, though -- it's part of
+    # mmapper_SRCS (the "mmapper" executable's own sources), not any static
+    # lib TestQml links, so it needs the same direct treatment as
+    # remote_edit_document_ops_SRCS above (used by RemoteEditController.cpp).
+    set(remote_edit_highlighter_SRCS
+            ../src/mpi/RemoteEditHighlighter.cpp
+            ../src/mpi/RemoteEditHighlighter.h
+    )
     add_executable(TestQml ${TestQml_SRCS} ${timer_test} ${adventure_SRCS} ${room_manager}
             ${log_model_SRCS} ${tasks_model_SRCS} ${group_SRCS} ${description_panel_SRCS}
             ${clock_adapter_SRCS} ${xp_status_adapter_SRCS} ${client_line_model_SRCS}
             ${about_info_SRCS} ${update_checker_SRCS} ${find_rooms_model_SRCS}
             ${checkable_flag_model_SRCS} ${preferences_adapter_SRCS}
-            ${ansi_view_content_SRCS} ${ansi_color_picker_controller_SRCS})
+            ${ansi_view_content_SRCS} ${ansi_color_picker_controller_SRCS}
+            ${remote_edit_document_ops_SRCS} ${remote_edit_highlighter_SRCS})
     add_dependencies(TestQml mm_qml mm_qmlplugin mm_test mm_global mm_map)
     target_link_libraries(TestQml
             mm_qml

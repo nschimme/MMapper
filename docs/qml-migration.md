@@ -199,9 +199,11 @@ once we're confident nobody needs to fall back to Widgets.
 `client/displaywidget.{h,cpp}` is a partial exception: it stays compiled
 unconditionally (never moves into the `if(NOT WITH_QML)` block) because
 `AnsiTextHelper`, defined there, is a general-purpose ANSI text renderer
-consumed outside the client entirely — `viewers/AnsiViewWindow.cpp`,
-`mainwindow/roomeditattrdlg.cpp`, and `mpi/remoteeditwidget.cpp` all use it
-regardless of `WITH_QML`. `client/ClientTelnet.{h,cpp}` similarly stays
+consumed outside the client entirely — `viewers/AnsiViewWindow.cpp` and
+`mpi/remoteeditwidget.cpp` still use it regardless of `WITH_QML`. (Since
+phase 8 its cursor-driven core lives in the widget-free
+`global/AnsiHtml.{h,cpp}` as `mmqt::AnsiTextToDocument`/`mmqt::ansiToHtml()`,
+with `AnsiTextHelper` reduced to a thin `QTextEdit` wrapper over it.) `client/ClientTelnet.{h,cpp}` similarly stays
 unconditional: it's the real telnet socket implementation that
 `ClientTelnetBackend` wraps, so both builds need it.
 
@@ -600,7 +602,9 @@ display's content.
 Unlike every other Widget class this phase retired, `client/displaywidget.{h,cpp}`
 was *not* moved into the `if(NOT WITH_QML)` block — see "Ported panels" above
 for why (`AnsiTextHelper` has consumers outside the client:
-`AnsiViewWindow.cpp`, `roomeditattrdlg.cpp`, `remoteeditwidget.cpp`).
+`AnsiViewWindow.cpp` and `remoteeditwidget.cpp`; `roomeditattrdlg.cpp` was
+one too until its phase-8 QML port switched that path to
+`mmqt::ansiToHtml()`).
 
 ## Phase 6 notes
 
@@ -764,14 +768,8 @@ an otherwise-QML build is a fully supported pattern, not a gap.
 
 ### Deferred / not ported in phase 6
 
-- **`roomeditattrdlg`/`infomarkseditdlg`.** Both remain widget-only
-  (`mainwindow/roomeditattrdlg.{h,cpp,ui}`, `mainwindow/infomarkseditdlg.{h,cpp,ui}`),
-  compiled unconditionally in both builds (their `.ui` files were never added
-  to any `WITH_QML`-gated block). They're complex, map-canvas-adjacent editor
-  dialogs; porting them is deferred to a future phase, most naturally
-  alongside or after the map canvas port itself (see "Map canvas" below),
-  since both dialogs manipulate the same room/infomark selection state the
-  canvas does.
+- ~~**`roomeditattrdlg`/`infomarkseditdlg`.**~~ Ported in phase 8 (see
+  below); no longer deferred.
 - ~~**Preferences search bar.**~~ Ported in phase 7 (see below); no longer
   deferred.
 
@@ -813,6 +811,50 @@ an otherwise-QML build is a fully supported pattern, not a gap.
   Cancel button remains the only revert path and every show re-syncs the
   adapters (`PreferencesController::reloadAll()`), both matching the
   widget.
+
+### Phase 8: panel regression fixes + map-editing dialogs
+
+Regression fixes from the user's macOS pass on phase 7:
+
+- **Dock minimum sizes.** `QmlDockWidget::syncMinimumSize()` copies each
+  panel root's `implicitWidth`/`implicitHeight` onto the `QQuickWidget`
+  minimum (kept live via `implicit*Changed`), and every `*Panel.qml` root
+  declares a minimum mirroring its widget-era hint — the client uses the
+  configured columns/rows in font metrics (`DisplayWidget::sizeHint()`
+  parity, via new `QmlConfig` `clientColumns`/`clientRows` properties),
+  the group panel uses header + one row (`GroupWidget::sizeHint()`).
+- **Welcome page images.** The Play button's 48px terminal icon and the
+  `mellon.png` pixmap were restored to `ClientPanel.qml`'s welcome column.
+- **Timer tick + colors.** `TimerModel`'s 50ms refresh now emits
+  `dataChanged` with an empty roles vector (the QML delegate binds the
+  custom time/name/expired roles, which the old
+  `{DisplayRole, ProgressRole}` list never notified — count-up timers
+  looked frozen), and `TimerPanel.qml` ports `TimerDelegate::paint()`'s
+  green→yellow→red countdown progress coloring.
+
+Map-editing dialog ports (the phase-6 deferral, now done):
+
+- **Infomarks editor.** `InfomarkEditController` +
+  `InfomarkEditDialog.qml` replace `infomarkseditdlg.{h,cpp,ui}` (now
+  `NOT WITH_QML`-gated). Ported quirks: the Type combo snaps back to the
+  stored value while modifying an existing marker (only "sticks" in
+  Create-New mode), Create refreshes but Modify does not, and the
+  widget's never-used `MapCanvas*` coupling was dropped (the canvas
+  repaints via map-change notifications).
+- **Room attribute editor.** `RoomEditController` (all field edits commit
+  to `MapData` immediately; "All" mode shows every mob/load flag
+  `PartiallyChecked` with no union computation and applies edits via
+  `applyChangesToList`; per-direction exit/door models enforce the
+  EXIT/DOOR/UNMAPPED checkability constraints; the note is the only
+  deferred field) + `RoomEditDialog.qml` (five tabs; tri-state
+  checkboxes are display-only overlays so the model stays authoritative)
+  replace `roomeditattrdlg.{h,cpp,ui}` (now gated). The asymmetric close
+  guard is ported in `RoomEditQmlDialog`: [X] is refused while the note
+  is dirty, Escape closes after the "ignored note" warning. Supporting
+  pieces: `mainwindow/CheckableFlagModel` (generic tri-state list model
+  for QML) and `global/AnsiHtml` (`mmqt::ansiToHtml()`, the widget-free
+  extraction of `AnsiTextHelper`'s core used for the description/stats/
+  diff previews).
 
 ### `.ui` gating
 

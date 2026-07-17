@@ -275,6 +275,8 @@ set(mmapper_SRCS
     mainwindow/FindRoomsModel.h
     mainwindow/InfomarkEditController.cpp
     mainwindow/InfomarkEditController.h
+    mainwindow/RoomEditController.cpp
+    mainwindow/RoomEditController.h
     mainwindow/mainwindow-async.cpp
     mainwindow/mainwindow-async.h
     mainwindow/mainwindow-saveslots.cpp

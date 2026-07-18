@@ -93,6 +93,8 @@ set(mmapper_SRCS
     display/mapcanvas.cpp
     display/mapcanvas.h
     display/mapcanvas_gl.cpp
+    display/MapViewModel.cpp
+    display/MapViewModel.h
     display/mapwindow.cpp
     display/mapwindow.h
     display/prespammedpath.cpp
@@ -833,6 +835,10 @@ if(CHECK_ODR)
         # as the qml/ exclusion above; it's only compiled (as part of mm_qml)
         # when WITH_QML is on -- see the WITH_QML block below.
         list(FILTER mmapper_HDRS EXCLUDE REGEX "^mpi/RemoteEditController.h$")
+        # display/MapCanvasQuickItem.h derives from QQuickFramebufferObject,
+        # same reason as the qml/ exclusion above; it's only compiled (as
+        # part of mm_qml) when WITH_QML is on -- see the WITH_QML block below.
+        list(FILTER mmapper_HDRS EXCLUDE REGEX "^display/MapCanvasQuickItem.h$")
     endif()
     list(SORT mmapper_HDRS)
     file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/odr.cpp "// This generated file exists to help detect ODR violations.\n"
@@ -914,6 +920,7 @@ if(WITH_QML)
     set_source_files_properties(qml/PrefsParserPage.qml PROPERTIES QT_RESOURCE_ALIAS "PrefsParserPage.qml")
     set_source_files_properties(qml/PrefsGeneralPage.qml PROPERTIES QT_RESOURCE_ALIAS "PrefsGeneralPage.qml")
     set_source_files_properties(qml/PrefsClientPage.qml PROPERTIES QT_RESOURCE_ALIAS "PrefsClientPage.qml")
+    set_source_files_properties(qml/MapView.qml PROPERTIES QT_RESOURCE_ALIAS "MapView.qml")
 
     qt_add_qml_module(mm_qml
         STATIC
@@ -954,6 +961,7 @@ if(WITH_QML)
             qml/PrefsParserPage.qml
             qml/PrefsGeneralPage.qml
             qml/PrefsClientPage.qml
+            qml/MapView.qml
         SOURCES
             qml/AnsiViewDialog.cpp
             qml/AnsiColorPickerLauncher.h
@@ -997,6 +1005,47 @@ if(WITH_QML)
     # (not even to disable it), so only pass it under Clang.
     if(TARGET mm_qmlplugin_init AND CMAKE_CXX_COMPILER_ID MATCHES "Clang")
         target_compile_options(mm_qmlplugin_init PRIVATE -Wno-error=newline-eof)
+    endif()
+
+    # MapCanvasQuickItem (the "MapCanvasItem" QML type) and its
+    # qmlRegisterType<>() call live in their own small static library,
+    # deliberately NOT part of mm_qml above. MapCanvasQuickItem's
+    # Q_PROPERTY(MapCanvasCore *core ...) needs MapCanvasCore's
+    # vtable/RTTI (for Qt's automatic QMetaType<MapCanvasCore*>
+    # registration), which -- since MapCanvasCore.cpp lives directly in
+    # mmapper_SRCS below, not in any static lib -- is only ever resolved at
+    # the final "mmapper" executable's link step. CMake bundles a whole
+    # target's moc output into a single mocs_compilation.cpp object file, so
+    # if MapCanvasQuickItem.h lived in mm_qml, *any* symbol TestQml needs
+    # from mm_qml (e.g. QmlDockWidget) would drag that single object file in
+    # and, with it, MapCanvasQuickItem's unresolvable MapCanvasCore
+    # references -- exactly the mapfrontend/parser/mapstorage-style
+    # dependency graph TestQml.cpp deliberately keeps out (see
+    # GroupControllerStub's comment there). Keeping this in its own library
+    # that only "mmapper" links avoids that: TestQml doesn't need to
+    # link it at all (see tests/CMakeLists.txt's TestQml block).
+    qt_add_library(mm_qml_canvas STATIC
+        display/MapCanvasQuickItem.h
+        display/MapCanvasQuickItem.cpp
+        qml/QmlTypes.h
+        qml/QmlTypes.cpp
+    )
+    set_target_properties(mm_qml_canvas PROPERTIES
+        CXX_STANDARD 20
+        CXX_STANDARD_REQUIRED ON
+        CXX_EXTENSIONS OFF
+    )
+    target_link_libraries(mm_qml_canvas PUBLIC Qt6::Quick Qt6::Qml Qt6::Widgets)
+    target_include_directories(mm_qml_canvas SYSTEM PUBLIC
+        ${GLM_INCLUDE_DIR}
+        ${IMMER_INCLUDE_DIR}
+    )
+    add_dependencies(mm_qml_canvas mm_global mm_map)
+    if(NOT GLM_FOUND)
+        add_dependencies(mm_qml_canvas glm)
+    endif()
+    if(NOT IMMER_FOUND)
+        add_dependencies(mm_qml_canvas immer)
     endif()
 endif()
 
@@ -1044,7 +1093,7 @@ if(WITH_AUDIO)
 endif()
 
 if(WITH_QML)
-    target_link_libraries(mmapper PUBLIC Qt6::Qml Qt6::Quick Qt6::QuickWidgets Qt6::QuickControls2 mm_qml mm_qmlplugin)
+    target_link_libraries(mmapper PUBLIC Qt6::Qml Qt6::Quick Qt6::QuickWidgets Qt6::QuickControls2 mm_qml mm_qmlplugin mm_qml_canvas)
 endif()
 
 set_target_properties(

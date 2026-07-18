@@ -29,6 +29,8 @@
 #include <QtWidgets>
 
 #ifdef MMAPPER_WITH_QML
+#include "./qml/QmlTypes.h"
+
 #include <QQuickStyle>
 #include <QQuickWindow>
 #endif
@@ -193,6 +195,9 @@ int main(int argc, char **argv)
     // QQuickWidget in the picture), this can move back to a hardware-accelerated backend.
     QQuickWindow::setGraphicsApi(QSGRendererInterface::Software);
     QQuickStyle::setStyle("Fusion");
+    // Registers MapCanvasItem (and any future C++-backed QML types) with the
+    // "MMapper" module. Nothing instantiates it yet -- see QmlTypes.h.
+    registerMmQmlTypes();
 #endif
 
     QApplication app(argc, argv);

@@ -6,6 +6,7 @@
 // Author: Nils Schimmelmann <nschimme@gmail.com> (Jahara)
 
 #include "../map/coordinate.h"
+#include "MapViewModel.h"
 #include "mapcanvas.h"
 
 #include <QLabel>
@@ -30,7 +31,6 @@ class QMouseEvent;
 class QObject;
 class QResizeEvent;
 class QScrollBar;
-class QTimer;
 
 class NODISCARD_QOBJECT MapWindow final : public QWidget
 {
@@ -44,22 +44,13 @@ protected:
     QPointer<QWidget> m_canvasContainer;
     QPointer<QWidget> m_splashWidget;
     QPointer<AudioHintWidget> m_audioHint;
-    QPointer<QTimer> m_scrollTimer;
-    int m_verticalScrollStep = 0;
-    int m_horizontalScrollStep = 0;
 
 private:
-    struct NODISCARD KnownMapSize final
-    {
-        glm::ivec3 min{0};
-        glm::ivec3 max{0};
-
-        NODISCARD glm::ivec2 size() const { return glm::ivec2{max - min}; }
-
-        NODISCARD glm::vec2 scrollToWorld(glm::ivec2 scrollPos) const;
-        NODISCARD glm::ivec2 worldToScroll(glm::vec2 worldPos) const;
-
-    } m_knownMapSize;
+    // Scroll math (world<->scroll-unit conversion) and the continuous-scroll
+    // timer live in MapViewModel now (see MapViewModel.h/.cpp), shared with
+    // a future QML map view. MapWindow still owns the QScrollBar widgets
+    // themselves and the glue that reads/writes their values.
+    MapViewModel *m_viewModel = nullptr;
 
 public:
     explicit MapWindow(MapData &mapData,
@@ -94,10 +85,16 @@ public slots:
     void slot_centerOnWorldPos(glm::vec2 worldPos);
     void slot_mapMove(int dx, int dy);
     void slot_continuousScroll(int dx, int dy);
-    void slot_scrollTimerTimeout();
     void slot_graphicsSettingsChanged();
     void slot_zoomChanged(const float zoom) { emit sig_zoomChanged(zoom); }
     void slot_showTooltip(const QString &text, const QPoint &pos);
 
     void setCanvasEnabled(bool enabled);
+
+private slots:
+    // Connected to MapViewModel::sig_continuousScrollStep(); applies one
+    // 100ms continuous-scroll tick to the scrollbars (formerly
+    // MapWindow::slot_scrollTimerTimeout(), before the timer moved into
+    // MapViewModel).
+    void slot_applyScrollStep(int hStep, int vStep);
 };

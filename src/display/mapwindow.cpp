@@ -104,6 +104,8 @@ MapWindow::MapWindow(MapData &mapData,
                      QWidget *const parent)
     : QWidget(parent)
 {
+    m_viewModel = new MapViewModel(this);
+
     m_gridLayout = mmqt::makeQPointer<QGridLayout>(this);
     m_gridLayout->setSpacing(0);
     m_gridLayout->setContentsMargins(0, 0, 0, 0);
@@ -152,7 +154,7 @@ MapWindow::MapWindow(MapData &mapData,
                 &QScrollBar::valueChanged,
                 m_canvas,
                 [this](const int x) -> void {
-                    const float val = m_knownMapSize.scrollToWorld(glm::ivec2{x, 0}).x;
+                    const float val = m_viewModel->scrollToWorld(glm::ivec2{x, 0}).x;
                     m_canvas->slot_setHorizontalScroll(val);
                 });
 
@@ -160,7 +162,7 @@ MapWindow::MapWindow(MapData &mapData,
                 &QScrollBar::valueChanged,
                 m_canvas,
                 [this](const int y) -> void {
-                    const float value = m_knownMapSize.scrollToWorld(glm::ivec2{0, y}).y;
+                    const float value = m_viewModel->scrollToWorld(glm::ivec2{0, y}).y;
                     m_canvas->slot_setVerticalScroll(value);
                 });
 
@@ -177,8 +179,10 @@ MapWindow::MapWindow(MapData &mapData,
         connect(m_canvas, &MapCanvas::sig_showTooltip, this, &MapWindow::slot_showTooltip);
     }
 
-    m_scrollTimer = mmqt::makeQPointer<QTimer>(this);
-    connect(m_scrollTimer, &QTimer::timeout, this, &MapWindow::slot_scrollTimerTimeout);
+    connect(m_viewModel,
+            &MapViewModel::sig_continuousScrollStep,
+            this,
+            &MapWindow::slot_applyScrollStep);
 }
 
 void MapWindow::hideSplashImage()
@@ -226,47 +230,20 @@ void MapWindow::slot_mapMove(const int dx, const int input_dy)
     centerOnScrollPos(scrollPos);
 }
 
-// REVISIT: This looks more like "delayed jump" than "continuous scroll."
-void MapWindow::slot_continuousScroll(const int hStep, const int input_vStep)
+void MapWindow::slot_continuousScroll(const int hStep, const int vStep)
 {
-    const auto fitsInInt8 = [](int n) -> bool {
-        // alternate: test against std::numeric_limits<int8_t>::min and max.
-        return static_cast<int>(static_cast<int8_t>(n)) == n;
-    };
-
-    // code originally used int8_t
-    assert(fitsInInt8(hStep));
-    assert(fitsInInt8(input_vStep));
-
-    // Y is negated because delta is in world space
-    const int vStep = -input_vStep;
-
-    m_horizontalScrollStep = hStep;
-    m_verticalScrollStep = vStep;
-
-    auto &scrollTimer = deref(m_scrollTimer);
-    // stop
-    if (hStep == 0 && vStep == 0) {
-        if (scrollTimer.isActive()) {
-            scrollTimer.stop();
-        }
-    } else {
-        // start
-        if (!scrollTimer.isActive()) {
-            scrollTimer.start(100);
-        }
-    }
+    m_viewModel->slot_continuousScroll(hStep, vStep);
 }
 
-void MapWindow::slot_scrollTimerTimeout()
+void MapWindow::slot_applyScrollStep(const int hStep, const int vStep)
 {
     auto &horz = deref(m_horizontalScrollBar);
     auto &vert = deref(m_verticalScrollBar);
     const SignalBlocker block_horz{horz};
     const SignalBlocker block_vert{vert};
 
-    const int vValue = vert.value() + m_verticalScrollStep;
-    const int hValue = horz.value() + m_horizontalScrollStep;
+    const int vValue = vert.value() + vStep;
+    const int hValue = horz.value() + hStep;
 
     const glm::ivec2 scrollPos{hValue, vValue};
     centerOnScrollPos(scrollPos);
@@ -284,7 +261,7 @@ void MapWindow::slot_centerOnWorldPos(const glm::vec2 worldPos)
     const SignalBlocker block_horz{horz};
     const SignalBlocker block_vert{vert};
 
-    const auto scrollPos = m_knownMapSize.worldToScroll(worldPos);
+    const auto scrollPos = m_viewModel->worldToScroll(worldPos);
     horz.setValue(scrollPos.x);
     vert.setValue(scrollPos.y);
 
@@ -296,7 +273,7 @@ void MapWindow::centerOnScrollPos(const glm::ivec2 scrollPos)
     deref(m_horizontalScrollBar).setValue(scrollPos.x);
     deref(m_verticalScrollBar).setValue(scrollPos.y);
 
-    const auto worldPos = m_knownMapSize.scrollToWorld(scrollPos);
+    const auto worldPos = m_viewModel->scrollToWorld(scrollPos);
     emit sig_setScroll(worldPos);
 }
 
@@ -307,27 +284,27 @@ void MapWindow::resizeEvent(QResizeEvent * /*event*/)
 
 void MapWindow::slot_setScrollBars(const Coordinate min, const Coordinate max)
 {
-    m_knownMapSize.min = min.to_ivec3();
-    m_knownMapSize.max = max.to_ivec3();
+    m_viewModel->slot_setScrollBars(min, max);
     updateScrollBars();
 }
 
 void MapWindow::updateScrollBars()
 {
-    const auto dims = m_knownMapSize.size() * MapCanvas::SCROLL_SCALE;
     const auto showScrollBars = getConfig().general.showScrollBars;
 
     auto &horz = deref(m_horizontalScrollBar);
-    horz.setRange(0, dims.x);
-    if (dims.x > 0 && showScrollBars) {
+    const int hMax = m_viewModel->getHorizontalScrollMax();
+    horz.setRange(0, hMax);
+    if (hMax > 0 && showScrollBars) {
         horz.show();
     } else {
         horz.hide();
     }
 
     auto &vert = deref(m_verticalScrollBar);
-    vert.setRange(0, dims.y);
-    if (dims.y > 0 && showScrollBars) {
+    const int vMax = m_viewModel->getVerticalScrollMax();
+    vert.setRange(0, vMax);
+    if (vMax > 0 && showScrollBars) {
         vert.show();
     } else {
         vert.hide();
@@ -358,21 +335,4 @@ void MapWindow::slot_showTooltip(const QString &text, const QPoint &pos)
 void MapWindow::setCanvasEnabled(bool enabled)
 {
     deref(m_canvasContainer).setEnabled(enabled);
-}
-
-glm::vec2 MapWindow::KnownMapSize::scrollToWorld(const glm::ivec2 scrollPos) const
-{
-    auto worldPos = glm::vec2{scrollPos} / static_cast<float>(MapCanvas::SCROLL_SCALE);
-    worldPos.y = static_cast<float>(size().y) - worldPos.y; // negate Y
-    worldPos += glm::vec2{min};
-    return worldPos;
-}
-
-glm::ivec2 MapWindow::KnownMapSize::worldToScroll(const glm::vec2 worldPos_in) const
-{
-    auto worldPos = worldPos_in;
-    worldPos -= glm::vec2{min};
-    worldPos.y = static_cast<float>(size().y) - worldPos.y; // negate Y
-    const glm::ivec2 scrollPos{worldPos * static_cast<float>(MapCanvas::SCROLL_SCALE)};
-    return scrollPos;
 }

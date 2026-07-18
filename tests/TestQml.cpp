@@ -13,6 +13,7 @@
 #include "../src/clock/mumeclock.h"
 #include "../src/configuration/configuration.h"
 #include "../src/display/Filenames.h"
+#include "../src/display/MapViewModel.h"
 #include "../src/global/AnsiHtml.h"
 #include "../src/global/AsyncTasks.h"
 #include "../src/global/progresscounter.h"
@@ -28,6 +29,7 @@
 #include "../src/map/Map.h"
 #include "../src/map/RawRoom.h"
 #include "../src/map/RoomHandle.h"
+#include "../src/map/coordinate.h"
 #include "../src/map/mmapper2room.h"
 #include "../src/media/DescriptionAdapter.h"
 #include "../src/media/MediaLibrary.h"
@@ -497,6 +499,57 @@ private:
     bool m_revertEnabled = false;
 };
 
+// The real "MapCanvasItem" QML type is MapCanvasQuickItem (see
+// ../src/display/MapCanvasQuickItem.h), a QQuickFramebufferObject that
+// implements ICanvasHost and holds a `MapCanvasCore *core` property.
+// Constructing (or even just registering, via qmlRegisterType<T>, which
+// instantiates a QQmlPrivate::QQmlElement<T>) that real class pulls in
+// MapCanvasCore's vtable/RTTI -- needed for Qt's automatic
+// QMetaType<MapCanvasCore*> registration on the `core` property, even
+// though this binary would never actually construct a MapCanvasCore -- and
+// that cascades into MapCanvasCore's OpenGL/rendering member types
+// (FrameManager, GLWeather, OpenGL, GLFont, MapCanvasViewport,
+// MapCanvasInputState, ...), the same mapfrontend/parser/mapstorage-style
+// dependency graph GroupControllerStub/InfomarkEditControllerStub above
+// deliberately avoid.
+//
+// This stub exposes just enough of MapCanvasQuickItem's QML-visible surface
+// (a plain QQuickItem so MapView.qml's `anchors.fill: parent` etc. work, and
+// a `core` property so `core: root.core` binds without error) for
+// loadMapView() to exercise MapView.qml's chrome/layout -- the thing this
+// commit's QML file actually adds. It does NOT exercise
+// MapCanvasQuickItem's own null-core render/event-handling logic; that's
+// covered by code review and by the fact that the real class compiles and
+// links cleanly into the production "mmapper" binary (see
+// ../src/CMakeLists.txt's mm_qml block).
+class NODISCARD_QOBJECT MapCanvasItemStub : public QQuickItem
+{
+    Q_OBJECT
+    Q_PROPERTY(QObject *core READ getCore WRITE setCore NOTIFY coreChanged)
+
+public:
+    explicit MapCanvasItemStub(QQuickItem *const parent = nullptr)
+        : QQuickItem(parent)
+    {}
+
+public:
+    NODISCARD QObject *getCore() const { return m_core; }
+    void setCore(QObject *const core)
+    {
+        if (m_core == core) {
+            return;
+        }
+        m_core = core;
+        emit coreChanged();
+    }
+
+signals:
+    void coreChanged();
+
+private:
+    QObject *m_core = nullptr;
+};
+
 } // namespace
 
 // MediaLibrary.cpp calls getAssetsPath() (declared in display/Filenames.h),
@@ -557,6 +610,15 @@ void TestQml::initTestCase()
     // tasksModelLifecycle(), all of which construct a TasksModel whose
     // internal QTimer calls async_tasks::for_each() on every tick.
     async_tasks::init();
+
+    // Registers a QML-only stand-in for MapCanvasItem (the real,
+    // production MapCanvasQuickItem C++ class -- see
+    // ../src/display/MapCanvasQuickItem.h and ../src/qml/QmlTypes.cpp) so
+    // loadMapView() can instantiate MapView.qml's `MapCanvasItem { }`. See
+    // MapCanvasItemStub's own comment (below) and this file's
+    // display_map_view_SRCS CMake comment for why the real class isn't
+    // linked into this binary.
+    qmlRegisterType<MapCanvasItemStub>("MMapper", 1, 0, "MapCanvasItem");
 }
 
 void TestQml::cleanupTestCase()
@@ -3237,6 +3299,91 @@ void TestQml::loadPasswordDialog()
     controller.requestDelete();
     QCOMPARE(controller.getHasStoredPassword(), false);
     QCOMPARE(deleteButton->property("enabled").toBool(), false);
+}
+
+void TestQml::loadMapView()
+{
+    // MapView.qml instantiates `MapCanvasItem { core: root.core }` with
+    // root.core left at its default (null) -- see MapView.qml. initTestCase()
+    // registered MapCanvasItemStub (see its doc comment above) under that
+    // type name for exactly this test: it lets MapView.qml's chrome/layout
+    // load and bind without needing the real MapCanvasQuickItem class (and
+    // the MapCanvasCore/OpenGL dependency graph that comes with it) linked
+    // into this binary. The real class's own null-core handling is exercised
+    // by it simply compiling/linking cleanly into the production app.
+    QQmlEngine engine;
+    QQmlComponent component(&engine, QUrl(u"qrc:/qt/qml/MMapper/MapView.qml"_qs));
+
+    while (component.isLoading()) {
+        QCoreApplication::processEvents();
+    }
+    QVERIFY2(!component.isError(), qPrintable(component.errorString()));
+
+    QScopedPointer<QObject> object(component.create(engine.rootContext()));
+    QVERIFY(object != nullptr);
+    QCoreApplication::processEvents();
+
+    auto *const canvasItem = object->findChild<MapCanvasItemStub *>();
+    QVERIFY(canvasItem != nullptr);
+    QCOMPARE(canvasItem->getCore(), nullptr);
+
+    // Resizing/reparenting the null-core item must not crash.
+    canvasItem->setWidth(400);
+    canvasItem->setHeight(300);
+    QCoreApplication::processEvents();
+}
+
+void TestQml::mapViewModelScrollMath()
+{
+    // Regression test for the world<->scroll-unit conversion extracted out
+    // of MapWindow::KnownMapSize (mapwindow.h/.cpp) into MapViewModel.
+    MapViewModel model;
+
+    // A 10x6-unit known map (mirrors MapData::sig_mapSizeChanged's
+    // min/max Coordinates, which MapWindow::slot_setScrollBars() --
+    // now MapViewModel::slot_setScrollBars() -- receives).
+    const Coordinate min{-2, -3, 0};
+    const Coordinate max{8, 3, 0};
+
+    QSignalSpy rangeSpy(&model, &MapViewModel::sig_rangeChanged);
+    model.slot_setScrollBars(min, max);
+    QCOMPARE(rangeSpy.count(), 1);
+
+    // size() is (max - min) = (10, 6); range is size * SCROLL_SCALE.
+    QCOMPARE(model.getHorizontalScrollMax(), 10 * MapViewModel::SCROLL_SCALE);
+    QCOMPARE(model.getVerticalScrollMax(), 6 * MapViewModel::SCROLL_SCALE);
+
+    // worldToScroll() must invert scrollToWorld() (modulo the integer
+    // rounding baked into scroll units).
+    const glm::vec2 world{1.0f, 2.0f};
+    const glm::ivec2 scroll = model.worldToScroll(world);
+    const glm::vec2 roundTripped = model.scrollToWorld(scroll);
+    QVERIFY(std::abs(roundTripped.x - world.x) < 0.01f);
+    QVERIFY(std::abs(roundTripped.y - world.y) < 0.01f);
+
+    // Spot-check an exact known value: world == min maps to scroll (0, dims.y)
+    // (Y is negated/flipped -- see KnownMapSize::worldToScroll()'s comment).
+    const glm::ivec2 scrollAtMin = model.worldToScroll(glm::vec2{min.x, min.y});
+    QCOMPARE(scrollAtMin.x, 0);
+    QCOMPARE(scrollAtMin.y, 6 * MapViewModel::SCROLL_SCALE);
+
+    // ... and world == max maps to scroll (dims.x, 0).
+    const glm::ivec2 scrollAtMax = model.worldToScroll(glm::vec2{max.x, max.y});
+    QCOMPARE(scrollAtMax.x, 10 * MapViewModel::SCROLL_SCALE);
+    QCOMPARE(scrollAtMax.y, 0);
+
+    // Continuous-scroll timer: starting a non-zero step must fire
+    // sig_continuousScrollStep() periodically until stopped.
+    QSignalSpy stepSpy(&model, &MapViewModel::sig_continuousScrollStep);
+    model.slot_continuousScroll(1, 0);
+    QTRY_VERIFY_WITH_TIMEOUT(!stepSpy.isEmpty(), 2000);
+    QCOMPARE(stepSpy.constLast().at(0).toInt(), 1);
+    QCOMPARE(stepSpy.constLast().at(1).toInt(), 0);
+
+    model.slot_continuousScroll(0, 0);
+    stepSpy.clear();
+    QTest::qWait(250);
+    QCOMPARE(stepSpy.count(), 0);
 }
 
 QTEST_MAIN(TestQml)

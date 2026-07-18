@@ -493,6 +493,25 @@ add_test(NAME TestMedia COMMAND TestMedia)
 # QML
 if(WITH_QML)
     set(TestQml_SRCS TestQml.cpp TestQml.h FakeClientBackend.cpp FakeClientBackend.h)
+    # MapViewModel is a plain, rendering-independent QObject (see
+    # ../src/display/MapViewModel.h's file comment: deliberately has no
+    # dependency on MapCanvasCore/OpenGL), so it's linked directly. The real
+    # MapCanvasQuickItem class (mm_qml's "MapCanvasItem" QML type) is NOT
+    # linked here: its Q_PROPERTY(MapCanvasCore *core ...) drags in
+    # MapCanvasCore's vtable/RTTI (Qt's automatic QMetaType<MapCanvasCore*>
+    # registration needs it even though this binary would never construct
+    # one), which cascades into MapCanvasCore's OpenGL/rendering member
+    # types (FrameManager, GLWeather, OpenGL, GLFont, MapCanvasViewport,
+    # MapCanvasInputState, ...) -- exactly the mapfrontend/parser/mapstorage-
+    # style dependency graph every other stub in TestQml.cpp (see
+    # GroupControllerStub, InfomarkEditControllerStub) deliberately avoids.
+    # loadMapView() below instead registers a lightweight QML-only stub
+    # under the same "MapCanvasItem" type name, exercising MapView.qml's
+    # chrome/layout without the real C++ item.
+    set(display_map_view_SRCS
+            ../src/display/MapViewModel.cpp
+            ../src/display/MapViewModel.h
+    )
     set(log_model_SRCS
             ../src/mainwindow/LogModel.cpp
             ../src/mainwindow/LogModel.h
@@ -605,7 +624,7 @@ if(WITH_QML)
             ${checkable_flag_model_SRCS} ${preferences_adapter_SRCS}
             ${ansi_view_content_SRCS} ${ansi_color_picker_controller_SRCS}
             ${remote_edit_document_ops_SRCS} ${remote_edit_highlighter_SRCS}
-            ${remote_edit_session_SRCS})
+            ${remote_edit_session_SRCS} ${display_map_view_SRCS})
     add_dependencies(TestQml mm_qml mm_qmlplugin mm_test mm_global mm_map)
     target_link_libraries(TestQml
             mm_qml

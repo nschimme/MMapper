@@ -69,4 +69,6 @@ private Q_SLOTS:
     void remoteEditDialogCloseGuard();
     void remoteEditSessionQmlPath();
     void loadPasswordDialog();
+    void loadMapView();
+    void mapViewModelScrollMath();
 };

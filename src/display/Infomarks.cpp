@@ -14,10 +14,10 @@
 #include "../opengl/OpenGL.h"
 #include "../opengl/OpenGLTypes.h"
 #include "InfomarkSelection.h"
+#include "MapCanvasCore.h"
 #include "MapCanvasData.h"
 #include "MapCanvasRoomDrawer.h"
 #include "connectionselection.h"
-#include "mapcanvas.h"
 
 #include <cassert>
 #include <optional>
@@ -93,7 +93,7 @@ NODISCARD static FontFormatFlags getFontFormatFlags(const InfomarkClassEnum info
     return {};
 }
 
-BatchedInfomarksMeshes MapCanvas::getInfomarksMeshes()
+BatchedInfomarksMeshes MapCanvasCore::getInfomarksMeshes()
 {
     BatchedInfomarksMeshes result;
     {
@@ -220,11 +220,11 @@ void InfomarksMeshes::render()
     textMesh.render(common_state);
 }
 
-void MapCanvas::drawInfomark(InfomarksBatch &batch,
-                             const InfomarkHandle &marker,
-                             const int currentLayer,
-                             const glm::vec2 offset,
-                             const std::optional<Color> &overrideColor)
+void MapCanvasCore::drawInfomark(InfomarksBatch &batch,
+                                 const InfomarkHandle &marker,
+                                 const int currentLayer,
+                                 const glm::vec2 offset,
+                                 const std::optional<Color> &overrideColor)
 {
     if (!marker.exists()) {
         assert(false);
@@ -289,7 +289,7 @@ void MapCanvas::drawInfomark(InfomarksBatch &batch,
     }
 }
 
-void MapCanvas::paintNewInfomarkSelection()
+void MapCanvasCore::paintNewInfomarkSelection()
 {
     if (!hasSel1() || !hasSel2()) {
         return;
@@ -312,7 +312,7 @@ void MapCanvas::paintNewInfomarkSelection()
     }
 }
 
-void MapCanvas::paintSelectedInfomarks()
+void MapCanvasCore::paintSelectedInfomarks()
 {
     if (m_infoMarkSelection == nullptr
         && m_canvasMouseMode != CanvasMouseModeEnum::SELECT_INFOMARKS) {
@@ -381,7 +381,7 @@ void MapCanvas::paintSelectedInfomarks()
     batch.renderImmediate(GLRenderState());
 }
 
-void MapCanvas::paintBatchedInfomarks()
+void MapCanvasCore::paintBatchedInfomarks()
 {
     const auto wantInfomarks = (getTotalScaleFactor() >= getConfig().canvas.infomarkScaleCutoff);
     if (!wantInfomarks || !m_batches.infomarksMeshes.has_value()) {
@@ -398,7 +398,7 @@ void MapCanvas::paintBatchedInfomarks()
     infomarksMeshes.render();
 }
 
-void MapCanvas::updateInfomarkBatches()
+void MapCanvasCore::updateInfomarkBatches()
 {
     std::optional<BatchedInfomarksMeshes> &opt_infomarks = m_batches.infomarksMeshes;
     if (opt_infomarks.has_value() && !m_data.getNeedsMarkUpdate()) {

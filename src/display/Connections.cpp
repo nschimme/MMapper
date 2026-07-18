@@ -14,9 +14,9 @@
 #include "../opengl/OpenGL.h"
 #include "../opengl/OpenGLTypes.h"
 #include "ConnectionLineBuilder.h"
+#include "MapCanvasCore.h"
 #include "MapCanvasData.h"
 #include "connectionselection.h"
-#include "mapcanvas.h"
 
 #include <cassert>
 #include <cstdlib>
@@ -621,7 +621,7 @@ void ConnectionMeshes::render(const int thisLayer, const int focusedLayer) const
     redQuads.render(common_style);
 }
 
-void MapCanvas::paintNearbyConnectionPoints()
+void MapCanvasCore::paintNearbyConnectionPoints()
 {
     const bool isSelection = m_canvasMouseMode == CanvasMouseModeEnum::SELECT_CONNECTIONS;
     using CD = ConnectionSelection::ConnectionDescriptor;
@@ -701,7 +701,7 @@ void MapCanvas::paintNearbyConnectionPoints()
     getOpenGL().renderPoints(points, GLRenderState().withPointSize(VALID_CONNECTION_POINT_SIZE));
 }
 
-void MapCanvas::paintSelectedConnection()
+void MapCanvasCore::paintSelectedConnection()
 {
     if (isConnectionMode(m_canvasMouseMode)) {
         paintNearbyConnectionPoints();

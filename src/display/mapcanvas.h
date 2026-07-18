@@ -5,42 +5,28 @@
 // Author: Marek Krejza <krejza@gmail.com> (Caligor)
 // Author: Nils Schimmelmann <nschimme@gmail.com> (Jahara)
 
-#include "../clock/mumemoment.h"
-#include "../global/ChangeMonitor.h"
+// MapCanvas is a thin QOpenGLWindow shell around MapCanvasCore, which holds
+// all of the GL/paint/input/signal machinery. This split lets a future
+// QQuickFramebufferObject-based item drive the same MapCanvasCore without
+// depending on QOpenGLWindow (or QtWidgets) at all.
+//
+// MapCanvas re-exposes MapCanvasCore's public signal/slot surface by
+// forwarding (rather than by exposing a getCore() accessor) so that existing
+// callers (MainWindow, MapWindow, ...) don't need to change at all -- they
+// keep connecting to `MapCanvas::sig_*`/`MapCanvas::slot_*` exactly as before.
+
 #include "../global/Signal2.h"
 #include "../map/PromptFlags.h"
 #include "../mapdata/roomselection.h"
-#include "../opengl/Font.h"
-#include "../opengl/FontFormatFlags.h"
-#include "../opengl/OpenGL.h"
-#include "../opengl/Weather.h"
-#include "FrameManager.h"
-#include "Infomarks.h"
-#include "MapCanvasData.h"
-#include "MapCanvasRoomDrawer.h"
-#include "Textures.h"
+#include "CanvasMouseModeEnum.h"
+#include "MapCanvasCore.h"
 
-#include <array>
-#include <chrono>
-#include <cstddef>
-#include <cstdint>
-#include <future>
-#include <map>
 #include <memory>
-#include <optional>
-#include <set>
-#include <variant>
-#include <vector>
 
-#include <glm/glm.hpp>
-
-#include <QColor>
-#include <QMatrix4x4>
 #include <QOpenGLDebugMessage>
 #include <QOpenGLWindow>
 #include <QtCore>
 
-class CharacterBatch;
 class ConnectionSelection;
 class Coordinate;
 class GameObserver;
@@ -50,106 +36,18 @@ class Mmapper2Group;
 class PrespammedPath;
 class QMouseEvent;
 class QNativeGestureEvent;
-class QOpenGLDebugLogger;
-class QOpenGLDebugMessage;
 class QTouchEvent;
 class QWheelEvent;
-class QWidget;
-class RoomSelFakeGL;
 
-class NODISCARD_QOBJECT MapCanvas final : public QOpenGLWindow,
-                                          private MapCanvasViewport,
-                                          private MapCanvasInputState
+class NODISCARD_QOBJECT MapCanvas final : public QOpenGLWindow, private ICanvasHost
 {
     Q_OBJECT
 
 public:
-    static constexpr const int SCROLL_SCALE = 64;
+    static constexpr const int SCROLL_SCALE = MapCanvasCore::SCROLL_SCALE;
 
 private:
-    struct NODISCARD Diff final
-    {
-        using DiffQuadVector = std::vector<RoomQuadTexVert>;
-
-        struct NODISCARD MaybeDataOrMesh final
-            : public std::variant<std::monostate, DiffQuadVector, UniqueMesh>
-        {
-        public:
-            using base = std::variant<std::monostate, DiffQuadVector, UniqueMesh>;
-            using base::base;
-
-        public:
-            NODISCARD bool empty() const { return std::holds_alternative<std::monostate>(*this); }
-            NODISCARD bool hasData() const { return std::holds_alternative<DiffQuadVector>(*this); }
-            NODISCARD bool hasMesh() const { return std::holds_alternative<UniqueMesh>(*this); }
-
-        public:
-            NODISCARD const DiffQuadVector &getData() const
-            {
-                return std::get<DiffQuadVector>(*this);
-            }
-            NODISCARD const UniqueMesh &getMesh() const { return std::get<UniqueMesh>(*this); }
-
-            void render(OpenGL &gl, const MMTextureId texId)
-            {
-                if (empty()) {
-                    assert(false);
-                    return;
-                }
-
-                if (hasData()) {
-                    *this = gl.createRoomQuadTexBatch(getData(), texId);
-                    assert(hasMesh());
-                    // REVISIT: rendering immediately after uploading the mesh may lag,
-                    // so consider delaying until the data is already on the GPU.
-                }
-
-                if (!hasMesh()) {
-                    assert(false);
-                    return;
-                }
-                auto &mesh = getMesh();
-                mesh.render(gl.getDefaultRenderState().withBlend(BlendModeEnum::TRANSPARENCY));
-            }
-        };
-
-        struct NODISCARD HighlightDiff final
-        {
-            Map saved;
-            Map current;
-            MaybeDataOrMesh highlights;
-        };
-
-        std::optional<std::future<HighlightDiff>> futureHighlight;
-        std::optional<HighlightDiff> highlight;
-
-        NODISCARD bool isUpToDate(const Map &saved, const Map &current) const;
-        NODISCARD bool hasRelatedDiff(const Map &save) const;
-        void cancelUpdates(const Map &saved);
-        void maybeAsyncUpdate(const Map &saved, const Map &current);
-
-        void resetExistingMeshesAndIgnorePendingRemesh()
-        {
-            futureHighlight.reset();
-            highlight.reset();
-        }
-    };
-
-private:
-    MapScreen m_mapScreen;
-    GameObserver &m_observer;
-    mutable OpenGL m_opengl;
-    GLFont m_glFont;
-    Batches m_batches;
-    MapCanvasTextures m_textures;
-    MapData &m_data;
-    Mmapper2Group &m_groupManager;
-    Diff m_diff;
-    FrameManager m_frameManager;
-    std::unique_ptr<QOpenGLDebugLogger> m_logger;
-    Signal2Lifetime m_lifetime;
-    GLWeather m_weather;
-    bool m_cleanedUp = false;
+    MapCanvasCore m_core;
 
 public:
     explicit MapCanvas(MapData &mapData,
@@ -163,131 +61,62 @@ public:
     NODISCARD static MapCanvas *getPrimary();
 
 private:
-    NODISCARD inline auto &getOpenGL() { return m_opengl; }
-    NODISCARD inline auto &getGLFont() { return m_glFont; }
+    // ICanvasHost
+    void requestCanvasUpdate() override { update(); }
+    NODISCARD qreal hostDevicePixelRatio() const override { return devicePixelRatioF(); }
+    NODISCARD QSize hostSize() const override
+    {
+        return QSize(QOpenGLWindow::width(), QOpenGLWindow::height());
+    }
+    void setHostCursor(const Qt::CursorShape shape) override { QOpenGLWindow::setCursor(shape); }
+
+private:
     void cleanupOpenGL();
+
+private slots:
+    // Widget-facing reactions to MapCanvasCore's Qt-widgets-free failure
+    // signals; see the comments on sig_glInitFailed/sig_glFatalError in
+    // MapCanvasCore.h.
+    void handleGlInitFailed(const QString &reason);
+    void handleGlFatalError(const QString &message);
 
 public:
     void shuttingDown();
 
 public:
-    using MapCanvasViewport::getTotalScaleFactor;
-    void setZoom(float zoom)
-    {
-        ScaleFactor sf = getScaleFactor();
-        sf.set(zoom);
-        setScaleFactor(sf);
-        zoomChanged();
-    }
-    NODISCARD float getRawZoom() const { return getScaleFactor().getRaw(); }
+    void setZoom(float zoom) { m_core.setZoom(zoom); }
+    NODISCARD float getRawZoom() const { return m_core.getRawZoom(); }
+    NODISCARD float getTotalScaleFactor() const { return m_core.getTotalScaleFactor(); }
 
 public:
     NODISCARD auto width() const { return QOpenGLWindow::width(); }
     NODISCARD auto height() const { return QOpenGLWindow::height(); }
     NODISCARD QRect rect() const { return QRect(0, 0, width(), height()); }
 
-private:
-    void onMovement();
-    void startMoving(const MouseSel &startPos);
-    void stopMoving();
-
-private:
-    void reportGLVersion();
-    NODISCARD bool isBlacklistedDriver();
-
-protected:
-    void onViewProjDirty() const override;
-
 protected:
     void initializeGL() override;
-    void paintGL() override;
-
-    void drawGroupCharacters(CharacterBatch &characterBatch, ServerRoomId yourServerId);
-
-    void resizeGL(int width, int height) override;
-    void mousePressEvent(QMouseEvent *event) override { handleMousePress(event); }
-    void mouseReleaseEvent(QMouseEvent *event) override { handleMouseRelease(event); }
-    void mouseMoveEvent(QMouseEvent *event) override { handleMouseMove(event); }
-    void wheelEvent(QWheelEvent *event) override { handleWheel(event); }
-    void touchEvent(QTouchEvent *event) override { handleTouch(event); }
-    bool event(QEvent *e) override;
-
-public:
-    // Bodies of the QOpenGLWindow event overrides above, exposed as plain
-    // QEvent-taking entry points so a future QQuickItem host (which has its
-    // own, differently-typed event overrides) can forward into the same
-    // logic. handleMouseMove() further delegates the position+modifiers
-    // core to handlePointerMove(), which a future hover-event path (QQuickItem
-    // hoverMoveEvent has no button/press semantics) can call directly.
-    void handleMousePress(QMouseEvent *event);
-    void handleMouseRelease(QMouseEvent *event);
-    void handleMouseMove(QMouseEvent *event);
-    void handlePointerMove(glm::vec2 pos, Qt::KeyboardModifiers modifiers, Qt::MouseButtons buttons);
-    void handleWheel(QWheelEvent *event);
-    void handleTouch(QTouchEvent *event);
-    void handleNativeGesture(QNativeGestureEvent *event);
-
-private:
-    void initLogger();
-
-    void resizeGL() { resizeGL(width(), height()); }
-    void initTextures();
-    void updateTextures();
-    void updateMultisampling();
-
-    NODISCARD std::shared_ptr<InfomarkSelection> getInfomarkSelection(const MouseSel &sel);
+    void paintGL() override { m_core.hostPaintGL(); }
+    void resizeGL(int width, int height) override
+    {
+        m_core.hostResize(width, height, devicePixelRatioF());
+    }
+    void mousePressEvent(QMouseEvent *event) override { m_core.handleMousePress(event); }
+    void mouseReleaseEvent(QMouseEvent *event) override { m_core.handleMouseRelease(event); }
+    void mouseMoveEvent(QMouseEvent *event) override { m_core.handleMouseMove(event); }
+    void wheelEvent(QWheelEvent *event) override { m_core.handleWheel(event); }
+    void touchEvent(QTouchEvent *event) override { m_core.handleTouch(event); }
+    bool event(QEvent *e) override
+    {
+        if (m_core.handleGenericEvent(e)) {
+            return true;
+        }
+        return QOpenGLWindow::event(e);
+    }
 
 public:
-    void setMvp(const glm::mat4 &viewProj);
-    void setViewportAndMvp(int width, int height);
-
-    void zoomAt(float factor, glm::vec2 mousePos);
-    void handleZoomAtEvent(const QInputEvent *event, float deltaFactor);
-
-    NODISCARD BatchedInfomarksMeshes getInfomarksMeshes();
-    void drawInfomark(InfomarksBatch &batch,
-                      const InfomarkHandle &marker,
-                      int currentLayer,
-                      glm::vec2 offset = {},
-                      const std::optional<Color> &overrideColor = std::nullopt);
-    void updateBatches();
-    void finishPendingMapBatches();
-    void updateMapBatches();
-    void updateInfomarkBatches();
-
-    void actuallyPaintGL();
-    void paintMap();
-    void renderMapBatches();
-    void paintBatchedInfomarks();
-    void paintSelections();
-    void paintSelectionArea();
-    void paintNewInfomarkSelection();
-    void paintSelectedRooms();
-    void paintSelectedRoom(RoomSelFakeGL &, const RawRoom &room);
-    void paintSelectedConnection();
-    void paintNearbyConnectionPoints();
-    void paintSelectedInfomarks();
-    void paintCharacters();
-    void paintDifferences();
-    void forceUpdateMeshes();
-
-public:
-    void slot_rebuildMeshes() { forceUpdateMeshes(); }
-    void infomarksChanged();
-    void layerChanged();
-    void slot_mapChanged();
-    void slot_requestUpdate();
-    void screenChanged();
-    void selectionChanged();
-    void graphicsSettingsChanged();
-    void zoomChanged() { emit sig_zoomChanged(getRawZoom()); }
-    void syncViewportConfig();
-
-public:
-    void userPressedEscape(bool);
-
-private:
-    void log(const QString &msg) { emit sig_log("MapCanvas", msg); }
+    void userPressedEscape(bool pressed) { m_core.userPressedEscape(pressed); }
+    void screenChanged() { m_core.screenChanged(); }
+    void graphicsSettingsChanged() { m_core.graphicsSettingsChanged(); }
 
 signals:
     void sig_onCenter(glm::vec2 worldCoord);
@@ -310,41 +139,42 @@ signals:
     void sig_dismissContextMenu();
 
 public slots:
-    void slot_onForcedPositionChange();
-    void slot_createRoom();
+    void slot_onForcedPositionChange() { m_core.slot_onForcedPositionChange(); }
+    void slot_createRoom() { m_core.slot_createRoom(); }
 
-    void slot_setCanvasMouseMode(CanvasMouseModeEnum mode);
+    void slot_setCanvasMouseMode(CanvasMouseModeEnum mode) { m_core.slot_setCanvasMouseMode(mode); }
 
-    void slot_setScroll(const glm::vec2 worldPos);
-    // void setScroll(const glm::ivec2 ) = delete; // moc tries to call the wrong one if you define this
-    void slot_setHorizontalScroll(float worldX);
-    void slot_setVerticalScroll(float worldY);
+    void slot_setScroll(const glm::vec2 worldPos) { m_core.slot_setScroll(worldPos); }
+    void slot_setHorizontalScroll(float worldX) { m_core.slot_setHorizontalScroll(worldX); }
+    void slot_setVerticalScroll(float worldY) { m_core.slot_setVerticalScroll(worldY); }
 
-    void slot_zoomIn();
-    void slot_zoomOut();
-    void slot_zoomReset();
+    void slot_zoomIn() { m_core.slot_zoomIn(); }
+    void slot_zoomOut() { m_core.slot_zoomOut(); }
+    void slot_zoomReset() { m_core.slot_zoomReset(); }
 
-    void slot_layerUp();
-    void slot_layerDown();
-    void slot_layerReset();
+    void slot_layerUp() { m_core.slot_layerUp(); }
+    void slot_layerDown() { m_core.slot_layerDown(); }
+    void slot_layerReset() { m_core.slot_layerReset(); }
 
-    void slot_setRoomSelection(const SigRoomSelection &);
-    void slot_setConnectionSelection(const std::shared_ptr<ConnectionSelection> &);
-    void slot_setInfomarkSelection(const std::shared_ptr<InfomarkSelection> &);
-
-    void slot_clearRoomSelection() { slot_setRoomSelection(SigRoomSelection{}); }
-    void slot_clearConnectionSelection() { slot_setConnectionSelection(nullptr); }
-    void slot_clearInfomarkSelection() { slot_setInfomarkSelection(nullptr); }
-
-    void slot_clearAllSelections()
+    void slot_setRoomSelection(const SigRoomSelection &sel) { m_core.slot_setRoomSelection(sel); }
+    void slot_setConnectionSelection(const std::shared_ptr<ConnectionSelection> &sel)
     {
-        slot_clearRoomSelection();
-        slot_clearConnectionSelection();
-        slot_clearInfomarkSelection();
+        m_core.slot_setConnectionSelection(sel);
+    }
+    void slot_setInfomarkSelection(const std::shared_ptr<InfomarkSelection> &sel)
+    {
+        m_core.slot_setInfomarkSelection(sel);
     }
 
-    void slot_dataLoaded();
-    void slot_moveMarker(RoomId id);
+    void slot_clearRoomSelection() { m_core.slot_clearRoomSelection(); }
+    void slot_clearConnectionSelection() { m_core.slot_clearConnectionSelection(); }
+    void slot_clearInfomarkSelection() { m_core.slot_clearInfomarkSelection(); }
+    void slot_clearAllSelections() { m_core.slot_clearAllSelections(); }
 
-    void slot_onMessageLoggedDirect(const QOpenGLDebugMessage &message);
+    void slot_dataLoaded() { m_core.slot_dataLoaded(); }
+    void slot_moveMarker(RoomId id) { m_core.slot_moveMarker(id); }
+
+    void slot_rebuildMeshes() { m_core.slot_rebuildMeshes(); }
+    void slot_mapChanged() { m_core.slot_mapChanged(); }
+    void slot_requestUpdate() { m_core.slot_requestUpdate(); }
 };

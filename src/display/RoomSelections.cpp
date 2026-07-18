@@ -8,10 +8,10 @@
 #include "../opengl/OpenGL.h"
 #include "../opengl/OpenGLTypes.h"
 #include "Characters.h"
+#include "MapCanvasCore.h"
 #include "MapCanvasData.h"
 #include "ProjectionUtils.h"
 #include "Textures.h"
-#include "mapcanvas.h"
 
 #include <cstdlib>
 #include <memory>
@@ -115,7 +115,7 @@ public:
     }
 };
 
-void MapCanvas::paintSelectedRoom(RoomSelFakeGL &gl, const RawRoom &room)
+void MapCanvasCore::paintSelectedRoom(RoomSelFakeGL &gl, const RawRoom &room)
 {
     const Coordinate roomPos = room.getPosition();
     const int x = roomPos.x;
@@ -164,7 +164,7 @@ void MapCanvas::paintSelectedRoom(RoomSelFakeGL &gl, const RawRoom &room)
     }
 }
 
-void MapCanvas::paintSelectedRooms()
+void MapCanvasCore::paintSelectedRooms()
 {
     if (!m_roomSelection || m_roomSelection->empty()) {
         return;

@@ -277,6 +277,11 @@ void OpenGL::glViewport(GLint x, GLint y, GLsizei w, GLsizei h)
     getFunctions().glViewport(x, y, w, h);
 }
 
+void OpenGL::glFinish()
+{
+    getFunctions().glFinish();
+}
+
 void OpenGL::setDevicePixelRatio(const float devicePixelRatio)
 {
     getFunctions().setDevicePixelRatio(devicePixelRatio);

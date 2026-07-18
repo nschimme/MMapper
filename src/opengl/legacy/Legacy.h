@@ -206,6 +206,7 @@ public:
     using Base::glDrawElementsInstanced;
     using Base::glEnable;
     using Base::glEnableVertexAttribArray;
+    using Base::glFinish;
     using Base::glGenBuffers;
     using Base::glGenerateMipmap;
     using Base::glGenTransformFeedbacks;

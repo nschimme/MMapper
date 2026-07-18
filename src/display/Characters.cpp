@@ -12,9 +12,9 @@
 #include "../opengl/LineRendering.h"
 #include "../opengl/OpenGL.h"
 #include "../opengl/OpenGLTypes.h"
+#include "MapCanvasCore.h"
 #include "MapCanvasData.h"
 #include "Textures.h"
-#include "mapcanvas.h"
 #include "prespammedpath.h"
 
 #include <array>
@@ -463,7 +463,7 @@ void CharacterBatch::CharFakeGL::reallyDrawNames(OpenGL &gl, GLFont &font)
     m_names.clear();
 }
 
-void MapCanvas::paintCharacters()
+void MapCanvasCore::paintCharacters()
 {
     if (m_data.isEmpty()) {
         return;
@@ -502,7 +502,7 @@ void MapCanvas::paintCharacters()
     characterBatch.reallyDraw(getOpenGL(), m_textures, getGLFont());
 }
 
-void MapCanvas::drawGroupCharacters(CharacterBatch &batch, ServerRoomId yourServerId)
+void MapCanvasCore::drawGroupCharacters(CharacterBatch &batch, ServerRoomId yourServerId)
 {
     if (m_data.isEmpty()) {
         return;

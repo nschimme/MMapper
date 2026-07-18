@@ -10,8 +10,8 @@
 #include "../opengl/OpenGLTypes.h"
 #include "../opengl/Weather.h"
 #include "Filenames.h"
+#include "MapCanvasCore.h"
 #include "RoadIndex.h"
-#include "mapcanvas.h"
 
 #include <algorithm>
 #include <array>
@@ -447,7 +447,7 @@ NODISCARD static std::vector<SharedMMTexture> combine(Types &&...things)
     return tmp;
 }
 
-void MapCanvas::initTextures()
+void MapCanvasCore::initTextures()
 {
     MapCanvasTextures &textures = this->m_textures;
     auto &opengl = this->getOpenGL();
@@ -752,7 +752,7 @@ MapCanvasTexturesProxy getProxy(const MapCanvasTextures &mct)
 }
 } // namespace mctp
 
-void MapCanvas::updateTextures()
+void MapCanvasCore::updateTextures()
 {
     const bool wantTrilinear = getConfig().canvas.trilinearFiltering.get();
     m_textures.for_each(

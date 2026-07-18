@@ -18,7 +18,7 @@
 #include <QSurfaceFormat>
 #include <qopengl.h>
 
-class MapCanvas;
+class MapCanvasCore;
 class GLWeather;
 namespace Legacy {
 class Functions;
@@ -43,7 +43,7 @@ public:
     OpenGL &operator=(const OpenGL &) = delete;
 
 public:
-    NODISCARD const auto &getSharedFunctions(Badge<MapCanvas>) { return getSharedFunctions(); }
+    NODISCARD const auto &getSharedFunctions(Badge<MapCanvasCore>) { return getSharedFunctions(); }
     NODISCARD const auto &getSharedFunctions(Badge<GLWeather>) { return getSharedFunctions(); }
 
 public:
@@ -52,6 +52,7 @@ public:
     void initializeRenderer(float devicePixelRatio);
     NODISCARD const char *glGetString(GLenum name);
     NODISCARD int glGetInteger(GLenum name);
+    void glFinish();
     void setDevicePixelRatio(float devicePixelRatio);
     NODISCARD float getDevicePixelRatio() const;
     NODISCARD bool isRendererInitialized() const { return m_rendererInitialized; }

@@ -72,6 +72,9 @@ set(mmapper_SRCS
     display/MapBatches.cpp
     display/MapBatches.h
     display/MapCanvasConfig.h
+    display/MapCanvasCore.cpp
+    display/MapCanvasCore.h
+    display/MapCanvasCore_gl.cpp
     display/MapCanvasData.cpp
     display/MapCanvasData.h
     display/MapCanvasRoomDrawer.cpp

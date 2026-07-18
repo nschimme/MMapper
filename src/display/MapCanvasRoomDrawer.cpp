@@ -29,9 +29,9 @@
 #include "../opengl/OpenGLTypes.h"
 #include "../opengl/legacy/VBO.h"
 #include "ConnectionLineBuilder.h"
+#include "MapCanvasCore.h" // hack, since we're now definining some of its symbols
 #include "MapCanvasData.h"
 #include "RoadIndex.h"
-#include "mapcanvas.h" // hack, since we're now definining some of its symbols
 
 #include <cassert>
 #include <cstdlib>

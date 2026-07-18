@@ -5,7 +5,6 @@
 
 #include "../configuration/configuration.h"
 #include "../global/ConfigConsts.h"
-#include "ManagePasswordDialog.h"
 
 #include <optional>
 
@@ -16,6 +15,10 @@
 #include <QSettings>
 #include <QSslSocket>
 #include <QTemporaryFile>
+
+#ifndef MMAPPER_WITH_QML
+#include "ManagePasswordDialog.h"
+#endif
 
 // Order of entries in characterEncodingIndex / themeIndex; mirrors the
 // static_asserts at the top of generalpage.cpp.
@@ -31,6 +34,34 @@ GeneralPageAdapter::GeneralPageAdapter(QWidget *const dialogParent, QObject *con
     , m_dialogParent(dialogParent)
     , m_passwordConfig(this)
 {
+#ifndef MMAPPER_WITH_QML
+    // See the PasswordDialogLauncher doc comment in GeneralPageAdapter.h:
+    // under MMAPPER_WITH_QML, MainWindow overrides this via
+    // setPasswordDialogLauncher() once it constructs the QmlDialog-hosting
+    // equivalent; this .cpp can't do that itself (see the class doc comment
+    // for why).
+    m_passwordDialogLauncher = [](const QString &accountName,
+                                  const QString &password,
+                                  bool /*hasStoredPassword*/,
+                                  QWidget *const parent,
+                                  std::function<void(const QString &, const QString &)> onAccepted,
+                                  std::function<void()> onDeleteRequested) {
+        auto *dlg = new ManagePasswordDialog(parent);
+        dlg->setAttribute(Qt::WA_DeleteOnClose);
+        dlg->setAccountName(accountName);
+        if (!password.isEmpty()) {
+            dlg->setPassword(password);
+        }
+        connect(dlg, &ManagePasswordDialog::sig_deleteRequested, dlg, [onDeleteRequested]() {
+            onDeleteRequested();
+        });
+        connect(dlg, &QDialog::accepted, dlg, [dlg, onAccepted]() {
+            onAccepted(dlg->accountName(), dlg->password());
+        });
+        dlg->open();
+    };
+#endif
+
     connect(&m_passwordConfig, &PasswordConfig::sig_error, this, [this](const QString &msg) {
         qWarning() << msg;
         auto *box = new QMessageBox(QMessageBox::Warning,
@@ -51,22 +82,18 @@ GeneralPageAdapter::GeneralPageAdapter(QWidget *const dialogParent, QObject *con
                 }
                 m_passwordRequesting = false;
                 const QString accountName = getConfig().account.accountName;
-                auto *dlg = new ManagePasswordDialog(m_dialogParent);
-                dlg->setAttribute(Qt::WA_DeleteOnClose);
-                dlg->setAccountName(accountName);
-                dlg->setPassword(password);
-                connect(dlg, &ManagePasswordDialog::sig_deleteRequested, this, [this]() {
-                    m_passwordConfig.deletePassword();
-                });
-                connect(dlg, &QDialog::accepted, this, [this, dlg]() {
-                    const QString newAccountName = dlg->accountName();
-                    const QString newPassword = dlg->password();
-                    if (!newPassword.isEmpty()) {
-                        setConfig().account.accountName = newAccountName;
-                        m_passwordConfig.setPassword(newPassword);
-                    }
-                });
-                dlg->open();
+                m_passwordDialogLauncher(
+                    accountName,
+                    password,
+                    /*hasStoredPassword=*/true,
+                    m_dialogParent,
+                    [this](const QString &newAccountName, const QString &newPassword) {
+                        if (!newPassword.isEmpty()) {
+                            setConfig().account.accountName = newAccountName;
+                            m_passwordConfig.setPassword(newPassword);
+                        }
+                    },
+                    [this]() { m_passwordConfig.deletePassword(); });
             });
 
     connect(&m_passwordConfig, &PasswordConfig::sig_passwordSaved, this, [this]() {
@@ -363,21 +390,18 @@ void GeneralPageAdapter::managePassword()
         return;
     }
 
-    auto *dlg = new ManagePasswordDialog(m_dialogParent);
-    dlg->setAttribute(Qt::WA_DeleteOnClose);
-    dlg->setAccountName(accountName);
-    connect(dlg, &ManagePasswordDialog::sig_deleteRequested, this, [this]() {
-        m_passwordConfig.deletePassword();
-    });
-    connect(dlg, &QDialog::accepted, this, [this, dlg]() {
-        const QString newAccountName = dlg->accountName();
-        const QString password = dlg->password();
-        if (!password.isEmpty()) {
-            setConfig().account.accountName = newAccountName;
-            m_passwordConfig.setPassword(password);
-        }
-    });
-    dlg->open();
+    m_passwordDialogLauncher(
+        accountName,
+        QString(),
+        /*hasStoredPassword=*/false,
+        m_dialogParent,
+        [this](const QString &newAccountName, const QString &password) {
+            if (!password.isEmpty()) {
+                setConfig().account.accountName = newAccountName;
+                m_passwordConfig.setPassword(password);
+            }
+        },
+        [this]() { m_passwordConfig.deletePassword(); });
 }
 
 void GeneralPageAdapter::factoryReset()

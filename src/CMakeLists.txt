@@ -545,8 +545,8 @@ set(mmapper_SRCS
     preferences/PathMachinePageAdapter.h
     preferences/PreferencesController.cpp
     preferences/PreferencesController.h
-    preferences/ManagePasswordDialog.cpp
-    preferences/ManagePasswordDialog.h
+    preferences/PasswordDialogController.cpp
+    preferences/PasswordDialogController.h
     proxy/AbstractSocket.h
     proxy/AbstractTelnet.cpp
     proxy/AbstractTelnet.h
@@ -682,6 +682,8 @@ if(NOT WITH_QML)
         preferences/AnsiColorDialog.h
         preferences/ansicombo.cpp
         preferences/ansicombo.h
+        preferences/ManagePasswordDialog.cpp
+        preferences/ManagePasswordDialog.h
         preferences/audiopage.cpp
         preferences/audiopage.h
         preferences/autologpage.cpp
@@ -755,7 +757,6 @@ if(EMSCRIPTEN)
 endif()
 
 set(mmapper_UIS
-    preferences/ManagePasswordDialog.ui
 )
 
 if(NOT WITH_QML)
@@ -784,6 +785,10 @@ if(NOT WITH_QML)
     # WITH_QML) is driven by AnsiColorPickerController rather than a
     # generated ui_AnsiColorDialog.h.
     list(APPEND mmapper_UIS preferences/AnsiColorDialog.ui)
+    # ManagePasswordDialog's .ui; PasswordDialog.qml (used instead when
+    # WITH_QML) is driven by PasswordDialogController rather than a
+    # generated ui_ManagePasswordDialog.h.
+    list(APPEND mmapper_UIS preferences/ManagePasswordDialog.ui)
     # ConfigDialog and its nine widget pages' .ui files; PreferencesDialog.qml
     # (used instead when WITH_QML) is driven by PreferencesController and the
     # per-page adapters rather than generated ui_*.h headers.
@@ -889,6 +894,7 @@ if(WITH_QML)
     set_source_files_properties(qml/ClientPanel.qml PROPERTIES QT_RESOURCE_ALIAS "ClientPanel.qml")
     set_source_files_properties(qml/AnsiViewDialog.qml PROPERTIES QT_RESOURCE_ALIAS "AnsiViewDialog.qml")
     set_source_files_properties(qml/AnsiColorPickerDialog.qml PROPERTIES QT_RESOURCE_ALIAS "AnsiColorPickerDialog.qml")
+    set_source_files_properties(qml/PasswordDialog.qml PROPERTIES QT_RESOURCE_ALIAS "PasswordDialog.qml")
     set_source_files_properties(qml/AboutDialog.qml PROPERTIES QT_RESOURCE_ALIAS "AboutDialog.qml")
     set_source_files_properties(qml/UpdateDialog.qml PROPERTIES QT_RESOURCE_ALIAS "UpdateDialog.qml")
     set_source_files_properties(qml/FindRoomsDialog.qml PROPERTIES QT_RESOURCE_ALIAS "FindRoomsDialog.qml")
@@ -928,6 +934,7 @@ if(WITH_QML)
             qml/ClientPanel.qml
             qml/AnsiViewDialog.qml
             qml/AnsiColorPickerDialog.qml
+            qml/PasswordDialog.qml
             qml/AboutDialog.qml
             qml/UpdateDialog.qml
             qml/FindRoomsDialog.qml
@@ -948,6 +955,8 @@ if(WITH_QML)
             qml/AnsiViewDialog.cpp
             qml/AnsiColorPickerLauncher.h
             qml/AnsiColorPickerLauncher.cpp
+            qml/PasswordDialogLauncher.h
+            qml/PasswordDialogLauncher.cpp
             qml/QmlDockWidget.h
             qml/QmlDockWidget.cpp
             qml/QmlDialog.h

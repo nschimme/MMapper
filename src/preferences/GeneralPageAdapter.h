@@ -5,6 +5,8 @@
 #include "../configuration/PasswordConfig.h"
 #include "../global/macros.h"
 
+#include <functional>
+
 #include <QObject>
 #include <QPointer>
 #include <QString>
@@ -22,17 +24,41 @@ class QWidget;
 // static_asserts at the top of generalpage.cpp, mirrored here); QML owns the
 // label list.
 //
-// managePassword()/factoryReset()/exportConfig()/importConfig() keep every
-// native dialog (QMessageBox confirmations, QFileDialog content APIs, and
-// the keychain round-trip via PasswordConfig + ManagePasswordDialog)
-// exactly as generalpage.cpp implements them; see managePassword()'s
-// definition in GeneralPageAdapter.cpp for why this stays off QML entirely.
-// factoryReset()/importConfig() emit sig_reloadConfig(), which
+// factoryReset()/exportConfig()/importConfig() keep every native dialog
+// (QMessageBox confirmations, QFileDialog content APIs) exactly as
+// generalpage.cpp implements them -- those manager-level flows are not part
+// of the QML migration. managePassword()'s keychain round-trip via
+// PasswordConfig is also unchanged, but the dialog it pops -- previously
+// always the native ManagePasswordDialog -- is now injected via
+// PasswordDialogLauncher, the same seam ParserPageAdapter::setColorPicker()
+// uses for AnsiColorDialog (see that class's ColorPicker doc comment): this
+// .cpp can't construct a QmlDialog directly because it's compiled straight
+// into TestMainWindow/TestQml (see tests/CMakeLists.txt's
+// preferences_adapter_SRCS), which link neither Qt6::Quick nor mm_qml.
+// MainWindow wires setPasswordDialogLauncher() to
+// qml/PasswordDialogLauncher.h's password_dialog::manage() in
+// slot_onPreferences(); the default (set here under NOT WITH_QML) is the
+// native ManagePasswordDialog, so this class still behaves correctly if
+// nothing calls setPasswordDialogLauncher(), same as the WITH_QML=OFF build
+// does today. factoryReset()/importConfig() emit sig_reloadConfig(), which
 // PreferencesController forwards into reloadAll(), mirroring
 // GeneralPage::sig_reloadConfig() -> ConfigDialog::slot_loadConfig().
 class NODISCARD_QOBJECT GeneralPageAdapter final : public QObject
 {
     Q_OBJECT
+
+public:
+    // Overrides the default (native ManagePasswordDialog) launcher; see the
+    // class doc comment above. onAccepted/onDeleteRequested mirror
+    // ManagePasswordDialog's sig_deleteRequested/QDialog::accepted handlers
+    // exactly (see managePassword()'s definition).
+    using PasswordDialogLauncher = std::function<
+        void(const QString &accountName,
+             const QString &password,
+             bool hasStoredPassword,
+             QWidget *parent,
+             std::function<void(const QString &accountName, const QString &password)> onAccepted,
+             std::function<void()> onDeleteRequested)>;
 
     Q_PROPERTY(QString remoteName READ getRemoteName WRITE setRemoteName NOTIFY sig_changed)
     Q_PROPERTY(int remotePort READ getRemotePort WRITE setRemotePort NOTIFY sig_changed)
@@ -80,9 +106,18 @@ private:
     QPointer<QWidget> m_dialogParent;
     PasswordConfig m_passwordConfig;
     bool m_passwordRequesting = false;
+    PasswordDialogLauncher m_passwordDialogLauncher;
 
 public:
     explicit GeneralPageAdapter(QWidget *dialogParent, QObject *parent);
+
+public:
+    // Not Q_INVOKABLE: only MainWindow (C++) calls this, never QML. See the
+    // PasswordDialogLauncher doc comment above.
+    void setPasswordDialogLauncher(PasswordDialogLauncher launcher)
+    {
+        m_passwordDialogLauncher = std::move(launcher);
+    }
 
 public:
     NODISCARD QString getRemoteName() const;

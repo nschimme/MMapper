@@ -82,11 +82,13 @@
 #include "../clock/ClockAdapter.h"
 #include "../group/GroupController.h"
 #include "../media/DescriptionAdapter.h"
+#include "../preferences/GeneralPageAdapter.h"
 #include "../preferences/ParserPageAdapter.h"
 #include "../preferences/PreferencesController.h"
 #include "../qml/AnsiColorPickerLauncher.h"
 #include "../qml/DescriptionImageProvider.h"
 #include "../qml/GroupIconProvider.h"
+#include "../qml/PasswordDialogLauncher.h"
 #include "../qml/QmlConfig.h"
 #include "../qml/QmlDialog.h"
 #include "../qml/QmlDockWidget.h"
@@ -1957,6 +1959,24 @@ void MainWindow::slot_onPreferences()
                                    std::function<void(QString)> callback) {
                 ansi_color_picker::getColor(ansiString, colorDialogParent, std::move(callback));
             });
+
+        // See GeneralPageAdapter.h's PasswordDialogLauncher doc comment for
+        // why this can't be wired up inside GeneralPageAdapter.cpp itself.
+        deref(controller->getGeneral())
+            .setPasswordDialogLauncher(
+                [](const QString &accountName,
+                   const QString &password,
+                   bool hasStoredPassword,
+                   QWidget *const dialogParent,
+                   std::function<void(const QString &, const QString &)> onAccepted,
+                   std::function<void()> onDeleteRequested) {
+                    password_dialog::manage(accountName,
+                                            password,
+                                            hasStoredPassword,
+                                            dialogParent,
+                                            std::move(onAccepted),
+                                            std::move(onDeleteRequested));
+                });
 
         connect(controller,
                 &PreferencesController::sig_graphicsSettingsChanged,

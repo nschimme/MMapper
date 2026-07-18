@@ -35,6 +35,7 @@
 #include "../src/mpi/remoteedit.h"
 #include "../src/mpi/remoteeditsession.h"
 #include "../src/observer/gameobserver.h"
+#include "../src/preferences/PasswordDialogController.h"
 #include "../src/preferences/PreferencesController.h"
 #include "../src/proxy/GmcpMessage.h"
 #include "../src/qml/DescriptionImageProvider.h"
@@ -3185,6 +3186,57 @@ void TestQml::remoteEditSessionQmlPath()
     QCOMPARE(saveSpy.at(0).at(0).value<RemoteSessionId>(), sessionId);
     QCOMPARE(cancelSpy.count(), 0);
     QTRY_VERIFY(hostDestroyedSpy.count() > 0);
+}
+
+void TestQml::loadPasswordDialog()
+{
+    // PasswordDialogController is widget-free and config-independent, so the
+    // real controller (not a stub) is used here, mirroring
+    // loadAnsiColorPickerDialog()'s use of a real AnsiColorPickerController.
+    PasswordDialogController controller(QStringLiteral("hero"),
+                                        QStringLiteral("hunter2"),
+                                        /*hasStoredPassword=*/true,
+                                        /*showPasswordControls=*/true,
+                                        nullptr);
+
+    QmlDialog dialog("t", "TestPasswordDialog", nullptr);
+    dialog.setContextProperty("passwordDialogController", &controller);
+    dialog.setQmlSource(QUrl(u"qrc:/qt/qml/MMapper/PasswordDialog.qml"_qs));
+
+    QQuickWidget *const quick = dialog.quickWidget();
+    QVERIFY(quick != nullptr);
+    while (quick->status() == QQuickWidget::Loading) {
+        QCoreApplication::processEvents();
+    }
+    QCOMPARE(quick->status(), QQuickWidget::Ready);
+    QQuickItem *const root = quick->rootObject();
+    QVERIFY(root != nullptr);
+
+    QQuickItem *const passwordField = root->findChild<QQuickItem *>("passwordField");
+    QVERIFY(passwordField != nullptr);
+    // TextInput.Password == 2, TextInput.Normal == 0 (QQuickTextInput's
+    // EchoMode enum); mirrors ManagePasswordDialog's showPassword toggle.
+    QCOMPARE(passwordField->property("echoMode").toInt(), 2);
+
+    QQuickItem *const viewButton = root->findChild<QQuickItem *>("viewButton");
+    QVERIFY(viewButton != nullptr);
+    viewButton->setProperty("checked", true);
+    QCOMPARE(passwordField->property("echoMode").toInt(), 0);
+    viewButton->setProperty("checked", false);
+    QCOMPARE(passwordField->property("echoMode").toInt(), 2);
+
+    QQuickItem *const deleteButton = root->findChild<QQuickItem *>("deleteButton");
+    QVERIFY(deleteButton != nullptr);
+    QCOMPARE(deleteButton->property("enabled").toBool(), true);
+    QCOMPARE(controller.getHasStoredPassword(), true);
+
+    // Clicking Delete (invoking the controller directly, mirroring how the
+    // QML Button's onClicked calls requestDelete()) mirrors
+    // ManagePasswordDialog's deleteButton handler: hasStoredPassword flips
+    // to false and the Delete button's enabled binding follows it.
+    controller.requestDelete();
+    QCOMPARE(controller.getHasStoredPassword(), false);
+    QCOMPARE(deleteButton->property("enabled").toBool(), false);
 }
 
 QTEST_MAIN(TestQml)

@@ -187,6 +187,8 @@ set(preferences_adapter_SRCS
     ../src/preferences/MumeProtocolPageAdapter.h
     ../src/preferences/ParserPageAdapter.cpp
     ../src/preferences/ParserPageAdapter.h
+    ../src/preferences/PasswordDialogController.cpp
+    ../src/preferences/PasswordDialogController.h
     ../src/preferences/PathMachinePageAdapter.cpp
     ../src/preferences/PathMachinePageAdapter.h
     ../src/preferences/PreferencesController.cpp

@@ -188,22 +188,30 @@ together with all nine preferences page widgets — `audiopage`, `autologpage`,
 `clientpage`, `generalpage`, `graphicspage` (+ its `AdvancedGraphics` helper),
 `grouppage`, `mumeprotocolpage`, `parserpage`, and
 `pathmachinepage` — each `.cpp`/`.h`/`.ui` (`AdvancedGraphics` has no `.ui` of
-its own). Two preferences-adjacent widgets
-deliberately did *not* move into this block and stay compiled unconditionally
-in both builds: `AnsiColorDialog` and `ManagePasswordDialog` (see
-"Preferences" under "Phase 6 notes" below for why). All of
+its own). Two preferences-adjacent widgets, `AnsiColorDialog` and
+`ManagePasswordDialog`, stayed compiled unconditionally in both builds
+through phase 6 (see "Preferences" under "Phase 6 notes" below for the
+original reasoning); both were ported to QML in phase 9 / Stage 1 (see
+"Phase 9 / Stage 1" below) and are now `if(NOT WITH_QML)`-gated like every
+other row in this table. All of
 the Widget classes exist solely as the `WITH_QML=OFF` escape hatch and are planned
 for deletion about one release cycle after the WebAssembly build ships with QML,
 once we're confident nobody needs to fall back to Widgets.
 
-`client/displaywidget.{h,cpp}` is a partial exception: it stays compiled
-unconditionally (never moves into the `if(NOT WITH_QML)` block) because
-`AnsiTextHelper`, defined there, is a general-purpose ANSI text renderer
-consumed outside the client entirely — `viewers/AnsiViewWindow.cpp` and
-`mpi/remoteeditwidget.cpp` still use it regardless of `WITH_QML`. (Since
-phase 8 its cursor-driven core lives in the widget-free
-`global/AnsiHtml.{h,cpp}` as `mmqt::AnsiTextToDocument`/`mmqt::ansiToHtml()`,
-with `AnsiTextHelper` reduced to a thin `QTextEdit` wrapper over it.) `client/ClientTelnet.{h,cpp}` similarly stays
+`client/displaywidget.{h,cpp}` stayed compiled unconditionally (never moved
+into the `if(NOT WITH_QML)` block with the rest of the client) through
+phase 8 because `AnsiTextHelper`, defined there, is a general-purpose ANSI
+text renderer consumed outside the client entirely — `viewers/AnsiViewWindow.cpp`
+and `mpi/remoteeditwidget.cpp` used it regardless of `WITH_QML`. Phase 8
+moved its cursor-driven core into the widget-free `global/AnsiHtml.{h,cpp}`
+as `mmqt::AnsiTextToDocument`/`mmqt::ansiToHtml()`, with `AnsiTextHelper`
+reduced to a thin `QTextEdit` wrapper over it; phase 9 / Stage 1 then ported
+both of `displaywidget`'s remaining outside consumers off it (`AnsiViewWindow`
+via `makeAnsiViewWindow()`'s QmlDialog path, `remoteeditwidget` via the new
+QML remote editor), so `client/displaywidget.{h,cpp}` -- along with
+`mpi/remoteeditwidget.{h,cpp}`, `mpi/findreplacewidget.{h,cpp}`, and
+`mpi/gotowidget.{h,cpp}` -- is now `if(NOT WITH_QML)`-gated too (see "Phase 9
+/ Stage 1" below). `client/ClientTelnet.{h,cpp}` still stays
 unconditional: it's the real telnet socket implementation that
 `ClientTelnetBackend` wraps, so both builds need it.
 
@@ -597,14 +605,16 @@ and pinned to the bottom (`positionViewAtEnd()`). One list model, two views,
 rather than `PreviewWidget`'s separate `QTextDocument` mirroring the main
 display's content.
 
-### `displaywidget` stays compiled unconditionally
+### `displaywidget` stayed compiled unconditionally through phase 8
 
 Unlike every other Widget class this phase retired, `client/displaywidget.{h,cpp}`
-was *not* moved into the `if(NOT WITH_QML)` block — see "Ported panels" above
-for why (`AnsiTextHelper` has consumers outside the client:
+was *not* moved into the `if(NOT WITH_QML)` block at this point — see "Ported
+panels" above for why (`AnsiTextHelper` had consumers outside the client:
 `AnsiViewWindow.cpp` and `remoteeditwidget.cpp`; `roomeditattrdlg.cpp` was
 one too until its phase-8 QML port switched that path to
-`mmqt::ansiToHtml()`).
+`mmqt::ansiToHtml()`). Phase 9 / Stage 1 ported both of those remaining
+outside consumers off it, so `displaywidget` moved into the `if(NOT WITH_QML)`
+block after all — see "Phase 9 / Stage 1" below.
 
 ## Phase 6 notes
 
@@ -749,22 +759,25 @@ widget's `finished` handler did — `sig_accepted()` needs no separate
 connection of its own because `dialog.accept()` always follows `ok()` in the
 same QML click handler, which fires `finished`).
 
-**Two pieces intentionally stayed native widgets, always compiled.** Unlike
-every other widget page, `AnsiColorDialog` (`src/preferences/AnsiColorDialog.{h,cpp,ui}`,
-with its `ansicombo.{h,cpp}` combo-box helper) and `ManagePasswordDialog`
+**Two pieces intentionally stayed native widgets, always compiled, through
+phase 8.** Unlike every other widget page, `AnsiColorDialog`
+(`src/preferences/AnsiColorDialog.{h,cpp,ui}`, with its `ansicombo.{h,cpp}`
+combo-box helper) and `ManagePasswordDialog`
 (`src/preferences/ManagePasswordDialog.{h,cpp,ui}`) were **not** ported to
-QML and were **not** moved into the `if(NOT WITH_QML)` block — they stay
-compiled unconditionally in both builds. `ParserPageAdapter` launches
-`AnsiColorDialog` and `GeneralPageAdapter` launches `ManagePasswordDialog` as
-plain native `Q_INVOKABLE`-triggered `QDialog::exec()` calls even when
-`WITH_QML=ON`, the same way a `Q_INVOKABLE` on any other adapter opens a
-native `QColorDialog`/`QFileDialog` (see `GroupController::recolorCharacter()`'s
-`QColorDialog` in phase 2, "Group panel design notes" above, for the same
-pattern). Porting either dialog's fairly intricate custom painting
-(`AnsiColorDialog`'s live ANSI color grid) or secure-entry semantics
-(`ManagePasswordDialog`) to QML was judged not worth it for a rarely-opened
-dialog reached from one preferences page each — plain `QDialog::exec()` from
-an otherwise-QML build is a fully supported pattern, not a gap.
+QML in phase 6 and were **not** moved into the `if(NOT WITH_QML)` block at
+that point — they stayed compiled unconditionally in both builds.
+`ParserPageAdapter` launched `AnsiColorDialog` and `GeneralPageAdapter`
+launched `ManagePasswordDialog` as plain native `Q_INVOKABLE`-triggered
+`QDialog::exec()` calls even when `WITH_QML=ON`, the same way a
+`Q_INVOKABLE` on any other adapter opens a native `QColorDialog`/`QFileDialog`
+(see `GroupController::recolorCharacter()`'s `QColorDialog` in phase 2,
+"Group panel design notes" above, for the same pattern). At the time,
+porting either dialog's fairly intricate custom painting (`AnsiColorDialog`'s
+live ANSI color grid) or secure-entry semantics (`ManagePasswordDialog`) to
+QML was judged not worth it for a rarely-opened dialog reached from one
+preferences page each. Phase 9 / Stage 1 revisited that call and ported both
+(see "Phase 9 / Stage 1" below); they're now `if(NOT WITH_QML)`-gated like
+every other preferences page.
 
 ### Deferred / not ported in phase 6
 
@@ -772,6 +785,8 @@ an otherwise-QML build is a fully supported pattern, not a gap.
   below); no longer deferred.
 - ~~**Preferences search bar.**~~ Ported in phase 7 (see below); no longer
   deferred.
+- ~~**`AnsiColorDialog`/`ManagePasswordDialog`.**~~ Ported in phase 9 /
+  Stage 1 (see below); no longer deferred.
 
 ### Phase 7: user-reported regression fixes (macOS pass on phase 6)
 
@@ -858,16 +873,132 @@ Map-editing dialog ports (the phase-6 deferral, now done):
 
 ### `.ui` gating
 
-`preferences/AnsiColorDialog.ui` and `preferences/ManagePasswordDialog.ui`
-stay in the unconditional `mmapper_UIS` list (see "Two pieces intentionally
-stayed native widgets" above). The other ten `.ui` files —
+As of phase 6, `preferences/AnsiColorDialog.ui` and
+`preferences/ManagePasswordDialog.ui` stayed in the unconditional
+`mmapper_UIS` list (see "Two pieces intentionally stayed native widgets"
+above); phase 9 / Stage 1 moved both into the `if(NOT WITH_QML)`-gated block
+too (see "Phase 9 / Stage 1" below), so `mmapper_UIS`'s unconditional list is
+now empty. The other ten `.ui` files —
 `configdialog.ui` and the nine page `.ui`s (`audiopage.ui`, `autologpage.ui`,
 `clientpage.ui`, `generalpage.ui`, `graphicspage.ui`, `grouppage.ui`,
 `mumeprotocolpage.ui`, `parserpage.ui`, `pathmachinepage.ui`) — moved into
-the `if(NOT WITH_QML)`-gated `mmapper_UIS` block in `src/CMakeLists.txt`,
+the `if(NOT WITH_QML)`-gated `mmapper_UIS` block in `src/CMakeLists.txt`
+back in phase 6,
 alongside their `.cpp`/`.h` files, following the same pattern
 `mumeclockwidget.ui`/`ClientWidget.ui`/`aboutdialog.ui`/`findroomsdlg.ui`
 established in earlier phases.
+
+## Phase 9 / Stage 1: ANSI viewer, ANSI color picker, remote editor, and password dialog ports
+
+Phase 9's Stage 1 closed out the last widgets that had been deliberately left
+native in earlier phases (see "Deferred / not ported in phase 6" and
+`client/displaywidget.{h,cpp}`'s doc comment above), moving `WITH_QML=ON`
+another step closer to a build with zero legacy Widget dialogs.
+
+- **ANSI viewer.** `viewers/AnsiViewWindow.h`'s `makeAnsiViewWindow()` — the
+  seam both `viewers/LaunchAsyncViewer.h` (the parser's map-show viewers) and
+  `mpi/remoteeditwidget.cpp`'s ANSI-preview flow call — now returns a plain
+  `std::unique_ptr<QDialog>` rather than a concrete `AnsiViewWindow`. Under
+  `WITH_QML` it builds a `QmlDialog` hosting `qml/AnsiViewDialog.qml`, driven
+  by the widget-free `viewers/AnsiViewContent` (renders program/title/message
+  into a title string and an HTML document via `mmqt::ansiToHtml()`, the same
+  default colors `AnsiTextHelper::init()` resolves from
+  `Configuration::integratedClient`); under `NOT WITH_QML` it's the original
+  `AnsiViewWindow` widget (now gated, along with `client/displaywidget.{h,cpp}`
+  — see below). `AnsiViewWindow.h`'s doc comment explains why the return type
+  is the widget-free `QDialog` base rather than `AnsiViewWindow` itself: under
+  `MMAPPER_WITH_QML` the `AnsiViewWindow` class doesn't even exist, so callers
+  can never assume a concrete type.
+- **ANSI color picker.** `AnsiColorDialog`'s 17-color tables and SGR
+  (Select Graphic Rendition) assembly moved out into a widget-free
+  `preferences/AnsiColorTables.{h,cpp}`, shared by both the legacy widget
+  (`ansicombo.{h,cpp}` now delegates to it) and the new QML port:
+  `mainwindow/AnsiColorPickerController` (fg/bg color-index and
+  bold/italic/underline `Q_PROPERTY`s, a `resultAnsiString`/preview-color
+  pair recomputed on every setter) + `qml/AnsiColorPickerDialog.qml`. Because
+  `preferences/ParserPageAdapter.cpp` compiles straight into
+  `TestMainWindow`/`TestQml` (see `tests/CMakeLists.txt`'s
+  `preferences_adapter_SRCS`), which link neither `Qt6::Quick` nor `mm_qml`,
+  the adapter can't construct a `QmlDialog` itself. `ParserPageAdapter`
+  exposes a `setColorPicker(ColorPicker)` injection point instead (default:
+  the native `AnsiColorDialog::getColor()`, set under `NOT WITH_QML` inside
+  `ParserPageAdapter.cpp`'s own constructor); `mainwindow.cpp`'s
+  `slot_onPreferences()` overrides it with `qml/AnsiColorPickerLauncher.h`'s
+  `ansi_color_picker::getColor()`, which builds the `QmlDialog` +
+  `AnsiColorPickerController` and only invokes the callback on accept. This
+  injected-launcher pattern — a widget-free adapter/controller compiled
+  everywhere, plus a `WITH_QML`-only launcher `.cpp` in `qml/` that
+  `mainwindow.cpp` wires in — is reused verbatim for the password dialog
+  below, and was already established for `GroupController::recolorCharacter()`'s
+  native `QColorDialog` back in phase 2.
+- **Remote editor.** Landed in three steps:
+  1. *Widget-free text core extraction.* `RemoteEditHighlighter` (the
+     six-pass ANSI/encoding/overflow line highlighter) and
+     `RemoteEditDocumentOps` (justify/tab/whitespace/ANSI operations,
+     wrap-around find/replace, goto-line, and the status-bar computation)
+     moved out of `remoteeditwidget.cpp` into always-compiled, `QtGui`-only
+     files (`mpi/RemoteEditHighlighter.{h,cpp}`,
+     `mpi/RemoteEditDocumentOps.{h,cpp}`) operating on
+     `QTextDocument`/`QTextCursor`. The widget editor now delegates to them
+     instead of implementing the logic inline, preserving quirks byte-for-byte
+     (the 79-vs-80 length edge case, `joinLines`' extra-block selection
+     quirk).
+  2. *QML editor added behind the widget.* `mpi/RemoteEditController` drives
+     a QML `TextArea`'s `QTextDocument` with the shared highlighter and
+     document ops, tracks dirtiness by byte-comparing against the original
+     body (mirrors the widget's `slot_contentsChanged()`, not
+     `QTextDocument::isModified()`), and emits the same `sig_save`/`sig_cancel`
+     signals `RemoteEditWidget` did. `qml/RemoteEditDialog.qml` carries the
+     full menu and shortcut surface, inline find/replace and goto bars, Tab/
+     Backtab handling, and the status footer. `qml/RemoteEditDialogHost`
+     ports the submitted/dirty discard-confirmation close contract
+     (`closeEvent`'s asymmetric guard). At this point the session layer
+     still constructed the widget editor — the switch landed separately so
+     the QML editor could be exercised in isolation first.
+  3. *Session switch.* `mpi/remoteeditsession.cpp`
+     (`RemoteEditInternalSession`) and the parser's config-edit path
+     (`parser/AbstractParser-Config.cpp`) now construct
+     `RemoteEditController` + `RemoteEditDialogHost` under `WITH_QML`, with
+     the same save/cancel wiring and close-on-destruct lifecycle the widget
+     path had. With every `WITH_QML`-build consumer moved off them,
+     `mpi/remoteeditwidget.{h,cpp}`, `mpi/findreplacewidget.{h,cpp}`,
+     `mpi/gotowidget.{h,cpp}`, and `client/displaywidget.{h,cpp}` all retired
+     into the `if(NOT WITH_QML)` block in `src/CMakeLists.txt` (see the
+     updated "Ported panels" and "`displaywidget` stayed compiled
+     unconditionally through phase 8" notes above).
+- **Password dialog.** `preferences/ManagePasswordDialog.{h,cpp,ui}` is
+  replaced under `WITH_QML` by `preferences/PasswordDialogController`
+  (widget-free: `accountName`/`password`/`hasStoredPassword`/
+  `showPasswordControls`/`errorText` `Q_PROPERTY`s, a `requestDelete()`
+  invokable mirroring the widget's delete-button handler) +
+  `qml/PasswordDialog.qml` (account-name field, password field with a View
+  echo-mode toggle, a Delete button, and a single OK button — the widget's
+  `QDialogButtonBox` only ever had `QDialogButtonBox::Ok`, no Cancel).
+  `GeneralPageAdapter` gets the same injected-launcher treatment as
+  `ParserPageAdapter`'s color picker: it exposes
+  `setPasswordDialogLauncher(PasswordDialogLauncher)`, defaults (under
+  `NOT WITH_QML`) to constructing the native `ManagePasswordDialog` exactly
+  as before, and `mainwindow.cpp`'s `slot_onPreferences()` overrides it with
+  `qml/PasswordDialogLauncher.h`'s `password_dialog::manage()`. The WASM
+  branch (`ManagePasswordDialog.cpp:19-24`'s `CURRENT_PLATFORM ==
+  PlatformEnum::Wasm` check, which hides the password/view/delete controls
+  and retitles the dialog to "Manage Account") is decided in
+  `password_dialog::manage()` (C++), not in QML, and passed to the
+  controller as the `showPasswordControls` `Q_PROPERTY`; the QML file only
+  reads that flag to decide what to show. `GeneralPageAdapter`'s keychain
+  round-trip (`PasswordConfig::setPassword()`/`getPassword()`/
+  `deletePassword()`) and its two `ManagePasswordDialog` construction sites
+  (the `sig_incomingPassword` prefill path and the no-stored-password path)
+  are otherwise untouched — only which dialog implementation gets
+  constructed changed.
+- **Manager-level flows remain native.** `GeneralPageAdapter::factoryReset()`
+  /`exportConfig()`/`importConfig()`'s native `QMessageBox` confirmations and
+  `QFileDialog` content APIs, and the WASM keychain-error `QMessageBox` in
+  `PasswordConfig`'s `handleError()` lambda, are unchanged by this port —
+  porting confirmation/file-picker chrome to QML was out of scope for Stage 1
+  and is deliberately deferred to whichever later stage tackles the
+  remaining native application shell (the top-level `QMainWindow`, its menu
+  bar, and the last few native-only dialog flows like these).
 
 ## Map canvas (future work, not started)
 

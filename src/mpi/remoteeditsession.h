@@ -21,7 +21,12 @@
 
 class RemoteEdit;
 class RemoteEditProcess;
+#ifdef MMAPPER_WITH_QML
+class RemoteEditController;
+class RemoteEditDialogHost;
+#else
 class RemoteEditWidget;
+#endif
 
 namespace tags {
 struct NODISCARD RemoteInternalIdTag final
@@ -107,7 +112,12 @@ class NODISCARD_QOBJECT RemoteEditInternalSession final : public RemoteEditSessi
     Q_OBJECT
 
 private:
+#ifdef MMAPPER_WITH_QML
+    RemoteEditController *m_controller = nullptr; // owned by m_dialog (QObject parent)
+    QPointer<RemoteEditDialogHost> m_dialog;
+#else
     QPointer<RemoteEditWidget> m_widget;
+#endif
 
 public:
     explicit RemoteEditInternalSession(RemoteInternalId internalId,

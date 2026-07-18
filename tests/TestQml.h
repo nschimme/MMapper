@@ -67,4 +67,5 @@ private Q_SLOTS:
     void loadRemoteEditDialog();
     void remoteEditControllerOps();
     void remoteEditDialogCloseGuard();
+    void remoteEditSessionQmlPath();
 };

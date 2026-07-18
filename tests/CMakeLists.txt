@@ -578,13 +578,32 @@ if(WITH_QML)
             ../src/mpi/RemoteEditHighlighter.cpp
             ../src/mpi/RemoteEditHighlighter.h
     )
+    # Sources for remoteEditSessionQmlPath(): the RemoteEdit/RemoteEditSession
+    # manager layer that constructs RemoteEditController+RemoteEditDialogHost
+    # under MMAPPER_WITH_QML (see mpi/remoteeditsession.cpp). Pulls in
+    # remoteeditprocess.cpp too since remoteeditsession.cpp unconditionally
+    # includes it outside Q_OS_WASM; neither drags in any proxy .cpp beyond
+    # the header-only TaggedBytes.h already used elsewhere in this binary.
+    set(remote_edit_session_SRCS
+            ../src/mpi/remoteedit.cpp
+            ../src/mpi/remoteedit.h
+            ../src/mpi/remoteeditsession.cpp
+            ../src/mpi/remoteeditsession.h
+    )
+    if(NOT EMSCRIPTEN)
+        list(APPEND remote_edit_session_SRCS
+                ../src/mpi/remoteeditprocess.cpp
+                ../src/mpi/remoteeditprocess.h
+        )
+    endif()
     add_executable(TestQml ${TestQml_SRCS} ${timer_test} ${adventure_SRCS} ${room_manager}
             ${log_model_SRCS} ${tasks_model_SRCS} ${group_SRCS} ${description_panel_SRCS}
             ${clock_adapter_SRCS} ${xp_status_adapter_SRCS} ${client_line_model_SRCS}
             ${about_info_SRCS} ${update_checker_SRCS} ${find_rooms_model_SRCS}
             ${checkable_flag_model_SRCS} ${preferences_adapter_SRCS}
             ${ansi_view_content_SRCS} ${ansi_color_picker_controller_SRCS}
-            ${remote_edit_document_ops_SRCS} ${remote_edit_highlighter_SRCS})
+            ${remote_edit_document_ops_SRCS} ${remote_edit_highlighter_SRCS}
+            ${remote_edit_session_SRCS})
     add_dependencies(TestQml mm_qml mm_qmlplugin mm_test mm_global mm_map)
     target_link_libraries(TestQml
             mm_qml

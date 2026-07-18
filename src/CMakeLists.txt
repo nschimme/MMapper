@@ -35,8 +35,6 @@ set(mmapper_SRCS
     client/ClientTelnetBackend.h
     client/InputHistory.cpp
     client/InputHistory.h
-    client/displaywidget.cpp
-    client/displaywidget.h
     client/Hotkey.cpp
     client/Hotkey.h
     client/HotkeyManager.cpp
@@ -426,12 +424,6 @@ set(mmapper_SRCS
     mpi/RemoteEditDocumentOps.h
     mpi/RemoteEditHighlighter.cpp
     mpi/RemoteEditHighlighter.h
-    mpi/remoteeditwidget.cpp
-    mpi/remoteeditwidget.h
-    mpi/gotowidget.cpp
-    mpi/gotowidget.h
-    mpi/findreplacewidget.cpp
-    mpi/findreplacewidget.h
     observer/gameobserver.cpp
     observer/gameobserver.h
     opengl/Font.cpp
@@ -642,6 +634,8 @@ if(NOT WITH_QML)
         adventure/xpstatuswidget.h
         client/ClientWidget.cpp
         client/ClientWidget.h
+        client/displaywidget.cpp
+        client/displaywidget.h
         client/PaletteManager.cpp
         client/PaletteManager.h
         client/PasswordDialog.cpp
@@ -660,6 +654,12 @@ if(NOT WITH_QML)
         media/DescriptionWidget.h
         mainwindow/TasksPanel.cpp
         mainwindow/TasksPanel.h
+        mpi/remoteeditwidget.cpp
+        mpi/remoteeditwidget.h
+        mpi/gotowidget.cpp
+        mpi/gotowidget.h
+        mpi/findreplacewidget.cpp
+        mpi/findreplacewidget.h
         roompanel/RoomWidget.cpp
         roompanel/RoomWidget.h
         timers/TimerDelegate.cpp

@@ -6,7 +6,13 @@
 
 #include "../global/utils.h"
 #include "remoteedit.h"
+
+#ifdef MMAPPER_WITH_QML
+#include "../qml/RemoteEditDialogHost.h"
+#include "RemoteEditController.h"
+#else
 #include "remoteeditwidget.h"
+#endif
 
 #ifndef Q_OS_WASM
 #include "remoteeditprocess.h"
@@ -40,6 +46,36 @@ void RemoteEditSession::cancel()
     m_manager->cancel(this);
 }
 
+#ifdef MMAPPER_WITH_QML
+RemoteEditInternalSession::RemoteEditInternalSession(const RemoteInternalId internalId,
+                                                     const RemoteSessionId sessionId,
+                                                     const QString &title,
+                                                     const QString &body,
+                                                     RemoteEdit *const parent)
+    : RemoteEditSession(internalId, sessionId, parent)
+    , m_controller(new RemoteEditController(isEditSession(), title, body))
+    , m_dialog(new RemoteEditDialogHost(m_controller,
+                                        checked_dynamic_downcast<QWidget *>(
+                                            parent->parent()) // MainWindow
+                                        ))
+{
+    m_controller->setParent(m_dialog.data());
+    connect(m_controller, &RemoteEditController::sig_save, this, &RemoteEditSession::slot_onSave);
+    connect(m_controller,
+            &RemoteEditController::sig_cancel,
+            this,
+            &RemoteEditSession::slot_onCancel);
+}
+
+RemoteEditInternalSession::~RemoteEditInternalSession()
+{
+    qDebug() << "Destructed RemoteEditInternalSession" << getInternalId().asUint32()
+             << getSessionId().asInt32();
+    if (auto *const p = m_dialog.get()) {
+        p->close();
+    }
+}
+#else
 RemoteEditInternalSession::RemoteEditInternalSession(const RemoteInternalId internalId,
                                                      const RemoteSessionId sessionId,
                                                      const QString &title,
@@ -66,6 +102,7 @@ RemoteEditInternalSession::~RemoteEditInternalSession()
         p->close();
     }
 }
+#endif
 
 #ifndef Q_OS_WASM
 RemoteEditExternalSession::RemoteEditExternalSession(const RemoteInternalId internalId,

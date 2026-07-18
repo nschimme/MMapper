@@ -32,6 +32,8 @@
 #include "../src/media/DescriptionAdapter.h"
 #include "../src/media/MediaLibrary.h"
 #include "../src/mpi/RemoteEditController.h"
+#include "../src/mpi/remoteedit.h"
+#include "../src/mpi/remoteeditsession.h"
 #include "../src/observer/gameobserver.h"
 #include "../src/preferences/PreferencesController.h"
 #include "../src/proxy/GmcpMessage.h"
@@ -3115,6 +3117,74 @@ void TestQml::remoteEditDialogCloseGuard()
         QCOMPARE(cancelSpy.count(), 1);
         QTRY_VERIFY(destroyedSpy.count() > 0);
     }
+}
+
+void TestQml::remoteEditSessionQmlPath()
+{
+    // RemoteEditInternalSession's QML path (mpi/remoteeditsession.cpp's
+    // #ifdef MMAPPER_WITH_QML branch) constructs a RemoteEditController +
+    // RemoteEditDialogHost instead of a RemoteEditWidget. Goes in through
+    // RemoteEdit::slot_remoteEdit() (like the real proxy layer would) rather
+    // than constructing RemoteEditInternalSession directly, so the session
+    // ends up tracked in RemoteEdit's m_sessions map and save()/cancel()
+    // actually erase (and thus destroy) it -- proving the session layer's
+    // construction/connection/teardown matches the widget path, not just the
+    // controller/dialog in isolation (already covered by
+    // remoteEditControllerOps()/remoteEditDialogCloseGuard() above).
+    const bool originalInternalEditor = getConfig().mumeClientProtocol.internalRemoteEditor;
+    setConfig().mumeClientProtocol.internalRemoteEditor = true;
+    auto configGuard = qScopeGuard([originalInternalEditor] {
+        setConfig().mumeClientProtocol.internalRemoteEditor = originalInternalEditor;
+    });
+
+    // Heap-allocated (not deleted): RemoteEdit's ctor takes ownership via
+    // QObject parenting, and RemoteEditInternalSession's ctor casts
+    // manager->parent() down to QWidget* (checked_dynamic_downcast, which
+    // throws on a null/mismatched cast), so both need a real, non-stack
+    // QObject parent chain, matching production (RemoteEdit's parent is the
+    // MainWindow). Deliberately leaked, like the `new RemoteEditController`/
+    // `new RemoteEditDialogHost` calls above.
+    auto *const mainWindowStub = new QWidget();
+    auto *const manager = new RemoteEdit(mainWindowStub);
+
+    QSignalSpy saveSpy(manager, &RemoteEdit::sig_remoteEditSave);
+    QSignalSpy cancelSpy(manager, &RemoteEdit::sig_remoteEditCancel);
+
+    const auto sessionId = RemoteSessionId{42};
+    manager->slot_remoteEdit(sessionId,
+                             QStringLiteral("Session Title"),
+                             QStringLiteral("session body\n"));
+    QCoreApplication::processEvents();
+
+    // The controller+host pair is a real top-level QDialog, shown the same
+    // way RemoteEditWidget would have been on the widget path.
+    RemoteEditDialogHost *host = nullptr;
+    for (QWidget *const w : QApplication::topLevelWidgets()) {
+        if (auto *const h = qobject_cast<RemoteEditDialogHost *>(w)) {
+            host = h;
+        }
+    }
+    QVERIFY(host != nullptr);
+    QVERIFY(host->isVisible());
+    QVERIFY(host->windowTitle().contains(QStringLiteral("Session Title")));
+
+    auto *const controller = host->findChild<RemoteEditController *>();
+    QVERIFY(controller != nullptr);
+    QCOMPARE(controller->getBody(), QStringLiteral("session body\n"));
+    QCOMPARE(controller->getIsEditSession(), true);
+
+    // submit() -> RemoteEditController::sig_save -> RemoteEditSession::
+    // slot_onSave -> RemoteEdit::save() -> RemoteEdit::sendToMume() (session
+    // is still "connected" by default), which emits sig_remoteEditSave and
+    // erases the session from RemoteEdit's map, destroying the
+    // RemoteEditInternalSession and (via its destructor closing m_dialog)
+    // `host` as well.
+    QSignalSpy hostDestroyedSpy(host, &QObject::destroyed);
+    controller->submit();
+    QCOMPARE(saveSpy.count(), 1);
+    QCOMPARE(saveSpy.at(0).at(0).value<RemoteSessionId>(), sessionId);
+    QCOMPARE(cancelSpy.count(), 0);
+    QTRY_VERIFY(hostDestroyedSpy.count() > 0);
 }
 
 QTEST_MAIN(TestQml)

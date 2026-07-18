@@ -9,7 +9,12 @@
 #include "../global/Consts.h"
 #include "../global/NamedColors.h"
 #include "../global/PrintUtils.h"
+#ifdef MMAPPER_WITH_QML
+#include "../mpi/RemoteEditController.h"
+#include "../qml/RemoteEditDialogHost.h"
+#else
 #include "../mpi/remoteeditwidget.h"
+#endif
 #include "../proxy/proxy.h"
 #include "../syntax/SyntaxArgs.h"
 #include "../syntax/TreeParser.h"
@@ -18,6 +23,7 @@
 #include "abstractparser.h"
 
 #include <ostream>
+#include <utility>
 
 #include <QColor>
 #include <QDir>
@@ -373,43 +379,52 @@ void AbstractParser::doConfig(const StringView cmd)
                         }
 
                         // REVISIT: Ideally we support external editor as well
+                        auto onSave = [weakParser = QPointer<AbstractParser>(this)](
+                                          const QString &edited) {
+                            if (weakParser.isNull()) {
+                                return;
+                            }
+
+                            QTemporaryFile tempRead(QDir::tempPath() + "/mmapper_XXXXXX.ini");
+                            tempRead.setAutoRemove(true);
+                            if (tempRead.open()) {
+                                QString name = tempRead.fileName();
+                                tempRead.write(edited.toUtf8());
+                                tempRead.close();
+
+                                {
+                                    auto &cfg = setConfig();
+                                    QSettings settings(name, QSettings::IniFormat);
+                                    cfg.readFrom(settings);
+                                    cfg.write();
+                                }
+
+                                weakParser->sendToUser(SendToUserSourceEnum::FromMMapper,
+                                                       "\nConfiguration imported and persisted.\n");
+                                weakParser->sendOkToUser();
+                            }
+                        };
+
+#ifdef MMAPPER_WITH_QML
+                        auto *controller = new RemoteEditController(true,
+                                                                    "MMapper Client Configuration",
+                                                                    content);
+                        QObject::connect(controller,
+                                         &RemoteEditController::sig_save,
+                                         std::move(onSave));
+                        auto *host = new RemoteEditDialogHost(controller, nullptr);
+                        controller->setParent(host);
+#else
                         auto *editor = new RemoteEditWidget(true,
                                                             "MMapper Client Configuration",
                                                             content,
                                                             nullptr);
-                        QObject::connect(editor,
-                                         &RemoteEditWidget::sig_save,
-                                         [weakParser = QPointer<AbstractParser>(this)](
-                                             const QString &edited) {
-                                             if (weakParser.isNull()) {
-                                                 return;
-                                             }
-
-                                             QTemporaryFile tempRead(QDir::tempPath()
-                                                                     + "/mmapper_XXXXXX.ini");
-                                             tempRead.setAutoRemove(true);
-                                             if (tempRead.open()) {
-                                                 QString name = tempRead.fileName();
-                                                 tempRead.write(edited.toUtf8());
-                                                 tempRead.close();
-
-                                                 {
-                                                     auto &cfg = setConfig();
-                                                     QSettings settings(name, QSettings::IniFormat);
-                                                     cfg.readFrom(settings);
-                                                     cfg.write();
-                                                 }
-
-                                                 weakParser->sendToUser(
-                                                     SendToUserSourceEnum::FromMMapper,
-                                                     "\nConfiguration imported and persisted.\n");
-                                                 weakParser->sendOkToUser();
-                                             }
-                                         });
+                        QObject::connect(editor, &RemoteEditWidget::sig_save, std::move(onSave));
 
                         editor->setAttribute(Qt::WA_DeleteOnClose);
                         editor->show();
                         editor->activateWindow();
+#endif
                     },
                     "edit client configuration")),
             syn("factory",

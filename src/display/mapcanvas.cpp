@@ -63,7 +63,7 @@ MapCanvas::MapCanvas(MapData &mapData,
                      Mmapper2Group &groupManager,
                      QWindow *const parent)
     : QOpenGLWindow{NoPartialUpdate, parent}
-    , MapCanvasViewport{static_cast<QWindow &>(*this)}
+    , MapCanvasViewport{}
     , MapCanvasInputState{prespammedPath}
     , m_mapScreen{static_cast<MapCanvasViewport &>(*this)}
     , m_observer{observer}
@@ -71,7 +71,7 @@ MapCanvas::MapCanvas(MapData &mapData,
     , m_glFont{m_opengl}
     , m_data{mapData}
     , m_groupManager{groupManager}
-    , m_frameManager{static_cast<QOpenGLWindow &>(*this), m_opengl.getUboManager()}
+    , m_frameManager{[this]() { update(); }, m_opengl.getUboManager()}
     , m_weather{m_opengl, m_data, m_textures, observer, m_frameManager}
 {
     syncViewportConfig();
@@ -213,7 +213,7 @@ NODISCARD static uint32_t operator&(const Qt::KeyboardModifiers left, const Qt::
     return static_cast<uint32_t>(left) & static_cast<uint32_t>(right);
 }
 
-void MapCanvas::wheelEvent(QWheelEvent *const event)
+void MapCanvas::handleWheel(QWheelEvent *const event)
 {
     const bool hasCtrl = (event->modifiers() & Qt::CTRL) != 0u;
 
@@ -259,7 +259,7 @@ void MapCanvas::slot_onForcedPositionChange()
     slot_requestUpdate();
 }
 
-void MapCanvas::touchEvent(QTouchEvent *const event)
+void MapCanvas::handleTouch(QTouchEvent *const event)
 {
     if (event->type() == QEvent::TouchBegin) {
         emit sig_dismissContextMenu();
@@ -321,34 +321,39 @@ bool MapCanvas::event(QEvent *const event)
     if (event->type() == QEvent::NativeGesture) {
         auto *const nativeEvent = static_cast<QNativeGestureEvent *>(event);
         if (nativeEvent->gestureType() == Qt::ZoomNativeGesture) {
-            const auto value = static_cast<float>(nativeEvent->value());
-            float deltaFactor = 1.f;
-            if constexpr (CURRENT_PLATFORM == PlatformEnum::Mac) {
-                // On macOS, event->value() for ZoomNativeGesture is the magnification delta
-                // since the last event.
-                deltaFactor += value;
-            } else {
-                // On other platforms, it's typically the cumulative scale factor (1.0 at start).
-                if (nativeEvent->isBeginEvent() || !m_magnificationState) {
-                    beginMagnification();
-                }
-
-                if (std::abs(m_magnificationState->lastValue) > GESTURE_EPSILON) {
-                    deltaFactor = value / m_magnificationState->lastValue;
-                }
-                updateMagnification(value);
-
-                if (nativeEvent->isEndEvent()) {
-                    endMagnification();
-                }
-            }
-            handleZoomAtEvent(nativeEvent, deltaFactor);
-            event->accept();
+            handleNativeGesture(nativeEvent);
             return true;
         }
     }
 
     return QOpenGLWindow::event(event);
+}
+
+void MapCanvas::handleNativeGesture(QNativeGestureEvent *const nativeEvent)
+{
+    const auto value = static_cast<float>(nativeEvent->value());
+    float deltaFactor = 1.f;
+    if constexpr (CURRENT_PLATFORM == PlatformEnum::Mac) {
+        // On macOS, event->value() for ZoomNativeGesture is the magnification delta
+        // since the last event.
+        deltaFactor += value;
+    } else {
+        // On other platforms, it's typically the cumulative scale factor (1.0 at start).
+        if (nativeEvent->isBeginEvent() || !m_magnificationState) {
+            beginMagnification();
+        }
+
+        if (std::abs(m_magnificationState->lastValue) > GESTURE_EPSILON) {
+            deltaFactor = value / m_magnificationState->lastValue;
+        }
+        updateMagnification(value);
+
+        if (nativeEvent->isEndEvent()) {
+            endMagnification();
+        }
+    }
+    handleZoomAtEvent(nativeEvent, deltaFactor);
+    nativeEvent->accept();
 }
 
 void MapCanvas::slot_createRoom()
@@ -423,7 +428,7 @@ std::shared_ptr<InfomarkSelection> MapCanvas::getInfomarkSelection(const MouseSe
     return InfomarkSelection::alloc(m_data, lo, hi);
 }
 
-void MapCanvas::mousePressEvent(QMouseEvent *const event)
+void MapCanvas::handleMousePress(QMouseEvent *const event)
 {
     if (event->button() != Qt::RightButton) {
         emit sig_dismissContextMenu();
@@ -618,14 +623,8 @@ void MapCanvas::mousePressEvent(QMouseEvent *const event)
     }
 }
 
-void MapCanvas::mouseMoveEvent(QMouseEvent *const event)
+void MapCanvas::handleMouseMove(QMouseEvent *const event)
 {
-    const auto optXy = getMouseCoords(event);
-    if (!optXy) {
-        return;
-    }
-    const auto xy = *optXy;
-
     if (auto *const altDragState = getInteraction<AltDragState>()) {
         // The user released the Alt key mid-drag.
         if (!((event->modifiers() & Qt::ALT) != 0u)) {
@@ -672,7 +671,18 @@ void MapCanvas::mouseMoveEvent(QMouseEvent *const event)
         return;
     }
 
-    const bool hasLeftButton = (event->buttons() & Qt::LeftButton) != 0u;
+    const auto optXy = getMouseCoords(event);
+    if (!optXy) {
+        return;
+    }
+    handlePointerMove(*optXy, event->modifiers(), event->buttons());
+}
+
+void MapCanvas::handlePointerMove(const glm::vec2 xy,
+                                  MAYBE_UNUSED const Qt::KeyboardModifiers modifiers,
+                                  const Qt::MouseButtons buttons)
+{
+    const bool hasLeftButton = (buttons & Qt::LeftButton) != 0u;
 
     if (m_canvasMouseMode != CanvasMouseModeEnum::MOVE) {
         // NOTE: Y is opposite of what you might expect here.
@@ -805,7 +815,7 @@ void MapCanvas::mouseMoveEvent(QMouseEvent *const event)
     }
 }
 
-void MapCanvas::mouseReleaseEvent(QMouseEvent *const event)
+void MapCanvas::handleMouseRelease(QMouseEvent *const event)
 {
     const auto optXy = getMouseCoords(event);
     if (!optXy) {

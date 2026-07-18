@@ -16,8 +16,6 @@
 #include <QObject>
 #include <QTimer>
 
-class QOpenGLWindow;
-
 /**
  * @brief Manages the application's frame-rate and animation lifecycle.
  *
@@ -47,6 +45,13 @@ public:
      */
     using AnimationCallback = std::function<AnimationStatusEnum()>;
 
+    /**
+     * @brief Callback invoked whenever the manager wants the host to schedule
+     * a repaint (e.g. QOpenGLWindow::update() today; a future QQuickItem host
+     * would call QQuickItem::update() instead).
+     */
+    using RequestUpdateCallback = std::function<void()>;
+
 private:
     struct Entry
     {
@@ -59,7 +64,7 @@ private:
     std::chrono::nanoseconds m_minFrameTime{0};
     Signal2Lifetime m_configLifetime;
     QTimer m_heartbeatTimer;
-    QOpenGLWindow &m_window;
+    RequestUpdateCallback m_requestUpdate;
     bool m_dirty = true;
     float m_elapsedTime = 0.0f;
     Legacy::UboManager &m_uboManager;
@@ -87,7 +92,7 @@ public:
     };
 
 public:
-    explicit FrameManager(QOpenGLWindow &window,
+    explicit FrameManager(RequestUpdateCallback requestUpdate,
                           Legacy::UboManager &uboManager,
                           QObject *parent = nullptr);
     ~FrameManager() override;

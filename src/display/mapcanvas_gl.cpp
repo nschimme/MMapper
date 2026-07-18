@@ -468,6 +468,12 @@ void MapCanvas::setMvp(const glm::mat4 &viewProj)
 
 void MapCanvas::setViewportAndMvp(int width, int height)
 {
+    // Refresh the cached viewport geometry (and DPR) every time; this is called
+    // once per paint (from actuallyPaintGL()) as well as from resizeGL(), so it
+    // doubles as the "first frame" safety net that used to fall out of querying
+    // the live QWindow on every access.
+    setViewportSize(width, height, QPaintDevice::devicePixelRatioF());
+
     if (width != m_lastWidth || height != m_lastHeight) {
         m_lastWidth = width;
         m_lastHeight = height;

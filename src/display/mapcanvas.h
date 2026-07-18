@@ -49,8 +49,10 @@ class MapData;
 class Mmapper2Group;
 class PrespammedPath;
 class QMouseEvent;
+class QNativeGestureEvent;
 class QOpenGLDebugLogger;
 class QOpenGLDebugMessage;
+class QTouchEvent;
 class QWheelEvent;
 class QWidget;
 class RoomSelFakeGL;
@@ -203,12 +205,27 @@ protected:
     void drawGroupCharacters(CharacterBatch &characterBatch, ServerRoomId yourServerId);
 
     void resizeGL(int width, int height) override;
-    void mousePressEvent(QMouseEvent *event) override;
-    void mouseReleaseEvent(QMouseEvent *event) override;
-    void mouseMoveEvent(QMouseEvent *event) override;
-    void wheelEvent(QWheelEvent *event) override;
-    void touchEvent(QTouchEvent *event) override;
+    void mousePressEvent(QMouseEvent *event) override { handleMousePress(event); }
+    void mouseReleaseEvent(QMouseEvent *event) override { handleMouseRelease(event); }
+    void mouseMoveEvent(QMouseEvent *event) override { handleMouseMove(event); }
+    void wheelEvent(QWheelEvent *event) override { handleWheel(event); }
+    void touchEvent(QTouchEvent *event) override { handleTouch(event); }
     bool event(QEvent *e) override;
+
+public:
+    // Bodies of the QOpenGLWindow event overrides above, exposed as plain
+    // QEvent-taking entry points so a future QQuickItem host (which has its
+    // own, differently-typed event overrides) can forward into the same
+    // logic. handleMouseMove() further delegates the position+modifiers
+    // core to handlePointerMove(), which a future hover-event path (QQuickItem
+    // hoverMoveEvent has no button/press semantics) can call directly.
+    void handleMousePress(QMouseEvent *event);
+    void handleMouseRelease(QMouseEvent *event);
+    void handleMouseMove(QMouseEvent *event);
+    void handlePointerMove(glm::vec2 pos, Qt::KeyboardModifiers modifiers, Qt::MouseButtons buttons);
+    void handleWheel(QWheelEvent *event);
+    void handleTouch(QTouchEvent *event);
+    void handleNativeGesture(QNativeGestureEvent *event);
 
 private:
     void initLogger();

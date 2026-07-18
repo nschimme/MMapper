@@ -70,6 +70,7 @@
 #ifndef MMAPPER_WITH_QML
 #include "roomeditattrdlg.h"
 #endif
+#include "CommandRegistry.h"
 #include "mainwindow-async.h"
 #include "metatypes.h"
 #include "utils.h"
@@ -185,6 +186,10 @@ MainWindow::MainWindow()
     setWindowIcon(QIcon(":/icons/mmapper-lo.svg"));
     addApplicationFont();
     registerMetatypes();
+
+    // Created early -- before createActions() -- since it's the source of
+    // truth every UiCommand created there is registered into.
+    m_commandRegistry = new CommandRegistry(this);
 
 #ifdef MMAPPER_WITH_QML
     m_qmlConfig = new QmlConfig(this);
@@ -778,10 +783,14 @@ void MainWindow::wireConnections()
                 }
                 return false;
             };
-            moveUpRoomSelectionAct->setEnabled(!anyRoomAtOffset(Coordinate(0, 0, 1)));
-            moveDownRoomSelectionAct->setEnabled(!anyRoomAtOffset(Coordinate(0, 0, -1)));
-            mergeUpRoomSelectionAct->setEnabled(anyRoomAtOffset(Coordinate(0, 0, 1)));
-            mergeDownRoomSelectionAct->setEnabled(anyRoomAtOffset(Coordinate(0, 0, -1)));
+            m_commandRegistry->command("room.move-up-selected")
+                ->setEnabled(!anyRoomAtOffset(Coordinate(0, 0, 1)));
+            m_commandRegistry->command("room.move-down-selected")
+                ->setEnabled(!anyRoomAtOffset(Coordinate(0, 0, -1)));
+            m_commandRegistry->command("room.merge-up-selected")
+                ->setEnabled(anyRoomAtOffset(Coordinate(0, 0, 1)));
+            m_commandRegistry->command("room.merge-down-selected")
+                ->setEnabled(anyRoomAtOffset(Coordinate(0, 0, -1)));
         }
     });
     connect(canvas,
@@ -914,6 +923,7 @@ void MainWindow::createActions()
                          this);
     newAct->setStatusTip(tr("Create a new file"));
     connect(newAct, &QAction::triggered, this, &MainWindow::slot_newFile);
+    CommandRegistry::bindQAction(newAct, m_commandRegistry->addCommand("file.new", false, true));
 
     openAct = new QAction(QIcon::fromTheme("document-open", QIcon(":/icons/open.png")),
                           tr("&Open..."),
@@ -921,6 +931,7 @@ void MainWindow::createActions()
     openAct->setShortcut(tr("Ctrl+O"));
     openAct->setStatusTip(tr("Open an existing file"));
     connect(openAct, &QAction::triggered, this, &MainWindow::slot_open);
+    CommandRegistry::bindQAction(openAct, m_commandRegistry->addCommand("file.open", false, true));
 
     reloadAct = new QAction(QIcon::fromTheme("document-open-recent", QIcon(":/icons/reload.png")),
                             tr("&Reload"),
@@ -928,6 +939,8 @@ void MainWindow::createActions()
     reloadAct->setShortcut(tr("Ctrl+R"));
     reloadAct->setStatusTip(tr("Reload the current map"));
     connect(reloadAct, &QAction::triggered, this, &MainWindow::slot_reload);
+    CommandRegistry::bindQAction(reloadAct,
+                                 m_commandRegistry->addCommand("file.reload", false, true));
 
     saveAct = new QAction(QIcon::fromTheme("document-save", QIcon(":/icons/save.png")),
                           tr("&Save"),
@@ -936,18 +949,25 @@ void MainWindow::createActions()
     saveAct->setStatusTip(tr("Save the document to disk"));
     saveAct->setEnabled(false);
     connect(saveAct, &QAction::triggered, this, &MainWindow::slot_save);
+    CommandRegistry::bindQAction(saveAct, m_commandRegistry->addCommand("file.save"));
 
     saveAsAct = new QAction(QIcon::fromTheme("document-save-as"), tr("Save &As..."), this);
     saveAsAct->setStatusTip(tr("Save the document under a new name"));
     connect(saveAsAct, &QAction::triggered, this, &MainWindow::slot_saveAs);
+    CommandRegistry::bindQAction(saveAsAct,
+                                 m_commandRegistry->addCommand("file.save-as", false, true));
 
     exportBaseMapAct = new QAction(tr("Export MMapper2 &Base Map As..."), this);
     exportBaseMapAct->setStatusTip(tr("Save a copy of the map with no secrets"));
     connect(exportBaseMapAct, &QAction::triggered, this, &MainWindow::slot_exportBaseMap);
+    CommandRegistry::bindQAction(exportBaseMapAct,
+                                 m_commandRegistry->addCommand("file.export.base-map", false, true));
 
     exportMm2xmlMapAct = new QAction(tr("Export MMapper2 &XML Map As..."), this);
     exportMm2xmlMapAct->setStatusTip(tr("Save a copy of the map in the MM2XML format"));
     connect(exportMm2xmlMapAct, &QAction::triggered, this, &MainWindow::slot_exportMm2xmlMap);
+    CommandRegistry::bindQAction(exportMm2xmlMapAct,
+                                 m_commandRegistry->addCommand("file.export.mm2xml", false, true));
 
     exportWebMapAct = new QAction(tr("Export &Web Map As..."), this);
     exportWebMapAct->setStatusTip(tr("Save a copy of the map for webclients"));
@@ -955,14 +975,19 @@ void MainWindow::createActions()
     if constexpr (CURRENT_PLATFORM == PlatformEnum::Wasm) {
         exportWebMapAct->setDisabled(true);
     }
+    CommandRegistry::bindQAction(exportWebMapAct,
+                                 m_commandRegistry->addCommand("file.export.web", false, true));
 
     exportMmpMapAct = new QAction(tr("Export &MMP Map As..."), this);
     exportMmpMapAct->setStatusTip(tr("Save a copy of the map in the MMP format"));
     connect(exportMmpMapAct, &QAction::triggered, this, &MainWindow::slot_exportMmpMap);
+    CommandRegistry::bindQAction(exportMmpMapAct,
+                                 m_commandRegistry->addCommand("file.export.mmp", false, true));
 
     mergeAct = new QAction(QIcon(":/icons/merge.png"), tr("&Merge..."), this);
     mergeAct->setStatusTip(tr("Merge an existing file into current map"));
     connect(mergeAct, &QAction::triggered, this, &MainWindow::slot_merge);
+    CommandRegistry::bindQAction(mergeAct, m_commandRegistry->addCommand("file.merge", false, true));
 
     exitAct = new QAction(QIcon::fromTheme("application-exit"), tr("E&xit"), this);
     exitAct->setShortcut(tr("Ctrl+Q"));
@@ -971,20 +996,29 @@ void MainWindow::createActions()
     if constexpr (CURRENT_PLATFORM == PlatformEnum::Wasm) {
         exitAct->setDisabled(true);
     }
+    CommandRegistry::bindQAction(exitAct, m_commandRegistry->addCommand("file.exit", false, true));
 
     m_undoAction = new QAction(QIcon::fromTheme("edit-undo"), tr("&Undo"), this);
     m_undoAction->setShortcut(QKeySequence::Undo);
     m_undoAction->setStatusTip(tr("Undo the last action"));
     connect(m_undoAction, &QAction::triggered, m_mapData, &MapData::slot_undo);
-    connect(m_mapData, &MapData::sig_undoAvailable, m_undoAction, &QAction::setEnabled);
     m_undoAction->setEnabled(false);
+    {
+        UiCommand *const cmd = m_commandRegistry->addCommand("edit.undo");
+        CommandRegistry::bindQAction(m_undoAction, cmd);
+        connect(m_mapData, &MapData::sig_undoAvailable, cmd, &UiCommand::setEnabled);
+    }
 
     m_redoAction = new QAction(QIcon::fromTheme("edit-redo"), tr("&Redo"), this);
     m_redoAction->setShortcut(QKeySequence::Redo);
     m_redoAction->setStatusTip(tr("Redo the last undone action"));
     connect(m_redoAction, &QAction::triggered, m_mapData, &MapData::slot_redo);
-    connect(m_mapData, &MapData::sig_redoAvailable, m_redoAction, &QAction::setEnabled);
     m_redoAction->setEnabled(false);
+    {
+        UiCommand *const cmd = m_commandRegistry->addCommand("edit.redo");
+        CommandRegistry::bindQAction(m_redoAction, cmd);
+        connect(m_mapData, &MapData::sig_redoAvailable, cmd, &UiCommand::setEnabled);
+    }
 
     preferencesAct = new QAction(QIcon::fromTheme("preferences-desktop",
                                                   QIcon(":/icons/preferences.png")),
@@ -993,6 +1027,7 @@ void MainWindow::createActions()
     preferencesAct->setShortcut(tr("Ctrl+P"));
     preferencesAct->setStatusTip(tr("MMapper preferences"));
     connect(preferencesAct, &QAction::triggered, this, &MainWindow::slot_onPreferences);
+    CommandRegistry::bindQAction(preferencesAct, m_commandRegistry->addCommand("edit.preferences"));
 
     if constexpr (!NO_UPDATER) {
         mmapperCheckForUpdateAct = new QAction(QIcon(":/icons/mmapper-lo.svg"),
@@ -1002,69 +1037,92 @@ void MainWindow::createActions()
                 &QAction::triggered,
                 this,
                 &MainWindow::slot_onCheckForUpdate);
+        CommandRegistry::bindQAction(mmapperCheckForUpdateAct,
+                                     m_commandRegistry->addCommand("help.check-for-update"));
     }
     mumeWebsiteAct = new QAction(tr("&Website"), this);
     connect(mumeWebsiteAct, &QAction::triggered, this, &MainWindow::slot_openMumeWebsite);
     voteAct = new QAction(QIcon::fromTheme("applications-games"), tr("V&ote for Mume"), this);
     voteAct->setStatusTip(tr("Please vote for MUME on \"The Mud Connector\""));
     connect(voteAct, &QAction::triggered, this, &MainWindow::slot_voteForMUME);
+    CommandRegistry::bindQAction(voteAct, m_commandRegistry->addCommand("help.vote"));
     mumeWebsiteAct = new QAction(tr("&Website"), this);
     connect(mumeWebsiteAct, &QAction::triggered, this, &MainWindow::slot_openMumeWebsite);
+    CommandRegistry::bindQAction(mumeWebsiteAct, m_commandRegistry->addCommand("help.website"));
     mumeForumAct = new QAction(tr("&Forum"), this);
     connect(mumeForumAct, &QAction::triggered, this, &MainWindow::slot_openMumeForum);
+    CommandRegistry::bindQAction(mumeForumAct, m_commandRegistry->addCommand("help.forum"));
     mumeWikiAct = new QAction(tr("W&iki"), this);
     connect(mumeWikiAct, &QAction::triggered, this, &MainWindow::slot_openMumeWiki);
+    CommandRegistry::bindQAction(mumeWikiAct, m_commandRegistry->addCommand("help.wiki"));
     settingUpMmapperAct = new QAction(QIcon::fromTheme("help-faq"), tr("Get &Help"), this);
     connect(settingUpMmapperAct, &QAction::triggered, this, &MainWindow::slot_openSettingUpMmapper);
+    CommandRegistry::bindQAction(settingUpMmapperAct, m_commandRegistry->addCommand("help.setup"));
 
     actionReportIssue = new QAction(QIcon::fromTheme("help-browser"),
                                     tr("Report an &Issue..."),
                                     this);
     actionReportIssue->setStatusTip(tr("Open the MMapper issue tracker in your browser"));
     connect(actionReportIssue, &QAction::triggered, this, &MainWindow::onReportIssueTriggered);
+    CommandRegistry::bindQAction(actionReportIssue,
+                                 m_commandRegistry->addCommand("help.report-issue"));
 
     newbieAct = new QAction(tr("&Information for Newcomers"), this);
     newbieAct->setStatusTip("Newbie help on the MUME website");
     connect(newbieAct, &QAction::triggered, this, &MainWindow::slot_openNewbieHelp);
+    CommandRegistry::bindQAction(newbieAct, m_commandRegistry->addCommand("help.newbie"));
     aboutAct = new QAction(QIcon::fromTheme("help-about"), tr("About &MMapper"), this);
     aboutAct->setStatusTip(tr("Show the application's About box"));
     connect(aboutAct, &QAction::triggered, this, &MainWindow::slot_about);
+    CommandRegistry::bindQAction(aboutAct, m_commandRegistry->addCommand("help.about"));
     aboutQtAct = new QAction(tr("About &Qt"), this);
     aboutQtAct->setStatusTip(tr("Show the Qt library's About box"));
     connect(aboutQtAct, &QAction::triggered, qApp, &QApplication::aboutQt);
+    CommandRegistry::bindQAction(aboutQtAct, m_commandRegistry->addCommand("help.about-qt"));
 
     zoomInAct = new QAction(QIcon::fromTheme("zoom-in", QIcon(":/icons/viewmag+.png")),
                             tr("Zoom In"),
                             this);
     zoomInAct->setStatusTip(tr("Zooms In current map"));
     zoomInAct->setShortcut(tr("Ctrl++"));
+    CommandRegistry::bindQAction(zoomInAct, m_commandRegistry->addCommand("view.zoom-in"));
     zoomOutAct = new QAction(QIcon::fromTheme("zoom-out", QIcon(":/icons/viewmag-.png")),
                              tr("Zoom Out"),
                              this);
     zoomOutAct->setShortcut(tr("Ctrl+-"));
     zoomOutAct->setStatusTip(tr("Zooms Out current map"));
+    CommandRegistry::bindQAction(zoomOutAct, m_commandRegistry->addCommand("view.zoom-out"));
     zoomResetAct = new QAction(QIcon::fromTheme("zoom-original", QIcon(":/icons/viewmagfit.png")),
                                tr("Zoom Reset"),
                                this);
     zoomResetAct->setShortcut(tr("Ctrl+0"));
     zoomResetAct->setStatusTip(tr("Zoom to original size"));
+    CommandRegistry::bindQAction(zoomResetAct, m_commandRegistry->addCommand("view.zoom-reset"));
 
     alwaysOnTopAct = new QAction(tr("Always On Top"), this);
     alwaysOnTopAct->setCheckable(true);
     connect(alwaysOnTopAct, &QAction::triggered, this, &MainWindow::slot_alwaysOnTop);
+    CommandRegistry::bindQAction(alwaysOnTopAct,
+                                 m_commandRegistry->addCommand("view.always-on-top"));
 
     showStatusBarAct = new QAction(tr("Always Show Status Bar"), this);
     showStatusBarAct->setCheckable(true);
     connect(showStatusBarAct, &QAction::triggered, this, &MainWindow::slot_setShowStatusBar);
+    CommandRegistry::bindQAction(showStatusBarAct,
+                                 m_commandRegistry->addCommand("view.show-status-bar"));
 
     showScrollBarsAct = new QAction(tr("Always Show Scrollbars"), this);
     showScrollBarsAct->setCheckable(true);
     connect(showScrollBarsAct, &QAction::triggered, this, &MainWindow::slot_setShowScrollBars);
+    CommandRegistry::bindQAction(showScrollBarsAct,
+                                 m_commandRegistry->addCommand("view.show-scroll-bars"));
 
     if constexpr (CURRENT_PLATFORM != PlatformEnum::Mac) {
         showMenuBarAct = new QAction(tr("Always Show Menubar"), this);
         showMenuBarAct->setCheckable(true);
         connect(showMenuBarAct, &QAction::triggered, this, &MainWindow::slot_setShowMenuBar);
+        CommandRegistry::bindQAction(showMenuBarAct,
+                                     m_commandRegistry->addCommand("view.show-menu-bar"));
     }
 
     layerUpAct = new QAction(QIcon::fromTheme("go-up", QIcon(":/icons/layerup.png")),
@@ -1079,6 +1137,7 @@ void MainWindow::createActions()
     })));
     layerUpAct->setStatusTip(tr("Layer Up"));
     connect(layerUpAct, &QAction::triggered, this, &MainWindow::slot_onLayerUp);
+    CommandRegistry::bindQAction(layerUpAct, m_commandRegistry->addCommand("layer.up"));
     layerDownAct = new QAction(QIcon::fromTheme("go-down", QIcon(":/icons/layerdown.png")),
                                tr("Layer Down"),
                                this);
@@ -1092,12 +1151,14 @@ void MainWindow::createActions()
     })));
     layerDownAct->setStatusTip(tr("Layer Down"));
     connect(layerDownAct, &QAction::triggered, this, &MainWindow::slot_onLayerDown);
+    CommandRegistry::bindQAction(layerDownAct, m_commandRegistry->addCommand("layer.down"));
 
     layerResetAct = new QAction(QIcon::fromTheme("go-home", QIcon(":/icons/layerhome.png")),
                                 tr("Layer Reset"),
                                 this);
     layerResetAct->setStatusTip(tr("Layer Reset"));
     connect(layerResetAct, &QAction::triggered, this, &MainWindow::slot_onLayerReset);
+    CommandRegistry::bindQAction(layerResetAct, m_commandRegistry->addCommand("layer.reset"));
 
     mouseMode.modeConnectionSelectAct = new QAction(QIcon(":/icons/connectionselection.png"),
                                                     tr("Select Connection"),
@@ -1108,6 +1169,9 @@ void MainWindow::createActions()
             &QAction::triggered,
             this,
             &MainWindow::slot_onModeConnectionSelect);
+    CommandRegistry::bindQAction(mouseMode.modeConnectionSelectAct,
+                                 m_commandRegistry->addCommand("mouse-mode.connection-select",
+                                                               true));
 
     mouseMode.modeRoomRaypickAct = new QAction(QIcon(":/icons/raypick.png"),
                                                tr("Ray-pick Rooms"),
@@ -1118,6 +1182,8 @@ void MainWindow::createActions()
             &QAction::triggered,
             this,
             &MainWindow::slot_onModeRoomRaypick);
+    CommandRegistry::bindQAction(mouseMode.modeRoomRaypickAct,
+                                 m_commandRegistry->addCommand("mouse-mode.room-raypick", true));
 
     mouseMode.modeRoomSelectAct = new QAction(QIcon(":/icons/roomselection.png"),
                                               tr("Select Rooms"),
@@ -1128,6 +1194,8 @@ void MainWindow::createActions()
             &QAction::triggered,
             this,
             &MainWindow::slot_onModeRoomSelect);
+    CommandRegistry::bindQAction(mouseMode.modeRoomSelectAct,
+                                 m_commandRegistry->addCommand("mouse-mode.room-select", true));
 
     mouseMode.modeMoveSelectAct = new QAction(QIcon(":/icons/mapmove.png"), tr("Move map"), this);
     mouseMode.modeMoveSelectAct->setStatusTip(tr("Move Map"));
@@ -1136,6 +1204,8 @@ void MainWindow::createActions()
             &QAction::triggered,
             this,
             &MainWindow::slot_onModeMoveSelect);
+    CommandRegistry::bindQAction(mouseMode.modeMoveSelectAct,
+                                 m_commandRegistry->addCommand("mouse-mode.move", true));
     mouseMode.modeInfomarkSelectAct = new QAction(QIcon(":/icons/infomarkselection.png"),
                                                   tr("Select Markers"),
                                                   this);
@@ -1145,6 +1215,8 @@ void MainWindow::createActions()
             &QAction::triggered,
             this,
             &MainWindow::slot_onModeInfomarkSelect);
+    CommandRegistry::bindQAction(mouseMode.modeInfomarkSelectAct,
+                                 m_commandRegistry->addCommand("mouse-mode.infomark-select", true));
     mouseMode.modeCreateInfomarkAct = new QAction(QIcon(":/icons/infomarkcreate.png"),
                                                   tr("Create New Markers"),
                                                   this);
@@ -1154,6 +1226,8 @@ void MainWindow::createActions()
             &QAction::triggered,
             this,
             &MainWindow::slot_onModeCreateInfomarkSelect);
+    CommandRegistry::bindQAction(mouseMode.modeCreateInfomarkAct,
+                                 m_commandRegistry->addCommand("mouse-mode.create-infomark", true));
     mouseMode.modeCreateRoomAct = new QAction(QIcon(":/icons/roomcreate.png"),
                                               tr("Create New Rooms"),
                                               this);
@@ -1163,6 +1237,8 @@ void MainWindow::createActions()
             &QAction::triggered,
             this,
             &MainWindow::slot_onModeCreateRoomSelect);
+    CommandRegistry::bindQAction(mouseMode.modeCreateRoomAct,
+                                 m_commandRegistry->addCommand("mouse-mode.create-room", true));
 
     mouseMode.modeCreateConnectionAct = new QAction(QIcon(":/icons/connectioncreate.png"),
                                                     tr("Create New Connection"),
@@ -1173,6 +1249,9 @@ void MainWindow::createActions()
             &QAction::triggered,
             this,
             &MainWindow::slot_onModeCreateConnectionSelect);
+    CommandRegistry::bindQAction(mouseMode.modeCreateConnectionAct,
+                                 m_commandRegistry->addCommand("mouse-mode.create-connection",
+                                                               true));
 
     mouseMode.modeCreateOnewayConnectionAct = new QAction(QIcon(
                                                               ":/icons/onewayconnectioncreate.png"),
@@ -1184,6 +1263,9 @@ void MainWindow::createActions()
             &QAction::triggered,
             this,
             &MainWindow::slot_onModeCreateOnewayConnectionSelect);
+    CommandRegistry::bindQAction(mouseMode.modeCreateOnewayConnectionAct,
+                                 m_commandRegistry->addCommand("mouse-mode.create-oneway-connection",
+                                                               true));
 
     mouseMode.mouseModeActGroup = new QActionGroup(this);
     mouseMode.mouseModeActGroup->setExclusive(true);
@@ -1198,9 +1280,30 @@ void MainWindow::createActions()
     mouseMode.mouseModeActGroup->addAction(mouseMode.modeCreateInfomarkAct);
     mouseMode.modeMoveSelectAct->setChecked(true);
 
+    // Registry-side mirror of the exclusive QActionGroup above. The
+    // QActionGroup stays in charge of the *visual* radio-button rendering
+    // in menus (which requires QActionGroup::isExclusive()==true) and keeps
+    // enforcing exclusivity on the QAction side as it always has; this
+    // group makes the same exclusivity guarantee hold for the commands
+    // (and, transitively, for the QML shell, which has no QActionGroup at
+    // all). Both mechanisms are idempotent so they always converge to the
+    // same single-checked state regardless of which one runs first.
+    for (const char *const id : {"mouse-mode.move",
+                                 "mouse-mode.room-raypick",
+                                 "mouse-mode.room-select",
+                                 "mouse-mode.connection-select",
+                                 "mouse-mode.create-room",
+                                 "mouse-mode.create-connection",
+                                 "mouse-mode.create-oneway-connection",
+                                 "mouse-mode.infomark-select",
+                                 "mouse-mode.create-infomark"}) {
+        m_commandRegistry->addToGroup(m_commandRegistry->command(id), "mouse-mode", true);
+    }
+
     createRoomAct = new QAction(QIcon(":/icons/roomcreate.png"), tr("Create New Room"), this);
     createRoomAct->setStatusTip(tr("Create a new room under the cursor"));
     connect(createRoomAct, &QAction::triggered, this, &MainWindow::slot_onCreateRoom);
+    CommandRegistry::bindQAction(createRoomAct, m_commandRegistry->addCommand("room.create"));
 
     editRoomSelectionAct = new QAction(QIcon(":/icons/roomedit.png"),
                                        tr("Edit Selected Rooms"),
@@ -1208,6 +1311,8 @@ void MainWindow::createActions()
     editRoomSelectionAct->setStatusTip(tr("Edit Selected Rooms"));
     editRoomSelectionAct->setShortcut(tr("Ctrl+E"));
     connect(editRoomSelectionAct, &QAction::triggered, this, &MainWindow::slot_onEditRoomSelection);
+    CommandRegistry::bindQAction(editRoomSelectionAct,
+                                 m_commandRegistry->addCommand("room.edit-selected"));
 
     deleteRoomSelectionAct = new QAction(QIcon(":/icons/roomdelete.png"),
                                          tr("Delete Selected Rooms"),
@@ -1217,6 +1322,8 @@ void MainWindow::createActions()
             &QAction::triggered,
             this,
             &MainWindow::slot_onDeleteRoomSelection);
+    CommandRegistry::bindQAction(deleteRoomSelectionAct,
+                                 m_commandRegistry->addCommand("room.delete-selected"));
 
     moveUpRoomSelectionAct = new QAction(QIcon(":/icons/roommoveup.png"),
                                          tr("Move Up Selected Rooms"),
@@ -1226,6 +1333,8 @@ void MainWindow::createActions()
             &QAction::triggered,
             this,
             &MainWindow::slot_onMoveUpRoomSelection);
+    CommandRegistry::bindQAction(moveUpRoomSelectionAct,
+                                 m_commandRegistry->addCommand("room.move-up-selected"));
     moveDownRoomSelectionAct = new QAction(QIcon(":/icons/roommovedown.png"),
                                            tr("Move Down Selected Rooms"),
                                            this);
@@ -1234,6 +1343,8 @@ void MainWindow::createActions()
             &QAction::triggered,
             this,
             &MainWindow::slot_onMoveDownRoomSelection);
+    CommandRegistry::bindQAction(moveDownRoomSelectionAct,
+                                 m_commandRegistry->addCommand("room.move-down-selected"));
     mergeUpRoomSelectionAct = new QAction(QIcon(":/icons/roommergeup.png"),
                                           tr("Merge Up Selected Rooms"),
                                           this);
@@ -1242,6 +1353,8 @@ void MainWindow::createActions()
             &QAction::triggered,
             this,
             &MainWindow::slot_onMergeUpRoomSelection);
+    CommandRegistry::bindQAction(mergeUpRoomSelectionAct,
+                                 m_commandRegistry->addCommand("room.merge-up-selected"));
     mergeDownRoomSelectionAct = new QAction(QIcon(":/icons/roommergedown.png"),
                                             tr("Merge Down Selected Rooms"),
                                             this);
@@ -1250,6 +1363,8 @@ void MainWindow::createActions()
             &QAction::triggered,
             this,
             &MainWindow::slot_onMergeDownRoomSelection);
+    CommandRegistry::bindQAction(mergeDownRoomSelectionAct,
+                                 m_commandRegistry->addCommand("room.merge-down-selected"));
     connectToNeighboursRoomSelectionAct = new QAction(QIcon(":/icons/roomconnecttoneighbours.png"),
                                                       tr("Connect room(s) to its neighbour rooms"),
                                                       this);
@@ -1258,15 +1373,19 @@ void MainWindow::createActions()
             &QAction::triggered,
             this,
             &MainWindow::slot_onConnectToNeighboursRoomSelection);
+    CommandRegistry::bindQAction(connectToNeighboursRoomSelectionAct,
+                                 m_commandRegistry->addCommand("room.connect-to-neighbours"));
 
     findRoomsAct = new QAction(QIcon(":/icons/roomfind.png"), tr("&Find Rooms"), this);
     findRoomsAct->setStatusTip(tr("Find matching rooms"));
     findRoomsAct->setShortcut(tr("Ctrl+F"));
     connect(findRoomsAct, &QAction::triggered, this, &MainWindow::slot_onFindRoom);
+    CommandRegistry::bindQAction(findRoomsAct, m_commandRegistry->addCommand("room.find"));
 
     clientAct = new QAction(QIcon(":/icons/online.png"), tr("&Launch mud client"), this);
     clientAct->setStatusTip(tr("Launch the integrated mud client"));
     connect(clientAct, &QAction::triggered, this, &MainWindow::slot_onLaunchClient);
+    CommandRegistry::bindQAction(clientAct, m_commandRegistry->addCommand("client.launch"));
 
     saveLogAct = new QAction(QIcon::fromTheme("document-save", QIcon(":/icons/save.png")),
                              tr("Save Log as &Plain Text..."),
@@ -1285,6 +1404,7 @@ void MainWindow::createActions()
     connect(saveLogAct, &QAction::triggered, m_clientWidget, &ClientWidget::slot_saveLog);
 #endif
     saveLogAct->setStatusTip(tr("Save log as plain text file"));
+    CommandRegistry::bindQAction(saveLogAct, m_commandRegistry->addCommand("client.save-log"));
 
     saveLogAsHtmlAct = new QAction(QIcon::fromTheme("document-save", QIcon(":/icons/save.png")),
                                    tr("Save Log as &HTML..."),
@@ -1305,6 +1425,8 @@ void MainWindow::createActions()
             &ClientWidget::slot_saveLogAsHtml);
 #endif
     saveLogAsHtmlAct->setStatusTip(tr("Save log as HTML file"));
+    CommandRegistry::bindQAction(saveLogAsHtmlAct,
+                                 m_commandRegistry->addCommand("client.save-log-html"));
 
     releaseAllPathsAct = new QAction(QIcon(":/icons/cancel.png"), tr("Release All Paths"), this);
     releaseAllPathsAct->setStatusTip(tr("Release all paths"));
@@ -1313,6 +1435,8 @@ void MainWindow::createActions()
             &QAction::triggered,
             m_pathMachine,
             &PathMachine::slot_releaseAllPaths);
+    CommandRegistry::bindQAction(releaseAllPathsAct,
+                                 m_commandRegistry->addCommand("pathmachine.release-all-paths"));
 
     gotoRoomAct = new QAction(QIcon(":/icons/goto.png"), tr("Move to selected room"), this);
     gotoRoomAct->setStatusTip(tr("Move to selected room"));
@@ -1332,6 +1456,7 @@ void MainWindow::createActions()
             m_mapData->setRoom(id);
         }
     });
+    CommandRegistry::bindQAction(gotoRoomAct, m_commandRegistry->addCommand("room.goto-selected"));
 
     forceRoomAct = new QAction(QIcon(":/icons/force.png"),
                                tr("Update selected room with last movement"),
@@ -1340,6 +1465,8 @@ void MainWindow::createActions()
     forceRoomAct->setCheckable(false);
     forceRoomAct->setEnabled(false);
     connect(forceRoomAct, &QAction::triggered, this, &MainWindow::slot_forceMapperToRoom);
+    CommandRegistry::bindQAction(forceRoomAct,
+                                 m_commandRegistry->addCommand("room.force-update-selected"));
 
     selectedRoomActGroup = new QActionGroup(this);
     selectedRoomActGroup->setExclusive(false);
@@ -1351,6 +1478,19 @@ void MainWindow::createActions()
     selectedRoomActGroup->addAction(mergeDownRoomSelectionAct);
     selectedRoomActGroup->addAction(connectToNeighboursRoomSelectionAct);
     selectedRoomActGroup->setEnabled(false);
+    // Registry-side mirror, purely organizational (no exclusivity): lets the
+    // future QML shell discover "this cluster enables/disables together"
+    // without a QActionGroup. The QActionGroup above remains authoritative
+    // for the running widget app; see slot_newRoomSelection().
+    for (const char *const id : {"room.edit-selected",
+                                 "room.delete-selected",
+                                 "room.move-up-selected",
+                                 "room.move-down-selected",
+                                 "room.merge-up-selected",
+                                 "room.merge-down-selected",
+                                 "room.connect-to-neighbours"}) {
+        m_commandRegistry->addToGroup(m_commandRegistry->command(id), "room.selection", false);
+    }
 
     deleteConnectionSelectionAct = new QAction(QIcon(":/icons/connectiondelete.png"),
                                                tr("Delete Selected Connection"),
@@ -1360,11 +1500,16 @@ void MainWindow::createActions()
             &QAction::triggered,
             this,
             &MainWindow::slot_onDeleteConnectionSelection);
+    CommandRegistry::bindQAction(deleteConnectionSelectionAct,
+                                 m_commandRegistry->addCommand("connection.delete-selected"));
 
     selectedConnectionActGroup = new QActionGroup(this);
     selectedConnectionActGroup->setExclusive(false);
     selectedConnectionActGroup->addAction(deleteConnectionSelectionAct);
     selectedConnectionActGroup->setEnabled(false);
+    m_commandRegistry->addToGroup(m_commandRegistry->command("connection.delete-selected"),
+                                  "connection.selection",
+                                  false);
 
     infomarkActions.editInfomarkAct = new QAction(QIcon(":/icons/infomarkedit.png"),
                                                   tr("Edit Selected Markers"),
@@ -1375,6 +1520,8 @@ void MainWindow::createActions()
             &QAction::triggered,
             this,
             &MainWindow::slot_onEditInfomarkSelection);
+    CommandRegistry::bindQAction(infomarkActions.editInfomarkAct,
+                                 m_commandRegistry->addCommand("infomark.edit-selected", true));
     infomarkActions.deleteInfomarkAct = new QAction(QIcon(":/icons/infomarkdelete.png"),
                                                     tr("Delete Selected Markers"),
                                                     this);
@@ -1384,12 +1531,17 @@ void MainWindow::createActions()
             &QAction::triggered,
             this,
             &MainWindow::slot_onDeleteInfomarkSelection);
+    CommandRegistry::bindQAction(infomarkActions.deleteInfomarkAct,
+                                 m_commandRegistry->addCommand("infomark.delete-selected", true));
 
     infomarkActions.infomarkGroup = new QActionGroup(this);
     infomarkActions.infomarkGroup->setExclusive(false);
     infomarkActions.infomarkGroup->addAction(infomarkActions.deleteInfomarkAct);
     infomarkActions.infomarkGroup->addAction(infomarkActions.editInfomarkAct);
     infomarkActions.infomarkGroup->setEnabled(false);
+    for (const char *const id : {"infomark.delete-selected", "infomark.edit-selected"}) {
+        m_commandRegistry->addToGroup(m_commandRegistry->command(id), "infomark.selection", false);
+    }
 
     mapperMode.playModeAct = new QAction(QIcon(":/icons/online.png"),
                                          tr("Switch to play mode"),
@@ -1397,6 +1549,8 @@ void MainWindow::createActions()
     mapperMode.playModeAct->setStatusTip(tr("Switch to play mode - no new rooms are created"));
     mapperMode.playModeAct->setCheckable(true);
     connect(mapperMode.playModeAct, &QAction::triggered, this, &MainWindow::slot_onPlayMode);
+    CommandRegistry::bindQAction(mapperMode.playModeAct,
+                                 m_commandRegistry->addCommand("mapper-mode.play", true));
 
     mapperMode.mapModeAct = new QAction(QIcon(":/icons/map.png"),
                                         tr("Switch to mapping mode"),
@@ -1405,6 +1559,8 @@ void MainWindow::createActions()
         tr("Switch to mapping mode - new rooms are created when moving"));
     mapperMode.mapModeAct->setCheckable(true);
     connect(mapperMode.mapModeAct, &QAction::triggered, this, &MainWindow::slot_onMapMode);
+    CommandRegistry::bindQAction(mapperMode.mapModeAct,
+                                 m_commandRegistry->addCommand("mapper-mode.map", true));
 
     mapperMode.offlineModeAct = new QAction(QIcon(":/icons/play.png"),
                                             tr("Switch to offline emulation mode"),
@@ -1413,6 +1569,8 @@ void MainWindow::createActions()
         tr("Switch to offline emulation mode - you can learn areas offline"));
     mapperMode.offlineModeAct->setCheckable(true);
     connect(mapperMode.offlineModeAct, &QAction::triggered, this, &MainWindow::slot_onOfflineMode);
+    CommandRegistry::bindQAction(mapperMode.offlineModeAct,
+                                 m_commandRegistry->addCommand("mapper-mode.offline", true));
 
     mapperMode.mapModeActGroup = new QActionGroup(this);
     mapperMode.mapModeActGroup->setExclusive(true);
@@ -1420,11 +1578,18 @@ void MainWindow::createActions()
     mapperMode.mapModeActGroup->addAction(mapperMode.mapModeAct);
     mapperMode.mapModeActGroup->addAction(mapperMode.offlineModeAct);
     mapperMode.mapModeActGroup->setEnabled(true);
+    // See the "mouse-mode" registry group above for why both the native
+    // QActionGroup exclusivity and this registry-side mirror coexist.
+    for (const char *const id : {"mapper-mode.play", "mapper-mode.map", "mapper-mode.offline"}) {
+        m_commandRegistry->addToGroup(m_commandRegistry->command(id), "mapper-mode", true);
+    }
 
     rebuildMeshesAct = new QAction(QIcon(":/icons/graphicscfg.png"), tr("&Rebuild World"), this);
     rebuildMeshesAct->setStatusTip(tr("Reconstruct the world mesh to fix graphical rendering bugs"));
     rebuildMeshesAct->setCheckable(false);
     connect(rebuildMeshesAct, &QAction::triggered, getCanvas(), &MapCanvas::slot_rebuildMeshes);
+    CommandRegistry::bindQAction(rebuildMeshesAct,
+                                 m_commandRegistry->addCommand("world.rebuild-meshes"));
 }
 
 static void setConfigMapMode(const MapModeEnum mode)
@@ -1486,18 +1651,17 @@ void MainWindow::disableActions(bool value)
     // Note: Some of the ones that would launch async actions (e.g. loading/saving)
     // would probably be blocked because we only allow one async action at a time,
     // but they'll probably need to be individually tested to see what actually happens.
-    newAct->setDisabled(value);
-    openAct->setDisabled(value);
-    mergeAct->setDisabled(value);
-    reloadAct->setDisabled(value);
-    saveAsAct->setDisabled(value);
-    exportBaseMapAct->setDisabled(value);
-    exportMm2xmlMapAct->setDisabled(value);
-    if constexpr (CURRENT_PLATFORM != PlatformEnum::Wasm) {
-        exportWebMapAct->setDisabled(value);
-        exitAct->setDisabled(value);
-    }
-    exportMmpMapAct->setDisabled(value);
+    //
+    // Previously this set QAction::setDisabled() directly on each of
+    // new/open/merge/reload/save-as/exports/exit; those are exactly the
+    // commands created with bulkDisablable=true in createActions(), so
+    // setBulkDisabled() reproduces the same set of actions being disabled
+    // (via the command -> action binding) without listing them again here.
+    // exportWebMapAct/exitAct are permanently disabled on Wasm regardless
+    // (see createActions()), so folding them into the bulk-disable set
+    // there too is a no-op on that platform, matching the old
+    // platform-conditional skip.
+    m_commandRegistry->setBulkDisabled(value);
 }
 
 void MainWindow::hideCanvas(const bool hide)
@@ -2054,9 +2218,13 @@ void MainWindow::slot_newRoomSelection(const SigRoomSelection &rs)
     const size_t selSize = !isValidSelection ? 0 : rs.deref().size();
 
     m_roomSelection = !isValidSelection ? nullptr : rs.getShared();
-    selectedRoomActGroup->setEnabled(isValidSelection);
-    gotoRoomAct->setEnabled(selSize == 1);
-    forceRoomAct->setEnabled(selSize == 1 && m_pathMachine->hasLastEvent());
+    // Routed through the registry (rather than
+    // selectedRoomActGroup->setEnabled()) so the commands are the source of
+    // truth; each member QAction still follows via its binding.
+    m_commandRegistry->setGroupEnabled("room.selection", isValidSelection);
+    m_commandRegistry->command("room.goto-selected")->setEnabled(selSize == 1);
+    m_commandRegistry->command("room.force-update-selected")
+        ->setEnabled(selSize == 1 && m_pathMachine->hasLastEvent());
 
     if (isValidSelection) {
         const auto msg = QString("Selection: %1 room%2").arg(selSize).arg(basic_plural(selSize));
@@ -2067,14 +2235,14 @@ void MainWindow::slot_newRoomSelection(const SigRoomSelection &rs)
 void MainWindow::slot_newConnectionSelection(ConnectionSelection *const cs)
 {
     m_connectionSelection = (cs != nullptr) ? cs->shared_from_this() : nullptr;
-    selectedConnectionActGroup->setEnabled(m_connectionSelection != nullptr);
+    m_commandRegistry->setGroupEnabled("connection.selection", m_connectionSelection != nullptr);
 }
 
 void MainWindow::slot_newInfomarkSelection(InfomarkSelection *const is)
 {
     const bool isNonNull = (is != nullptr);
     m_infoMarkSelection = isNonNull ? is->shared_from_this() : nullptr;
-    deref(infomarkActions.infomarkGroup).setEnabled(isNonNull);
+    m_commandRegistry->setGroupEnabled("infomark.selection", isNonNull);
 
     if (isNonNull) {
         auto &ref = *is;
@@ -2297,7 +2465,7 @@ void MainWindow::slot_about()
 void MainWindow::setMapModified(bool modified)
 {
     setWindowModified(modified);
-    saveAct->setEnabled(modified);
+    m_commandRegistry->command("file.save")->setEnabled(modified);
     if (modified) {
         deref(m_mapWindow).hideSplashImage();
     }

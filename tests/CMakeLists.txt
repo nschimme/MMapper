@@ -150,6 +150,10 @@ set(mainwindow_SRCS
     ../src/global/Version.h
     ../src/mainwindow/AudioVolumeSlider.cpp
     ../src/mainwindow/AudioVolumeSlider.h
+    ../src/mainwindow/CommandRegistry.cpp
+    ../src/mainwindow/CommandRegistry.h
+    ../src/mainwindow/UiCommand.cpp
+    ../src/mainwindow/UiCommand.h
     ../src/mainwindow/UpdateChecker.cpp
     ../src/mainwindow/UpdateChecker.h
     )

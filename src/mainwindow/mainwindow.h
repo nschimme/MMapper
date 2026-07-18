@@ -44,6 +44,7 @@ class PreferencesController;
 #else
 class ConfigDialog;
 #endif
+class CommandRegistry;
 class ConnectionListener;
 class ConnectionSelection;
 #ifdef MMAPPER_WITH_QML
@@ -211,6 +212,14 @@ private:
     XpStatusAdapter *m_xpStatusAdapter = nullptr;
 #endif
     std::unique_ptr<HotkeyManager> m_hotkeyManager;
+
+    // Id-keyed source of truth for every QAction below; see
+    // CommandRegistry.h for the id scheme. QActions remain the actual
+    // QWidgets-facing views (menus/toolbars/shortcuts still hang off them
+    // unchanged), bound bidirectionally to their command via
+    // CommandRegistry::bindQAction() in createActions() -- the future QML
+    // shell will bind directly to the commands instead.
+    CommandRegistry *m_commandRegistry = nullptr;
 
     QPointer<QMenu> m_contextMenu;
 

@@ -26,4 +26,5 @@ private Q_SLOTS:
     void parserPageAdapterRoundTrip();
     void generalPageAdapterRoundTrip();
     void clientPageAdapterRoundTrip();
+    void commandRegistrySync();
 };

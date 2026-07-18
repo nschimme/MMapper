@@ -6,6 +6,8 @@
 #include "../src/configuration/configuration.h"
 #include "../src/global/Version.h"
 #include "../src/mainwindow/AudioVolumeSlider.h"
+#include "../src/mainwindow/CommandRegistry.h"
+#include "../src/mainwindow/UiCommand.h"
 #include "../src/mainwindow/UpdateChecker.h"
 #include "../src/preferences/AdvancedGraphicsModel.h"
 #include "../src/preferences/ClientPageAdapter.h"
@@ -17,6 +19,7 @@
 #include "../src/preferences/PreferencesController.h"
 #include "../src/preferences/ansicombo.h"
 
+#include <QAction>
 #include <QDebug>
 #include <QScopeGuard>
 #include <QSignalSpy>
@@ -375,6 +378,126 @@ void TestMainWindow::clientPageAdapterRoundTrip()
     QCOMPARE(getConfig().integratedClient.commandSeparator, QStringLiteral(";"));
 
     QVERIFY(!adapter.setCommandSeparator(QStringLiteral("ab")));
+}
+
+// Exercises CommandRegistry/UiCommand/CommandRegistry::bindQAction the same
+// way MainWindow::createActions() uses them: a UiCommand bound to a QAction
+// should behave as a single piece of state seen from two sides, with no
+// feedback loops, correct bulk-disable folding, and correct exclusive-group
+// enforcement propagating down to the bound QActions.
+void TestMainWindow::commandRegistrySync()
+{
+    CommandRegistry registry(nullptr);
+
+    // --- trigger propagation: command -> action ---
+    // (the reverse is intentionally not wired: in the running app the
+    // QAction's own triggered() connection -- set up alongside
+    // bindQAction() in createActions() -- is what runs the real handler;
+    // cmd.trigger() just reuses that same QAction as the dispatch path so
+    // a future QML view can invoke it identically.)
+    UiCommand *const triggerCmd = registry.addCommand("test.trigger");
+    QAction triggerAction;
+    CommandRegistry::bindQAction(&triggerAction, triggerCmd);
+
+    int actionTriggerCount = 0;
+    connect(&triggerAction, &QAction::triggered, this, [&]() { ++actionTriggerCount; });
+    triggerCmd->trigger();
+    QCOMPARE(actionTriggerCount, 1);
+    triggerCmd->trigger();
+    QCOMPARE(actionTriggerCount, 2);
+
+    // --- enabled/checked mirroring, both directions, without feedback loops ---
+    UiCommand *const checkCmd = registry.addCommand("test.checkable", /*checkable=*/true);
+    QAction checkAction;
+    // Checkable/text/shortcut are owned by the QAction side and copied into
+    // the command at bind time (see CommandRegistry::bindQAction), mirroring
+    // how MainWindow::createActions() always calls action->setCheckable()
+    // before binding.
+    checkAction.setCheckable(true);
+    CommandRegistry::bindQAction(&checkAction, checkCmd);
+    QVERIFY(checkAction.isCheckable());
+    QVERIFY(!checkAction.isChecked());
+    QVERIFY(!checkCmd->isChecked());
+
+    // action -> command
+    QSignalSpy checkCmdCheckedSpy(checkCmd, &UiCommand::sig_checkedChanged);
+    checkAction.setChecked(true);
+    QCOMPARE(checkCmdCheckedSpy.count(), 1);
+    QVERIFY(checkCmd->isChecked());
+
+    // command -> action
+    checkCmd->setChecked(false);
+    QVERIFY(!checkAction.isChecked());
+    // A feedback loop would leave checkCmdCheckedSpy with more than the one
+    // additional signal this setChecked(false) legitimately causes (2
+    // total: the setChecked(true) above, and this one), or would leave the
+    // two sides disagreeing.
+    QCOMPARE(checkCmdCheckedSpy.count(), 2);
+    QCOMPARE(checkAction.isChecked(), checkCmd->isChecked());
+
+    // enabled: action -> command
+    QVERIFY(checkCmd->isEnabled());
+    checkAction.setEnabled(false);
+    QVERIFY(!checkCmd->isEnabled());
+    QVERIFY(!checkCmd->isEffectiveEnabled());
+
+    // enabled: command -> action
+    checkCmd->setEnabled(true);
+    QVERIFY(checkAction.isEnabled());
+
+    // --- bulk-disable interplay ---
+    UiCommand *const bulkCmd = registry.addCommand("test.bulk",
+                                                   /*checkable=*/false,
+                                                   /*bulkDisablable=*/true);
+    QAction bulkAction;
+    CommandRegistry::bindQAction(&bulkAction, bulkCmd);
+    QVERIFY(bulkCmd->isEnabled());
+    QVERIFY(bulkCmd->isEffectiveEnabled());
+    QVERIFY(bulkAction.isEnabled());
+
+    registry.setBulkDisabled(true);
+    QVERIFY(bulkCmd->isEnabled()); // logical enabled is untouched by bulk-disable
+    QVERIFY(!bulkCmd->isEffectiveEnabled());
+    QVERIFY(!bulkAction.isEnabled()); // the QAction follows effectiveEnabled
+
+    // A command that never opted into bulk-disable must be unaffected.
+    QVERIFY(checkCmd->isEffectiveEnabled());
+    QVERIFY(checkAction.isEnabled());
+
+    registry.setBulkDisabled(false);
+    QVERIFY(bulkCmd->isEffectiveEnabled());
+    QVERIFY(bulkAction.isEnabled());
+
+    // --- exclusive group: checking one unchecks the sibling and its bound QAction ---
+    UiCommand *const groupA = registry.addCommand("test.group.a", /*checkable=*/true);
+    UiCommand *const groupB = registry.addCommand("test.group.b", /*checkable=*/true);
+    QAction actionA;
+    QAction actionB;
+    actionA.setCheckable(true);
+    actionB.setCheckable(true);
+    CommandRegistry::bindQAction(&actionA, groupA);
+    CommandRegistry::bindQAction(&actionB, groupB);
+    registry.addToGroup(groupA, "test.group", /*exclusive=*/true);
+    registry.addToGroup(groupB, "test.group", /*exclusive=*/true);
+
+    groupA->setChecked(true);
+    QVERIFY(groupA->isChecked());
+    QVERIFY(actionA.isChecked());
+    QVERIFY(!groupB->isChecked());
+    QVERIFY(!actionB.isChecked());
+
+    groupB->setChecked(true);
+    QVERIFY(groupB->isChecked());
+    QVERIFY(actionB.isChecked());
+    QVERIFY(!groupA->isChecked()); // registry unchecked the sibling command
+    QVERIFY(!actionA.isChecked()); // ...which propagated to its bound QAction
+
+    // Checking one action directly (as a real user click would) must also
+    // enforce exclusivity through the registry.
+    actionA.setChecked(true);
+    QVERIFY(groupA->isChecked());
+    QVERIFY(!groupB->isChecked());
+    QVERIFY(!actionB.isChecked());
 }
 
 QTEST_MAIN(TestMainWindow)

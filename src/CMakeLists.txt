@@ -262,6 +262,8 @@ set(mmapper_SRCS
     mainwindow/AudioVolumeSlider.h
     mainwindow/CheckableFlagModel.cpp
     mainwindow/CheckableFlagModel.h
+    mainwindow/CommandRegistry.cpp
+    mainwindow/CommandRegistry.h
     mainwindow/LogModel.cpp
     mainwindow/LogModel.h
     mainwindow/MapZoomSlider.cpp
@@ -270,6 +272,8 @@ set(mmapper_SRCS
     mainwindow/TasksModel.h
     mainwindow/ThemeManager.cpp
     mainwindow/ThemeManager.h
+    mainwindow/UiCommand.cpp
+    mainwindow/UiCommand.h
     mainwindow/UpdateChecker.cpp
     mainwindow/UpdateChecker.h
     mainwindow/AnsiColorPickerController.cpp

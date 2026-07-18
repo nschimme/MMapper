@@ -70,6 +70,7 @@
 #ifndef MMAPPER_WITH_QML
 #include "roomeditattrdlg.h"
 #endif
+#include "AppCore.h"
 #include "CommandRegistry.h"
 #include "mainwindow-async.h"
 #include "metatypes.h"
@@ -138,11 +139,6 @@ NODISCARD static const char *get_type_name(const AsyncIOTypeEnum mode)
         assert(false);
         return "(error)";
     }
-}
-
-NODISCARD static const char *basic_plural(size_t n)
-{
-    return (n == 1) ? "" : "s";
 }
 
 static void addApplicationFont()
@@ -224,6 +220,11 @@ MainWindow::MainWindow()
 
         m_pathMachine = pathMachine;
     });
+
+    // Needs m_mapData/m_pathMachine/m_commandRegistry (all constructed
+    // above); the canvas doesn't exist yet, so AppCore::setCanvas() is
+    // called later from wireConnections() once MapCanvas is available.
+    m_appCore = new AppCore(deref(m_mapData), deref(m_pathMachine), deref(m_commandRegistry), this);
 
     m_mediaLibrary = new MediaLibrary(this);
     m_audioManager = new AudioManager(deref(m_mediaLibrary), deref(m_gameObserver), this);
@@ -730,6 +731,27 @@ void MainWindow::wireConnections()
             &PathMachine::slot_releaseAllPaths);
 
     MapCanvas *const canvas = getCanvas();
+    m_appCore->setCanvas(canvas);
+
+    connect(m_appCore, &AppCore::sig_statusMessage, this, &MainWindow::showStatusInternal);
+    connect(m_appCore, &AppCore::sig_mapperModeChanged, this, [this](const MapModeEnum mode) {
+        switch (mode) {
+        case MapModeEnum::PLAY:
+            modeMenu->setIcon(mapperMode.playModeAct->icon());
+            // needed so that the menu updates to reflect state set by commands
+            mapperMode.playModeAct->setChecked(true);
+            break;
+        case MapModeEnum::MAP:
+            modeMenu->setIcon(mapperMode.mapModeAct->icon());
+            mapperMode.mapModeAct->setChecked(true);
+            break;
+        case MapModeEnum::OFFLINE:
+            modeMenu->setIcon(mapperMode.offlineModeAct->icon());
+            mapperMode.offlineModeAct->setChecked(true);
+            break;
+        }
+    });
+
     connect(m_mapData, &MapFrontend::sig_clearingMap, canvas, &MapCanvas::slot_clearAllSelections);
 
     connect(m_pathMachine,
@@ -771,27 +793,7 @@ void MainWindow::wireConnections()
 
     connect(canvas, &MapCanvas::sig_newRoomSelection, this, &MainWindow::slot_newRoomSelection);
     connect(canvas, &MapCanvas::sig_selectionChanged, this, [this]() {
-        if (m_roomSelection != nullptr && m_roomSelection->size()) {
-            auto anyRoomAtOffset = [this](const Coordinate offset) -> bool {
-                const auto &sel = deref(m_roomSelection);
-                for (const RoomId id : sel) {
-                    const Coordinate here = m_mapData->getRoomHandle(id).getPosition();
-                    const Coordinate target = here + offset;
-                    if (m_mapData->findRoomHandle(target)) {
-                        return true;
-                    }
-                }
-                return false;
-            };
-            m_commandRegistry->command("room.move-up-selected")
-                ->setEnabled(!anyRoomAtOffset(Coordinate(0, 0, 1)));
-            m_commandRegistry->command("room.move-down-selected")
-                ->setEnabled(!anyRoomAtOffset(Coordinate(0, 0, -1)));
-            m_commandRegistry->command("room.merge-up-selected")
-                ->setEnabled(anyRoomAtOffset(Coordinate(0, 0, 1)));
-            m_commandRegistry->command("room.merge-down-selected")
-                ->setEnabled(anyRoomAtOffset(Coordinate(0, 0, -1)));
-        }
+        m_appCore->updateRoomOffsetCommands(m_roomSelection);
     });
     connect(canvas,
             &MapCanvas::sig_newConnectionSelection,
@@ -851,7 +853,7 @@ void MainWindow::wireConnections()
     connect(m_clientController,
             &ClientController::sig_relayMessage,
             this,
-            [this](const QString &message) { showStatusShort(message); });
+            [this](const QString &message) { m_appCore->showStatusShort(message); });
 #else
     connect(m_dockDialogClient,
             &QDockWidget::visibilityChanged,
@@ -863,7 +865,7 @@ void MainWindow::wireConnections()
         }
     });
     connect(m_clientWidget, &ClientWidget::sig_relayMessage, this, [this](const QString &message) {
-        showStatusShort(message);
+        m_appCore->showStatusShort(message);
     });
 #endif
 
@@ -1592,38 +1594,23 @@ void MainWindow::createActions()
                                  m_commandRegistry->addCommand("world.rebuild-meshes"));
 }
 
-static void setConfigMapMode(const MapModeEnum mode)
-{
-    setConfig().general.mapMode = mode;
-    getConfig().write();
-}
-
 void MainWindow::slot_onPlayMode()
 {
     // map mode can only create rooms, but play mode can make changes
-    setConfigMapMode(MapModeEnum::PLAY);
-    modeMenu->setIcon(mapperMode.playModeAct->icon());
-    // needed so that the menu updates to reflect state set by commands
-    mapperMode.playModeAct->setChecked(true);
+    m_appCore->setMapperMode(MapModeEnum::PLAY);
 }
 
 void MainWindow::slot_onMapMode()
 {
     slot_log("MainWindow",
              "Map mode selected - new rooms are created when entering unmapped areas.");
-    setConfigMapMode(MapModeEnum::MAP);
-    modeMenu->setIcon(mapperMode.mapModeAct->icon());
-    // needed so that the menu updates to reflect state set by commands
-    mapperMode.mapModeAct->setChecked(true);
+    m_appCore->setMapperMode(MapModeEnum::MAP);
 }
 
 void MainWindow::slot_onOfflineMode()
 {
     slot_log("MainWindow", "Offline emulation mode selected - learn new areas safely.");
-    setConfigMapMode(MapModeEnum::OFFLINE);
-    modeMenu->setIcon(mapperMode.offlineModeAct->icon());
-    // needed so that the menu updates to reflect state set by commands
-    mapperMode.offlineModeAct->setChecked(true);
+    m_appCore->setMapperMode(MapModeEnum::OFFLINE);
 }
 
 void MainWindow::slot_setMode(MapModeEnum mode)
@@ -2012,7 +1999,7 @@ void MainWindow::setupToolBars()
 
 void MainWindow::setupStatusBar()
 {
-    showStatusForever(tr("Say friend and enter..."));
+    m_appCore->showStatusForever(tr("Say friend and enter..."));
 
 #ifdef MMAPPER_WITH_QML
     // These are simple always-on status bar widgets, not dockable panels, so
@@ -2214,44 +2201,26 @@ void MainWindow::slot_onPreferences()
 
 void MainWindow::slot_newRoomSelection(const SigRoomSelection &rs)
 {
-    const bool isValidSelection = rs.isValid();
-    const size_t selSize = !isValidSelection ? 0 : rs.deref().size();
-
-    m_roomSelection = !isValidSelection ? nullptr : rs.getShared();
-    // Routed through the registry (rather than
-    // selectedRoomActGroup->setEnabled()) so the commands are the source of
-    // truth; each member QAction still follows via its binding.
-    m_commandRegistry->setGroupEnabled("room.selection", isValidSelection);
-    m_commandRegistry->command("room.goto-selected")->setEnabled(selSize == 1);
-    m_commandRegistry->command("room.force-update-selected")
-        ->setEnabled(selSize == 1 && m_pathMachine->hasLastEvent());
-
-    if (isValidSelection) {
-        const auto msg = QString("Selection: %1 room%2").arg(selSize).arg(basic_plural(selSize));
-        showStatusLong(msg);
-    }
+    // Storage stays here (read by e.g. slot_showContextMenu()); the
+    // resulting command-enabling/status-message logic is delegated to
+    // AppCore -- see AppCore::onNewRoomSelection().
+    m_roomSelection = !rs.isValid() ? nullptr : rs.getShared();
+    m_appCore->onNewRoomSelection(rs);
 }
 
 void MainWindow::slot_newConnectionSelection(ConnectionSelection *const cs)
 {
     m_connectionSelection = (cs != nullptr) ? cs->shared_from_this() : nullptr;
-    m_commandRegistry->setGroupEnabled("connection.selection", m_connectionSelection != nullptr);
+    m_appCore->onNewConnectionSelection(m_connectionSelection != nullptr);
 }
 
 void MainWindow::slot_newInfomarkSelection(InfomarkSelection *const is)
 {
     const bool isNonNull = (is != nullptr);
     m_infoMarkSelection = isNonNull ? is->shared_from_this() : nullptr;
-    m_commandRegistry->setGroupEnabled("infomark.selection", isNonNull);
-
-    if (isNonNull) {
-        auto &ref = *is;
-        showStatusLong(
-            QString("Selection: %1 mark%2").arg(ref.size()).arg((ref.size() != 1) ? "s" : ""));
-        if (ref.empty()) {
-            // Create a new infomark if its an empty selection
-            slot_onEditInfomarkSelection();
-        }
+    if (m_appCore->onNewInfomarkSelection(isNonNull, isNonNull ? is->size() : size_t{0})) {
+        // Create a new infomark if its an empty selection
+        slot_onEditInfomarkSelection();
     }
 }
 
@@ -2402,7 +2371,7 @@ void MainWindow::slot_open()
 
     auto openFile = [this](const QString &fileName, std::optional<QByteArray> fileContent) {
         if (fileName.isEmpty()) {
-            showStatusShort(tr("No filename provided"));
+            m_appCore->showStatusShort(tr("No filename provided"));
             return;
         }
 
@@ -2534,62 +2503,62 @@ void MainWindow::setCurrentFile(const QString &fileName)
 
 void MainWindow::slot_onLayerUp()
 {
-    getCanvas()->slot_layerUp();
+    m_appCore->layerUp();
 }
 
 void MainWindow::slot_onLayerDown()
 {
-    getCanvas()->slot_layerDown();
+    m_appCore->layerDown();
 }
 
 void MainWindow::slot_onLayerReset()
 {
-    getCanvas()->slot_layerReset();
+    m_appCore->layerReset();
 }
 
 void MainWindow::slot_onModeConnectionSelect()
 {
-    setCanvasMouseMode(CanvasMouseModeEnum::SELECT_CONNECTIONS);
+    m_appCore->setCanvasMouseMode(CanvasMouseModeEnum::SELECT_CONNECTIONS);
 }
 
 void MainWindow::slot_onModeRoomRaypick()
 {
-    setCanvasMouseMode(CanvasMouseModeEnum::RAYPICK_ROOMS);
+    m_appCore->setCanvasMouseMode(CanvasMouseModeEnum::RAYPICK_ROOMS);
 }
 
 void MainWindow::slot_onModeRoomSelect()
 {
-    setCanvasMouseMode(CanvasMouseModeEnum::SELECT_ROOMS);
+    m_appCore->setCanvasMouseMode(CanvasMouseModeEnum::SELECT_ROOMS);
 }
 
 void MainWindow::slot_onModeMoveSelect()
 {
-    setCanvasMouseMode(CanvasMouseModeEnum::MOVE);
+    m_appCore->setCanvasMouseMode(CanvasMouseModeEnum::MOVE);
 }
 
 void MainWindow::slot_onModeCreateRoomSelect()
 {
-    setCanvasMouseMode(CanvasMouseModeEnum::CREATE_ROOMS);
+    m_appCore->setCanvasMouseMode(CanvasMouseModeEnum::CREATE_ROOMS);
 }
 
 void MainWindow::slot_onModeCreateConnectionSelect()
 {
-    setCanvasMouseMode(CanvasMouseModeEnum::CREATE_CONNECTIONS);
+    m_appCore->setCanvasMouseMode(CanvasMouseModeEnum::CREATE_CONNECTIONS);
 }
 
 void MainWindow::slot_onModeCreateOnewayConnectionSelect()
 {
-    setCanvasMouseMode(CanvasMouseModeEnum::CREATE_ONEWAY_CONNECTIONS);
+    m_appCore->setCanvasMouseMode(CanvasMouseModeEnum::CREATE_ONEWAY_CONNECTIONS);
 }
 
 void MainWindow::slot_onModeInfomarkSelect()
 {
-    setCanvasMouseMode(CanvasMouseModeEnum::SELECT_INFOMARKS);
+    m_appCore->setCanvasMouseMode(CanvasMouseModeEnum::SELECT_INFOMARKS);
 }
 
 void MainWindow::slot_onModeCreateInfomarkSelect()
 {
-    setCanvasMouseMode(CanvasMouseModeEnum::CREATE_INFOMARKS);
+    m_appCore->setCanvasMouseMode(CanvasMouseModeEnum::CREATE_INFOMARKS);
 }
 
 void MainWindow::slot_onEditInfomarkSelection()
@@ -2987,13 +2956,6 @@ void MainWindow::mapChanged() const
     }
 }
 
-void MainWindow::setCanvasMouseMode(const CanvasMouseModeEnum mode)
-{
-    if (MapCanvas *const canvas = getCanvas()) {
-        canvas->slot_setCanvasMouseMode(mode);
-    }
-}
-
 void MainWindow::applyGroupAction(const std::function<Change(const RawRoom &)> &getChange)
 {
     m_mapData->applyChangesToList(deref(m_roomSelection), getChange);
@@ -3032,7 +2994,7 @@ void MainWindow::onSuccessfulLoad(const MapLoadData &mapLoadData)
     mapChanged();
 
     setCurrentFile(mapData.getFileName());
-    showStatusShort(tr("File loaded"));
+    m_appCore->showStatusShort(tr("File loaded"));
 }
 
 void MainWindow::onSuccessfulMerge(const Map &map)
@@ -3056,7 +3018,7 @@ void MainWindow::onSuccessfulMerge(const Map &map)
     groupWidget.slot_mapLoaded();
     updateMapModified();
     mapChanged();
-    showStatusShort(tr("File merged"));
+    m_appCore->showStatusShort(tr("File merged"));
 }
 
 void MainWindow::onSuccessfulSave(const SaveModeEnum mode,
@@ -3071,7 +3033,7 @@ void MainWindow::onSuccessfulSave(const SaveModeEnum mode,
         mapData.currentHasBeenSaved();
     }
 
-    showStatusShort(tr("File saved"));
+    m_appCore->showStatusShort(tr("File saved"));
     updateMapModified();
 
     QFileInfo file{fileName};

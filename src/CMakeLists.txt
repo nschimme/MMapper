@@ -257,6 +257,8 @@ set(mmapper_SRCS
     logger/autologger.h
     mainwindow/AboutInfo.cpp
     mainwindow/AboutInfo.h
+    mainwindow/AppCore.cpp
+    mainwindow/AppCore.h
     mainwindow/AsyncTypes.h
     mainwindow/AudioVolumeSlider.cpp
     mainwindow/AudioVolumeSlider.h

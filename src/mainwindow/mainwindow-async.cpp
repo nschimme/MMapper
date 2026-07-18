@@ -19,6 +19,7 @@
 #include "../mapstorage/jsonmapstorage.h"
 #include "../mapstorage/mapstorage.h"
 #include "../pathmachine/mmapper2pathmachine.h"
+#include "AppCore.h"
 #include "findroomsdlg.h"
 #include "mainwindow.h"
 #include "utils.h"
@@ -765,7 +766,7 @@ bool MainWindow::tryStartNewAsync()
 {
     ABORT_IF_NOT_ON_MAIN_THREAD();
     if (getAsyncIO().isRunningOnBackgroundThread()) {
-        showStatusShort(tr("IO Task already in progress"));
+        m_appCore->showStatusShort(tr("IO Task already in progress"));
         return false;
     }
     return true;
@@ -780,7 +781,7 @@ void MainWindow::loadFile(std::shared_ptr<MapSource> pSource)
         }
 
         if (source.getFileName().isEmpty()) {
-            showStatusShort(tr("No filename provided"));
+            m_appCore->showStatusShort(tr("No filename provided"));
             return;
         }
 
@@ -812,7 +813,7 @@ void MainWindow::slot_merge()
 
     auto mergeFile = [this](const QString &fileName, const std::optional<QByteArray> &fileContent) {
         if (fileName.isEmpty()) {
-            showStatusShort(tr("No filename provided"));
+            m_appCore->showStatusShort(tr("No filename provided"));
             return;
         }
 

@@ -24,6 +24,7 @@
 
 class AbstractMapStorage;
 class AdventureTracker;
+class AppCore;
 #ifndef MMAPPER_WITH_QML
 class AdventureWidget;
 #endif
@@ -221,6 +222,12 @@ private:
     // shell will bind directly to the commands instead.
     CommandRegistry *m_commandRegistry = nullptr;
 
+    // Shell-agnostic slice of MainWindow's application logic that has been
+    // extracted so far; see AppCore.h for what it owns and what still lives
+    // here. Constructed after m_mapData/m_pathMachine/m_commandRegistry
+    // (its dependencies), and given the canvas once MapCanvas exists.
+    AppCore *m_appCore = nullptr;
+
     QPointer<QMenu> m_contextMenu;
 
     SharedRoomSelection m_roomSelection;
@@ -393,10 +400,11 @@ private:
     void startServices();
     void forceNewFile();
     void showWarning(const QString &s);
+    // The actual widget-touching implementation; only called via AppCore's
+    // sig_statusMessage (connected in wireConnections()). Callers should
+    // use AppCore's showStatusShort()/showStatusLong()/showStatusForever()
+    // (m_appCore->...) instead of calling this directly.
     void showStatusInternal(const QString &txt, int duration);
-    void showStatusShort(const QString &txt) { showStatusInternal(txt, 2000); }
-    void showStatusLong(const QString &txt) { showStatusInternal(txt, 5000); }
-    void showStatusForever(const QString &txt) { showStatusInternal(txt, 0); }
     NODISCARD bool tryStartNewAsync();
 
 private:
@@ -435,7 +443,6 @@ private:
 
     NODISCARD MapCanvas *getCanvas() const;
     void mapChanged() const;
-    void setCanvasMouseMode(CanvasMouseModeEnum mode);
     void setMapModified(bool);
     void updateMapModified();
 

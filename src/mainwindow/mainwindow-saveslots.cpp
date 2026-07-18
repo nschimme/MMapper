@@ -4,6 +4,7 @@
 #include "../configuration/configuration.h"
 #include "../mapdata/mapdata.h"
 #include "../mapstorage/MapDestination.h"
+#include "AppCore.h"
 #include "mainwindow.h"
 
 #include <memory>
@@ -135,7 +136,7 @@ bool MainWindow::slot_saveAs()
         const auto fileNames = getSaveFileNames(
             mwss_detail::createDefaultSaveDialog(*this, suggestedName));
         if (fileNames.isEmpty()) {
-            showStatusShort(tr("No filename provided"));
+            m_appCore->showStatusShort(tr("No filename provided"));
             return false;
         }
         fileName = fileNames[0];
@@ -151,7 +152,7 @@ bool MainWindow::slot_exportBaseMap()
         const auto fileNames = getSaveFileNames(
             mwss_detail::createDefaultSaveDialog(*this, suggestedName));
         if (fileNames.isEmpty()) {
-            showStatusShort(tr("No filename provided"));
+            m_appCore->showStatusShort(tr("No filename provided"));
             return false;
         }
         fileName = fileNames[0];
@@ -170,7 +171,7 @@ bool MainWindow::slot_exportMm2xmlMap()
                                               "xml",
                                               suggestedName));
         if (fileNames.isEmpty()) {
-            showStatusShort(tr("No filename provided"));
+            m_appCore->showStatusShort(tr("No filename provided"));
             return false;
         }
         fileName = fileNames[0];
@@ -186,7 +187,7 @@ bool MainWindow::slot_exportWebMap()
 
     const QStringList fileNames = getSaveFileNames(mwss_detail::createDirectorySaveDialog(*this));
     if (fileNames.isEmpty()) {
-        showStatusShort(tr("No directory name provided"));
+        m_appCore->showStatusShort(tr("No directory name provided"));
         return false;
     }
     const QString dirName = fileNames[0];
@@ -201,7 +202,7 @@ bool MainWindow::slot_exportMmpMap()
         const auto fileNames = getSaveFileNames(
             mwss_detail::createFileSaveDialog(*this, "MMP maps (*.xml)", "xml", suggestedName));
         if (fileNames.isEmpty()) {
-            showStatusShort(tr("No filename provided"));
+            m_appCore->showStatusShort(tr("No filename provided"));
             return false;
         }
         fileName = fileNames[0];

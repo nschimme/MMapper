@@ -56,6 +56,21 @@ QQC2.ApplicationWindow {
     visible: true
     title: qsTr("MMapper (QML shell preview)")
 
+    // Forwards Escape to the canvas core, mirroring
+    // MapWindow::keyPressEvent()'s Qt.Key_Escape handling in the widget
+    // shell (see ../../display/mapwindow.cpp). MapCanvasCore::userPressedEscape()
+    // ignores its bool argument (see MapCanvasCore.cpp), so a single
+    // Shortcut firing on key-down (QML's Shortcut has no separate
+    // key-release signal) is sufficient -- there is no press/release pair
+    // to reproduce here, unlike the widget's keyPressEvent()/
+    // keyReleaseEvent() pair.
+    Shortcut {
+        sequence: "Escape"
+        onActivated: if (mapCore) {
+            mapCore.userPressedEscape(true);
+        }
+    }
+
     menuBar: QQC2.MenuBar {
         QQC2.Menu {
             title: qsTr("&File")

@@ -77,6 +77,7 @@
 #include <QMessageBox>
 #include <QPainter>
 #include <QPixmap>
+#include <QPointer>
 #include <QPushButton>
 #include <QQmlComponent>
 #include <QQmlContext>
@@ -86,6 +87,7 @@
 #include <QQuickWidget>
 #include <QScopeGuard>
 #include <QScopedPointer>
+#include <QSettings>
 #include <QSignalSpy>
 #include <QTemporaryDir>
 #include <QTimer>
@@ -554,6 +556,33 @@ signals:
 
 private:
     QObject *m_core = nullptr;
+};
+
+// Stands in for MapCanvasCore's userPressedEscape(Q_INVOKABLE, see
+// ../src/display/MapCanvasCore.h) as the "mapCore" context property for
+// mainShellEscapeShortcutForwards() below: a real MapCanvasCore needs OpenGL
+// (see command_registry_SRCS's/loadMainShell()'s comments on why this small
+// binary never links it), so this stub only exposes the one invokable
+// MainShell.qml's Shortcut{sequence: "Escape"} calls, recording how many
+// times (and with what argument) it was invoked.
+class NODISCARD_QOBJECT MapCoreEscapeStub final : public QObject
+{
+    Q_OBJECT
+
+public:
+    explicit MapCoreEscapeStub(QObject *const parent = nullptr)
+        : QObject(parent)
+    {}
+
+public:
+    Q_INVOKABLE void userPressedEscape(bool pressed)
+    {
+        ++callCount;
+        lastPressed = pressed;
+    }
+
+    int callCount = 0;
+    bool lastPressed = false;
 };
 
 } // namespace
@@ -3836,6 +3865,170 @@ void TestQml::loadMainShellChrome()
     QVERIFY(object->findChild<QObject *>(QStringLiteral("pathMachineLabel")) != nullptr);
     QVERIFY(object->findChild<QObject *>(QStringLiteral("clockStrip")) != nullptr);
     QVERIFY(object->findChild<QObject *>(QStringLiteral("xpStatusItem")) != nullptr);
+}
+
+void TestQml::mainShellEscapeShortcutForwards()
+{
+    // MainShell.qml's Shortcut{sequence: "Escape"} (see
+    // ../src/qml/shell/MainShell.qml) forwards Escape to the canvas core's
+    // userPressedEscape() Q_INVOKABLE (see ../src/display/MapCanvasCore.h),
+    // mirroring MapWindow::keyPressEvent()'s Qt::Key_Escape handling in the
+    // widget shell. A real MapCanvasCore needs OpenGL (see loadMainShell()'s
+    // comment on why this small binary never links it); MapCoreEscapeStub
+    // above stands in for it, exposing only the one invokable under test.
+    CommandRegistry registry(nullptr);
+    MapViewModel viewModel;
+    ToolbarLayoutController toolbarLayout;
+    AudioVolumeController musicVolume(AudioVolumeController::AudioType::Music);
+    AudioVolumeController soundVolume(AudioVolumeController::AudioType::Sound);
+    GameObserver gameObserver;
+    MumeClock mumeClock(/*mumeEpoch=*/0, gameObserver, nullptr);
+    ClockAdapter clockAdapter(gameObserver, mumeClock, nullptr);
+    AdventureTracker adventureTracker(gameObserver, nullptr);
+    XpStatusAdapter xpStatusAdapter(adventureTracker, nullptr);
+    MapCoreEscapeStub mapCoreStub;
+
+    QQmlEngine engine;
+    engine.rootContext()->setContextProperty("commands", &registry);
+    engine.rootContext()->setContextProperty("mapCore", &mapCoreStub);
+    engine.rootContext()->setContextProperty("mapViewModel", &viewModel);
+    engine.rootContext()->setContextProperty("statusText", QStringLiteral("test status"));
+    engine.rootContext()->setContextProperty("toolbarLayout", &toolbarLayout);
+    engine.rootContext()->setContextProperty("mapZoom", QVariant::fromValue<QObject *>(nullptr));
+    engine.rootContext()->setContextProperty("musicVolume", &musicVolume);
+    engine.rootContext()->setContextProperty("soundVolume", &soundVolume);
+    engine.rootContext()->setContextProperty("clock", &clockAdapter);
+    engine.rootContext()->setContextProperty("xpStatusAdapter", &xpStatusAdapter);
+
+    QQmlComponent component(&engine, QUrl(u"qrc:/qt/qml/MMapper/MainShell.qml"_qs));
+    while (component.isLoading()) {
+        QCoreApplication::processEvents();
+    }
+    QVERIFY2(!component.isError(), qPrintable(component.errorString()));
+
+    QScopedPointer<QObject> object(component.create(engine.rootContext()));
+    QVERIFY(object != nullptr);
+    QCoreApplication::processEvents();
+
+    auto *const window = qobject_cast<QQuickWindow *>(object.data());
+    QVERIFY(window != nullptr);
+    window->show();
+    QVERIFY(QTest::qWaitForWindowExposed(window));
+
+    QCOMPARE(mapCoreStub.callCount, 0);
+    QTest::keyClick(window, Qt::Key_Escape);
+    QCoreApplication::processEvents();
+    QCOMPARE(mapCoreStub.callCount, 1);
+    QCOMPARE(mapCoreStub.lastPressed, true);
+}
+
+void TestQml::mainShellCommandOpensAboutDialog()
+{
+    // Exercises the exact pattern QmlShellWindow.cpp's wireDialogCommands()
+    // uses to wire the "help.about" command to a fresh AboutInfo + QmlDialog
+    // (see slot_about()'s MMAPPER_WITH_QML branch in mainwindow.cpp, which
+    // it mirrors): triggering the command must construct and load a working
+    // dialog. QmlShellWindow itself isn't linkable into this small test
+    // binary (it's compiled straight into the "mmapper" executable -- see
+    // src/CMakeLists.txt's WITH_QML block comment -- because it touches
+    // MapCanvasCore's OpenGL dependency graph), so this test reproduces the
+    // command-trigger-opens-a-dialog wiring directly against a real
+    // CommandRegistry/UiCommand pair instead, the same substitution
+    // loadMainShell() above makes for the rest of QmlShellWindow's wiring.
+    CommandRegistry registry(nullptr);
+    UiCommand *const aboutCmd = registry.addCommand(QStringLiteral("help.about"), false);
+
+    QPointer<QmlDialog> lastDialog;
+    QObject::connect(aboutCmd, &UiCommand::sig_triggered, [&lastDialog]() {
+        auto *const dialog = new QmlDialog(QStringLiteral("About MMapper"),
+                                           QStringLiteral("AboutDialog"),
+                                           nullptr);
+        dialog->setAttribute(Qt::WA_DeleteOnClose);
+        auto *const info = new AboutInfo(dialog);
+        dialog->setContextProperty("aboutInfo", info);
+        dialog->setQmlSource(QUrl(u"qrc:/qt/qml/MMapper/AboutDialog.qml"_qs));
+        dialog->open();
+        lastDialog = dialog;
+    });
+
+    QVERIFY(lastDialog.isNull());
+    aboutCmd->trigger();
+    QVERIFY(!lastDialog.isNull());
+
+    QQuickWidget *const quick = lastDialog->quickWidget();
+    QVERIFY(quick != nullptr);
+    while (quick->status() == QQuickWidget::Loading) {
+        QCoreApplication::processEvents();
+    }
+    QCoreApplication::processEvents();
+
+    QCOMPARE(quick->status(), QQuickWidget::Ready);
+    QVERIFY(quick->rootObject() != nullptr);
+    QVERIFY(lastDialog->isVisible());
+
+    lastDialog->close();
+}
+
+void TestQml::qmlShellSettingsPersistenceRoundTrip()
+{
+    // Configuration::QmlShellSettings (see ../src/configuration/
+    // configuration.h's "qmlShell" group, added alongside this commit's
+    // QmlShellWindow lifecycle work) persists Shell B's top-level window
+    // geometry plus its 8 dock / 9 toolbar visibility flags, kept in a
+    // separate key namespace from GeneralSettings::windowGeometry/
+    // windowState so the widget shell and Shell B never clobber each
+    // other's saved layout. This drives Configuration::writeTo()/
+    // readFrom() (the same public round-trip Configuration::write()/read()
+    // use for the default backing store) against a temporary ini file so
+    // the test never touches the real user settings.
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    const QString path = dir.filePath(QStringLiteral("qmlshell-roundtrip.ini"));
+
+    auto &qmlShell = setConfig().qmlShell;
+    const auto originalGeometry = qmlShell.geometry;
+    const bool originalDockLogVisible = qmlShell.dockLogVisible;
+    const bool originalDockGroupVisible = qmlShell.dockGroupVisible;
+    const bool originalToolbarFileVisible = qmlShell.toolbarFileVisible;
+    const bool originalToolbarAudioVisible = qmlShell.toolbarAudioVisible;
+    auto cleanup = qScopeGuard([&]() {
+        auto &restore = setConfig().qmlShell;
+        restore.geometry = originalGeometry;
+        restore.dockLogVisible = originalDockLogVisible;
+        restore.dockGroupVisible = originalDockGroupVisible;
+        restore.toolbarFileVisible = originalToolbarFileVisible;
+        restore.toolbarAudioVisible = originalToolbarAudioVisible;
+    });
+
+    qmlShell.geometry = QByteArray("test-geometry-bytes");
+    qmlShell.dockLogVisible = true;
+    qmlShell.dockGroupVisible = false;
+    qmlShell.toolbarFileVisible = true;
+    qmlShell.toolbarAudioVisible = true;
+
+    {
+        QSettings out(path, QSettings::IniFormat);
+        getConfig().writeTo(out);
+    }
+
+    // Clobber the in-memory state so the read-back below actually proves
+    // something.
+    qmlShell.geometry.clear();
+    qmlShell.dockLogVisible = false;
+    qmlShell.dockGroupVisible = true;
+    qmlShell.toolbarFileVisible = false;
+    qmlShell.toolbarAudioVisible = false;
+
+    {
+        QSettings in(path, QSettings::IniFormat);
+        setConfig().readFrom(in);
+    }
+
+    QCOMPARE(getConfig().qmlShell.geometry, QByteArray("test-geometry-bytes"));
+    QCOMPARE(getConfig().qmlShell.dockLogVisible, true);
+    QCOMPARE(getConfig().qmlShell.dockGroupVisible, false);
+    QCOMPARE(getConfig().qmlShell.toolbarFileVisible, true);
+    QCOMPARE(getConfig().qmlShell.toolbarAudioVisible, true);
 }
 
 QTEST_MAIN(TestQml)

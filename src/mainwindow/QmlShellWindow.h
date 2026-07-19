@@ -9,8 +9,10 @@
 #include <memory>
 
 #include <QObject>
+#include <QPointer>
 #include <QString>
 
+class AboutInfo;
 class AdventureLogModel;
 class AdventureTracker;
 class AudioVolumeController;
@@ -21,9 +23,11 @@ class CommandRegistry;
 class CTimers;
 class DescriptionAdapter;
 class DockLayoutController;
+class FindRoomsController;
 class GameObserver;
 class GroupController;
 class HotkeyManager;
+class InfomarkSelection;
 class LogModel;
 class MapCanvasCore;
 class MapData;
@@ -32,16 +36,22 @@ class MapZoomController;
 class MediaLibrary;
 class Mmapper2Group;
 class MumeClock;
+class PreferencesController;
 class PrespammedPath;
+class QDialog;
 class QmlConfig;
 class QQmlApplicationEngine;
+class QQuickWindow;
+class RoomEditController;
 class RoomManager;
 class RoomModel;
+class RoomSelection;
 class TasksModel;
 class TimerController;
 class TimerModel;
 class ToolbarLayoutController;
 class UiCommand;
+class UpdateChecker;
 class XpStatusAdapter;
 
 // QmlShellWindow bootstraps Shell B, the --qml-shell preview described in
@@ -98,6 +108,12 @@ public:
 private:
     void registerCommands();
     void wireMouseModeCommand(const QString &id, int mode);
+
+    // --- dialogs + window lifecycle (this commit; see the task report) ---
+    void wireDialogCommands();
+    void wireSelectionCommands();
+    void restoreWindowState();
+    void persistWindowState();
 
 private:
     // --- minimal offline service set (see file comment) ---
@@ -162,4 +178,27 @@ private:
 
     QQmlApplicationEngine *m_engine = nullptr;
     bool m_valid = false;
+
+    // --- dialogs (see QmlShellWindow.cpp's wireDialogCommands()/
+    // wireSelectionCommands()) ---
+    UpdateChecker *m_updateChecker = nullptr;
+    QPointer<QDialog> m_updateDialog;
+
+    FindRoomsController *m_findRoomsController = nullptr;
+    QPointer<QDialog> m_findRoomsDialog;
+
+    PreferencesController *m_preferencesController = nullptr;
+    QPointer<QDialog> m_preferencesDialog;
+
+    // Mirrors MainWindow::m_roomSelection/m_infoMarkSelection: storage for
+    // the canvas's current selection, kept here (rather than only inside
+    // MapCanvasCore) so room.edit-selected/infomark.edit-selected can be
+    // enabled/disabled and the edit dialogs constructed with the right
+    // selection, exactly like MainWindow::slot_newRoomSelection()/
+    // slot_newInfomarkSelection() do.
+    std::shared_ptr<RoomSelection> m_roomSelection;
+    std::shared_ptr<InfomarkSelection> m_infoMarkSelection;
+
+    RoomEditController *m_roomEditController = nullptr;
+    QPointer<QDialog> m_roomEditDialog;
 };

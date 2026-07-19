@@ -334,7 +334,11 @@ public:
     void syncViewportConfig();
 
 public:
-    void userPressedEscape(bool);
+    // Q_INVOKABLE so Shell B's MainShell.qml can forward the Escape key
+    // directly (see MainShell.qml's Shortcut{sequence: "Escape"}) the same
+    // way MapWindow::keyPressEvent()/keyReleaseEvent() do for the widget
+    // shell; the bool parameter is otherwise unused (see the .cpp).
+    Q_INVOKABLE void userPressedEscape(bool);
 
 private:
     void log(const QString &msg) { emit sig_log("MapCanvas", msg); }

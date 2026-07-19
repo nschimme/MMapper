@@ -203,6 +203,7 @@ ConstString GRP_MUME_CLOCK = "Mume Clock";
 ConstString GRP_MUME_NATIVE = "Mume native";
 ConstString GRP_PARSER = "Parser";
 ConstString GRP_PATH_MACHINE = "Path Machine";
+ConstString GRP_QML_SHELL = "Qml Shell";
 ConstString GRP_ROOM_PANEL = "Room Panel";
 ConstString GRP_ROOMEDIT_DIALOG = "RoomEdit Dialog";
 
@@ -304,6 +305,23 @@ ConstString KEY_WEATHER_PRECIPITATION_INTENSITY = "weather.precipitationIntensit
 ConstString KEY_WEATHER_TIME_OF_DAY_INTENSITY = "weather.todIntensity";
 ConstString KEY_WINDOW_GEOMETRY = "Window Geometry";
 ConstString KEY_WINDOW_STATE = "Window State";
+ConstString KEY_QML_SHELL_DOCK_LOG_VISIBLE = "Dock Log Visible";
+ConstString KEY_QML_SHELL_DOCK_GROUP_VISIBLE = "Dock Group Visible";
+ConstString KEY_QML_SHELL_DOCK_ROOM_VISIBLE = "Dock Room Visible";
+ConstString KEY_QML_SHELL_DOCK_ADVENTURE_VISIBLE = "Dock Adventure Visible";
+ConstString KEY_QML_SHELL_DOCK_DESCRIPTION_VISIBLE = "Dock Description Visible";
+ConstString KEY_QML_SHELL_DOCK_TIMERS_VISIBLE = "Dock Timers Visible";
+ConstString KEY_QML_SHELL_DOCK_TASKS_VISIBLE = "Dock Tasks Visible";
+ConstString KEY_QML_SHELL_DOCK_CLIENT_VISIBLE = "Dock Client Visible";
+ConstString KEY_QML_SHELL_TOOLBAR_FILE_VISIBLE = "Toolbar File Visible";
+ConstString KEY_QML_SHELL_TOOLBAR_MAPPER_MODE_VISIBLE = "Toolbar Mapper Mode Visible";
+ConstString KEY_QML_SHELL_TOOLBAR_MOUSE_MODE_VISIBLE = "Toolbar Mouse Mode Visible";
+ConstString KEY_QML_SHELL_TOOLBAR_VIEW_VISIBLE = "Toolbar View Visible";
+ConstString KEY_QML_SHELL_TOOLBAR_PATH_MACHINE_VISIBLE = "Toolbar Path Machine Visible";
+ConstString KEY_QML_SHELL_TOOLBAR_ROOMS_VISIBLE = "Toolbar Rooms Visible";
+ConstString KEY_QML_SHELL_TOOLBAR_CONNECTIONS_VISIBLE = "Toolbar Connections Visible";
+ConstString KEY_QML_SHELL_TOOLBAR_PREFERENCES_VISIBLE = "Toolbar Preferences Visible";
+ConstString KEY_QML_SHELL_TOOLBAR_AUDIO_VISIBLE = "Toolbar Audio Visible";
 ConstString KEY_BELL_AUDIBLE = "Bell audible";
 ConstString KEY_BELL_VISUAL = "Bell visual";
 ConstString KEY_USE_COMMAND_SEPARATOR = "Use command separator";
@@ -496,6 +514,7 @@ NODISCARD static uint16_t sanitizeUint16(const int input, const uint16_t default
         GROUP_CALLBACK(callback, GRP_ROOMEDIT_DIALOG, roomEditDialog); \
         GROUP_CALLBACK(callback, GRP_ROOM_PANEL, roomPanel); \
         GROUP_CALLBACK(callback, GRP_FINDROOMS_DIALOG, findRoomsDialog); \
+        GROUP_CALLBACK(callback, GRP_QML_SHELL, qmlShell); \
         GROUP_CALLBACK(callback, GRP_HOTKEYS, hotkeys); \
     } while (false)
 
@@ -827,6 +846,29 @@ void Configuration::FindRoomsDialog::read(const QSettings &conf)
     geometry = conf.value(KEY_WINDOW_GEOMETRY).toByteArray();
 }
 
+void Configuration::QmlShellSettings::read(const QSettings &conf)
+{
+    geometry = conf.value(KEY_WINDOW_GEOMETRY).toByteArray();
+    dockLogVisible = conf.value(KEY_QML_SHELL_DOCK_LOG_VISIBLE, false).toBool();
+    dockGroupVisible = conf.value(KEY_QML_SHELL_DOCK_GROUP_VISIBLE, true).toBool();
+    dockRoomVisible = conf.value(KEY_QML_SHELL_DOCK_ROOM_VISIBLE, false).toBool();
+    dockAdventureVisible = conf.value(KEY_QML_SHELL_DOCK_ADVENTURE_VISIBLE, false).toBool();
+    dockDescriptionVisible = conf.value(KEY_QML_SHELL_DOCK_DESCRIPTION_VISIBLE, true).toBool();
+    dockTimersVisible = conf.value(KEY_QML_SHELL_DOCK_TIMERS_VISIBLE, false).toBool();
+    dockTasksVisible = conf.value(KEY_QML_SHELL_DOCK_TASKS_VISIBLE, false).toBool();
+    dockClientVisible = conf.value(KEY_QML_SHELL_DOCK_CLIENT_VISIBLE, true).toBool();
+    toolbarFileVisible = conf.value(KEY_QML_SHELL_TOOLBAR_FILE_VISIBLE, false).toBool();
+    toolbarMapperModeVisible = conf.value(KEY_QML_SHELL_TOOLBAR_MAPPER_MODE_VISIBLE, false).toBool();
+    toolbarMouseModeVisible = conf.value(KEY_QML_SHELL_TOOLBAR_MOUSE_MODE_VISIBLE, false).toBool();
+    toolbarViewVisible = conf.value(KEY_QML_SHELL_TOOLBAR_VIEW_VISIBLE, false).toBool();
+    toolbarPathMachineVisible = conf.value(KEY_QML_SHELL_TOOLBAR_PATH_MACHINE_VISIBLE, false)
+                                    .toBool();
+    toolbarRoomsVisible = conf.value(KEY_QML_SHELL_TOOLBAR_ROOMS_VISIBLE, false).toBool();
+    toolbarConnectionsVisible = conf.value(KEY_QML_SHELL_TOOLBAR_CONNECTIONS_VISIBLE, false).toBool();
+    toolbarPreferencesVisible = conf.value(KEY_QML_SHELL_TOOLBAR_PREFERENCES_VISIBLE, false).toBool();
+    toolbarAudioVisible = conf.value(KEY_QML_SHELL_TOOLBAR_AUDIO_VISIBLE, false).toBool();
+}
+
 void Configuration::GeneralSettings::write(QSettings &conf) const
 {
     conf.setValue(KEY_RUN_FIRST_TIME, false);
@@ -1011,6 +1053,28 @@ void Configuration::RoomEditDialog::write(QSettings &conf) const
 void Configuration::FindRoomsDialog::write(QSettings &conf) const
 {
     conf.setValue(KEY_WINDOW_GEOMETRY, geometry);
+}
+
+void Configuration::QmlShellSettings::write(QSettings &conf) const
+{
+    conf.setValue(KEY_WINDOW_GEOMETRY, geometry);
+    conf.setValue(KEY_QML_SHELL_DOCK_LOG_VISIBLE, dockLogVisible);
+    conf.setValue(KEY_QML_SHELL_DOCK_GROUP_VISIBLE, dockGroupVisible);
+    conf.setValue(KEY_QML_SHELL_DOCK_ROOM_VISIBLE, dockRoomVisible);
+    conf.setValue(KEY_QML_SHELL_DOCK_ADVENTURE_VISIBLE, dockAdventureVisible);
+    conf.setValue(KEY_QML_SHELL_DOCK_DESCRIPTION_VISIBLE, dockDescriptionVisible);
+    conf.setValue(KEY_QML_SHELL_DOCK_TIMERS_VISIBLE, dockTimersVisible);
+    conf.setValue(KEY_QML_SHELL_DOCK_TASKS_VISIBLE, dockTasksVisible);
+    conf.setValue(KEY_QML_SHELL_DOCK_CLIENT_VISIBLE, dockClientVisible);
+    conf.setValue(KEY_QML_SHELL_TOOLBAR_FILE_VISIBLE, toolbarFileVisible);
+    conf.setValue(KEY_QML_SHELL_TOOLBAR_MAPPER_MODE_VISIBLE, toolbarMapperModeVisible);
+    conf.setValue(KEY_QML_SHELL_TOOLBAR_MOUSE_MODE_VISIBLE, toolbarMouseModeVisible);
+    conf.setValue(KEY_QML_SHELL_TOOLBAR_VIEW_VISIBLE, toolbarViewVisible);
+    conf.setValue(KEY_QML_SHELL_TOOLBAR_PATH_MACHINE_VISIBLE, toolbarPathMachineVisible);
+    conf.setValue(KEY_QML_SHELL_TOOLBAR_ROOMS_VISIBLE, toolbarRoomsVisible);
+    conf.setValue(KEY_QML_SHELL_TOOLBAR_CONNECTIONS_VISIBLE, toolbarConnectionsVisible);
+    conf.setValue(KEY_QML_SHELL_TOOLBAR_PREFERENCES_VISIBLE, toolbarPreferencesVisible);
+    conf.setValue(KEY_QML_SHELL_TOOLBAR_AUDIO_VISIBLE, toolbarAudioVisible);
 }
 
 Configuration &setConfig()

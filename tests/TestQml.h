@@ -74,4 +74,7 @@ private Q_SLOTS:
     void loadMainShell();
     void loadMainShellDocks();
     void loadMainShellChrome();
+    void mainShellEscapeShortcutForwards();
+    void mainShellCommandOpensAboutDialog();
+    void qmlShellSettingsPersistenceRoundTrip();
 };

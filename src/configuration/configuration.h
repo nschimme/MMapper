@@ -456,6 +456,38 @@ public:
         SUBGROUP();
     } findRoomsDialog;
 
+    // Shell B's (--qml-shell) top-level window lifecycle state. Kept
+    // separate from GeneralSettings::windowGeometry/windowState (the widget
+    // MainWindow's own keys) so the two shells never clobber each other's
+    // saved geometry/dock-and-toolbar layout; see QmlShellWindow.cpp's
+    // readSettings()/writeSettings()-equivalent. Dock/toolbar visibility
+    // defaults mirror DockLayoutController's/ToolbarLayoutController's own
+    // in-memory defaults (see those headers).
+    struct NODISCARD QmlShellSettings final
+    {
+        QByteArray geometry;
+        bool dockLogVisible = false;
+        bool dockGroupVisible = true;
+        bool dockRoomVisible = false;
+        bool dockAdventureVisible = false;
+        bool dockDescriptionVisible = true;
+        bool dockTimersVisible = false;
+        bool dockTasksVisible = false;
+        bool dockClientVisible = true;
+        bool toolbarFileVisible = false;
+        bool toolbarMapperModeVisible = false;
+        bool toolbarMouseModeVisible = false;
+        bool toolbarViewVisible = false;
+        bool toolbarPathMachineVisible = false;
+        bool toolbarRoomsVisible = false;
+        bool toolbarConnectionsVisible = false;
+        bool toolbarPreferencesVisible = false;
+        bool toolbarAudioVisible = false;
+
+    private:
+        SUBGROUP();
+    } qmlShell;
+
     GroupConfig hotkeys;
 
 public:

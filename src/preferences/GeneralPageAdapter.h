@@ -82,6 +82,11 @@ public:
     Q_PROPERTY(bool checkForUpdate READ getCheckForUpdate WRITE setCheckForUpdate NOTIFY sig_changed)
     Q_PROPERTY(bool updaterAvailable READ getUpdaterAvailable CONSTANT)
 
+    // Persisted "preferred shell" setting (Configuration::general.qmlShell);
+    // peeked by main.cpp's determineShellType() on the next launch. See
+    // PrefsGeneralPage.qml's "Use the QML shell" checkbox.
+    Q_PROPERTY(bool qmlShell READ getQmlShell WRITE setQmlShell NOTIFY sig_changed)
+
     Q_PROPERTY(QString autoLoadFileName READ getAutoLoadFileName WRITE setAutoLoadFileName NOTIFY
                    sig_changed)
     Q_PROPERTY(bool autoLoadMap READ getAutoLoadMap WRITE setAutoLoadMap NOTIFY sig_changed)
@@ -149,6 +154,9 @@ public:
     NODISCARD bool getCheckForUpdate() const;
     void setCheckForUpdate(bool value);
     NODISCARD static bool getUpdaterAvailable();
+
+    NODISCARD bool getQmlShell() const;
+    void setQmlShell(bool value);
 
     NODISCARD QString getAutoLoadFileName() const;
     void setAutoLoadFileName(const QString &value);

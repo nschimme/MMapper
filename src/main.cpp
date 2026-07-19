@@ -24,6 +24,7 @@
 #include <QNetworkReply>
 #include <QNetworkRequest>
 #include <QPixmap>
+#include <QSettings>
 #include <QUrl>
 #include <QtCore>
 #include <QtWidgets>
@@ -145,13 +146,38 @@ enum class NODISCARD ShellTypeEnum { Widgets, Qml };
 // ahead of QApplication:
 //   1. argv: --qml-shell / --widgets-shell
 //   2. env: MMAPPER_QML_SHELL=1/0
-//   3. default: Widgets (Shell A) -- byte-identical to pre-QML-shell
+//   3. persisted "preferred shell" setting (Configuration::general.qmlShell,
+//      toggled from the QML preferences General page; see
+//      GeneralPageAdapter::qmlShell / PrefsGeneralPage.qml)
+//   4. default: Widgets (Shell A) -- byte-identical to pre-QML-shell
 //      behavior.
-// TODO(later commit): once a persisted "preferred shell" setting exists in
-// Configuration, peek it here as a fourth, lowest-priority source. Not done
-// yet: reading Configuration this early would mean initializing it (and
-// its file I/O) before QApplication exists, which nothing else in main()
-// currently needs to do.
+//
+// Source 3 is read with a raw QSettings peek rather than by constructing a
+// real Configuration, because Configuration's file I/O (and its
+// MMAPPER_PROFILE_PATH env-var override, first-run migration, color
+// defaults, etc.) is more than this early call site needs or should trigger
+// before QApplication exists. The peek below deliberately duplicates just
+// the identity bits (organization/application name, "General" group, "Qml
+// Shell" key) that configuration.cpp's Settings class and
+// Configuration::GeneralSettings::read()/write() use for this one value --
+// see SETTINGS_ORGANIZATION/SETTINGS_APPLICATION, GRP_GENERAL, and
+// KEY_QML_SHELL in src/configuration/configuration.cpp. If any of those
+// change, this peek must change with them. (It intentionally does NOT honor
+// MMAPPER_PROFILE_PATH's custom-settings-file override -- a user who sets
+// that env var and also wants shell-preference persistence can still use
+// argv/MMAPPER_QML_SHELL, both of which outrank this source anyway.)
+NODISCARD static bool peekPersistedQmlShellPreference()
+{
+    QCoreApplication::setOrganizationName(QStringLiteral("MUME"));
+    QCoreApplication::setApplicationName(QStringLiteral("MMapper2"));
+    try {
+        const QSettings settings;
+        return settings.value(QStringLiteral("General/Qml Shell"), false).toBool();
+    } catch (...) {
+        return false;
+    }
+}
+
 NODISCARD static ShellTypeEnum determineShellType(int argc, char **argv)
 {
     for (int i = 1; i < argc; ++i) {
@@ -169,6 +195,10 @@ NODISCARD static ShellTypeEnum determineShellType(int argc, char **argv)
     }
     if (env == "0") {
         return ShellTypeEnum::Widgets;
+    }
+
+    if (peekPersistedQmlShellPreference()) {
+        return ShellTypeEnum::Qml;
     }
 
     return ShellTypeEnum::Widgets;

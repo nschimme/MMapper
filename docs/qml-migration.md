@@ -996,31 +996,192 @@ another step closer to a build with zero legacy Widget dialogs.
   `QFileDialog` content APIs, and the WASM keychain-error `QMessageBox` in
   `PasswordConfig`'s `handleError()` lambda, are unchanged by this port —
   porting confirmation/file-picker chrome to QML was out of scope for Stage 1
-  and is deliberately deferred to whichever later stage tackles the
-  remaining native application shell (the top-level `QMainWindow`, its menu
-  bar, and the last few native-only dialog flows like these).
+  and is deliberately deferred to whichever later stage tackles these last few
+  native-only dialog flows (Stages 2-3, below, built the QML application shell
+  itself -- `QmlShellWindow`, its menus/toolbars/statusbar -- but these
+  particular `QMessageBox`/`QFileDialog` flows stayed native even there, since
+  they're shared `GeneralPageAdapter` code paths, not shell-specific).
 
-## Map canvas (future work, not started)
+## Stage 2: canvas host abstraction
 
-`MapCanvas`/`MapWindow` are untouched by this migration and are the largest, riskiest
-piece of remaining work. The current end-state plan:
+Stage 2 did the map-canvas work the previous section long described as "future
+work, not started" -- it is now done, via the `QQuickFramebufferObject` fallback
+that section flagged as the simpler interim option (the `beforeRenderPassRecording`
+underlay and `QSGRenderNode` approaches were not pursued).
 
-- Render the map as a `QQuickWindow` underlay: draw the existing GL scene from
-  `beforeRenderPassRecording` (or equivalent RHI hook) so the custom renderer keeps
-  full control of the GL state, with Quick items composited on top/around it.
-- Move mouse/touch input handling to Quick pointer handlers (`PointerHandler`,
-  `TapHandler`, etc.), driven by the existing `CanvasMouseModeEnum` state machine
-  rather than duplicating it.
-- Interim fallback if the underlay approach proves too invasive: render into a
-  `QQuickFramebufferObject` instead. Simpler to integrate, at the cost of an extra
-  offscreen composite pass.
-- `QSGRenderNode` (drawing custom GL directly inside the Quick scene graph) was
-  considered and rejected: restoring the custom renderer's GL state correctly after
-  a `QSGRenderNode::render()` call is fragile and error-prone across GL driver
-  quirks, and a bug there would corrupt map rendering silently.
+- **`ed3c9c1` -- Abstract the map canvas's host dependencies.**
+  `MapCanvasViewport` caches width/height/DPR pushed by the host instead of holding
+  a `QWindow` reference, `FrameManager` schedules repaints through an injected
+  callback instead of calling into a `QOpenGLWindow` directly, and the input
+  handlers become public `QEvent`-taking methods with the `QOpenGLWindow` event
+  overrides reduced to thin forwarders. Purely mechanical, no behavior change --
+  this is what makes the next commit possible without duplicating the renderer.
+- **`f644df0` -- Extract `MapCanvasCore` from the `QOpenGLWindow` canvas.** All GL,
+  paint, input, and signal machinery moves into `MapCanvasCore`
+  (`src/display/MapCanvasCore.h`), a Widgets-free `QObject` driven through an
+  `ICanvasHost` seam (`requestCanvasUpdate` + device pixel ratio + cursor).
+  `MapCanvas` becomes a thin `QOpenGLWindow` facade that forwards events and
+  re-exposes the core's signal/slot surface, so existing `MainWindow`/`MapWindow`
+  wiring (Shell A) is untouched.
+- **`ff04271` -- Add a Quick scene-graph host for the map canvas.**
+  `MapCanvasQuickItem` (`src/display/MapCanvasQuickItem.{h,cpp}`) is a
+  `QQuickFramebufferObject` driving the same `MapCanvasCore` (lazy GL init, paint,
+  reset-state, teardown on renderer destruction with scene-graph-invalidated
+  backstops; vertically mirrored for the GL FBO origin). It's registered as
+  `MapCanvasItem` in a separate `mm_qml_canvas` library, because its moc output
+  must resolve against the `MapCanvasCore` symbols living in the `mmapper`
+  executable, not in `mm_qml`. `MapViewModel` (`src/display/MapViewModel.{h,cpp}`)
+  extracts `MapWindow`'s scroll math and continuous-scroll timer for reuse by
+  `src/qml/MapView.qml`, which hosts the item with scrollbars and the splash
+  image. All of this was inert until the QML shell landed in Stage 3; the
+  `QOpenGLWindow` path (Shell A) is unchanged throughout.
 
-This work has not started; MapCanvas/MapWindow require no changes for the panels
-ported so far.
+## Stage 3: QML shell (`--qml-shell`)
+
+Stage 3 built a second, parallel top-level application shell ("Shell B") on top
+of the Stage 2 canvas host and the widget shell's existing command surface,
+selectable at startup instead of replacing `MainWindow` ("Shell A"). See
+`src/main.cpp`'s `determineShellType()` for the selection rules (argv, then
+`MMAPPER_QML_SHELL`, then the persisted `Configuration::general.qmlShell`
+preference added in this commit, defaulting to Shell A) and
+`src/mainwindow/QmlShellWindow.{h,cpp}` for the shell itself.
+
+- **`bfeaf2c` -- Introduce a `UiCommand` registry behind `MainWindow`'s actions.**
+  All 65 of `MainWindow`'s `QAction`s become views of id-keyed `UiCommand` objects
+  in a `CommandRegistry` (`src/mainwindow/CommandRegistry.h`; namespaced ids like
+  `file.new` / `mouse-mode.move` / `room.edit-selected`, documented in the header).
+  Triggers, enabled, and checked state sync bidirectionally with loop guards; the
+  exclusive mouse-mode/mapper-mode groups are enforced registry-side in parallel
+  with the existing `QActionGroup`s. Behavior-identical for Shell A; the registry
+  is what Shell B's QML menus/toolbars bind to instead of `QAction`.
+- **`7b05cc1` -- Extract a first `AppCore` slice from `MainWindow`.** `AppCore`
+  (Widgets-free) owns the status-message funnel, mapper-mode persistence and
+  switching, mouse-mode/layer forwarding to the canvas, and selection-driven
+  command enabling, with `MainWindow` delegating and rendering the results. File
+  I/O, the async task engine, and close coordination stay in `MainWindow` --
+  they're entangled with the progress-dialog seam and remain Shell-A-only (see the
+  parity checklist below).
+- **`e425b93` -- Boot a minimal GL-backed QML shell behind `--qml-shell`.**
+  `determineShellType()` picks the shell before `QApplication` exists; the QML
+  shell switches the scene graph to the OpenGL backend with the "basic" render
+  loop and launches `QmlShellWindow` -- `MapData` plus the minimal service set,
+  `MapCanvasCore`, `MapViewModel`, and a fully-registered command registry with
+  zoom/layer/mouse-mode/rebuild/exit live -- rendering `MainShell.qml` (menus,
+  `MapView` centered, status footer).
+- **`1acf0af` -- Add the dock and panel system to the QML shell.**
+  `QmlShellWindow` constructs the backing models, controllers, and image
+  providers for all eight panels and exposes them as root-context properties, so
+  every existing panel QML file (from phases 2-9/Stage 1) loads unchanged. The
+  shell gains a nested `SplitView` dock layout with the widget-default areas and
+  visibility, per-dock headers with close buttons, a View menu with checkable
+  toggles, and `DockLayoutController` holding the visibility state.
+- **`5c8c3e7` -- Bring the QML shell to menu, toolbar, and statusbar parity.**
+  `MainShell.qml` carries the full five-menu structure and all nine toolbars as
+  command-bound controls (hidden by default, like Shell A), toggled via
+  `ToolbarLayoutController`; zoom and audio volume state move into
+  shell-shared controller `QObject`s (`MapZoomController`,
+  `AudioVolumeController`) while the widget sliders stay untouched. The footer
+  hosts the message label, a path-machine placeholder, and the existing
+  `ClockStrip`/`XpStatusItem` QML.
+- **`53a1326` -- Wire dialogs and window lifecycle into the QML shell.** The
+  shell launches About, Update (behind the same `NO_UPDATER` gate as Shell A),
+  Find Rooms, Preferences, and the room/infomark editors (enabled by live canvas
+  selections) through the existing `QmlDialog` hosts from phase 6/Stage 1, which
+  work fine under the GL scene graph since the shell has no sibling native GL
+  window the way Shell A does. Window geometry and dock/toolbar visibility
+  persist under a separate `Configuration::qmlShell` config group (see
+  `configuration.h`) so the two shells never clobber each other's saved layout;
+  always-on-top and the statusbar/scrollbar toggles are live; Escape forwards to
+  the canvas core.
+
+### Parity checklist: Shell B vs. `MainWindow` (Shell A)
+
+Legend: **live** = works the same as Shell A; **degraded** = present but with a
+known behavioral gap; **absent** = registered (if it's a command) but not wired.
+
+| Area | Status | Notes / follow-up owner |
+| --- | --- | --- |
+| Map rendering, zoom, layers, mouse modes | live | `MapCanvasCore`/`MapCanvasQuickItem`/`MapZoomController`; needs the macOS GL pass in the test script below (container can't verify pixel correctness). |
+| Docks (visibility, resize, headers) | live | `DockLayoutController` + `SplitView`; persisted via `Configuration::qmlShell`. |
+| Toolbars | live | `ToolbarLayoutController`; hidden by default like Shell A. |
+| Menus (5 top-level menus) | live | Bound to `CommandRegistry` via `CommandAction.qml`. |
+| Status bar (message, clock, XP) | live | Path-machine slot is a static placeholder string (see below). |
+| About / Update / Find Rooms / Preferences dialogs | live | Landed in `53a1326`. |
+| Room-edit / infomark-edit dialogs | live | Enabled only by live canvas selections (`room.edit-selected` / `infomark.edit-selected`); no context menu to launch them from (see below). |
+| Escape key | live | Forwards to `MapCanvasCore`. |
+| Always-on-top / statusbar / scrollbar toggles | live | |
+| Window geometry + dock/toolbar layout persistence | live | Separate `qmlShell` config group. |
+| File I/O (new/open/merge/reload/save/save-as/export *) | **absent** | `file.*` commands are registered disabled; needs `MainWindow`'s async task engine + progress dialog seam (deliberately deferred by `7b05cc1`). Owner: a future commit extracting that seam out of `MainWindow`. |
+| Proxy/telnet/MUD-client backend + listener services | **absent** | Shell B's client panel runs without a telnet backend (per `1acf0af`'s commit message); no proxy/listener wiring. Owner: future commit. |
+| Path machine feed to status bar | **degraded** | Status message is a static placeholder (`QmlShellWindow.cpp`, `TODO(shell commit)` comment) pending `AppCore::sig_statusMessage` wiring to real `MapCanvas*`/path-machine signals. Owner: future commit. |
+| Description panel live feed | **absent** | Depends on the same telnet backend as above. Owner: future commit. |
+| Room create / delete-selected / move / merge / connect-to-neighbours | **absent** | `room.create`, `room.delete-selected`, etc. are registered disabled; only `room.edit-selected` is live. Owner: future commit (map-editing command set). |
+| Connection delete-selected / create-connection commands | **absent** | `connection.delete-selected` registered disabled; the create-connection mouse modes are selectable but don't yet drive an editing flow. Owner: future commit. |
+| Right-click context menu on the canvas | **absent** | `MainWindow::customContextMenuRequested` / `m_contextMenu` has no Shell B equivalent. Owner: future commit. |
+| Menu bar auto-hide (mouse-to-top reveal when "Always Show Menubar" is off) | **degraded** | The `view.show-menu-bar` toggle is live, but Shell A's event-filter-driven auto-reveal-on-mouse-move (`MainWindow::slot_setShowMenuBar`) has no Shell B equivalent -- unchecking it just hides the menu bar. Owner: future commit. |
+| First-run window centering | **absent** | `MainWindow` centers the window via `QStyle::alignedRect` on first run; `QmlShellWindow` only restores a saved `qmlShell.geometry` (empty on first run leaves the platform default placement). Owner: future commit. |
+| Per-selection command enabling beyond edit | **degraded** | Only `room.edit-selected`/`infomark.edit-selected` react to selection changes; `AppCore`'s broader selection-driven enabling (move/merge/delete/connect commands) isn't consumed by Shell B yet. Owner: future commit. |
+| Updater | closed | `NO_UPDATER`-gated exactly like Shell A (no longer a gap as of `53a1326`). |
+| Wasm | **untested** | Shell B has never been run under `Q_OS_WASM`; see "Wasm default" below. |
+
+### Wasm default
+
+`main.cpp`'s `determineShellType()` is compiled out entirely under `Q_OS_WASM`
+(`#ifndef Q_OS_WASM`) -- wasm always uses Shell A, unconditionally, same as
+before this commit. This was a deliberate choice, not an oversight: nobody has
+run Shell B under wasm yet (no `QQuickFramebufferObject`/WebGL testing has
+happened), so flipping the wasm default ahead of that testing would ship an
+untested code path to the one platform where regressions are hardest to
+diagnose. Flipping it later is a one-line change once wasm testing happens:
+set `shellType = ShellTypeEnum::Qml;` inside the `else` branch of
+`main()`'s `#ifndef Q_OS_WASM` block (or equivalent) in `src/main.cpp`, guarded
+by whatever `Q_OS_WASM`-specific flag that testing decides on.
+
+### Container-unverifiable list (macOS test script)
+
+The sandboxed build/test environment used for this commit cannot exercise real
+GL rendering, display scaling, trackpad/touch gestures, window-manager teardown
+ordering, native-dialog stacking (`QFileDialog`/`QMessageBox` over a `QQuickWindow`),
+or floating/undocked dock behavior -- all of it needs a real macOS session. The
+following is the test script for that pass:
+
+**(a) Shell A regression pass (default launch, unchanged behavior)**
+
+1. Launch MMapper with no flags; confirm it opens exactly as before (widget
+   shell, software-backend `QQuickWidget` docks per the `main.cpp` comment on
+   `QSGRendererInterface::Software`).
+2. Exercise map load/save/export, zoom, all mouse modes, room/connection/infomark
+   create-edit-delete, the context menu, menu bar auto-hide (uncheck "Always Show
+   Menubar", move the mouse to the top edge), first-run centering (fresh profile),
+   and restart to confirm geometry/dock/toolbar state persisted.
+3. Confirm Preferences' new "Use the QML shell" checkbox is present, unchecked by
+   default, and does not affect this session (restart required).
+
+**(b) Shell B pass (`--qml-shell`)**
+
+1. Launch with `--qml-shell` (or `MMAPPER_QML_SHELL=1`, or the Preferences
+   checkbox + restart). Confirm the map renders with no corruption/garbage (this
+   is the scenario `main.cpp`'s Shell-A software-backend comment describes
+   Shell B as immune to, since there's no sibling native GL window).
+2. Zoom in/out/reset, cycle layers, cycle every mouse mode, confirm the map
+   responds to mouse drag/click per mode.
+3. Toggle every dock's visibility from the View menu and drag-resize the
+   `SplitView`; toggle every toolbar.
+4. Confirm the status bar clock and XP widget update live.
+5. Open About, check-for-Update (if `NO_UPDATER` is off), Find Rooms,
+   Preferences (toggle the new QML-shell checkbox back off), and, with a room
+   or infomark selected, the room-edit/infomark-edit dialogs. Confirm Escape
+   closes focused dialogs/deselects on the canvas.
+6. Quit and relaunch with `--qml-shell`; confirm window geometry, dock
+   visibility/sizes, and toolbar visibility all persisted (and did not clobber
+   Shell A's saved `MainWindow` geometry -- launch Shell A afterward and confirm
+   its layout is untouched).
+7. Toggle always-on-top and confirm the window stays on top of other
+   applications.
+8. Note anything from the "absent"/"degraded" rows in the parity checklist
+   above that surprises you (e.g. file menu items being no-ops, no context
+   menu, no menu-bar auto-hide) so the follow-up commits can be scoped
+   accurately -- these are expected gaps, not regressions to fix in this pass.
 
 ## Config binding (future work, not started)
 

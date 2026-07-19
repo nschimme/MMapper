@@ -268,6 +268,17 @@ bool GeneralPageAdapter::getUpdaterAvailable()
     return !NO_UPDATER;
 }
 
+bool GeneralPageAdapter::getQmlShell() const
+{
+    return getConfig().general.qmlShell;
+}
+
+void GeneralPageAdapter::setQmlShell(const bool value)
+{
+    setConfig().general.qmlShell = value;
+    emit sig_changed();
+}
+
 QString GeneralPageAdapter::getAutoLoadFileName() const
 {
     return getConfig().autoLoad.fileName;

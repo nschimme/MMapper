@@ -174,6 +174,23 @@ Column {
         }
     }
 
+    Label { text: qsTr("Shell"); font.bold: true }
+
+    CheckBox {
+        text: qsTr("Use the QML shell (requires restart)")
+        checked: root.general.qmlShell
+        onToggled: root.general.qmlShell = checked
+    }
+    Label {
+        width: 460
+        wrapMode: Text.WordWrap
+        font.italic: true
+        text: qsTr("Switches between the classic widgets-based shell and the "
+                    + "newer QML shell. Only takes effect the next time MMapper "
+                    + "starts; can also be overridden with --qml-shell / "
+                    + "--widgets-shell on the command line.")
+    }
+
     Label { text: qsTr("Account"); font.bold: true }
 
     CheckBox {

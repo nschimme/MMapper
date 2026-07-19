@@ -83,6 +83,13 @@ public:
         MapModeEnum mapMode = MapModeEnum::PLAY;
         bool checkForUpdate = true;
         CharacterEncodingEnum characterEncoding = CharacterEncodingEnum::LATIN1;
+        // Persisted "preferred shell" setting; see main.cpp's
+        // determineShellType(), which peeks this key directly via a raw
+        // QSettings read (before QApplication/Configuration exist) as the
+        // lowest-priority source, below --qml-shell/--widgets-shell argv and
+        // MMAPPER_QML_SHELL env. Toggled from the QML preferences General
+        // page (GeneralPageAdapter::qmlShell); takes effect on restart.
+        bool qmlShell = false;
 
     private:
         SUBGROUP();

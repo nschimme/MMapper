@@ -305,6 +305,11 @@ ConstString KEY_WEATHER_PRECIPITATION_INTENSITY = "weather.precipitationIntensit
 ConstString KEY_WEATHER_TIME_OF_DAY_INTENSITY = "weather.todIntensity";
 ConstString KEY_WINDOW_GEOMETRY = "Window Geometry";
 ConstString KEY_WINDOW_STATE = "Window State";
+// General/qmlShell (persisted "preferred shell" setting) -- peeked directly
+// by main.cpp's determineShellType() via a raw QSettings read using this
+// same literal key, ahead of QApplication/Configuration existing. Keep this
+// key and the "General" group name in sync with that peek if either changes.
+ConstString KEY_QML_SHELL = "Qml Shell";
 ConstString KEY_QML_SHELL_DOCK_LOG_VISIBLE = "Dock Log Visible";
 ConstString KEY_QML_SHELL_DOCK_GROUP_VISIBLE = "Dock Group Visible";
 ConstString KEY_QML_SHELL_DOCK_ROOM_VISIBLE = "Dock Room Visible";
@@ -622,6 +627,7 @@ void Configuration::GeneralSettings::read(const QSettings &conf)
     mapMode = sanitizeMapMode(
         conf.value(KEY_MAP_MODE, static_cast<uint32_t>(MapModeEnum::PLAY)).toUInt());
     checkForUpdate = conf.value(KEY_CHECK_FOR_UPDATE, true).toBool();
+    qmlShell = conf.value(KEY_QML_SHELL, false).toBool();
     characterEncoding = sanitizeCharacterEncoding(
         conf.value(KEY_CHARACTER_ENCODING, static_cast<uint32_t>(CharacterEncodingEnum::LATIN1))
             .toUInt());
@@ -880,6 +886,7 @@ void Configuration::GeneralSettings::write(QSettings &conf) const
     conf.setValue(KEY_SHOW_MENU_BAR, showMenuBar);
     conf.setValue(KEY_MAP_MODE, static_cast<uint32_t>(mapMode));
     conf.setValue(KEY_CHECK_FOR_UPDATE, checkForUpdate);
+    conf.setValue(KEY_QML_SHELL, qmlShell);
     conf.setValue(KEY_CHARACTER_ENCODING, static_cast<uint32_t>(characterEncoding));
     conf.setValue(KEY_THEME, static_cast<uint32_t>(m_theme));
 }

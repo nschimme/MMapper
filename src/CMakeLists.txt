@@ -407,6 +407,8 @@ set(mmapper_SRCS
     mapfrontend/mapfrontend.h
     mapstorage/MapDestination.cpp
     mapstorage/MapDestination.h
+    mapstorage/MapLoadHelper.cpp
+    mapstorage/MapLoadHelper.h
     mapstorage/MapSource.cpp
     mapstorage/MapSource.h
     mapstorage/MmpMapStorage.cpp

@@ -48,13 +48,23 @@ import MMapper
 //   single shared engine's root context instead (see QmlShellWindow.cpp).
 //   config -- QmlConfig*, shared by GroupPanel.qml and ClientPanel.qml
 //   (same object mainwindow.cpp passes to both).
+//   windowTitle -- QString, this window's title (see
+//                  QmlShellWindow::updateWindowTitle()).
+//   mapLoaded   -- bool, hides MapView.qml's splash overlay once true (see
+//                  QmlShellWindow::hideSplash()); never goes back to false.
 QQC2.ApplicationWindow {
     id: window
 
     width: 1280
     height: 800
     visible: true
-    title: qsTr("MMapper (QML shell preview)")
+    // windowTitle is a context property refreshed by
+    // QmlShellWindow::updateWindowTitle() (see its doc comment for how it
+    // mirrors MainWindow::setCurrentFile()); the literal fallback below only
+    // matters before the very first setContextProperty() call in
+    // QmlShellWindow's ctor, which happens before this file is loaded, so in
+    // practice it's never seen.
+    title: typeof windowTitle !== "undefined" ? windowTitle : qsTr("MMapper (QML shell preview)")
 
     // Forwards Escape to the canvas core, mirroring
     // MapWindow::keyPressEvent()'s Qt.Key_Escape handling in the widget

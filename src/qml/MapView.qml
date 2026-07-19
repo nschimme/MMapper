@@ -56,7 +56,14 @@ Item {
     }
 
     // Splash screen overlay, shown until the shell hides it (mirroring
-    // MapWindow's SplashWidget / hideSplashImage()).
+    // MapWindow's SplashWidget / hideSplashImage()). QmlShellWindow sets the
+    // "mapLoaded" root context property to true once a load attempt has
+    // completed (success or failure) or the map has been modified -- see
+    // QmlShellWindow::hideSplash()'s doc comment for the exact two
+    // triggers this mirrors. `typeof` guards against this file being loaded
+    // standalone (e.g. a future test) with no such context property set, in
+    // which case the splash simply stays visible, matching the empty/
+    // never-loaded map case.
     Image {
         id: splashImage
         objectName: "splashImage"
@@ -65,7 +72,7 @@ Item {
         height: Math.min(parent.height, sourceSize.height)
         fillMode: Image.PreserveAspectFit
         source: "qrc:/icons/mmapper-hi.svg"
-        visible: true
+        visible: typeof mapLoaded === "undefined" || !mapLoaded
     }
 
     // TODO(shell commit): AudioHintWidget's banner (offer to enable

@@ -31,6 +31,8 @@ class InfomarkSelection;
 class LogModel;
 class MapCanvasCore;
 class MapData;
+class MapSource;
+struct MapLoadData;
 class MapViewModel;
 class MapZoomController;
 class MediaLibrary;
@@ -105,6 +107,19 @@ public:
     // matching how setSurfaceFormat() failures are handled.
     NODISCARD bool isValid() const { return m_valid; }
 
+public:
+    // Widget-free load path: shared by this class's own file.open command
+    // (see wireFileCommands()) and main.cpp's tryAutoLoadMap<Shell>()
+    // template, which calls this the same way it calls
+    // MainWindow::loadFile(). Detects the file format and runs the load on
+    // a background thread via async_tasks::startAsyncTask2() (the same
+    // engine TasksModel/the Tasks panel already polls -- see
+    // QmlShellWindow.h's file comment -- so that panel is this shell's
+    // load-progress UI; there is no QProgressDialog here, unlike
+    // MainWindow::loadFile()). No-op (after logging) if a load is already
+    // running.
+    void loadFile(std::shared_ptr<MapSource> source);
+
 private:
     void registerCommands();
     void wireMouseModeCommand(const QString &id, int mode);
@@ -114,6 +129,32 @@ private:
     void wireSelectionCommands();
     void restoreWindowState();
     void persistWindowState();
+
+    // --- file I/O (see the task report's "shell-usable load seam" section)
+    // ---
+    void wireFileCommands();
+    void saveMapFile(const QString &fileName);
+    void onSuccessfulLoad(const MapLoadData &mapLoadData);
+    // Mirrors MainWindow::updateMapModified()/setMapModified(): re-enables
+    // file.save and refreshes the window title based on
+    // MapData::dataChanged(), and hides the splash if the map is modified
+    // (the "modified" hide trigger; see hideSplash()'s doc comment for the
+    // "just loaded" trigger). Connected to MapData::sig_onDataChanged and
+    // also called directly after a successful load, mirroring
+    // MainWindow::wireConnections()'s sig_onDataChanged lambda and
+    // onSuccessfulLoad()'s own updateMapModified() call.
+    void updateMapModifiedState();
+    void updateWindowTitle();
+    // Hides MapView.qml's splash overlay by flipping the "mapLoaded" root
+    // context property to true; mirrors MapWindow::hideSplashImage()'s two
+    // call sites (mainwindow/utils.cpp's CanvasDisabler destructor -- fires
+    // unconditionally after any load/merge attempt, success or failure --
+    // and MainWindow::setMapModified(true) -- fires when the map is edited).
+    // There is no un-hide: once true, "mapLoaded" (and therefore the splash)
+    // never goes back, matching CanvasDisabler/setMapModified's own
+    // one-way behavior (a QPointer'd, deleteLater()'d widget on the widget
+    // side).
+    void hideSplash();
 
 private:
     // --- minimal offline service set (see file comment) ---
@@ -178,6 +219,14 @@ private:
 
     QQmlApplicationEngine *m_engine = nullptr;
     bool m_valid = false;
+
+    // --- file I/O state (see wireFileCommands()/loadFile()/saveMapFile()) ---
+    // True while a load or save task is running in the async_tasks engine;
+    // mirrors MainWindow::tryStartNewAsync()'s single-task-at-a-time rule
+    // (AsyncIO only ever holds one task), simplified to a flag since this
+    // shell has no AsyncIO object of its own.
+    bool m_ioInProgress = false;
+    bool m_splashHidden = false;
 
     // --- dialogs (see QmlShellWindow.cpp's wireDialogCommands()/
     // wireSelectionCommands()) ---

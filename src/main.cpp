@@ -18,6 +18,7 @@
 #include <cstring>
 #include <memory>
 #include <optional>
+#include <type_traits>
 
 #include <QFile>
 #include <QNetworkAccessManager>
@@ -59,7 +60,15 @@ static void tryInitDrMingw()
 #endif
 }
 
-NODISCARD static bool tryLoad(MainWindow &mw, const QDir &dir, const QString &input_filename)
+// Templated so the same autoload flow drives both shells: Shell A
+// (MainWindow) and Shell B (QmlShellWindow), which both expose
+// `void loadFile(std::shared_ptr<MapSource>)` (see mainwindow/mainwindow.h
+// and mainwindow/QmlShellWindow.h) as their widget-free load entry point.
+// This is the "least churn" option the task called for over a ShellFacade
+// wrapper type: both classes already share the exact method signature that
+// matters here, so a template picks it up with no new abstraction.
+template<typename Shell>
+NODISCARD static bool tryLoad(Shell &shell, const QDir &dir, const QString &input_filename)
 {
     const auto getAbsoluteFileName = [&dir, &input_filename]() -> std::optional<QString> {
         if (QFileInfo{input_filename}.isAbsolute()) {
@@ -86,7 +95,7 @@ NODISCARD static bool tryLoad(MainWindow &mw, const QDir &dir, const QString &in
     }
 
     try {
-        mw.loadFile(MapSource::alloc(absoluteFilePath, std::nullopt));
+        shell.loadFile(MapSource::alloc(absoluteFilePath, std::nullopt));
         return true;
     } catch (const std::runtime_error &e) {
         qCritical() << "Failed to load autoload map:" << e.what();
@@ -94,7 +103,8 @@ NODISCARD static bool tryLoad(MainWindow &mw, const QDir &dir, const QString &in
     }
 }
 
-static void tryAutoLoadMap(MainWindow &mw)
+template<typename Shell>
+static void tryAutoLoadMap(Shell &shell)
 {
     const auto &settings = getConfig().autoLoad;
     if (!settings.autoLoadMap) {
@@ -102,34 +112,41 @@ static void tryAutoLoadMap(MainWindow &mw)
     }
 
     if (!settings.fileName.isEmpty()
-        && tryLoad(mw, QDir{settings.lastMapDirectory}, settings.fileName)) {
+        && tryLoad(shell, QDir{settings.lastMapDirectory}, settings.fileName)) {
         return;
     }
 
     if constexpr (CURRENT_PLATFORM == PlatformEnum::Wasm) {
         if constexpr (NO_MAP_RESOURCE) {
             return;
-        }
-        // On WASM the map is sideloaded from the network; fetch it asynchronously.
-        auto *nam = new QNetworkAccessManager(&mw);
-        auto *reply = nam->get(QNetworkRequest(QUrl(getAssetsPath() + "map/arda")));
-        QObject::connect(reply, &QNetworkReply::finished, &mw, [&mw, reply, nam]() {
-            if (reply->error() == QNetworkReply::NoError) {
-                try {
-                    mw.loadFile(MapSource::alloc(QStringLiteral("arda"), reply->readAll()));
-                } catch (const std::exception &e) {
-                    qCritical() << "[main] Failed to load sideloaded map:" << e.what();
+        } else if constexpr (std::is_same_v<Shell, MainWindow>) {
+            // On WASM the map is sideloaded from the network; fetch it
+            // asynchronously. WASM builds always run Shell A (see main()'s
+            // ShellTypeEnum comment: determineShellType()/QmlShellWindow
+            // aren't even compiled under Q_OS_WASM), so this branch is
+            // guarded to MainWindow only -- it would never run for
+            // QmlShellWindow anyway, but the `if constexpr` keeps it from
+            // needing to compile against Shell=QmlShellWindow at all.
+            auto *nam = new QNetworkAccessManager(&shell);
+            auto *reply = nam->get(QNetworkRequest(QUrl(getAssetsPath() + "map/arda")));
+            QObject::connect(reply, &QNetworkReply::finished, &shell, [&shell, reply, nam]() {
+                if (reply->error() == QNetworkReply::NoError) {
+                    try {
+                        shell.loadFile(MapSource::alloc(QStringLiteral("arda"), reply->readAll()));
+                    } catch (const std::exception &e) {
+                        qCritical() << "[main] Failed to load sideloaded map:" << e.what();
+                    }
+                } else {
+                    qWarning() << "[main] Failed to fetch sideloaded map:" << reply->errorString();
                 }
-            } else {
-                qWarning() << "[main] Failed to fetch sideloaded map:" << reply->errorString();
-            }
-            reply->deleteLater();
-            nam->deleteLater();
-        });
+                reply->deleteLater();
+                nam->deleteLater();
+            });
+        }
     } else {
         if (!NO_MAP_RESOURCE) {
             // Check the system assets directory
-            if (tryLoad(mw, QDir(getAssetsPath() + "map/"), "arda")) {
+            if (tryLoad(shell, QDir(getAssetsPath() + "map/"), "arda")) {
                 return;
             }
         }
@@ -329,6 +346,7 @@ int main(int argc, char **argv)
                                   "Failed to load the QML shell (MainShell.qml).");
             return 1;
         }
+        tryAutoLoadMap(*qmlShell);
     }
 #endif
 

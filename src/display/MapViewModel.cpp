@@ -21,7 +21,7 @@ MapViewModel::~MapViewModel() = default;
 
 void MapViewModel::setZoom(const float zoom)
 {
-    if (zoom == m_zoom) {
+    if (utils::equals(zoom, m_zoom)) {
         return;
     }
     m_zoom = zoom;

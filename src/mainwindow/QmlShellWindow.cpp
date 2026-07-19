@@ -18,6 +18,7 @@
 #include "../display/MapViewModel.h"
 #include "../display/MapZoomController.h"
 #include "../display/prespammedpath.h"
+#include "../global/AsyncTasks.h"
 #include "../global/ConfigConsts.h"
 #include "../global/utils.h"
 #include "../group/GroupController.h"
@@ -45,6 +46,7 @@
 #include "../timers/CTimers.h"
 #include "../timers/TimerController.h"
 #include "../timers/TimerModel.h"
+#include "../viewers/TopLevelWindows.h"
 #include "AboutInfo.h"
 #include "AudioVolumeController.h"
 #include "CommandRegistry.h"
@@ -56,6 +58,7 @@
 #include "TasksModel.h"
 #include "UiCommand.h"
 #include "UpdateChecker.h"
+#include "metatypes.h"
 
 #include <array>
 
@@ -63,6 +66,7 @@
 #include <QCloseEvent>
 #include <QCoreApplication>
 #include <QDataStream>
+#include <QFontDatabase>
 #include <QMessageBox>
 #include <QQmlApplicationEngine>
 #include <QQmlContext>
@@ -278,10 +282,25 @@ protected:
 QmlShellWindow::QmlShellWindow(QObject *const parent)
     : QObject(parent)
 {
+    // --- process-global initialization MainWindow's constructor performs
+    // (mainwindow.cpp): the async task engine MUST be initialized before
+    // anything schedules work on it -- MapCanvasCore's map remesh runs
+    // through async_tasks, and without init() the worker-side machinery
+    // derefs an unset global, which threw an uncaught NullPointerException
+    // on a background thread and aborted the process the first time the
+    // shell painted a map. registerMetatypes() is likewise required for
+    // queued cross-thread signal arguments, initTopLevelWindows() backs
+    // the ANSI viewer registry, and the bundled monospace font matches
+    // MainWindow's addApplicationFont(). ---
+    initTopLevelWindows();
+    async_tasks::init();
+    registerMetatypes();
+    std::ignore = QFontDatabase::addApplicationFont(":/fonts/DejaVuSansMono.ttf");
+
     // --- minimal offline service set MapCanvasCore's constructor needs
     // (see display/MapCanvasCore.h) -- mirrors the construction order in
     // MainWindow::MainWindow() (mainwindow.cpp), minus everything that
-    // needs the async task engine, the proxy/listener, or QtWidgets. ---
+    // needs the proxy/listener or QtWidgets. ---
     m_commandRegistry = new CommandRegistry(this);
 
     m_mapData = new MapData(this);
@@ -559,7 +578,14 @@ QmlShellWindow::QmlShellWindow(QObject *const parent)
     connect(qApp, &QCoreApplication::aboutToQuit, this, &QmlShellWindow::persistWindowState);
 }
 
-QmlShellWindow::~QmlShellWindow() = default;
+QmlShellWindow::~QmlShellWindow()
+{
+    // Mirrors MainWindow's destructor (mainwindow.cpp): stop and drain the
+    // async task engine before tearing down the objects its workers may
+    // still reference, then release the top-level window registry.
+    async_tasks::cleanup();
+    destroyTopLevelWindows();
+}
 
 void QmlShellWindow::restoreWindowState()
 {

@@ -2,9 +2,11 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // Copyright (C) 2026 The MMapper Authors
 
+#include "../global/ConfigEnums.h"
 #include "../global/RuleOf5.h"
 #include "../global/Signal2.h"
 #include "../global/macros.h"
+#include "../proxy/ProxyHostApi.h"
 
 #include <memory>
 
@@ -15,11 +17,13 @@
 class AboutInfo;
 class AdventureLogModel;
 class AdventureTracker;
+class AudioManager;
 class AudioVolumeController;
 class ClientController;
 class ClientLineModel;
 class ClockAdapter;
 class CommandRegistry;
+class ConnectionListener;
 class CTimers;
 class DescriptionAdapter;
 class DockLayoutController;
@@ -37,6 +41,7 @@ class MapViewModel;
 class MapZoomController;
 class MediaLibrary;
 class Mmapper2Group;
+class Mmapper2PathMachine;
 class MumeClock;
 class PreferencesController;
 class PrespammedPath;
@@ -45,6 +50,7 @@ class QmlConfig;
 class QQmlApplicationEngine;
 class QQuickWindow;
 class RoomEditController;
+class RoomHandle;
 class RoomManager;
 class RoomModel;
 class RoomSelection;
@@ -58,19 +64,28 @@ class XpStatusAdapter;
 
 // QmlShellWindow bootstraps Shell B, the --qml-shell preview described in
 // main.cpp's setSurfaceFormat()/main() (search for MMAPPER_QML_SHELL): a
-// minimal, OFFLINE-only bring-up of enough services for MapCanvasCore to
-// render and be navigated, a SUBSET of CommandRegistry commands wired to
-// real slots, and a QQmlApplicationEngine loading
-// qrc:/qt/qml/MMapper/MainShell.qml (source at ../qml/shell/MainShell.qml;
-// see src/CMakeLists.txt's QT_RESOURCE_ALIAS comment for why it's aliased
-// flat despite living in a "shell/" subdirectory on disk).
+// bring-up of enough services for MapCanvasCore to render and be navigated,
+// a live Mmapper2PathMachine + telnet proxy/listener + client backend, a
+// SUBSET of CommandRegistry commands wired to real slots, and a
+// QQmlApplicationEngine loading qrc:/qt/qml/MMapper/MainShell.qml (source at
+// ../qml/shell/MainShell.qml; see src/CMakeLists.txt's QT_RESOURCE_ALIAS
+// comment for why it's aliased flat despite living in a "shell/"
+// subdirectory on disk).
 //
-// Deliberately NOT constructed here (unlike MainWindow): the async task
-// engine, the telnet proxy/listener, MPI/remote-edit, the group manager's
-// network side, and all file I/O (open/save/merge/export). This is a
-// pragmatic first bootable slice, not a feature-complete shell -- see the
-// task report for the full list of what's still missing relative to
-// MainWindow.
+// Deliberately NOT constructed here (unlike MainWindow): MPI/remote-edit's
+// widget-facing pieces beyond what Proxy::allocRemoteEdit() itself needs
+// (RemoteEdit's edit-session windows still work -- see ProxyHostApi::
+// asQObject() -- but there is no MainWindow-side UI wrapping them here), the
+// group manager's network side, and all file I/O beyond plain MM2 open/save
+// (merge/export). This is a pragmatic bootable slice, not a
+// feature-complete shell -- see the task report for the full list of what's
+// still missing relative to MainWindow.
+//
+// This class implements ProxyHostApi (see ../proxy/ProxyHostApi.h) so the
+// same ConnectionListener/Proxy graph MainWindow constructs can be
+// constructed here too, without Proxy depending on the concrete MainWindow
+// type -- see startServices()/slot_log()/slot_setMode()/getHotkeyManager()/
+// asQObject() below.
 //
 // This commit adds the 8 side-panel docks (see MainShell.qml's nested
 // SplitView layout and DockPanel.qml/DockColumn.qml/DockRow.qml) and their
@@ -80,18 +95,13 @@ class XpStatusAdapter;
 // isolated root context -- every panel here shares this class's single
 // QQmlApplicationEngine, so all of their context properties are set on one
 // root context (see the ctor) rather than per-dock. The Client panel's
-// ClientController is constructed WITHOUT a ClientControllerBackend (see
-// ClientController::setBackend()'s doc comment: every backend-driving
-// invokable silently no-ops when none is installed) because this shell has
-// no ConnectionListener/telnet proxy to back it with; its "Play" button is
-// therefore inert. RoomManager (RoomModel's backing GMCP parser) IS
-// constructed here, unlike the note above previously said -- Room panel
-// data updates normally, just with nothing upstream ever calling
-// GameObserver's GMCP signals in this offline shell.
+// ClientController is backed by a real ClientTelnetBackend (see
+// startServices()), so its "Play" button drives an actual telnet connection
+// through this shell's own ConnectionListener, exactly like MainWindow's.
 //
 // Owns everything it constructs via plain Qt parent/child (like MainWindow
 // does), so its destructor is trivial.
-class NODISCARD_QOBJECT QmlShellWindow final : public QObject
+class NODISCARD_QOBJECT QmlShellWindow final : public QObject, public ProxyHostApi
 {
     Q_OBJECT
 
@@ -100,6 +110,13 @@ public:
     ~QmlShellWindow() final;
 
     DELETE_CTORS_AND_ASSIGN_OPS(QmlShellWindow);
+
+public:
+    // --- ProxyHostApi (see ../proxy/ProxyHostApi.h) ---
+    void slot_log(const QString &mod, const QString &msg) override;
+    void slot_setMode(MapModeEnum mode) override;
+    NODISCARD HotkeyManager &getHotkeyManager() const override;
+    NODISCARD QObject &asQObject() override { return *this; }
 
 public:
     // False if MainShell.qml failed to load (e.g. the qrc resource is
@@ -123,12 +140,33 @@ public:
 private:
     void registerCommands();
     void wireMouseModeCommand(const QString &id, int mode);
+    void wireMapperModeCommand(const QString &id, MapModeEnum mode);
 
     // --- dialogs + window lifecycle (this commit; see the task report) ---
     void wireDialogCommands();
     void wireSelectionCommands();
     void restoreWindowState();
     void persistWindowState();
+
+    // --- path machine + proxy/listener/client (see the task report) ---
+    // Mirrors AppCore::setMapperMode(): persists the mode to config, keeps
+    // the mapper-mode command group's checked state in sync, and (for
+    // MAP/OFFLINE, matching MainWindow::slot_onMapMode()/slot_onOfflineMode())
+    // logs the mode switch. Called both from the mapper-mode.* commands'
+    // triggered handlers and from slot_setMode() (the mud-driven MPI path).
+    void setMapperMode(MapModeEnum mode);
+    // Wires Mmapper2PathMachine's player-position signals into the canvas/
+    // description panel/status label, mirroring MainWindow::wireConnections()'s
+    // pathMachine-facing block.
+    void wirePathMachine();
+    // Mirrors MainWindow::updateDescriptionRoom(): forwards to
+    // m_descriptionAdapter->updateRoom().
+    void updateDescriptionRoom(const RoomHandle &room);
+    // Constructs the ConnectionListener/Proxy graph and starts listening,
+    // mirroring MainWindow::startServices(); called once, at the end of the
+    // ctor (this shell has no showEvent() to hook the way MainWindow does --
+    // see the ctor's call site for why that's an acceptable substitute).
+    void startServices();
 
     // --- file I/O (see the task report's "shell-usable load seam" section)
     // ---
@@ -172,6 +210,13 @@ private:
     MapCanvasCore *m_mapCanvasCore = nullptr;
     MapViewModel *m_mapViewModel = nullptr;
     CommandRegistry *m_commandRegistry = nullptr;
+
+    Mmapper2PathMachine *m_pathMachine = nullptr;
+    AudioManager *m_audioManager = nullptr;
+    // Owned by this class (like MainWindow::m_listener); constructed by
+    // startServices() once the rest of the service graph exists (needs
+    // m_mumeClock/m_timers, both constructed later in the ctor).
+    ConnectionListener *m_listener = nullptr;
 
     // --- dock panel backing objects (see file comment) ---
     LogModel *m_logModel = nullptr;

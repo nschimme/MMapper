@@ -8,6 +8,7 @@
 #include "../adventure/adventuretracker.h"
 #include "../client/ClientController.h"
 #include "../client/ClientLineModel.h"
+#include "../client/ClientTelnetBackend.h"
 #include "../client/HotkeyManager.h"
 #include "../clock/ClockAdapter.h"
 #include "../clock/mumeclock.h"
@@ -24,6 +25,8 @@
 #include "../group/GroupController.h"
 #include "../group/GroupModel.h"
 #include "../group/mmapper2group.h"
+#include "../map/RoomHandle.h"
+#include "../map/mmapper2room.h"
 #include "../mapdata/mapdata.h"
 #include "../mapdata/roomselection.h"
 #include "../mapstorage/MapDestination.h"
@@ -31,13 +34,16 @@
 #include "../mapstorage/MapSource.h"
 #include "../mapstorage/abstractmapstorage.h"
 #include "../mapstorage/mapstorage.h"
+#include "../media/AudioManager.h"
 #include "../media/DescriptionAdapter.h"
 #include "../media/MediaLibrary.h"
 #include "../observer/gameobserver.h"
+#include "../pathmachine/mmapper2pathmachine.h"
 #include "../preferences/GeneralPageAdapter.h"
 #include "../preferences/ParserPageAdapter.h"
 #include "../preferences/PreferencesController.h"
 #include "../proxy/GmcpMessage.h"
+#include "../proxy/connectionlistener.h"
 #include "../qml/AnsiColorPickerLauncher.h"
 #include "../qml/DescriptionImageProvider.h"
 #include "../qml/DockLayoutController.h"
@@ -84,6 +90,7 @@
 #include <QQmlContext>
 #include <QQuickWindow>
 #include <QRect>
+#include <QTimer>
 #include <QUrl>
 
 namespace { // anonymous
@@ -208,6 +215,12 @@ NODISCARD bool isLiveCommand(const QString &id)
         "layer.down",
         "layer.reset",
         "world.rebuild-meshes",
+        "mapper-mode.play",
+        "mapper-mode.map",
+        "mapper-mode.offline",
+        "pathmachine.release-all-paths",
+        "room.goto-selected",
+        "room.force-update-selected",
         "mouse-mode.move",
         "mouse-mode.room-raypick",
         "mouse-mode.room-select",
@@ -369,6 +382,13 @@ QmlShellWindow::QmlShellWindow(QObject *const parent)
             m_mapViewModel,
             &MapViewModel::slot_setScrollBars);
 
+    m_pathMachine = new Mmapper2PathMachine(deref(m_mapData), this);
+    m_pathMachine->setObjectName("Mmapper2PathMachine");
+    connect(m_mapData,
+            &MapFrontend::sig_clearingMap,
+            m_pathMachine,
+            &PathMachine::slot_releaseAllPaths);
+
     registerCommands();
 
     // --- dock panel backing objects (see file comment) -- mirrors
@@ -394,6 +414,7 @@ QmlShellWindow::QmlShellWindow(QObject *const parent)
 
     m_mediaLibrary = new MediaLibrary(this);
     m_descriptionAdapter = new DescriptionAdapter(deref(m_mediaLibrary), this);
+    m_audioManager = new AudioManager(deref(m_mediaLibrary), deref(m_gameObserver), this);
 
     m_timers = new CTimers(this);
     m_timerModel = new TimerModel(deref(m_timers), this);
@@ -406,10 +427,10 @@ QmlShellWindow::QmlShellWindow(QObject *const parent)
     m_clientController = new ClientController(deref(m_clientLineModel),
                                               deref(m_hotkeyManager),
                                               this);
-    // No ClientControllerBackend installed -- this shell has no
-    // ConnectionListener/telnet proxy to back it with (see file comment).
-    // Every backend-driving invokable on m_clientController silently no-ops
-    // until a later commit wires one up.
+    // ClientControllerBackend is installed by startServices() below, once
+    // m_listener exists (ClientTelnetBackend needs a ConnectionListener to
+    // back it with -- see ClientController::setBackend()'s doc comment and
+    // startServices()).
 
     m_dockLayout = new DockLayoutController(this);
     m_toolbarLayout = new ToolbarLayoutController(this);
@@ -463,6 +484,10 @@ QmlShellWindow::QmlShellWindow(QObject *const parent)
     m_engine->rootContext()->setContextProperty("mapLoaded", false);
     m_engine->rootContext()->setContextProperty("windowTitle",
                                                 QStringLiteral("MMapper (QML shell preview)"));
+    // Path-machine status label (MainShell.qml's footer pathMachineLabel) --
+    // replaces the former static placeholder; kept in sync with
+    // Mmapper2PathMachine::sig_state by wirePathMachine() below.
+    m_engine->rootContext()->setContextProperty("pathMachineStatus", QString());
 
     // --- dock panel context properties -- one root context shared by every
     // panel (see file comment for why this differs from QmlDockWidget's
@@ -544,6 +569,7 @@ QmlShellWindow::QmlShellWindow(QObject *const parent)
     wireDialogCommands();
     wireSelectionCommands();
     wireFileCommands();
+    wirePathMachine();
 
     // Restore Shell B's dock/toolbar visibility from Configuration::qmlShell
     // *before* load(): DockLayoutController/ToolbarLayoutController's
@@ -653,6 +679,22 @@ QmlShellWindow::QmlShellWindow(QObject *const parent)
     // the engine, not a QWidget). aboutToQuit() fires while the window is
     // still alive, so persistWindowState() can still read its geometry.
     connect(qApp, &QCoreApplication::aboutToQuit, this, &QmlShellWindow::persistWindowState);
+
+    // Mirrors MainWindow::showEvent()'s std::call_once(startServices())
+    // (mainwindow.cpp): this shell has no showEvent() to hook (it owns a
+    // QQuickWindow via the engine, not a QWidget), and the window is shown
+    // by QQmlApplicationEngine's Window::visible: true as soon as load()
+    // above returns, so calling this once here at the end of the ctor is an
+    // acceptable substitute -- there is no earlier point at which the
+    // service graph (m_mumeClock/m_timers/m_pathMachine/m_mapCanvasCore)
+    // isn't fully constructed yet.
+    startServices();
+
+    // Restore the mapper mode from config, mirroring MainWindow's ctor
+    // switch on getConfig().general.mapMode (mainwindow.cpp): must run after
+    // startServices() so a PLAY-mode mud connection request from a mud that
+    // races the proxy coming up still finds the group/telnet stack ready.
+    setMapperMode(getConfig().general.mapMode);
 }
 
 QmlShellWindow::~QmlShellWindow()
@@ -770,6 +812,173 @@ void QmlShellWindow::wireMouseModeCommand(const QString &id, const int mode)
     });
 }
 
+void QmlShellWindow::wireMapperModeCommand(const QString &id, const MapModeEnum mode)
+{
+    UiCommand *const cmd = m_commandRegistry->command(id);
+    if (cmd == nullptr) {
+        return;
+    }
+    m_commandRegistry->addToGroup(cmd, "mapper-mode", true);
+    connect(cmd, &UiCommand::sig_triggered, this, [this, mode]() { setMapperMode(mode); });
+}
+
+void QmlShellWindow::setMapperMode(const MapModeEnum mode)
+{
+    // Mirrors AppCore::setMapperMode() (persist to config) plus
+    // MainWindow::slot_onMapMode()/slot_onOfflineMode()'s logging (there is
+    // no MainWindow-only modeMenu icon to update here -- see
+    // QmlShellWindow.h's file comment -- MainShell.qml's CommandAction
+    // bindings already reflect the checked command directly).
+    setConfig().general.mapMode = mode;
+    getConfig().write();
+
+    const char *cmdId = nullptr;
+    switch (mode) {
+    case MapModeEnum::PLAY:
+        cmdId = "mapper-mode.play";
+        break;
+    case MapModeEnum::MAP:
+        cmdId = "mapper-mode.map";
+        slot_log("QmlShellWindow",
+                 "Map mode selected - new rooms are created when entering unmapped areas.");
+        break;
+    case MapModeEnum::OFFLINE:
+        cmdId = "mapper-mode.offline";
+        slot_log("QmlShellWindow", "Offline emulation mode selected - learn new areas safely.");
+        break;
+    }
+    if (cmdId != nullptr) {
+        if (UiCommand *const cmd = m_commandRegistry->command(QString::fromUtf8(cmdId))) {
+            cmd->setChecked(true);
+        }
+    }
+}
+
+void QmlShellWindow::slot_log(const QString &mod, const QString &msg)
+{
+    // Mirrors MainWindow::slot_log()'s MMAPPER_WITH_QML branch: forwards to
+    // the Log panel's model. MainWindow additionally forwards to
+    // statusBar() via a short-lived message; this shell has no equivalent
+    // "log line as transient status" behavior yet (statusText is reserved
+    // for the funneled signals in the ctor), so that part is skipped.
+    if (m_logModel != nullptr) {
+        m_logModel->append(mod, msg);
+    }
+}
+
+void QmlShellWindow::slot_setMode(const MapModeEnum mode)
+{
+    // Mirrors MainWindow::slot_setMode(): the mud can request a mapper-mode
+    // switch via MPI (see ProxyMudConnectionApi::virt_onSetMode() in
+    // proxy.cpp).
+    setMapperMode(mode);
+}
+
+HotkeyManager &QmlShellWindow::getHotkeyManager() const
+{
+    return deref(m_hotkeyManager);
+}
+
+void QmlShellWindow::updateDescriptionRoom(const RoomHandle &room)
+{
+    deref(m_descriptionAdapter).updateRoom(room);
+}
+
+void QmlShellWindow::wirePathMachine()
+{
+    // Mirrors MainWindow::wireConnections()'s Mmapper2PathMachine-facing
+    // block (mainwindow.cpp): moves the canvas's marker, refreshes the
+    // description panel + audio area, and keeps the path-machine status
+    // label (MainShell.qml's footer pathMachineLabel, via the
+    // "pathMachineStatus" context property) in sync.
+    connect(m_pathMachine,
+            &Mmapper2PathMachine::sig_playerMoved,
+            m_mapCanvasCore,
+            &MapCanvasCore::slot_moveMarker);
+    connect(m_pathMachine, &Mmapper2PathMachine::sig_playerMoved, this, [this](const RoomId &id) {
+        if (const auto room = m_mapData->getRoomHandle(id)) {
+            updateDescriptionRoom(room);
+            m_audioManager->onAreaChanged(room.getArea());
+        }
+    });
+    connect(m_mapData, &MapData::sig_onPositionChange, this, [this]() {
+        m_pathMachine->onPositionChange(m_mapData->getCurrentRoomId());
+        updateDescriptionRoom(m_mapData->getCurrentRoom());
+        m_audioManager->onAreaChanged(m_mapData->getCurrentRoom().getArea());
+    });
+    connect(m_mapData,
+            &MapData::sig_onForcedPositionChange,
+            m_mapCanvasCore,
+            &MapCanvasCore::slot_onForcedPositionChange);
+
+    connect(m_pathMachine, &Mmapper2PathMachine::sig_state, this, [this](const QString &text) {
+        deref(m_engine->rootContext()).setContextProperty("pathMachineStatus", text);
+    });
+}
+
+void QmlShellWindow::startServices()
+{
+    // Mirrors MainWindow::startServices() (mainwindow.cpp), minus the
+    // update-checker branch (already handled by wireDialogCommands()'s
+    // help.check-for-update wiring; MainWindow only special-cases the
+    // startup auto-check, which this shell doesn't perform -- documented
+    // deviation, see the task report).
+    auto *const listener = new ConnectionListener(deref(m_mapData),
+                                                  deref(m_pathMachine),
+                                                  deref(m_prespammedPath),
+                                                  deref(m_groupManager),
+                                                  deref(m_mumeClock),
+                                                  deref(m_timers),
+                                                  deref(m_mapCanvasCore),
+                                                  deref(m_gameObserver),
+                                                  this);
+    connect(listener, &ConnectionListener::sig_log, this, &QmlShellWindow::slot_log);
+    connect(listener, &ConnectionListener::sig_clientSuccessfullyConnected, this, [this]() {
+        if (!m_clientController->getUsingClient()) {
+            m_dockLayout->setProperty("clientVisible", false);
+        }
+    });
+    // Mirrors ClientWidget::slot_onVisibilityChanged()/MainWindow's
+    // m_dockDialogClient->visibilityChanged wiring (mainwindow.cpp): delay
+    // 500ms to distinguish a real hide/show of the Client dock from it
+    // briefly popping back in, then disconnect if hidden-while-connected or
+    // focus the input if shown-while-disconnected.
+    connect(m_dockLayout, &DockLayoutController::clientVisibleChanged, this, [this]() {
+        if (!m_clientController->getUsingClient()) {
+            return;
+        }
+        QTimer::singleShot(500, this, [this]() {
+            const bool visible = m_dockLayout->property("clientVisible").toBool();
+            if (m_clientController->getConnected() && !visible) {
+                m_clientController->disconnectFromMud();
+            } else if (!m_clientController->getConnected() && visible) {
+                emit m_clientController->sig_requestInputFocus();
+            }
+        });
+    });
+    connect(m_clientController,
+            &ClientController::sig_relayMessage,
+            this,
+            [this](const QString &message) {
+                deref(m_engine->rootContext()).setContextProperty("statusText", message);
+            });
+    m_listener = listener;
+
+    m_clientController->setBackend(
+        std::make_unique<ClientTelnetBackend>(deref(m_listener), deref(m_clientController)));
+
+    try {
+        m_listener->listen();
+        slot_log("ConnectionListener",
+                 tr("Server bound on localhost to port: %1.").arg(getConfig().connection.localPort));
+    } catch (const std::exception &e) {
+        const QString errorMsg = tr("Unable to start the server (switching to offline mode): %1.")
+                                     .arg(QString::fromUtf8(e.what()));
+        QMessageBox::critical(nullptr, tr("mmapper"), errorMsg);
+        deref(m_engine->rootContext()).setContextProperty("statusText", errorMsg);
+    }
+}
+
 void QmlShellWindow::registerCommands()
 {
     for (const CommandSpec &spec : ALL_COMMAND_SPECS) {
@@ -850,6 +1059,23 @@ void QmlShellWindow::registerCommands()
     if (UiCommand *const moveCmd = m_commandRegistry->command("mouse-mode.move")) {
         moveCmd->setChecked(true);
     }
+
+    // Mapper-mode group: mirrors MainWindow::createActions()'s "mapper-mode"
+    // QActionGroup (see mainwindow.cpp's mapperMode.playModeAct/mapModeAct/
+    // offlineModeAct). The initial checked state is set from config at the
+    // end of the ctor (see setMapperMode(getConfig().general.mapMode) there)
+    // rather than here, since PLAY mode needs startServices()'s proxy/
+    // listener to already exist.
+    wireMapperModeCommand("mapper-mode.play", MapModeEnum::PLAY);
+    wireMapperModeCommand("mapper-mode.map", MapModeEnum::MAP);
+    wireMapperModeCommand("mapper-mode.offline", MapModeEnum::OFFLINE);
+
+    // pathmachine.release-all-paths -- mirrors MainWindow::createActions()'s
+    // releaseAllPathsAct.
+    connect(m_commandRegistry->command("pathmachine.release-all-paths"),
+            &UiCommand::sig_triggered,
+            m_pathMachine,
+            &PathMachine::slot_releaseAllPaths);
 }
 
 void QmlShellWindow::wireDialogCommands()
@@ -1035,19 +1261,26 @@ void QmlShellWindow::wireDialogCommands()
 
 void QmlShellWindow::wireSelectionCommands()
 {
-    // room.edit-selected/infomark.edit-selected are registered live (see
-    // isLiveCommand()) but start with no selection to act on.
+    // room.edit-selected/infomark.edit-selected/room.goto-selected/
+    // room.force-update-selected are registered live (see isLiveCommand())
+    // but start with no selection to act on.
     if (UiCommand *const cmd = m_commandRegistry->command("room.edit-selected")) {
         cmd->setEnabled(false);
     }
     if (UiCommand *const cmd = m_commandRegistry->command("infomark.edit-selected")) {
         cmd->setEnabled(false);
     }
+    if (UiCommand *const cmd = m_commandRegistry->command("room.goto-selected")) {
+        cmd->setEnabled(false);
+    }
+    if (UiCommand *const cmd = m_commandRegistry->command("room.force-update-selected")) {
+        cmd->setEnabled(false);
+    }
 
-    // Mirrors MainWindow::slot_newRoomSelection()/slot_newInfomarkSelection():
-    // track the canvas's current selection so the edit commands can be
-    // enabled/disabled and the edit dialogs constructed with the right
-    // selection.
+    // Mirrors MainWindow::slot_newRoomSelection()/slot_newInfomarkSelection()
+    // (via AppCore::onNewRoomSelection()): track the canvas's current
+    // selection so the edit/goto/force commands can be enabled/disabled and
+    // the edit dialogs constructed with the right selection.
     connect(m_mapCanvasCore,
             &MapCanvasCore::sig_newRoomSelection,
             this,
@@ -1055,6 +1288,14 @@ void QmlShellWindow::wireSelectionCommands()
                 m_roomSelection = !rs.isValid() ? nullptr : rs.getShared();
                 if (UiCommand *const cmd = m_commandRegistry->command("room.edit-selected")) {
                     cmd->setEnabled(m_roomSelection != nullptr);
+                }
+                const bool singleRoom = m_roomSelection != nullptr && m_roomSelection->size() == 1;
+                if (UiCommand *const cmd = m_commandRegistry->command("room.goto-selected")) {
+                    cmd->setEnabled(singleRoom);
+                }
+                if (UiCommand *const cmd = m_commandRegistry->command(
+                        "room.force-update-selected")) {
+                    cmd->setEnabled(singleRoom && m_pathMachine->hasLastEvent());
                 }
             });
     connect(m_mapCanvasCore,
@@ -1145,6 +1386,42 @@ void QmlShellWindow::wireSelectionCommands()
                     setConfig().infomarksDialog.geometry = dialog->saveGeometry();
                 });
                 dialog->show();
+            });
+
+    // room.goto-selected -- mirrors MainWindow's gotoRoomAct trigger lambda
+    // (mainwindow.cpp).
+    connect(m_commandRegistry->command("room.goto-selected"),
+            &UiCommand::sig_triggered,
+            this,
+            [this]() {
+                if (m_roomSelection == nullptr) {
+                    return;
+                }
+                auto &mapData = deref(m_mapData);
+                auto &sel = deref(m_roomSelection);
+                sel.removeMissing(mapData);
+                if (m_roomSelection->size() == 1) {
+                    const RoomId id = m_roomSelection->getFirstRoomId();
+                    m_mapData->setRoom(id);
+                }
+            });
+
+    // room.force-update-selected -- mirrors MainWindow::slot_forceMapperToRoom().
+    connect(m_commandRegistry->command("room.force-update-selected"),
+            &UiCommand::sig_triggered,
+            this,
+            [this]() {
+                if (m_roomSelection == nullptr) {
+                    return;
+                }
+                auto &mapData = deref(m_mapData);
+                auto &sel = deref(m_roomSelection);
+                sel.removeMissing(mapData);
+                if (m_roomSelection->size() == 1) {
+                    const RoomId id = m_roomSelection->getFirstRoomId();
+                    m_mapData->setRoom(id);
+                    m_pathMachine->forceUpdate(id);
+                }
             });
 }
 
@@ -1263,9 +1540,7 @@ void QmlShellWindow::loadFile(std::shared_ptr<MapSource> source)
     connect(pStorage.get(), &AbstractMapStorage::sig_log, m_logModel, &LogModel::append);
 
     // Immediately discard the old map, mirroring
-    // MainWindow::loadFile()'s forceNewFile() call. This shell has no
-    // Mmapper2PathMachine or AudioManager yet (see QmlShellWindow.h's file
-    // comment), so there is nothing to reset for them.
+    // MainWindow::loadFile()'s forceNewFile() call.
     {
         auto &mapData = deref(m_mapData);
         mapData.clear();
@@ -1275,6 +1550,7 @@ void QmlShellWindow::loadFile(std::shared_ptr<MapSource> source)
     m_mapCanvasCore->slot_dataLoaded();
     m_groupController->slot_mapLoaded();
     m_descriptionAdapter->updateRoom(RoomHandle{});
+    m_audioManager->onAreaChanged(RoomArea{});
     updateWindowTitle();
 
     m_ioInProgress = true;
@@ -1339,9 +1615,6 @@ void QmlShellWindow::loadFile(std::shared_ptr<MapSource> source)
 void QmlShellWindow::onSuccessfulLoad(const MapLoadData &mapLoadData)
 {
     // Mirrors MainWindow::onSuccessfulLoad() (mainwindow.cpp), minus:
-    //  - Mmapper2PathMachine::onMapLoaded() -- this shell has no path
-    //    machine yet (see QmlShellWindow.h's file comment);
-    //  - AudioManager::onAreaChanged() -- this shell has no AudioManager;
     //  - statusBar() forwarding -- replaced by the statusText context
     //    property, same as the rest of this class;
     //  - mapChanged()/canvas->slot_mapChanged() -- MapCanvasCore has no
@@ -1353,8 +1626,10 @@ void QmlShellWindow::onSuccessfulLoad(const MapLoadData &mapLoadData)
 
     m_mapCanvasCore->slot_dataLoaded();
     m_groupController->slot_mapLoaded();
+    m_pathMachine->onMapLoaded();
     if (const auto room = mapData.getCurrentRoom()) {
         m_descriptionAdapter->updateRoom(room);
+        m_audioManager->onAreaChanged(room.getArea());
     }
 
     updateMapModifiedState();

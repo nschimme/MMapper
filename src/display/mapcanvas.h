@@ -88,6 +88,15 @@ public:
     NODISCARD float getRawZoom() const { return m_core.getRawZoom(); }
     NODISCARD float getTotalScaleFactor() const { return m_core.getTotalScaleFactor(); }
 
+    // Exposes the Qt-widgets-free core directly: ConnectionListener/Proxy
+    // (see ../proxy/connectionlistener.h/proxy.h) only ever call methods
+    // MapCanvasCore already implements natively (slot_mapChanged()/
+    // graphicsSettingsChanged()/slot_setRoomSelection()), so they take a
+    // MapCanvasCore& instead of a MapCanvas& -- that's also what lets
+    // QmlShellWindow (which owns a bare MapCanvasCore, not a MapCanvas)
+    // construct the same proxy graph MainWindow does.
+    NODISCARD MapCanvasCore &getCore() { return m_core; }
+
 public:
     NODISCARD auto width() const { return QOpenGLWindow::width(); }
     NODISCARD auto height() const { return QOpenGLWindow::height(); }

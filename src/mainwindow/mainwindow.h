@@ -12,6 +12,7 @@
 #include "../mapdata/roomselection.h"
 #include "../mapstorage/MapDestination.h"
 #include "../mapstorage/MapSource.h"
+#include "../proxy/ProxyHostApi.h"
 #include "AsyncTypes.h"
 
 #include <functional>
@@ -120,7 +121,7 @@ class MapDestination;
 
 struct MapLoadData;
 
-class NODISCARD_QOBJECT MainWindow final : public QMainWindow
+class NODISCARD_QOBJECT MainWindow final : public QMainWindow, public ProxyHostApi
 {
     Q_OBJECT
 
@@ -376,8 +377,14 @@ public:
     explicit MainWindow();
     ~MainWindow() final;
 
-    NODISCARD HotkeyManager &getHotkeyManager() const { return deref(m_hotkeyManager); }
+    NODISCARD HotkeyManager &getHotkeyManager() const override { return deref(m_hotkeyManager); }
     NODISCARD CTimers &getTimers() const { return deref(m_timers); }
+
+    // ProxyHostApi: slot_log()/slot_setMode() below (public slots:) already
+    // match ProxyHostApi's pure virtuals by signature, so they're overrides
+    // without needing to be redeclared here; this one has no other natural
+    // home.
+    NODISCARD QObject &asQObject() override { return *this; }
 
     NODISCARD bool saveFile(const QString &fileName, SaveModeEnum mode, SaveFormatEnum format);
     void loadFile(std::shared_ptr<MapSource> source);
@@ -470,7 +477,7 @@ public slots:
 
     NODISCARD bool slot_generateBaseMap();
 
-    void slot_log(const QString &, const QString &);
+    void slot_log(const QString &, const QString &) override;
 
     void slot_onModeConnectionSelect();
     void slot_onModeRoomRaypick();
@@ -504,7 +511,7 @@ public slots:
     void slot_onPlayMode();
     void slot_onMapMode();
     void slot_onOfflineMode();
-    void slot_setMode(MapModeEnum mode);
+    void slot_setMode(MapModeEnum mode) override;
     void slot_alwaysOnTop();
     void slot_setShowStatusBar();
     void slot_setShowScrollBars();

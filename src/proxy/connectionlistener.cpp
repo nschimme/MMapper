@@ -37,7 +37,7 @@ ConnectionListener::ConnectionListener(MapData &md,
                                        Mmapper2Group &gm,
                                        MumeClock &mc,
                                        CTimers &ct,
-                                       MapCanvas &mca,
+                                       MapCanvasCore &mca,
                                        GameObserver &go,
                                        QObject *const parent)
     : QObject(parent)

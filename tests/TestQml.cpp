@@ -3531,6 +3531,100 @@ void TestQml::loadMainShell()
     registry.command(QStringLiteral("view.zoom-in"))->trigger();
 }
 
+void TestQml::pathMachineStatusFunnel()
+{
+    // QmlShellWindow itself isn't linkable into this small test binary (see
+    // loadMainShell()'s comment above), so this exercises the QML side of
+    // QmlShellWindow.cpp's wirePathMachine(): a synthetic "pathMachineStatus"
+    // context property update -- standing in for a real
+    // Mmapper2PathMachine::sig_state emission funneled through
+    // `rootContext->setContextProperty("pathMachineStatus", text)` -- must
+    // reach MainShell.qml's footer pathMachineLabel, mirroring
+    // MainWindow::setupStatusBar()'s `connect(m_pathMachine, &sig_state,
+    // pathmachineStatus, &QLabel::setText)`.
+    CommandRegistry registry(nullptr);
+    MapViewModel viewModel;
+    ToolbarLayoutController toolbarLayout;
+    AudioVolumeController musicVolume(AudioVolumeController::AudioType::Music);
+    AudioVolumeController soundVolume(AudioVolumeController::AudioType::Sound);
+    GameObserver gameObserver;
+    MumeClock mumeClock(/*mumeEpoch=*/0, gameObserver, nullptr);
+    ClockAdapter clockAdapter(gameObserver, mumeClock, nullptr);
+    AdventureTracker adventureTracker(gameObserver, nullptr);
+    XpStatusAdapter xpStatusAdapter(adventureTracker, nullptr);
+
+    QQmlEngine engine;
+    QQmlContext *const rootContext = engine.rootContext();
+    rootContext->setContextProperty("commands", &registry);
+    rootContext->setContextProperty("mapCore", QVariant::fromValue<QObject *>(nullptr));
+    rootContext->setContextProperty("mapViewModel", &viewModel);
+    rootContext->setContextProperty("statusText", QStringLiteral("test status"));
+    rootContext->setContextProperty("toolbarLayout", &toolbarLayout);
+    rootContext->setContextProperty("mapZoom", QVariant::fromValue<QObject *>(nullptr));
+    rootContext->setContextProperty("musicVolume", &musicVolume);
+    rootContext->setContextProperty("soundVolume", &soundVolume);
+    rootContext->setContextProperty("clock", &clockAdapter);
+    rootContext->setContextProperty("xpStatusAdapter", &xpStatusAdapter);
+    // Starts unset, exactly like QmlShellWindow.cpp's ctor's initial
+    // `setContextProperty("pathMachineStatus", QString())` before any
+    // sig_state has fired.
+    rootContext->setContextProperty("pathMachineStatus", QString());
+
+    QQmlComponent component(&engine, QUrl(u"qrc:/qt/qml/MMapper/MainShell.qml"_qs));
+    while (component.isLoading()) {
+        QCoreApplication::processEvents();
+    }
+    QVERIFY2(!component.isError(), qPrintable(component.errorString()));
+
+    QScopedPointer<QObject> object(component.create(rootContext));
+    QVERIFY(object != nullptr);
+    QCoreApplication::processEvents();
+
+    auto *const pathMachineLabel = object->findChild<QQuickItem *>(
+        QStringLiteral("pathMachineLabel"));
+    QVERIFY(pathMachineLabel != nullptr);
+    QCOMPARE(pathMachineLabel->property("text").toString(), QString());
+
+    // Simulate Mmapper2PathMachine::sig_state firing.
+    rootContext->setContextProperty("pathMachineStatus", QStringLiteral("Standing."));
+    QCoreApplication::processEvents();
+    QCOMPARE(pathMachineLabel->property("text").toString(), QStringLiteral("Standing."));
+}
+
+void TestQml::mapperModeCommandGrouping()
+{
+    // Mirrors the "mapper-mode" exclusive UiCommand group QmlShellWindow.cpp's
+    // wireMapperModeCommand() creates (see registerCommands()): triggering
+    // one of the three mapper-mode commands must check it and uncheck the
+    // other two, exactly like the pre-existing "mouse-mode" group already
+    // covered by loadMainShell()'s trigger smoke test above. This is the
+    // "command enable states" coverage called for since the real
+    // QmlShellWindow (and therefore its ConnectionListener/Proxy-touching
+    // setMapperMode()) isn't linkable into this test binary.
+    CommandRegistry registry(nullptr);
+    UiCommand *const playCmd = registry.addCommand(QStringLiteral("mapper-mode.play"), true);
+    UiCommand *const mapCmd = registry.addCommand(QStringLiteral("mapper-mode.map"), true);
+    UiCommand *const offlineCmd = registry.addCommand(QStringLiteral("mapper-mode.offline"), true);
+    registry.addToGroup(playCmd, QStringLiteral("mapper-mode"), true);
+    registry.addToGroup(mapCmd, QStringLiteral("mapper-mode"), true);
+    registry.addToGroup(offlineCmd, QStringLiteral("mapper-mode"), true);
+
+    playCmd->setChecked(true);
+    QVERIFY(playCmd->isChecked());
+    QVERIFY(!mapCmd->isChecked());
+    QVERIFY(!offlineCmd->isChecked());
+
+    mapCmd->setChecked(true);
+    QVERIFY(!playCmd->isChecked());
+    QVERIFY(mapCmd->isChecked());
+    QVERIFY(!offlineCmd->isChecked());
+
+    offlineCmd->setChecked(true);
+    QVERIFY(!playCmd->isChecked());
+    QVERIFY(!mapCmd->isChecked());
+    QVERIFY(offlineCmd->isChecked());
+}
+
 void TestQml::loadMainShellDocks()
 {
     // Drives MainShell.qml's 8-dock SplitView layout (added alongside

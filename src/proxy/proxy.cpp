@@ -10,7 +10,7 @@
 #include "../clock/mumeclock.h"
 #include "../configuration/PasswordConfig.h"
 #include "../configuration/configuration.h"
-#include "../display/mapcanvas.h"
+#include "../display/MapCanvasCore.h"
 #include "../display/prespammedpath.h"
 #include "../global/LineUtils.h"
 #include "../global/MakeQPointer.h"
@@ -18,7 +18,6 @@
 #include "../global/Version.h"
 #include "../global/io.h"
 #include "../group/mmapper2group.h"
-#include "../mainwindow/mainwindow.h"
 #include "../map/parseevent.h"
 #include "../mpi/mpifilter.h"
 #include "../mpi/remoteedit.h"
@@ -58,14 +57,14 @@ const volatile bool g_showVersionInWelcomeMessage = IS_DEBUG_BUILD;
 //
 constexpr const auto whiteOnCyan = getRawAnsi(AnsiColor16Enum::white, AnsiColor16Enum::cyan);
 
-NODISCARD MainWindow &getMainWindow(ConnectionListener &listener)
+NODISCARD ProxyHostApi &getProxyHost(ConnectionListener &listener)
 {
     // dynamic cast can fail
-    auto *const mw = dynamic_cast<MainWindow *>(listener.parent());
-    if (mw == nullptr) {
-        throw std::runtime_error("ConnectionListener's parent must be MainWindow");
+    auto *const host = dynamic_cast<ProxyHostApi *>(listener.parent());
+    if (host == nullptr) {
+        throw std::runtime_error("ConnectionListener's parent must implement ProxyHostApi");
     }
-    return *mw;
+    return *host;
 }
 
 } // namespace
@@ -153,7 +152,7 @@ QPointer<Proxy> Proxy::allocInit(MapData &md,
                                  Mmapper2Group &gm,
                                  MumeClock &mc,
                                  CTimers &ct,
-                                 MapCanvas &mca,
+                                 MapCanvasCore &mca,
                                  GameObserver &go,
                                  std::unique_ptr<AbstractSocket> userSocket,
                                  ConnectionListener &listener)
@@ -171,7 +170,7 @@ Proxy::Proxy(Badge<Proxy>,
              Mmapper2Group &gm,
              MumeClock &mc,
              CTimers &ct,
-             MapCanvas &mca,
+             MapCanvasCore &mca,
              GameObserver &go,
              std::unique_ptr<AbstractSocket> userSocket,
              ConnectionListener &listener)
@@ -184,8 +183,7 @@ Proxy::Proxy(Badge<Proxy>,
     , m_timers(ct)
     , m_mapCanvas(mca)
     , m_gameObserver(go)
-    // REVISIT: It would be better to just pass in the MainWindow directly.
-    , m_mainWindow{::getMainWindow(listener)}
+    , m_host{::getProxyHost(listener)}
     , m_userSocket{std::move(userSocket)}
 {
     //
@@ -319,7 +317,7 @@ void Proxy::allocMudSocket()
         NODISCARD RemoteEdit &getRemoteEdit() { return getProxy().getRemoteEdit(); }
         NODISCARD UserTelnet &getUserTelnet() { return getProxy().getUserTelnet(); }
         NODISCARD Mmapper2Group &getGroupManager() { return getProxy().getGroupManager(); }
-        NODISCARD MainWindow &getMainWindow() { return getProxy().getMainWindow(); }
+        NODISCARD ProxyHostApi &getHost() { return getProxy().getHost(); }
         NODISCARD GameObserver &getGameObserver() { return getProxy().getGameObserver(); }
 
     private:
@@ -371,7 +369,7 @@ void Proxy::allocMudSocket()
             if ((false)) {
                 getProxy().log(msg);
             } else {
-                getMainWindow().slot_log("Proxy", msg);
+                getHost().slot_log("Proxy", msg);
             }
         }
     };
@@ -586,8 +584,8 @@ void Proxy::allocParser()
         NODISCARD MudTelnet &getMudTelnet() { return getProxy().getMudTelnet(); }
         NODISCARD UserTelnet &getUserTelnet() { return getProxy().getUserTelnet(); }
         NODISCARD GameObserver &getGameObserver() { return getProxy().getGameObserver(); }
-        NODISCARD MainWindow &getMainWindow() { return getProxy().getMainWindow(); }
-        NODISCARD MapCanvas &getMapCanvas() { return getProxy().getMapCanvas(); }
+        NODISCARD ProxyHostApi &getHost() { return getProxy().getHost(); }
+        NODISCARD MapCanvasCore &getMapCanvas() { return getProxy().getMapCanvas(); }
         NODISCARD Mmapper2PathMachine &getPathMachine() { return getProxy().getPathMachine(); }
         NODISCARD PrespammedPath &getPrespam() { return getProxy().getPrespam(); }
 
@@ -716,7 +714,7 @@ void Proxy::allocParser()
         void virt_onGraphicsSettingsChanged() final { getMapCanvas().graphicsSettingsChanged(); }
         void virt_onLog(const QString &mod, const QString &msg) final
         {
-            getMainWindow().slot_log(mod, msg);
+            getHost().slot_log(mod, msg);
         }
         void virt_onNewRoomSelection(const SigRoomSelection &sel) final
         {
@@ -724,7 +722,7 @@ void Proxy::allocParser()
         }
 
         // (via user command)
-        void virt_onSetMode(const MapModeEnum mode) final { getMainWindow().slot_setMode(mode); }
+        void virt_onSetMode(const MapModeEnum mode) final { getHost().slot_setMode(mode); }
     };
 
     auto &pipe = getPipeline();
@@ -743,7 +741,7 @@ void Proxy::allocParser()
                                                          deref(gmcp),
                                                          m_groupManager.getGroupManagerApi(),
                                                          m_gameObserver,
-                                                         m_mainWindow.getHotkeyManager(),
+                                                         m_host.getHotkeyManager(),
                                                          this,
                                                          deref(out),
                                                          deref(parserCommon));
@@ -752,7 +750,7 @@ void Proxy::allocParser()
                                                             deref(conn),
                                                             deref(gmcp),
                                                             m_groupManager.getGroupManagerApi(),
-                                                            m_mainWindow.getHotkeyManager(),
+                                                            m_host.getHotkeyManager(),
                                                             this,
                                                             deref(out),
                                                             deref(parserCommon),
@@ -839,7 +837,7 @@ void Proxy::allocMpiFilter()
 void Proxy::allocRemoteEdit()
 {
     // Caution: RemoteEdit outlives the proxy, since it manages windows.
-    m_remoteEdit = mmqt::makeQPointer<RemoteEdit>(&m_mainWindow);
+    m_remoteEdit = mmqt::makeQPointer<RemoteEdit>(&m_host.asQObject());
 
     struct NODISCARD LocalMpiFilterToMud final : public MpiFilterToMud
     {
@@ -1199,7 +1197,7 @@ void Proxy::sendPromptToUser()
 
 void Proxy::log(const QString &msg)
 {
-    getMainWindow().slot_log("Proxy", msg);
+    getHost().slot_log("Proxy", msg);
 }
 
 RemoteEdit &Proxy::getRemoteEdit()

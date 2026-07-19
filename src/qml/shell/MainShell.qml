@@ -26,6 +26,9 @@ import MMapper
 //                   from a few real signals (see QmlShellWindow.cpp's
 //                   "Funnels a few real signals" comment) -- full AppCore
 //                   statusMessage integration is still a TODO there.
+//   pathMachineStatus -- QString, shown in the footer's pathMachineLabel;
+//                   fed by Mmapper2PathMachine::sig_state (see
+//                   QmlShellWindow.cpp's wirePathMachine()).
 //   dockLayout   -- DockLayoutController* (../DockLayoutController.h),
 //                   owns the 8 side-panel docks' visibility
 //   toolbarLayout -- ToolbarLayoutController* (../ToolbarLayoutController.h),
@@ -1265,12 +1268,12 @@ QQC2.ApplicationWindow {
         QQC2.Label {
             id: pathMachineLabel
             objectName: "pathMachineLabel"
-            // TODO(shell commit): wire to Mmapper2PathMachine::sig_state
-            // once a PathMachine is constructed in this shell (see
-            // QmlShellWindow.h's file comment: "Deliberately NOT
-            // constructed here" -- the async task engine/path machine isn't
-            // part of this offline bring-up yet).
-            text: ""
+            // Fed by Mmapper2PathMachine::sig_state via QmlShellWindow.cpp's
+            // wirePathMachine(), which keeps the "pathMachineStatus" context
+            // property in sync (mirrors MainWindow::setupStatusBar()'s
+            // `connect(m_pathMachine, &Mmapper2PathMachine::sig_state,
+            // pathmachineStatus, &QLabel::setText)`).
+            text: typeof pathMachineStatus !== "undefined" ? pathMachineStatus : ""
             padding: 4
         }
         XpStatusItem {

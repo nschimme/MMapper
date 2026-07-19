@@ -18,7 +18,7 @@
 #include <QtGlobal>
 
 class ConnectionListener;
-class MapCanvas;
+class MapCanvasCore;
 class MapData;
 class Mmapper2Group;
 class Mmapper2PathMachine;
@@ -60,7 +60,7 @@ private:
     Mmapper2Group &m_groupManager;
     MumeClock &m_mumeClock;
     CTimers &m_timers;
-    MapCanvas &m_mapCanvas;
+    MapCanvasCore &m_mapCanvas;
     GameObserver &m_gameOberver;
     using ServerList = std::vector<QPointer<ConnectionListenerTcpServer>>;
     ServerList m_servers;
@@ -73,7 +73,7 @@ public:
                                 Mmapper2Group &,
                                 MumeClock &,
                                 CTimers &,
-                                MapCanvas &,
+                                MapCanvasCore &,
                                 GameObserver &,
                                 QObject *parent);
     ~ConnectionListener() final;

@@ -544,7 +544,7 @@ MainWindow::MainWindow()
                                                       deref(m_groupManager),
                                                       deref(m_mumeClock),
                                                       deref(m_timers),
-                                                      deref(getCanvas()),
+                                                      deref(getCanvas()).getCore(),
                                                       deref(m_gameObserver),
                                                       this);
 

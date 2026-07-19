@@ -13,6 +13,7 @@
 #include "../observer/gameobserver.h"
 #include "../parser/SendToUserSourceEnum.h"
 #include "GmcpMessage.h"
+#include "ProxyHostApi.h"
 #include "ProxyParserApi.h"
 #include "TaggedBytes.h"
 
@@ -30,8 +31,7 @@
 class AbstractParser;
 class CTimers;
 class ConnectionListener;
-class MainWindow;
-class MapCanvas;
+class MapCanvasCore;
 class MapData;
 class Mmapper2Group;
 class Mmapper2PathMachine;
@@ -75,9 +75,9 @@ private:
     Mmapper2Group &m_groupManager;
     MumeClock &m_mumeClock;
     CTimers &m_timers;
-    MapCanvas &m_mapCanvas;
+    MapCanvasCore &m_mapCanvas;
     GameObserver &m_gameObserver;
-    MainWindow &m_mainWindow;
+    ProxyHostApi &m_host;
     std::unique_ptr<AbstractSocket> m_userSocket;
 
 private:
@@ -173,7 +173,7 @@ public:
                                                Mmapper2Group &,
                                                MumeClock &,
                                                CTimers &,
-                                               MapCanvas &,
+                                               MapCanvasCore &,
                                                GameObserver &,
                                                std::unique_ptr<AbstractSocket>,
                                                ConnectionListener &);
@@ -186,7 +186,7 @@ public:
                    Mmapper2Group &,
                    MumeClock &,
                    CTimers &,
-                   MapCanvas &,
+                   MapCanvasCore &,
                    GameObserver &,
                    std::unique_ptr<AbstractSocket>,
                    ConnectionListener &);
@@ -286,8 +286,8 @@ private:
     NODISCARD Pipeline &getPipeline() { return deref(m_pipeline); }
 
     NODISCARD GameObserver &getGameObserver() { return m_gameObserver; }
-    NODISCARD MainWindow &getMainWindow() { return m_mainWindow; }
-    NODISCARD MapCanvas &getMapCanvas() { return m_mapCanvas; }
+    NODISCARD ProxyHostApi &getHost() { return m_host; }
+    NODISCARD MapCanvasCore &getMapCanvas() { return m_mapCanvas; }
     NODISCARD Mmapper2Group &getGroupManager() { return m_groupManager; }
     NODISCARD MumeClock &getMumeClock() { return m_mumeClock; }
     NODISCARD Mmapper2PathMachine &getPathMachine() { return m_pathMachine; }

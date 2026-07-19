@@ -40,4 +40,14 @@ NODISCARD std::unique_ptr<AbstractMapStorage> detectAndCreateStorage(
 // set (via AbstractMapStorage::setProgressCounter()) before calling this.
 NODISCARD std::optional<MapLoadData> loadMapData(AbstractMapStorage &storage);
 
+// Loads raw map data from storage and merges it into currentMap. Safe to call
+// on a background thread (mirrors mainwindow-async.cpp's former
+// background::merge_map_data(), now delegating here so QmlShellWindow's
+// Shell B merge path -- see mainwindow/QmlShellWindow.cpp's
+// wireFileCommands() -- can share it without depending on MainWindow);
+// storage's ProgressCounter must already be set before calling this. Returns
+// std::nullopt if storage can't load, or if the loaded data has neither
+// rooms nor markers.
+NODISCARD std::optional<Map> mergeMapData(AbstractMapStorage &storage, const Map &currentMap);
+
 } // namespace maploadhelper

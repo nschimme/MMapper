@@ -46,23 +46,6 @@ constexpr auto yellow = getRawAnsi(AnsiColor16Enum::yellow);
 
 namespace mwa_detail {
 
-NODISCARD bool hasRooms(const RawMapLoadData &data)
-{
-    return !data.rooms.empty();
-}
-
-NODISCARD bool hasMarkers(const RawMapLoadData &data)
-{
-    return !data.markers.empty();
-}
-
-// true if the map contains either rooms or markers;
-// e.g. the map might ONLY contain markers.
-NODISCARD bool hasValidData(const RawMapLoadData &data)
-{
-    return hasRooms(data) || hasMarkers(data);
-}
-
 template<typename T>
 NODISCARD PollResultEnum wait_for(std::future<T> &future, const std::chrono::milliseconds ms)
 {
@@ -95,27 +78,14 @@ NODISCARD std::optional<T> extract(std::future<std::optional<T>> &future, MainWi
 
 namespace background {
 
-// load_map_data() moved to maploadhelper::loadMapData() (see
-// mapstorage/MapLoadHelper.h) so QmlShellWindow's Shell B load path can
-// share it without depending on MainWindow.
+// load_map_data()/merge_map_data() moved to maploadhelper::loadMapData()/
+// maploadhelper::mergeMapData() (see mapstorage/MapLoadHelper.h) so
+// QmlShellWindow's Shell B load/merge paths can share them without
+// depending on MainWindow.
 
 NODISCARD std::optional<Map> merge_map_data(AbstractMapStorage &storage, const MapData &mapData)
 {
-    if (!storage.canLoad()) {
-        return std::nullopt;
-    }
-
-    ProgressCounter &pc = storage.getProgressCounter();
-    pc.setCurrentTask(ProgressMsg{"phase 1: load from disk"});
-    std::optional<RawMapLoadData> opt_data = storage.loadData();
-
-    if (!opt_data || !mwa_detail::hasValidData(*opt_data)) {
-        return std::nullopt;
-    }
-
-    pc.setCurrentTask(ProgressMsg{"phase 2: merge the new map data"});
-    // TODO: move ownership of the counter out of the storage object
-    return MapData::mergeMapData(pc, mapData.getCurrentMap(), opt_data.value());
+    return maploadhelper::mergeMapData(storage, mapData.getCurrentMap());
 }
 
 NODISCARD bool save(AbstractMapStorage &storage, const MapData &mapData, const SaveModeEnum mode)

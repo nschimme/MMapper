@@ -56,6 +56,11 @@ import MMapper
 //                  QmlShellWindow::updateWindowTitle()).
 //   mapLoaded   -- bool, hides MapView.qml's splash overlay once true (see
 //                  QmlShellWindow::hideSplash()); never goes back to false.
+//   ioTask      -- IoTaskController* (../../mainwindow/IoTaskController.h),
+//                  drives ioProgressPopup below with the currently running
+//                  load/merge/save task's label/percent/cancelability.
+//   shell       -- QmlShellWindow* itself, exposing confirmClose() (see
+//                  onClosing below) to QML.
 QQC2.ApplicationWindow {
     id: window
 
@@ -69,6 +74,19 @@ QQC2.ApplicationWindow {
     // QmlShellWindow's ctor, which happens before this file is loaded, so in
     // practice it's never seen.
     title: typeof windowTitle !== "undefined" ? windowTitle : qsTr("MMapper (QML shell preview)")
+
+    // Mirrors MainWindow::closeEvent()'s maybeSave() gate: fires for both
+    // the [X]/Alt+F4 titlebar close and file.exit's window->close() (see
+    // QmlShellWindow.cpp's file.exit wiring, which routes through close()
+    // instead of qApp->quit() specifically so this fires). shell.confirmClose()
+    // (../../mainwindow/QmlShellWindow.h) runs the maybeSave() prompt (plus a
+    // reduced "refuse to close while an IO task is running" guard -- see its
+    // doc comment) and returns whether the close should proceed.
+    onClosing: (close) => {
+        if (typeof shell !== "undefined" && shell && !shell.confirmClose()) {
+            close.accepted = false;
+        }
+    }
 
     // Forwards Escape to the canvas core, mirroring
     // MapWindow::keyPressEvent()'s Qt.Key_Escape handling in the widget
@@ -1283,6 +1301,61 @@ QQC2.ApplicationWindow {
         ClockStrip {
             id: clockStrip
             objectName: "clockStrip"
+        }
+    }
+
+    // Async IO progress popup: file.open/new/merge/reload/save/export all
+    // run on a background thread via async_tasks (see QmlShellWindow.cpp's
+    // loadFile()/mergeFile()/saveMapFile()), which previously showed no
+    // feedback beyond the Tasks panel -- hidden by default (see
+    // DockLayoutController.h's tasksVisible), so loads/saves appeared to do
+    // nothing. This modal popup is the visible equivalent of
+    // MainWindow::AsyncIO's QProgressDialog (mainwindow-async.cpp's
+    // createNewProgressDialog()), driven by IoTaskController
+    // (../../mainwindow/IoTaskController.h) via the "ioTask" context
+    // property: visible for as long as ioTask.active is true, with a Cancel
+    // button enabled only for cancelable tasks (loads/merges; saves forbid
+    // cancel, mirroring createNewProgressDialog()'s disabled Cancel button
+    // for AsyncIOTypeEnum::Save).
+    QQC2.Popup {
+        id: ioProgressPopup
+        objectName: "ioProgressPopup"
+        parent: window.contentItem
+        anchors.centerIn: parent
+        modal: true
+        // No click-outside/Escape dismissal, matching QProgressDialog's own
+        // modal behavior -- the only way out is the task finishing or
+        // (when cancelable) the Cancel button below.
+        closePolicy: QQC2.Popup.NoAutoClose
+        visible: typeof ioTask !== "undefined" && ioTask ? ioTask.active : false
+        width: 360
+
+        contentItem: Column {
+            spacing: 8
+            width: 340
+
+            QQC2.Label {
+                id: ioProgressLabel
+                objectName: "ioProgressLabel"
+                width: parent.width
+                wrapMode: Text.WordWrap
+                text: typeof ioTask !== "undefined" && ioTask ? ioTask.label : ""
+            }
+            QQC2.ProgressBar {
+                id: ioProgressBar
+                objectName: "ioProgressBar"
+                width: parent.width
+                from: 0
+                to: 100
+                value: typeof ioTask !== "undefined" && ioTask ? ioTask.percent : 0
+            }
+            QQC2.Button {
+                id: ioProgressCancelButton
+                objectName: "ioProgressCancelButton"
+                text: qsTr("Cancel")
+                enabled: typeof ioTask !== "undefined" && ioTask ? ioTask.cancelable : false
+                onClicked: if (ioTask) ioTask.cancel()
+            }
         }
     }
 }

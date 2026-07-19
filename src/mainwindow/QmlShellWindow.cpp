@@ -21,6 +21,7 @@
 #include "../display/prespammedpath.h"
 #include "../global/AsyncTasks.h"
 #include "../global/ConfigConsts.h"
+#include "../global/TextUtils.h"
 #include "../global/utils.h"
 #include "../group/GroupController.h"
 #include "../group/GroupModel.h"
@@ -32,7 +33,10 @@
 #include "../mapstorage/MapDestination.h"
 #include "../mapstorage/MapLoadHelper.h"
 #include "../mapstorage/MapSource.h"
+#include "../mapstorage/MmpMapStorage.h"
+#include "../mapstorage/XmlMapStorage.h"
 #include "../mapstorage/abstractmapstorage.h"
+#include "../mapstorage/jsonmapstorage.h"
 #include "../mapstorage/mapstorage.h"
 #include "../media/AudioManager.h"
 #include "../media/DescriptionAdapter.h"
@@ -64,6 +68,7 @@
 #include "FindRoomsController.h"
 #include "FindRoomsModel.h"
 #include "InfomarkEditController.h"
+#include "IoTaskController.h"
 #include "LogModel.h"
 #include "RoomEditController.h"
 #include "TasksModel.h"
@@ -71,6 +76,7 @@
 #include "UpdateChecker.h"
 #include "metatypes.h"
 
+#include <algorithm>
 #include <array>
 #include <future>
 #include <memory>
@@ -201,9 +207,16 @@ constexpr std::array<CommandSpec, 65> ALL_COMMAND_SPECS = {
 NODISCARD bool isLiveCommand(const QString &id)
 {
     static const QStringList live{
+        "file.new",
         "file.open",
+        "file.merge",
+        "file.reload",
         "file.save",
         "file.save-as",
+        "file.export.base-map",
+        "file.export.mm2xml",
+        "file.export.web",
+        "file.export.mmp",
         "file.exit",
         "view.zoom-in",
         "view.zoom-out",
@@ -520,6 +533,26 @@ QmlShellWindow::QmlShellWindow(QObject *const parent)
 
     rootContext->setContextProperty("clientController", m_clientController);
     rootContext->setContextProperty("clientLineModel", m_clientLineModel);
+
+    // --- async IO progress popup (see IoTaskController.h and
+    // beginIoTaskProgress()/tickIoTaskProgress()/endIoTaskProgress() below)
+    // ---
+    m_ioTaskController = new IoTaskController(this);
+    rootContext->setContextProperty("ioTask", m_ioTaskController);
+    connect(m_ioTaskController, &IoTaskController::sig_cancelRequested, this, [this]() {
+        if (m_ioTaskHandle) {
+            m_ioTaskHandle->requestCancel();
+        }
+    });
+    m_ioProgressTimer = new QTimer(this);
+    m_ioProgressTimer->setInterval(25);
+    connect(m_ioProgressTimer, &QTimer::timeout, this, &QmlShellWindow::tickIoTaskProgress);
+
+    // "shell" -- this object itself, exposed for MainShell.qml's
+    // Window.onClosing to call confirmClose() (see this class's header doc
+    // comment); a minimal facade, mirroring how "commands"/"dockLayout"
+    // above expose one purpose-built object rather than the whole class.
+    rootContext->setContextProperty("shell", this);
 
     // --- toolbar/statusbar context properties (see this ctor's toolbar-
     // widget/statusbar-widget construction blocks above) ---
@@ -997,10 +1030,22 @@ void QmlShellWindow::registerCommands()
         }
     }
 
-    connect(m_commandRegistry->command("file.exit"),
-            &UiCommand::sig_triggered,
-            qApp,
-            &QCoreApplication::quit);
+    // Mirrors mainwindow.cpp's exitAct -> close() wiring (QMainWindow::close()
+    // triggers closeEvent(), which is where MainWindow::maybeSave() lives):
+    // routes through the top-level window's close() rather than calling
+    // qApp->quit() directly, so MainShell.qml's Window.onClosing (and
+    // therefore confirmClose()/maybeSave()) gets a chance to veto -- a bare
+    // quit() stops the event loop without dispatching a close event at all.
+    connect(m_commandRegistry->command("file.exit"), &UiCommand::sig_triggered, this, [this]() {
+        if (m_engine != nullptr && !m_engine->rootObjects().isEmpty()) {
+            if (auto *const window = qobject_cast<QQuickWindow *>(
+                    m_engine->rootObjects().constFirst())) {
+                window->close();
+                return;
+            }
+        }
+        qApp->quit();
+    });
 
     connect(m_commandRegistry->command("view.zoom-in"),
             &UiCommand::sig_triggered,
@@ -1430,9 +1475,9 @@ void QmlShellWindow::wireFileCommands()
     // file.save starts disabled: mirrors MainWindow's saveAct, which stays
     // disabled until MainWindow::setMapModified(true) enables it (see
     // mainwindow.cpp's wireConnections()/onSuccessfulLoad()) -- there is
-    // nothing to save until a map is loaded or edited. file.open/
-    // file.save-as have no such precondition, and were left enabled by
-    // registerCommands() (see isLiveCommand()).
+    // nothing to save until a map is loaded or edited. file.open/file.new/
+    // file.merge/file.save-as have no such precondition, and were left
+    // enabled by registerCommands() (see isLiveCommand()).
     if (UiCommand *const cmd = m_commandRegistry->command("file.save")) {
         cmd->setEnabled(false);
     }
@@ -1443,13 +1488,24 @@ void QmlShellWindow::wireFileCommands()
     // updateMapModifiedState()'s doc comment).
     connect(m_mapData, &MapData::sig_onDataChanged, this, &QmlShellWindow::updateMapModifiedState);
 
+    connect(m_commandRegistry->command("file.new"), &UiCommand::sig_triggered, this, [this]() {
+        // Mirrors MainWindow::slot_newFile().
+        if (maybeSave()) {
+            forceNewFile();
+        }
+    });
+
     connect(m_commandRegistry->command("file.open"), &UiCommand::sig_triggered, this, [this]() {
-        // Mirrors MainWindow::slot_open()'s non-Wasm branch: same name
-        // filter and lastMapDirectory config key as the widget shell (see
-        // mainwindow.cpp), so both shells remember the same "last opened"
-        // directory. This shell is desktop-only (never constructed under
-        // Q_OS_WASM -- see QmlShellWindow.h's file comment), so there is no
-        // QFileDialog::getOpenFileContent() branch to mirror.
+        // Mirrors MainWindow::slot_open()'s non-Wasm branch: same
+        // maybeSave() guard, name filter, and lastMapDirectory config key
+        // as the widget shell (see mainwindow.cpp), so both shells remember
+        // the same "last opened" directory. This shell is desktop-only
+        // (never constructed under Q_OS_WASM -- see QmlShellWindow.h's file
+        // comment), so there is no QFileDialog::getOpenFileContent() branch
+        // to mirror.
+        if (!maybeSave()) {
+            return;
+        }
         const auto nameFilter = QStringLiteral(
             "MMapper2 maps (*.mm2)"
             ";;MMapper2 XML or Pandora maps (*.xml)"
@@ -1472,31 +1528,137 @@ void QmlShellWindow::wireFileCommands()
         }
     });
 
-    connect(m_commandRegistry->command("file.save"), &UiCommand::sig_triggered, this, [this]() {
-        // Mirrors MainWindow::slot_save().
-        const QString &fileName = m_mapData->getFileName();
-        if (fileName.isEmpty() || m_mapData->isFileReadOnly()) {
-            if (UiCommand *const cmd = m_commandRegistry->command("file.save-as")) {
-                cmd->trigger();
-            }
+    connect(m_commandRegistry->command("file.merge"), &UiCommand::sig_triggered, this, [this]() {
+        // Mirrors MainWindow::slot_merge()'s non-Wasm branch. No maybeSave()
+        // guard here, matching MainWindow: merging adds to the existing map
+        // rather than discarding it, so there is nothing to lose.
+        const auto nameFilter = QStringLiteral(
+            "MMapper2 maps (*.mm2)"
+            ";;MMapper2 XML or Pandora maps (*.xml)"
+            ";;Alternate suffix for MMapper2 XML maps (*.mm2xml)");
+        const QString &savedLastMapDir = setConfig().autoLoad.lastMapDirectory;
+        const QString fileName = QFileDialog::getOpenFileName(nullptr,
+                                                              tr("Choose map file ..."),
+                                                              savedLastMapDir,
+                                                              nameFilter);
+        if (fileName.isEmpty()) {
             return;
         }
-        saveMapFile(fileName);
+        mergeFile(fileName);
+    });
+
+    connect(m_commandRegistry->command("file.reload"), &UiCommand::sig_triggered, this, [this]() {
+        // Mirrors MainWindow::slot_reload(): re-opens MapData's current
+        // filename (see loadFile()'s doc comment on current-file tracking --
+        // MapData::getFileName() is the shell's only "current file" state,
+        // same as MainWindow).
+        if (!maybeSave()) {
+            return;
+        }
+        const QString filename = m_mapData->getFileName();
+        if (filename.isEmpty()) {
+            deref(m_engine->rootContext())
+                .setContextProperty("statusText", tr("No filename provided"));
+            return;
+        }
+        try {
+            loadFile(MapSource::alloc(filename, std::nullopt));
+        } catch (const std::exception &ex) {
+            deref(m_engine->rootContext())
+                .setContextProperty("statusText",
+                                    tr("Cannot open file %1:\n%2.").arg(filename, ex.what()));
+        }
+    });
+
+    connect(m_commandRegistry->command("file.save"), &UiCommand::sig_triggered, this, [this]() {
+        // Mirrors MainWindow::slot_save().
+        std::ignore = doSave();
     });
 
     connect(m_commandRegistry->command("file.save-as"), &UiCommand::sig_triggered, this, [this]() {
-        // Mirrors MainWindow::slot_saveAs(), using a plain
-        // QFileDialog::getSaveFileName() instead of mainwindow-saveslots.cpp's
-        // createDefaultSaveDialog() helper (same filter/suggested-name logic,
-        // just without that file's reusable multi-format dialog builders --
-        // this shell only ever saves MM2; see saveMapFile()'s doc comment).
-        QString suggestedName = m_mapData->getFileName();
-        const QFileInfo currentFile(suggestedName);
-        if (currentFile.exists()) {
-            suggestedName = currentFile.suffix().contains("xml")
-                                ? currentFile.baseName().append("-import.mm2")
-                                : currentFile.baseName().append("-copy.mm2");
+        // Mirrors MainWindow::slot_saveAs().
+        std::ignore = doSaveAs();
+    });
+
+    // The 4 file.export.* commands mirror mainwindow-saveslots.cpp's
+    // slot_exportBaseMap()/slot_exportMm2xmlMap()/slot_exportWebMap()/
+    // slot_exportMmpMap(): a plain QFileDialog (getSaveFileName(), or
+    // getExistingDirectory() for the Web export -- see MapDestination's
+    // isDirectory() handling) using the same suggested-name/filter logic,
+    // routed through saveMapFile()'s async task + progress popup exactly
+    // like file.save/file.save-as (exports are saves: AllowCancel::Forbid,
+    // same as MainWindow's AsyncSaver -- see saveMapFile()).
+    connect(m_commandRegistry->command("file.export.base-map"),
+            &UiCommand::sig_triggered,
+            this,
+            [this]() {
+                const QString suggestedName
+                    = QFileInfo(m_mapData->getFileName()).baseName().append("-base.mm2");
+                QDir lastMapDir;
+                if (!lastMapDir.mkpath(getConfig().autoLoad.lastMapDirectory)) {
+                    lastMapDir.setPath(QDir::homePath());
+                } else {
+                    lastMapDir.setPath(getConfig().autoLoad.lastMapDirectory);
+                }
+                const QString fileName = QFileDialog::getSaveFileName(nullptr,
+                                                                      tr("Choose map file name ..."),
+                                                                      lastMapDir.filePath(
+                                                                          suggestedName),
+                                                                      tr("MMapper maps (*.mm2)"));
+                if (fileName.isEmpty()) {
+                    deref(m_engine->rootContext())
+                        .setContextProperty("statusText", tr("No filename provided"));
+                    return;
+                }
+                saveMapFile(fileName, SaveModeEnum::BASEMAP, SaveFormatEnum::MM2);
+            });
+
+    connect(m_commandRegistry->command("file.export.mm2xml"),
+            &UiCommand::sig_triggered,
+            this,
+            [this]() {
+                const QString suggestedName
+                    = QFileInfo(m_mapData->getFileName()).baseName().append(".xml");
+                QDir lastMapDir;
+                if (!lastMapDir.mkpath(getConfig().autoLoad.lastMapDirectory)) {
+                    lastMapDir.setPath(QDir::homePath());
+                } else {
+                    lastMapDir.setPath(getConfig().autoLoad.lastMapDirectory);
+                }
+                const QString fileName
+                    = QFileDialog::getSaveFileName(nullptr,
+                                                   tr("Choose map file name ..."),
+                                                   lastMapDir.filePath(suggestedName),
+                                                   tr("MMapper2 XML maps (*.xml)"));
+                if (fileName.isEmpty()) {
+                    deref(m_engine->rootContext())
+                        .setContextProperty("statusText", tr("No filename provided"));
+                    return;
+                }
+                saveMapFile(fileName, SaveModeEnum::FULL, SaveFormatEnum::MM2XML);
+            });
+
+    connect(m_commandRegistry->command("file.export.web"), &UiCommand::sig_triggered, this, [this]() {
+        QDir lastMapDir;
+        if (!lastMapDir.mkpath(getConfig().autoLoad.lastMapDirectory)) {
+            lastMapDir.setPath(QDir::homePath());
+        } else {
+            lastMapDir.setPath(getConfig().autoLoad.lastMapDirectory);
         }
+        const QString dirName = QFileDialog::getExistingDirectory(nullptr,
+                                                                  tr("Choose map file name ..."),
+                                                                  lastMapDir.path());
+        if (dirName.isEmpty()) {
+            deref(m_engine->rootContext())
+                .setContextProperty("statusText", tr("No directory name provided"));
+            return;
+        }
+        saveMapFile(dirName, SaveModeEnum::BASEMAP, SaveFormatEnum::WEB);
+    });
+
+    connect(m_commandRegistry->command("file.export.mmp"), &UiCommand::sig_triggered, this, [this]() {
+        const QString suggestedName
+            = QFileInfo(m_mapData->getFileName()).baseName().append("-mmp.xml");
         QDir lastMapDir;
         if (!lastMapDir.mkpath(getConfig().autoLoad.lastMapDirectory)) {
             lastMapDir.setPath(QDir::homePath());
@@ -1506,12 +1668,135 @@ void QmlShellWindow::wireFileCommands()
         const QString fileName = QFileDialog::getSaveFileName(nullptr,
                                                               tr("Choose map file name ..."),
                                                               lastMapDir.filePath(suggestedName),
-                                                              tr("MMapper maps (*.mm2)"));
+                                                              tr("MMP maps (*.xml)"));
         if (fileName.isEmpty()) {
+            deref(m_engine->rootContext())
+                .setContextProperty("statusText", tr("No filename provided"));
             return;
         }
-        saveMapFile(fileName);
+        saveMapFile(fileName, SaveModeEnum::FULL, SaveFormatEnum::MMP);
     });
+}
+
+bool QmlShellWindow::maybeSave()
+{
+    // Mirrors mainwindow-saveslots.cpp's MainWindow::maybeSave() exactly
+    // (same QMessageBox::Save/Discard/Cancel prompt, describeChanges() text,
+    // and default/escape buttons), minus the `this` QWidget parent (this
+    // class has none -- the dialog is parented to nullptr, same tradeoff
+    // QmlShellWindow.cpp's other QMessageBox uses already make -- see
+    // startServices()'s "Unable to start the server" box).
+    auto &mapData = deref(m_mapData);
+    if (!mapData.dataChanged()) {
+        return true;
+    }
+
+    const QString changes = mmqt::toQStringUtf8(mapData.describeChanges());
+
+    QMessageBox dlg(nullptr);
+    dlg.setIcon(QMessageBox::Warning);
+    dlg.setWindowTitle(tr("mmapper"));
+    dlg.setText(tr("The current map has been modified:\n\n") + changes
+                + tr("\nDo you want to save the changes?"));
+    dlg.setStandardButtons(QMessageBox::Save | QMessageBox::Discard | QMessageBox::Cancel);
+    dlg.setDefaultButton(QMessageBox::Discard);
+    dlg.setEscapeButton(QMessageBox::Cancel);
+    const int ret = dlg.exec();
+    if (ret == QMessageBox::Save) {
+        return doSave();
+    }
+    return ret != QMessageBox::Cancel;
+}
+
+bool QmlShellWindow::confirmClose()
+{
+    // Re-entrancy guard: MainShell.qml's Window.onClosing can fire again
+    // while maybeSave()'s nested QMessageBox::exec() is still on the stack
+    // (e.g. a second close request delivered by the platform while the
+    // prompt has focus) -- see QmlShellWindow.h's m_confirmingClose comment.
+    if (m_confirmingClose) {
+        return false;
+    }
+    // Reduced subset of MainWindow::closeEvent()'s "ignore close while a
+    // non-cancelable async task is running" rule: MainWindow tries to
+    // cancel a cancelable task and wait, or hides itself and defers the
+    // close until a non-cancelable save finishes (see
+    // MainWindow::asyncTaskEnded()); this shell just refuses to close
+    // outright while ANY IO task (load/merge/save) is in flight, cancelable
+    // or not -- documented deviation, see the task report.
+    if (m_ioInProgress) {
+        deref(m_engine->rootContext())
+            .setContextProperty("statusText", tr("Cannot quit while an IO task is in progress."));
+        return false;
+    }
+    m_confirmingClose = true;
+    const bool ok = maybeSave();
+    m_confirmingClose = false;
+    return ok;
+}
+
+bool QmlShellWindow::doSave()
+{
+    // Mirrors MainWindow::slot_save(): like MainWindow, this does NOT wait
+    // for an already-started save to finish before returning true -- the
+    // return value only reflects whether a save was (or a save-as dialog
+    // successfully) started.
+    const QString &fileName = m_mapData->getFileName();
+    if (fileName.isEmpty() || m_mapData->isFileReadOnly()) {
+        return doSaveAs();
+    }
+    saveMapFile(fileName, SaveModeEnum::FULL, SaveFormatEnum::MM2);
+    return true;
+}
+
+bool QmlShellWindow::doSaveAs()
+{
+    // Mirrors MainWindow::slot_saveAs(), using a plain
+    // QFileDialog::getSaveFileName() instead of mainwindow-saveslots.cpp's
+    // createDefaultSaveDialog() helper (same filter/suggested-name logic,
+    // just without that file's reusable multi-format dialog builders).
+    QString suggestedName = m_mapData->getFileName();
+    const QFileInfo currentFile(suggestedName);
+    if (currentFile.exists()) {
+        suggestedName = currentFile.suffix().contains("xml")
+                            ? currentFile.baseName().append("-import.mm2")
+                            : currentFile.baseName().append("-copy.mm2");
+    }
+    QDir lastMapDir;
+    if (!lastMapDir.mkpath(getConfig().autoLoad.lastMapDirectory)) {
+        lastMapDir.setPath(QDir::homePath());
+    } else {
+        lastMapDir.setPath(getConfig().autoLoad.lastMapDirectory);
+    }
+    const QString fileName = QFileDialog::getSaveFileName(nullptr,
+                                                          tr("Choose map file name ..."),
+                                                          lastMapDir.filePath(suggestedName),
+                                                          tr("MMapper maps (*.mm2)"));
+    if (fileName.isEmpty()) {
+        deref(m_engine->rootContext()).setContextProperty("statusText", tr("No filename provided"));
+        return false;
+    }
+    saveMapFile(fileName, SaveModeEnum::FULL, SaveFormatEnum::MM2);
+    return true;
+}
+
+void QmlShellWindow::forceNewFile()
+{
+    // Mirrors MainWindow::forceNewFile(): discards the current map
+    // unconditionally. Shared by file.new's guarded handler above and
+    // loadFile() below (which discards the old map the same way right
+    // before starting a load, mirroring MainWindow::loadFile()'s own
+    // forceNewFile() call).
+    auto &mapData = deref(m_mapData);
+    mapData.clear();
+    mapData.setFileName(QString{}, false);
+    mapData.forcePosition(Coordinate{});
+
+    updateWindowTitle();
+    m_mapCanvasCore->slot_dataLoaded();
+    m_groupController->slot_mapLoaded();
+    m_descriptionAdapter->updateRoom(RoomHandle{});
+    m_audioManager->onAreaChanged(RoomArea{});
 }
 
 void QmlShellWindow::loadFile(std::shared_ptr<MapSource> source)
@@ -1541,17 +1826,7 @@ void QmlShellWindow::loadFile(std::shared_ptr<MapSource> source)
 
     // Immediately discard the old map, mirroring
     // MainWindow::loadFile()'s forceNewFile() call.
-    {
-        auto &mapData = deref(m_mapData);
-        mapData.clear();
-        mapData.setFileName(QString{}, false);
-        mapData.forcePosition(Coordinate{});
-    }
-    m_mapCanvasCore->slot_dataLoaded();
-    m_groupController->slot_mapLoaded();
-    m_descriptionAdapter->updateRoom(RoomHandle{});
-    m_audioManager->onAreaChanged(RoomArea{});
-    updateWindowTitle();
+    forceNewFile();
 
     m_ioInProgress = true;
 
@@ -1565,12 +1840,7 @@ void QmlShellWindow::loadFile(std::shared_ptr<MapSource> source)
     state->storage = std::shared_ptr<AbstractMapStorage>(std::move(pStorage));
     const QString fileName = src.getFileName();
 
-    // No QProgressDialog here (unlike MainWindow::loadFile()'s
-    // beginAsyncIO()) -- this shell shows load/save progress via the Tasks
-    // panel/tasksModel instead, which polls the same async_tasks registry
-    // this call starts a task in (see QmlShellWindow.h's loadFile() doc
-    // comment and TasksModel.h).
-    std::ignore = async_tasks::startAsyncTask2(
+    const auto handle = async_tasks::startAsyncTask2(
         AsyncTaskTypeEnum::IO,
         AllowCancelEnum::Allow,
         "Map Loader",
@@ -1586,6 +1856,7 @@ void QmlShellWindow::loadFile(std::shared_ptr<MapSource> source)
         [this, state, fileName](const std::shared_ptr<ProgressCounter> &pc) {
             // main thread
             m_ioInProgress = false;
+            endIoTaskProgress();
             const bool wasCanceled = deref(pc).hasRequestedCancel();
             std::optional<MapLoadData> result;
             try {
@@ -1610,6 +1881,10 @@ void QmlShellWindow::loadFile(std::shared_ptr<MapSource> source)
             }
             onSuccessfulLoad(*result);
         });
+    // Progress popup, mirroring MainWindow::AsyncIO's QProgressDialog (see
+    // beginIoTaskProgress()'s doc comment); the Tasks panel/tasksModel
+    // remains a secondary view of the same async_tasks task this starts.
+    beginIoTaskProgress(handle, tr("Loading map..."), /*cancelable=*/true);
 }
 
 void QmlShellWindow::onSuccessfulLoad(const MapLoadData &mapLoadData)
@@ -1636,15 +1911,119 @@ void QmlShellWindow::onSuccessfulLoad(const MapLoadData &mapLoadData)
     deref(m_engine->rootContext()).setContextProperty("statusText", tr("File loaded"));
 }
 
-void QmlShellWindow::saveMapFile(const QString &fileName)
+void QmlShellWindow::mergeFile(const QString &fileName)
 {
-    // Mirrors MainWindow::saveFile(), minus the QProgressDialog (see
-    // loadFile()'s doc comment) and minus the basemap/XML/web/MMP export
-    // formats (file.export.* stay disabled placeholders -- see
-    // ALL_COMMAND_SPECS/isLiveCommand(); MainWindow's export slots pull in
-    // mainwindow-saveslots.cpp's multi-format save-dialog helpers, which
-    // this preview shell's file.save/file.save-as don't need). Only the
-    // plain MM2 format is wired.
+    // Mirrors MainWindow::slot_merge()'s per-file body, using
+    // maploadhelper::mergeMapData() (see MapLoadHelper.h/.cpp) -- extracted
+    // from mainwindow-async.cpp's former background::merge_map_data() so
+    // this shell's merge path can share it exactly like loadFile() already
+    // shares maploadhelper::loadMapData(), rather than duplicating the
+    // load-then-MapData::mergeMapData() logic here.
+    if (m_ioInProgress) {
+        deref(m_engine->rootContext())
+            .setContextProperty("statusText", tr("IO Task already in progress"));
+        return;
+    }
+    if (fileName.isEmpty()) {
+        deref(m_engine->rootContext()).setContextProperty("statusText", tr("No filename provided"));
+        return;
+    }
+
+    std::unique_ptr<AbstractMapStorage> pStorage;
+    std::shared_ptr<MapSource> source;
+    try {
+        source = MapSource::alloc(fileName, std::nullopt);
+        pStorage = maploadhelper::detectAndCreateStorage(source, this);
+    } catch (const std::exception &ex) {
+        deref(m_engine->rootContext())
+            .setContextProperty("statusText",
+                                tr("Cannot open file %1:\n%2.").arg(fileName, ex.what()));
+        return;
+    }
+    connect(pStorage.get(), &AbstractMapStorage::sig_log, m_logModel, &LogModel::append);
+
+    // Mirrors MainWindow::slot_merge()'s `getCanvas()->slot_clearAllSelections()`.
+    m_mapCanvasCore->slot_clearAllSelections();
+
+    m_ioInProgress = true;
+
+    struct NODISCARD MergeState final
+    {
+        std::shared_ptr<AbstractMapStorage> storage;
+        std::promise<std::optional<Map>> promise;
+        std::future<std::optional<Map>> future = promise.get_future();
+    };
+    auto state = std::make_shared<MergeState>();
+    state->storage = std::shared_ptr<AbstractMapStorage>(std::move(pStorage));
+    // Snapshotted on the main thread (rather than reading m_mapData on the
+    // background thread the way mainwindow-async.cpp's AsyncMerge does) so
+    // this doesn't need MainWindow's CanvasDisabler/ExtraBlockers machinery
+    // to keep the map from changing underneath the background worker -- an
+    // immer-backed Map snapshot is cheap and inherently race-free.
+    const Map currentMap = m_mapData->getCurrentMap();
+
+    const auto handle = async_tasks::startAsyncTask2(
+        AsyncTaskTypeEnum::IO,
+        AllowCancelEnum::Allow,
+        "Map Merge",
+        [state, currentMap](const std::shared_ptr<ProgressCounter> &pc) {
+            // background thread
+            state->storage->setProgressCounter(pc);
+            try {
+                state->promise.set_value(maploadhelper::mergeMapData(*state->storage, currentMap));
+            } catch (...) {
+                state->promise.set_exception(std::current_exception());
+            }
+        },
+        [this, state, fileName](const std::shared_ptr<ProgressCounter> &pc) {
+            // main thread
+            m_ioInProgress = false;
+            endIoTaskProgress();
+            const bool wasCanceled = deref(pc).hasRequestedCancel();
+            std::optional<Map> result;
+            try {
+                result = state->future.get();
+            } catch (const std::exception &ex) {
+                deref(m_engine->rootContext())
+                    .setContextProperty("statusText",
+                                        tr("Cannot open file %1:\n%2.").arg(fileName, ex.what()));
+                return;
+            }
+
+            if (wasCanceled || !result) {
+                deref(m_engine->rootContext())
+                    .setContextProperty("statusText",
+                                        wasCanceled ? tr("Merge canceled")
+                                                    : tr("Failed to merge file %1.").arg(fileName));
+                return;
+            }
+            onSuccessfulMerge(*result);
+        });
+    beginIoTaskProgress(handle, tr("Merging map..."), /*cancelable=*/true);
+}
+
+void QmlShellWindow::onSuccessfulMerge(const Map &map)
+{
+    // Mirrors MainWindow::onSuccessfulMerge(), minus mapChanged() (widget-
+    // only canvas repaint; see onSuccessfulLoad()'s doc comment for the same
+    // tradeoff).
+    auto &mapData = deref(m_mapData);
+    mapData.setCurrentMap(map);
+    mapData.checkSize();
+
+    m_mapCanvasCore->slot_dataLoaded();
+    m_groupController->slot_mapLoaded();
+    updateMapModifiedState();
+    deref(m_engine->rootContext()).setContextProperty("statusText", tr("File merged"));
+}
+
+void QmlShellWindow::saveMapFile(const QString &fileName,
+                                 const SaveModeEnum mode,
+                                 const SaveFormatEnum format)
+{
+    // Mirrors MainWindow::saveFile()'s per-format storage selection; the 4
+    // file.export.* commands (see wireFileCommands()) share this with plain
+    // file.save/file.save-as (mode=FULL, format=MM2).
     if (m_ioInProgress) {
         deref(m_engine->rootContext())
             .setContextProperty("statusText", tr("IO Task already in progress"));
@@ -1653,7 +2032,7 @@ void QmlShellWindow::saveMapFile(const QString &fileName)
 
     std::shared_ptr<MapDestination> pDest;
     try {
-        pDest = MapDestination::alloc(fileName, SaveFormatEnum::MM2);
+        pDest = MapDestination::alloc(fileName, format);
     } catch (const std::exception &ex) {
         deref(m_engine->rootContext())
             .setContextProperty("statusText",
@@ -1662,14 +2041,30 @@ void QmlShellWindow::saveMapFile(const QString &fileName)
         return;
     }
 
-    auto pStorage = std::invoke([this, &pDest]() -> std::unique_ptr<AbstractMapStorage> {
+    auto pStorage = std::invoke([this, &pDest, format]() -> std::unique_ptr<AbstractMapStorage> {
         const AbstractMapStorage::Data data{pDest};
-        auto storage = std::make_unique<MapStorage>(data, this);
-        connect(storage.get(), &AbstractMapStorage::sig_log, m_logModel, &LogModel::append);
+        std::unique_ptr<AbstractMapStorage> storage;
+        switch (format) {
+        case SaveFormatEnum::MM2:
+            storage = std::make_unique<MapStorage>(data, this);
+            break;
+        case SaveFormatEnum::MM2XML:
+            storage = std::make_unique<XmlMapStorage>(data, this);
+            break;
+        case SaveFormatEnum::MMP:
+            storage = std::make_unique<MmpMapStorage>(data, this);
+            break;
+        case SaveFormatEnum::WEB:
+            storage = std::make_unique<JsonMapStorage>(data, this);
+            break;
+        }
+        if (storage) {
+            connect(storage.get(), &AbstractMapStorage::sig_log, m_logModel, &LogModel::append);
+        }
         return storage;
     });
 
-    if (!pStorage->canSave()) {
+    if (!pStorage || !pStorage->canSave()) {
         deref(m_engine->rootContext())
             .setContextProperty("statusText", tr("Selected format cannot save."));
         return;
@@ -1688,25 +2083,27 @@ void QmlShellWindow::saveMapFile(const QString &fileName)
     state->storage = std::shared_ptr<AbstractMapStorage>(std::move(pStorage));
     state->destination = pDest;
 
-    std::ignore = async_tasks::startAsyncTask2(
+    const auto handle = async_tasks::startAsyncTask2(
         AsyncTaskTypeEnum::IO,
         AllowCancelEnum::Forbid,
         "Map Saver",
-        [this, state](const std::shared_ptr<ProgressCounter> &pc) {
+        [this, state, mode](const std::shared_ptr<ProgressCounter> &pc) {
             // background thread. `this` is safe to dereference here: the
             // async task engine is drained by async_tasks::cleanup() in
             // ~QmlShellWindow() before any member it touches is destroyed
             // (see this class's dtor comment).
             state->storage->setProgressCounter(pc);
             try {
-                state->promise.set_value(state->storage->saveData(deref(m_mapData), false));
+                state->promise.set_value(
+                    state->storage->saveData(deref(m_mapData), mode == SaveModeEnum::BASEMAP));
             } catch (...) {
                 state->promise.set_exception(std::current_exception());
             }
         },
-        [this, state, fileName](const std::shared_ptr<ProgressCounter> &) {
+        [this, state, fileName, mode, format](const std::shared_ptr<ProgressCounter> &) {
             // main thread
             m_ioInProgress = false;
+            endIoTaskProgress();
             state->destination->finalize();
 
             bool success = false;
@@ -1726,12 +2123,73 @@ void QmlShellWindow::saveMapFile(const QString &fileName)
                 return;
             }
 
-            m_mapData->setFileName(fileName, !QFileInfo(fileName).isWritable());
-            m_mapData->currentHasBeenSaved();
+            // Mirrors MainWindow::onSuccessfulSave(): only a plain full MM2
+            // save rebinds MapData's own current-file tracking (see
+            // loadFile()'s doc comment); an export leaves the currently
+            // open map/filename untouched. Unlike MainWindow, this skips
+            // the "Autoload this map?" follow-up QMessageBox (documented
+            // deviation, see the task report) but still updates
+            // lastMapDirectory for every successful save/export, matching
+            // MainWindow::onSuccessfulSave()'s unconditional config update.
+            if (mode == SaveModeEnum::FULL && format == SaveFormatEnum::MM2) {
+                m_mapData->setFileName(fileName, !QFileInfo(fileName).isWritable());
+                m_mapData->currentHasBeenSaved();
+                updateMapModifiedState();
+            }
             setConfig().autoLoad.lastMapDirectory = QFileInfo(fileName).dir().absolutePath();
-            updateMapModifiedState();
             deref(m_engine->rootContext()).setContextProperty("statusText", tr("File saved"));
         });
+    beginIoTaskProgress(handle, tr("Saving map..."), /*cancelable=*/false);
+}
+
+void QmlShellWindow::beginIoTaskProgress(async_tasks::AsyncTaskHandle handle,
+                                         const QString &label,
+                                         const bool cancelable)
+{
+    m_ioTaskHandle = std::move(handle);
+    if (m_ioTaskController != nullptr) {
+        m_ioTaskController->begin(label, cancelable);
+    }
+    if (m_ioProgressTimer != nullptr) {
+        m_ioProgressTimer->start();
+    }
+}
+
+void QmlShellWindow::tickIoTaskProgress()
+{
+    // Mirrors MainWindow::AsyncIO::updateStatus()'s 25ms QTimer poll of the
+    // running task's ProgressCounter -- see m_ioProgressTimer's setup in
+    // this class's ctor -- except this always re-pushes the current status
+    // to IoTaskController (which itself only emits sig_changed(), so QML
+    // bindings only actually re-evaluate on a real change) rather than
+    // diff-checking against a remembered last message/percent the way
+    // AsyncIO::updateStatus() does; simpler, and cheap enough at 25ms for a
+    // single popup.
+    if (!m_ioTaskHandle) {
+        if (m_ioProgressTimer != nullptr) {
+            m_ioProgressTimer->stop();
+        }
+        return;
+    }
+    const ProgressCounter::Status status = m_ioTaskHandle->getStatus();
+    if (m_ioTaskController != nullptr) {
+        // Clamped to 99, same as AsyncIO::updateStatus(): 100% is reserved
+        // for "the task has actually finished", which this popup instead
+        // represents by disappearing (see endIoTaskProgress()).
+        const int percent = static_cast<int>(std::min<std::size_t>(status.percent(), 99));
+        m_ioTaskController->update(status.msg.toQString(), percent);
+    }
+}
+
+void QmlShellWindow::endIoTaskProgress()
+{
+    if (m_ioProgressTimer != nullptr) {
+        m_ioProgressTimer->stop();
+    }
+    m_ioTaskHandle.reset();
+    if (m_ioTaskController != nullptr) {
+        m_ioTaskController->end();
+    }
 }
 
 void QmlShellWindow::updateMapModifiedState()

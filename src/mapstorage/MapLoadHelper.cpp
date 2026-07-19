@@ -7,6 +7,7 @@
 #include "../global/AnsiTextUtils.h"
 #include "../global/macros.h"
 #include "../global/utils.h"
+#include "../mapdata/mapdata.h"
 #include "PandoraMapStorage.h"
 #include "XmlMapStorage.h"
 #include "mapstorage.h"
@@ -178,6 +179,24 @@ std::optional<MapLoadData> loadMapData(AbstractMapStorage &storage)
     result.readonly = data.readonly;
 
     return result;
+}
+
+std::optional<Map> mergeMapData(AbstractMapStorage &storage, const Map &currentMap)
+{
+    if (!storage.canLoad()) {
+        return std::nullopt;
+    }
+
+    ProgressCounter &pc = storage.getProgressCounter();
+    pc.setCurrentTask(ProgressMsg{"phase 1: load from disk"});
+    std::optional<RawMapLoadData> opt_data = storage.loadData();
+
+    if (!opt_data || (opt_data->rooms.empty() && opt_data->markers.empty())) {
+        return std::nullopt;
+    }
+
+    pc.setCurrentTask(ProgressMsg{"phase 2: merge the new map data"});
+    return MapData::mergeMapData(pc, currentMap, opt_data.value());
 }
 
 } // namespace maploadhelper

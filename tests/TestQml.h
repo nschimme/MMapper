@@ -81,4 +81,6 @@ private Q_SLOTS:
     void mainShellEscapeShortcutForwards();
     void mainShellCommandOpensAboutDialog();
     void qmlShellSettingsPersistenceRoundTrip();
+    void ioTaskControllerLifecycle();
+    void mainShellIoProgressPopup();
 };

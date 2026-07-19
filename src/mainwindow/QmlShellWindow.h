@@ -2,13 +2,16 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // Copyright (C) 2026 The MMapper Authors
 
+#include "../global/AsyncTasks.h"
 #include "../global/ConfigEnums.h"
 #include "../global/RuleOf5.h"
 #include "../global/Signal2.h"
 #include "../global/macros.h"
+#include "../mapstorage/MapDestination.h"
 #include "../proxy/ProxyHostApi.h"
 
 #include <memory>
+#include <optional>
 
 #include <QObject>
 #include <QPointer>
@@ -32,7 +35,9 @@ class GameObserver;
 class GroupController;
 class HotkeyManager;
 class InfomarkSelection;
+class IoTaskController;
 class LogModel;
+class Map;
 class MapCanvasCore;
 class MapData;
 class MapSource;
@@ -49,6 +54,7 @@ class QDialog;
 class QmlConfig;
 class QQmlApplicationEngine;
 class QQuickWindow;
+class QTimer;
 class RoomEditController;
 class RoomHandle;
 class RoomManager;
@@ -75,11 +81,13 @@ class XpStatusAdapter;
 // Deliberately NOT constructed here (unlike MainWindow): MPI/remote-edit's
 // widget-facing pieces beyond what Proxy::allocRemoteEdit() itself needs
 // (RemoteEdit's edit-session windows still work -- see ProxyHostApi::
-// asQObject() -- but there is no MainWindow-side UI wrapping them here), the
-// group manager's network side, and all file I/O beyond plain MM2 open/save
-// (merge/export). This is a pragmatic bootable slice, not a
-// feature-complete shell -- see the task report for the full list of what's
-// still missing relative to MainWindow.
+// asQObject() -- but there is no MainWindow-side UI wrapping them here), and
+// the group manager's network side. File I/O (open/save/save-as/new/merge/
+// reload/the 4 exports, an unsaved-changes maybeSave() guard, and an async
+// load/save/merge progress popup) is wired -- see wireFileCommands()/
+// confirmClose()/IoTaskController.h. This is a pragmatic bootable slice, not
+// a feature-complete shell -- see the task report for the full list of
+// what's still missing relative to MainWindow.
 //
 // This class implements ProxyHostApi (see ../proxy/ProxyHostApi.h) so the
 // same ConnectionListener/Proxy graph MainWindow constructs can be
@@ -131,11 +139,68 @@ public:
     // MainWindow::loadFile(). Detects the file format and runs the load on
     // a background thread via async_tasks::startAsyncTask2() (the same
     // engine TasksModel/the Tasks panel already polls -- see
-    // QmlShellWindow.h's file comment -- so that panel is this shell's
-    // load-progress UI; there is no QProgressDialog here, unlike
-    // MainWindow::loadFile()). No-op (after logging) if a load is already
-    // running.
+    // QmlShellWindow.h's file comment). Progress is also shown via the modal
+    // popup driven by IoTaskController (see beginIoTaskProgress()) -- unlike
+    // MainWindow's QProgressDialog, the Tasks panel remains the secondary/
+    // historical view, not the only one. No-op (after logging) if a load is
+    // already running. Does NOT call maybeSave() itself -- callers that need
+    // the unsaved-changes guard (file.open/file.reload) call it first; the
+    // auto-load path (main.cpp's tryAutoLoadMap<Shell>()) intentionally
+    // skips it, matching MainWindow's own startup auto-load.
     void loadFile(std::shared_ptr<MapSource> source);
+
+public:
+    // Invoked from MainShell.qml's Window.onClosing (see the QML file's
+    // onClosing handler) for both the [X] titlebar close and file.exit's
+    // window->close() (see wireFileCommands()'s file.exit wiring): mirrors
+    // MainWindow::closeEvent()'s maybeSave() gate, plus a reduced subset of
+    // its "ignore close while a non-cancelable (save) task is running" rule
+    // -- unlike MainWindow, this does NOT attempt to cancel a running load/
+    // merge and wait for shutdown; it simply refuses to close while any IO
+    // task is in flight (see the task report's documented deviations).
+    NODISCARD Q_INVOKABLE bool confirmClose();
+
+private:
+    // Mirrors MainWindow::maybeSave()/mainwindow-saveslots.cpp's
+    // MainWindow::maybeSave(): if the map has unsaved changes, asks via a
+    // QMessageBox::Save/Discard/Cancel prompt (with MapData::describeChanges()
+    // summarizing what changed) whether to save first. Returns false only if
+    // the user chose Cancel (or the ensuing save couldn't even start);
+    // callers proceed (open/new/reload/merge/quit) whenever this returns
+    // true.
+    NODISCARD bool maybeSave();
+    // Mirrors MainWindow::slot_save()/slot_saveAs(): returns false if a
+    // save couldn't even be started (e.g. the save-as dialog was
+    // canceled) -- like MainWindow, this does NOT wait for the save to
+    // finish before returning true (see saveMapFile()'s async task).
+    NODISCARD bool doSave();
+    NODISCARD bool doSaveAs();
+    // Mirrors MainWindow::forceNewFile(): discards the current map
+    // unconditionally (callers are responsible for the maybeSave() guard --
+    // see file.new's wiring and loadFile(), which also discards the old map
+    // this way before starting a load).
+    void forceNewFile();
+    // Mirrors MainWindow::slot_merge(): loads fileName in the background and
+    // merges it into the current map via maploadhelper::mergeMapData() (see
+    // MapLoadHelper.h), showing the same progress popup as loadFile()/
+    // saveMapFile() (cancelable, like a load).
+    void mergeFile(const QString &fileName);
+
+private:
+    // --- progress popup (see IoTaskController.h) ---
+    // Starts m_ioProgressTimer and primes m_ioTaskController for a freshly
+    // started async_tasks task; called by loadFile()/mergeFile()/
+    // saveMapFile() right after async_tasks::startAsyncTask2() returns.
+    void beginIoTaskProgress(async_tasks::AsyncTaskHandle handle,
+                             const QString &label,
+                             bool cancelable);
+    // Polls the current task's ProgressCounter, mirroring
+    // MainWindow::AsyncIO::updateStatus()'s 25ms QTimer tick; connected to
+    // m_ioProgressTimer's timeout().
+    void tickIoTaskProgress();
+    // Stops m_ioProgressTimer and hides the popup; called from every async
+    // task's main-thread completion callback, success or failure.
+    void endIoTaskProgress();
 
 private:
     void registerCommands();
@@ -171,8 +236,17 @@ private:
     // --- file I/O (see the task report's "shell-usable load seam" section)
     // ---
     void wireFileCommands();
-    void saveMapFile(const QString &fileName);
+    // mode/format generalize this beyond plain MM2 saves so the 4
+    // file.export.* commands (see wireFileCommands()) can share this same
+    // async-task/progress-popup machinery, mirroring MainWindow::saveFile()'s
+    // per-format storage selection (mainwindow-async.cpp).
+    void saveMapFile(const QString &fileName, SaveModeEnum mode, SaveFormatEnum format);
     void onSuccessfulLoad(const MapLoadData &mapLoadData);
+    // Mirrors MainWindow::onSuccessfulMerge(), minus mapChanged() (widget-
+    // only canvas repaint; MapCanvasCore::slot_dataLoaded() already covers
+    // the mesh rebuild that matters here -- see onSuccessfulLoad()'s doc
+    // comment for the same tradeoff).
+    void onSuccessfulMerge(const Map &map);
     // Mirrors MainWindow::updateMapModified()/setMapModified(): re-enables
     // file.save and refreshes the window title based on
     // MapData::dataChanged(), and hides the splash if the map is modified
@@ -272,6 +346,24 @@ private:
     // shell has no AsyncIO object of its own.
     bool m_ioInProgress = false;
     bool m_splashHidden = false;
+    // True while a QMessageBox::exec() from confirmClose()/maybeSave() is on
+    // the stack, re-entrancy guard for onClosing() firing again if a nested
+    // event loop lets the window receive another close request while the
+    // prompt is still open (mirrors the fact that MainWindow's closeEvent()
+    // is never reentered while its own nested QMessageBox::exec() runs, but
+    // spelled out explicitly here since QML's onClosing has no equivalent
+    // built-in guard).
+    bool m_confirmingClose = false;
+
+    // --- progress popup state (see IoTaskController.h/beginIoTaskProgress()/
+    // tickIoTaskProgress()/endIoTaskProgress()) ---
+    IoTaskController *m_ioTaskController = nullptr;
+    QTimer *m_ioProgressTimer = nullptr;
+    // The task currently driving the popup; unset between tasks. Only ever
+    // holds a Load/Merge/Save task started by this class's own file I/O
+    // paths (see QmlShellWindow.h's file comment: this shell has no other
+    // async_tasks::IO producer).
+    std::optional<async_tasks::AsyncTaskHandle> m_ioTaskHandle;
 
     // --- dialogs (see QmlShellWindow.cpp's wireDialogCommands()/
     // wireSelectionCommands()) ---

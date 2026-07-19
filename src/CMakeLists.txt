@@ -1045,6 +1045,8 @@ if(WITH_QML)
             qml/ToolbarLayoutController.cpp
             mainwindow/AudioVolumeController.h
             mainwindow/AudioVolumeController.cpp
+            mainwindow/IoTaskController.h
+            mainwindow/IoTaskController.cpp
             mpi/RemoteEditController.h
             mpi/RemoteEditController.cpp
             qml/RemoteEditDialogHost.h

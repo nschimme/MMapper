@@ -25,6 +25,7 @@
 #include "../src/mainwindow/CheckableFlagModel.h"
 #include "../src/mainwindow/CommandRegistry.h"
 #include "../src/mainwindow/FindRoomsModel.h"
+#include "../src/mainwindow/IoTaskController.h"
 #include "../src/mainwindow/LogModel.h"
 #include "../src/mainwindow/TasksModel.h"
 #include "../src/mainwindow/UiCommand.h"
@@ -4420,6 +4421,218 @@ void TestQml::qmlShellSettingsPersistenceRoundTrip()
     QCOMPARE(getConfig().qmlShell.dockDescriptionFloating, true);
     QCOMPARE(getConfig().qmlShell.dockDescriptionFloatGeometry,
              QByteArray("test-float-geometry-bytes"));
+}
+
+void TestQml::ioTaskControllerLifecycle()
+{
+    // Pure-C++ coverage of IoTaskController (../src/mainwindow/
+    // IoTaskController.h), QmlShellWindow's progress-popup state -- see its
+    // begin()/update()/end()/cancel() doc comments. QmlShellWindow itself
+    // isn't linkable into this test binary (see loadMainShell()'s comment),
+    // so this exercises the controller directly the same way
+    // pathMachineStatusFunnel() exercises a synthetic context property
+    // update standing in for QmlShellWindow.cpp's real wiring.
+    IoTaskController controller;
+    QCOMPARE(controller.isActive(), false);
+    QCOMPARE(controller.getPercent(), 0);
+    QCOMPARE(controller.isCancelable(), false);
+
+    QSignalSpy changedSpy(&controller, &IoTaskController::sig_changed);
+    QSignalSpy cancelSpy(&controller, &IoTaskController::sig_cancelRequested);
+
+    // begin() primes every property and is cancelable for a load/merge-like
+    // task (mirrors beginIoTaskProgress()'s Allow case in QmlShellWindow.cpp).
+    controller.begin(QStringLiteral("Loading map..."), /*cancelable=*/true);
+    QCOMPARE(controller.isActive(), true);
+    QCOMPARE(controller.getLabel(), QStringLiteral("Loading map..."));
+    QCOMPARE(controller.getPercent(), 0);
+    QCOMPARE(controller.isCancelable(), true);
+    QCOMPARE(changedSpy.count(), 1);
+
+    // update() mirrors tickIoTaskProgress()'s per-poll push.
+    controller.update(QStringLiteral("load from disk..."), 42);
+    QCOMPARE(controller.getLabel(), QStringLiteral("load from disk..."));
+    QCOMPARE(controller.getPercent(), 42);
+    QCOMPARE(changedSpy.count(), 2);
+
+    // cancel() only fires sig_cancelRequested while cancelable, mirroring
+    // the popup's Cancel button being enabled only for Allow-cancel tasks.
+    controller.cancel();
+    QCOMPARE(cancelSpy.count(), 1);
+
+    // end() (mirrors endIoTaskProgress()) resets every property, including
+    // cancelable -- a stale "cancelable" from a finished task must never
+    // leak into the next one.
+    controller.end();
+    QCOMPARE(controller.isActive(), false);
+    QCOMPARE(controller.getLabel(), QString());
+    QCOMPARE(controller.getPercent(), 0);
+    QCOMPARE(controller.isCancelable(), false);
+    QCOMPARE(changedSpy.count(), 3);
+
+    // A non-cancelable task (mirrors saveMapFile()'s AllowCancel::Forbid)
+    // must never emit sig_cancelRequested from cancel().
+    controller.begin(QStringLiteral("Saving map..."), /*cancelable=*/false);
+    cancelSpy.clear();
+    controller.cancel();
+    QCOMPARE(cancelSpy.count(), 0);
+
+    // update()/end() are no-ops while inactive (guards documented in
+    // IoTaskController.cpp) -- verify update() after end() doesn't resurrect
+    // the popup.
+    controller.end();
+    changedSpy.clear();
+    controller.update(QStringLiteral("ignored"), 50);
+    QCOMPARE(changedSpy.count(), 0);
+    QCOMPARE(controller.isActive(), false);
+}
+
+void TestQml::mainShellIoProgressPopup()
+{
+    // Drives MainShell.qml's ioProgressPopup (added alongside
+    // IoTaskController -- see its "ioTask" context property doc comment at
+    // the top of MainShell.qml) with a real IoTaskController standing in
+    // for QmlShellWindow's instance, reusing loadMainShellChrome()'s full
+    // fixture set (MainShell.qml needs every context property present
+    // regardless of which part of the shell a given test cares about).
+    CommandRegistry registry(nullptr);
+    MapViewModel viewModel;
+    DockLayoutController dockLayout;
+    ToolbarLayoutController toolbarLayout;
+    AudioVolumeController musicVolume(AudioVolumeController::AudioType::Music);
+    AudioVolumeController soundVolume(AudioVolumeController::AudioType::Sound);
+
+    QmlConfig config;
+    LogModel logModel(nullptr);
+
+    GroupModel groupModel;
+    GroupProxyModel groupProxy;
+    groupProxy.setSourceModel(&groupModel);
+    GroupControllerStub groupController(nullptr);
+
+    RoomManager roomManager(nullptr);
+    RoomModel roomModel(nullptr, roomManager.getRoom());
+
+    GameObserver gameObserver;
+    AdventureTracker adventureTracker(gameObserver, nullptr);
+    AdventureLogModel adventureLogModel(adventureTracker, nullptr);
+    XpStatusAdapter xpStatusAdapter(adventureTracker, nullptr);
+    MumeClock mumeClock(/*mumeEpoch=*/0, gameObserver, nullptr);
+    ClockAdapter clockAdapter(gameObserver, mumeClock, nullptr);
+
+    MediaLibrary mediaLibrary;
+    DescriptionAdapter descriptionAdapter(mediaLibrary, nullptr);
+
+    CTimers timers(nullptr);
+    TimerModel timerModel(timers, nullptr);
+    TimerController timerController(timers, timerModel, nullptr);
+
+    TasksModel tasksModel;
+
+    ClientLineModel clientLineModel;
+    HotkeyManager hotkeys;
+    hotkeys.resetToDefaults();
+    ClientController clientController(clientLineModel, hotkeys, nullptr);
+    auto backend = std::make_unique<FakeBackend>();
+    clientController.setBackend(std::move(backend));
+
+    IoTaskController ioTask;
+
+    QQmlEngine engine;
+    engine.addImageProvider(QStringLiteral("description"),
+                            new DescriptionImageProvider(descriptionAdapter.getStore()));
+
+    engine.rootContext()->setContextProperty("commands", &registry);
+    engine.rootContext()->setContextProperty("mapCore", QVariant::fromValue<QObject *>(nullptr));
+    engine.rootContext()->setContextProperty("mapViewModel", &viewModel);
+    engine.rootContext()->setContextProperty("statusText", QStringLiteral("test status"));
+    engine.rootContext()->setContextProperty("dockLayout", &dockLayout);
+    engine.rootContext()->setContextProperty("config", &config);
+    engine.rootContext()->setContextProperty("logModel", &logModel);
+    engine.rootContext()->setContextProperty("groupModel", &groupModel);
+    engine.rootContext()->setContextProperty("groupProxyModel", &groupProxy);
+    engine.rootContext()->setContextProperty("groupController", &groupController);
+    engine.rootContext()->setContextProperty("roomModel", &roomModel);
+    engine.rootContext()->setContextProperty("adventureLogModel", &adventureLogModel);
+    engine.rootContext()->setContextProperty("adapter", &descriptionAdapter);
+    engine.rootContext()->setContextProperty("timerModel", &timerModel);
+    engine.rootContext()->setContextProperty("timerController", &timerController);
+    engine.rootContext()->setContextProperty("tasksModel", &tasksModel);
+    engine.rootContext()->setContextProperty("clientController", &clientController);
+    engine.rootContext()->setContextProperty("clientLineModel", &clientLineModel);
+    engine.rootContext()->setContextProperty("toolbarLayout", &toolbarLayout);
+    engine.rootContext()->setContextProperty("mapZoom", QVariant::fromValue<QObject *>(nullptr));
+    engine.rootContext()->setContextProperty("musicVolume", &musicVolume);
+    engine.rootContext()->setContextProperty("soundVolume", &soundVolume);
+    engine.rootContext()->setContextProperty("clock", &clockAdapter);
+    engine.rootContext()->setContextProperty("xpStatusAdapter", &xpStatusAdapter);
+    engine.rootContext()->setContextProperty("ioTask", &ioTask);
+
+    QQmlComponent component(&engine, QUrl(u"qrc:/qt/qml/MMapper/MainShell.qml"_qs));
+    while (component.isLoading()) {
+        QCoreApplication::processEvents();
+    }
+    QVERIFY2(!component.isError(), qPrintable(component.errorString()));
+
+    QScopedPointer<QObject> object(component.create(engine.rootContext()));
+    QVERIFY(object != nullptr);
+    QCoreApplication::processEvents();
+
+    auto *const popup = object->findChild<QObject *>(QStringLiteral("ioProgressPopup"));
+    QVERIFY(popup != nullptr);
+    auto *const label = object->findChild<QObject *>(QStringLiteral("ioProgressLabel"));
+    QVERIFY(label != nullptr);
+    auto *const bar = object->findChild<QObject *>(QStringLiteral("ioProgressBar"));
+    QVERIFY(bar != nullptr);
+    auto *const cancelButton = object->findChild<QObject *>(
+        QStringLiteral("ioProgressCancelButton"));
+    QVERIFY(cancelButton != nullptr);
+
+    // Starts hidden, matching IoTaskController's default-constructed
+    // inactive state.
+    QCOMPARE(popup->property("visible").toBool(), false);
+
+    // Starting a cancelable task (mirrors loadFile()'s beginIoTaskProgress())
+    // must show the popup with the task's label/percent and an enabled
+    // Cancel button.
+    ioTask.begin(QStringLiteral("Loading map..."), /*cancelable=*/true);
+    QCoreApplication::processEvents();
+    QCOMPARE(popup->property("visible").toBool(), true);
+    QCOMPARE(label->property("text").toString(), QStringLiteral("Loading map..."));
+    QCOMPARE(bar->property("value").toInt(), 0);
+    QCOMPARE(cancelButton->property("enabled").toBool(), true);
+
+    // A progress update (mirrors tickIoTaskProgress()) must reach the label
+    // and ProgressBar.
+    ioTask.update(QStringLiteral("load from disk..."), 55);
+    QCoreApplication::processEvents();
+    QCOMPARE(label->property("text").toString(), QStringLiteral("load from disk..."));
+    QCOMPARE(bar->property("value").toInt(), 55);
+
+    // Clicking Cancel must reach IoTaskController::cancel(), which emits
+    // sig_cancelRequested only because this task is cancelable -- QML has no
+    // direct way to invoke a Button's onClicked, so this calls through
+    // QMetaObject the same way CommandAction.qml's onTriggered would invoke
+    // a bound command.
+    QSignalSpy cancelSpy(&ioTask, &IoTaskController::sig_cancelRequested);
+    QVERIFY(QMetaObject::invokeMethod(cancelButton, "clicked"));
+    QCOMPARE(cancelSpy.count(), 1);
+
+    // A non-cancelable task (mirrors saveMapFile()'s beginIoTaskProgress())
+    // must show a disabled Cancel button.
+    ioTask.end();
+    QCoreApplication::processEvents();
+    QCOMPARE(popup->property("visible").toBool(), false);
+    ioTask.begin(QStringLiteral("Saving map..."), /*cancelable=*/false);
+    QCoreApplication::processEvents();
+    QCOMPARE(popup->property("visible").toBool(), true);
+    QCOMPARE(cancelButton->property("enabled").toBool(), false);
+
+    // Finishing the task (mirrors endIoTaskProgress()) hides the popup
+    // again.
+    ioTask.end();
+    QCoreApplication::processEvents();
+    QCOMPARE(popup->property("visible").toBool(), false);
 }
 
 QTEST_MAIN(TestQml)

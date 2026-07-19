@@ -2032,7 +2032,7 @@ void MainWindow::setupStatusBar()
     xpQuick->setClearColor(Qt::transparent);
     xpQuick->setAttribute(Qt::WA_TranslucentBackground);
     xpQuick->setToolTip(tr("Click to toggle the Adventure Panel."));
-    xpQuick->rootContext()->setContextProperty("adapter", xpAdapter);
+    xpQuick->rootContext()->setContextProperty("xpStatusAdapter", xpAdapter);
     xpQuick->setSource(QUrl(QStringLiteral("qrc:/qt/qml/MMapper/XpStatusItem.qml")));
     statusBar()->insertPermanentWidget(0, xpQuick);
 

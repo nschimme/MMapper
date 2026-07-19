@@ -21,6 +21,7 @@
 #include "../src/group/GroupModel.h"
 #include "../src/mainwindow/AboutInfo.h"
 #include "../src/mainwindow/AnsiColorPickerController.h"
+#include "../src/mainwindow/AudioVolumeController.h"
 #include "../src/mainwindow/CheckableFlagModel.h"
 #include "../src/mainwindow/CommandRegistry.h"
 #include "../src/mainwindow/FindRoomsModel.h"
@@ -48,6 +49,7 @@
 #include "../src/qml/QmlDialog.h"
 #include "../src/qml/QmlDockWidget.h"
 #include "../src/qml/RemoteEditDialogHost.h"
+#include "../src/qml/ToolbarLayoutController.h"
 #include "../src/roompanel/RoomManager.h"
 #include "../src/roompanel/RoomModel.h"
 #include "../src/timers/CTimers.h"
@@ -1651,7 +1653,7 @@ void TestQml::loadXpStatusItem()
     // MainWindow::setupStatusBar()) load them in a bare QQuickWidget rather
     // than QmlDockWidget.
     QQuickWidget quick;
-    quick.rootContext()->setContextProperty("adapter", &adapter);
+    quick.rootContext()->setContextProperty("xpStatusAdapter", &adapter);
     quick.setSource(QUrl(u"qrc:/qt/qml/MMapper/XpStatusItem.qml"_qs));
 
     while (quick.status() == QQuickWidget::Loading) {
@@ -3433,11 +3435,36 @@ void TestQml::loadMainShell()
 
     MapViewModel viewModel;
 
+    // Toolbar/statusbar chrome fixtures -- see loadMainShellChrome() below
+    // for the dedicated test exercising these; this test only needs them
+    // present so MainShell.qml's footer (ClockStrip.qml/XpStatusItem.qml,
+    // neither of which null-guards its context property) and header
+    // toolbars load without a ReferenceError. mapZoom stays a null QObject*
+    // (like mapCore above): MapZoomController binds directly against a real
+    // MapCanvasCore, which this small test binary deliberately never links
+    // (see MapZoomController.h's file comment and command_registry_SRCS's
+    // comment above for the same tradeoff); MainShell.qml's zoom Slider
+    // guards against that with `mapZoom ? ... : 0`.
+    ToolbarLayoutController toolbarLayout;
+    AudioVolumeController musicVolume(AudioVolumeController::AudioType::Music);
+    AudioVolumeController soundVolume(AudioVolumeController::AudioType::Sound);
+    GameObserver gameObserver;
+    MumeClock mumeClock(/*mumeEpoch=*/0, gameObserver, nullptr);
+    ClockAdapter clockAdapter(gameObserver, mumeClock, nullptr);
+    AdventureTracker adventureTracker(gameObserver, nullptr);
+    XpStatusAdapter xpStatusAdapter(adventureTracker, nullptr);
+
     QQmlEngine engine;
     engine.rootContext()->setContextProperty("commands", &registry);
     engine.rootContext()->setContextProperty("mapCore", QVariant::fromValue<QObject *>(nullptr));
     engine.rootContext()->setContextProperty("mapViewModel", &viewModel);
     engine.rootContext()->setContextProperty("statusText", QStringLiteral("test status"));
+    engine.rootContext()->setContextProperty("toolbarLayout", &toolbarLayout);
+    engine.rootContext()->setContextProperty("mapZoom", QVariant::fromValue<QObject *>(nullptr));
+    engine.rootContext()->setContextProperty("musicVolume", &musicVolume);
+    engine.rootContext()->setContextProperty("soundVolume", &soundVolume);
+    engine.rootContext()->setContextProperty("clock", &clockAdapter);
+    engine.rootContext()->setContextProperty("xpStatusAdapter", &xpStatusAdapter);
 
     QQmlComponent component(&engine, QUrl(u"qrc:/qt/qml/MMapper/MainShell.qml"_qs));
 
@@ -3503,6 +3530,16 @@ void TestQml::loadMainShellDocks()
     GameObserver gameObserver;
     AdventureTracker adventureTracker(gameObserver, nullptr);
     AdventureLogModel adventureLogModel(adventureTracker, nullptr);
+    // Statusbar footer fixtures -- see loadMainShellChrome() below for the
+    // dedicated toolbar/statusbar test; needed here only because
+    // ClockStrip.qml/XpStatusItem.qml (unconditionally instantiated in
+    // MainShell.qml's footer) don't null-guard their context properties.
+    XpStatusAdapter xpStatusAdapter(adventureTracker, nullptr);
+    MumeClock mumeClock(/*mumeEpoch=*/0, gameObserver, nullptr);
+    ClockAdapter clockAdapter(gameObserver, mumeClock, nullptr);
+    ToolbarLayoutController toolbarLayout;
+    AudioVolumeController musicVolume(AudioVolumeController::AudioType::Music);
+    AudioVolumeController soundVolume(AudioVolumeController::AudioType::Sound);
 
     MediaLibrary mediaLibrary;
     DescriptionAdapter descriptionAdapter(mediaLibrary, nullptr);
@@ -3546,6 +3583,12 @@ void TestQml::loadMainShellDocks()
     engine.rootContext()->setContextProperty("timerModel", &timerModel);
     engine.rootContext()->setContextProperty("timerController", &timerController);
     engine.rootContext()->setContextProperty("tasksModel", &tasksModel);
+    engine.rootContext()->setContextProperty("toolbarLayout", &toolbarLayout);
+    engine.rootContext()->setContextProperty("mapZoom", QVariant::fromValue<QObject *>(nullptr));
+    engine.rootContext()->setContextProperty("musicVolume", &musicVolume);
+    engine.rootContext()->setContextProperty("soundVolume", &soundVolume);
+    engine.rootContext()->setContextProperty("clock", &clockAdapter);
+    engine.rootContext()->setContextProperty("xpStatusAdapter", &xpStatusAdapter);
     engine.rootContext()->setContextProperty("clientController", &clientController);
     engine.rootContext()->setContextProperty("clientLineModel", &clientLineModel);
 
@@ -3606,6 +3649,193 @@ void TestQml::loadMainShellDocks()
     QCoreApplication::processEvents();
     QCOMPARE(dockGroup->isVisible(), true);
     QCOMPARE(dockLog->isVisible(), false);
+}
+
+void TestQml::loadMainShellChrome()
+{
+    // Exercises the menu/toolbar/statusbar chrome added alongside
+    // ToolbarLayoutController/MapZoomController/AudioVolumeController (see
+    // ../src/qml/ToolbarLayoutController.h, ../src/display/MapZoomController.h,
+    // ../src/mainwindow/AudioVolumeController.h) on top of
+    // loadMainShellDocks()'s panel fixture set -- MainShell.qml builds all
+    // of that unconditionally regardless of which part of the shell a given
+    // test cares about, so every context property has to be present here
+    // too.
+    CommandRegistry registry(nullptr);
+    static constexpr std::array kLiveIds{
+        "mouse-mode.move",
+        "mouse-mode.room-raypick",
+        "mouse-mode.room-select",
+        "mouse-mode.connection-select",
+        "mouse-mode.create-room",
+        "mouse-mode.create-connection",
+        "mouse-mode.create-oneway-connection",
+        "mouse-mode.infomark-select",
+        "mouse-mode.create-infomark",
+        "world.rebuild-meshes",
+    };
+    for (const char *const id : kLiveIds) {
+        const bool checkable = QByteArray(id).startsWith("mouse-mode.");
+        UiCommand *const cmd = registry.addCommand(QString::fromLatin1(id), checkable);
+        if (checkable) {
+            registry.addToGroup(cmd, QStringLiteral("mouse-mode"), true);
+        }
+        // Every ToolButton bound to a command gets its text from
+        // cmd.text (see CommandAction.qml); give each live command a
+        // distinct, real label (matching QmlShellWindow.cpp's
+        // ALL_COMMAND_SPECS) so the "find the button by its text" lookup
+        // below is unambiguous -- an unset UiCommand::text defaults to "",
+        // which every other (disabled/unregistered) command's button would
+        // also show.
+        cmd->setText(QString::fromLatin1(id));
+    }
+    registry.command(QStringLiteral("mouse-mode.move"))->setChecked(true);
+
+    MapViewModel viewModel;
+    DockLayoutController dockLayout;
+    ToolbarLayoutController toolbarLayout;
+    AudioVolumeController musicVolume(AudioVolumeController::AudioType::Music);
+    AudioVolumeController soundVolume(AudioVolumeController::AudioType::Sound);
+
+    QmlConfig config;
+    LogModel logModel(nullptr);
+
+    GroupModel groupModel;
+    GroupProxyModel groupProxy;
+    groupProxy.setSourceModel(&groupModel);
+    GroupControllerStub groupController(nullptr);
+
+    RoomManager roomManager(nullptr);
+    RoomModel roomModel(nullptr, roomManager.getRoom());
+
+    GameObserver gameObserver;
+    AdventureTracker adventureTracker(gameObserver, nullptr);
+    AdventureLogModel adventureLogModel(adventureTracker, nullptr);
+    XpStatusAdapter xpStatusAdapter(adventureTracker, nullptr);
+    MumeClock mumeClock(/*mumeEpoch=*/0, gameObserver, nullptr);
+    ClockAdapter clockAdapter(gameObserver, mumeClock, nullptr);
+
+    MediaLibrary mediaLibrary;
+    DescriptionAdapter descriptionAdapter(mediaLibrary, nullptr);
+
+    CTimers timers(nullptr);
+    TimerModel timerModel(timers, nullptr);
+    TimerController timerController(timers, timerModel, nullptr);
+
+    TasksModel tasksModel;
+
+    ClientLineModel clientLineModel;
+    HotkeyManager hotkeys;
+    hotkeys.resetToDefaults();
+    ClientController clientController(clientLineModel, hotkeys, nullptr);
+    auto backend = std::make_unique<FakeBackend>();
+    clientController.setBackend(std::move(backend));
+
+    QQmlEngine engine;
+    engine.addImageProvider(QStringLiteral("description"),
+                            new DescriptionImageProvider(descriptionAdapter.getStore()));
+
+    engine.rootContext()->setContextProperty("commands", &registry);
+    engine.rootContext()->setContextProperty("mapCore", QVariant::fromValue<QObject *>(nullptr));
+    engine.rootContext()->setContextProperty("mapViewModel", &viewModel);
+    engine.rootContext()->setContextProperty("statusText", QStringLiteral("test status"));
+    engine.rootContext()->setContextProperty("dockLayout", &dockLayout);
+    engine.rootContext()->setContextProperty("config", &config);
+    engine.rootContext()->setContextProperty("logModel", &logModel);
+    engine.rootContext()->setContextProperty("groupModel", &groupModel);
+    engine.rootContext()->setContextProperty("groupProxyModel", &groupProxy);
+    engine.rootContext()->setContextProperty("groupController", &groupController);
+    engine.rootContext()->setContextProperty("roomModel", &roomModel);
+    engine.rootContext()->setContextProperty("adventureLogModel", &adventureLogModel);
+    engine.rootContext()->setContextProperty("adapter", &descriptionAdapter);
+    engine.rootContext()->setContextProperty("timerModel", &timerModel);
+    engine.rootContext()->setContextProperty("timerController", &timerController);
+    engine.rootContext()->setContextProperty("tasksModel", &tasksModel);
+    engine.rootContext()->setContextProperty("clientController", &clientController);
+    engine.rootContext()->setContextProperty("clientLineModel", &clientLineModel);
+    engine.rootContext()->setContextProperty("toolbarLayout", &toolbarLayout);
+    engine.rootContext()->setContextProperty("mapZoom", QVariant::fromValue<QObject *>(nullptr));
+    engine.rootContext()->setContextProperty("musicVolume", &musicVolume);
+    engine.rootContext()->setContextProperty("soundVolume", &soundVolume);
+    engine.rootContext()->setContextProperty("clock", &clockAdapter);
+    engine.rootContext()->setContextProperty("xpStatusAdapter", &xpStatusAdapter);
+
+    QQmlComponent component(&engine, QUrl(u"qrc:/qt/qml/MMapper/MainShell.qml"_qs));
+    while (component.isLoading()) {
+        QCoreApplication::processEvents();
+    }
+    QVERIFY2(!component.isError(), qPrintable(component.errorString()));
+
+    QScopedPointer<QObject> object(component.create(engine.rootContext()));
+    QVERIFY(object != nullptr);
+    QCoreApplication::processEvents();
+
+    // --- menu structure spot-checks ---
+    QObject *const fileExportMenu = object->findChild<QObject *>(QStringLiteral("fileExportMenu"));
+    QVERIFY(fileExportMenu != nullptr);
+
+    QObject *const editRoomsMenu = object->findChild<QObject *>(QStringLiteral("editRoomsMenu"));
+    QVERIFY(editRoomsMenu != nullptr);
+    // "&Rooms" mirrors mainwindow.cpp's editMenu->addMenu(...->tr("&Rooms")).
+    QCOMPARE(editRoomsMenu->property("title").toString(), QStringLiteral("&Rooms"));
+
+    // --- toolbar presence + a ToolButton triggering its bound command ---
+    QObject *const mouseModeToolBar = object->findChild<QObject *>(
+        QStringLiteral("mouseModeToolBar"));
+    QVERIFY(mouseModeToolBar != nullptr);
+    QVERIFY(!mouseModeToolBar->property("visible").toBool());
+
+    toolbarLayout.setProperty("mouseModeVisible", true);
+    QCoreApplication::processEvents();
+    QVERIFY(mouseModeToolBar->property("visible").toBool());
+
+    UiCommand *const roomSelectCmd = registry.command(QStringLiteral("mouse-mode.room-select"));
+    QVERIFY(roomSelectCmd != nullptr);
+    QSignalSpy triggeredSpy(roomSelectCmd, &UiCommand::sig_triggered);
+
+    // The ToolButton bound to mouse-mode.room-select is objectName-less (Qt
+    // Quick Controls doesn't set one), so locate it by its bound text --
+    // same approach loadRoomEditDialog() above uses for the exit D-pad's
+    // South button.
+    QQuickItem *roomSelectButton = nullptr;
+    for (QQuickItem *const candidate : mouseModeToolBar->findChildren<QQuickItem *>()) {
+        if (candidate->property("text").toString() == roomSelectCmd->getText()) {
+            roomSelectButton = candidate;
+            break;
+        }
+    }
+    QVERIFY2(roomSelectButton != nullptr, "did not find the mouse-mode.room-select ToolButton");
+    // Trigger through the ToolButton's bound `action` (the CommandAction
+    // instance from MainShell.qml), not by emitting the ToolButton's own
+    // clicked() signal directly: QQC2's action-forwarding runs inside its
+    // internal click() handler (mouse press/release state machine), which a
+    // bare clicked()-signal emission bypasses -- this instead exercises the
+    // actual integration point this shell owns (the ToolButton's `action:
+    // CommandAction { cmd: ... }` binding), not Qt Quick Controls' own
+    // press-forwarding, which is out of scope to test here.
+    QObject *const action = roomSelectButton->property("action").value<QObject *>();
+    QVERIFY(action != nullptr);
+    QMetaObject::invokeMethod(action, "trigger");
+    QCoreApplication::processEvents();
+    QCOMPARE(triggeredSpy.count(), 1);
+
+    // --- zoom slider present (see MapZoomController.h's file comment for
+    // why mapZoom itself is a null stub here rather than a real controller) ---
+    QObject *const zoomSlider = object->findChild<QObject *>(QStringLiteral("zoomSlider"));
+    QVERIFY(zoomSlider != nullptr);
+
+    // --- audio volume sliders present and bound to the real controllers ---
+    auto *const musicSlider = object->findChild<QQuickItem *>(QStringLiteral("musicVolumeSlider"));
+    QVERIFY(musicSlider != nullptr);
+    musicVolume.setVolume(42);
+    QCoreApplication::processEvents();
+    QCOMPARE(musicSlider->property("value").toInt(), 42);
+
+    // --- statusbar items exist ---
+    QVERIFY(object->findChild<QObject *>(QStringLiteral("statusLabel")) != nullptr);
+    QVERIFY(object->findChild<QObject *>(QStringLiteral("pathMachineLabel")) != nullptr);
+    QVERIFY(object->findChild<QObject *>(QStringLiteral("clockStrip")) != nullptr);
+    QVERIFY(object->findChild<QObject *>(QStringLiteral("xpStatusItem")) != nullptr);
 }
 
 QTEST_MAIN(TestQml)

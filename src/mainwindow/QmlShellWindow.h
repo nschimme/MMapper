@@ -13,8 +13,10 @@
 
 class AdventureLogModel;
 class AdventureTracker;
+class AudioVolumeController;
 class ClientController;
 class ClientLineModel;
+class ClockAdapter;
 class CommandRegistry;
 class CTimers;
 class DescriptionAdapter;
@@ -26,8 +28,10 @@ class LogModel;
 class MapCanvasCore;
 class MapData;
 class MapViewModel;
+class MapZoomController;
 class MediaLibrary;
 class Mmapper2Group;
+class MumeClock;
 class PrespammedPath;
 class QmlConfig;
 class QQmlApplicationEngine;
@@ -36,7 +40,9 @@ class RoomModel;
 class TasksModel;
 class TimerController;
 class TimerModel;
+class ToolbarLayoutController;
 class UiCommand;
+class XpStatusAdapter;
 
 // QmlShellWindow bootstraps Shell B, the --qml-shell preview described in
 // main.cpp's setSurfaceFormat()/main() (search for MMAPPER_QML_SHELL): a
@@ -139,6 +145,20 @@ private:
     ClientController *m_clientController = nullptr;
 
     DockLayoutController *m_dockLayout = nullptr;
+    ToolbarLayoutController *m_toolbarLayout = nullptr;
+
+    // --- toolbar widgets' extracted state (see MapZoomSlider.h/
+    // AudioVolumeSlider.h's file comments and the task report for why these
+    // are separate classes rather than shared bases) ---
+    MapZoomController *m_mapZoomController = nullptr;
+    AudioVolumeController *m_musicVolumeController = nullptr;
+    AudioVolumeController *m_soundVolumeController = nullptr;
+
+    // --- statusbar widgets (see MainWindow::setupStatusBar()'s
+    // MMAPPER_WITH_QML branch, which this mirrors) ---
+    MumeClock *m_mumeClock = nullptr;
+    ClockAdapter *m_clockAdapter = nullptr;
+    XpStatusAdapter *m_xpStatusAdapter = nullptr;
 
     QQmlApplicationEngine *m_engine = nullptr;
     bool m_valid = false;

@@ -728,7 +728,16 @@ if(WITH_QML)
     # matters for MapCanvasCore-touching code).
     list(APPEND mmapper_SRCS
         mainwindow/QmlShellWindow.cpp
-        mainwindow/QmlShellWindow.h)
+        mainwindow/QmlShellWindow.h
+        # MapZoomController binds directly against MapCanvasCore (unlike
+        # AudioVolumeController/ToolbarLayoutController below, which are
+        # compiled into mm_qml so TestQml.cpp can construct them directly),
+        # so it's compiled straight into the executable's own sources here,
+        # matching QmlShellWindow.cpp itself -- see mm_qml_canvas's CMake
+        # comment above for why MapCanvasCore-touching code stays out of
+        # mm_qml/TestQml's dependency graph.
+        display/MapZoomController.cpp
+        display/MapZoomController.h)
 endif()
 
 qt_add_resources(mmapper_QRC resources/mmapper2.qrc)
@@ -858,6 +867,14 @@ if(CHECK_ODR)
         # same reason as the qml/ exclusion above; it's only compiled (as
         # part of mm_qml) when WITH_QML is on -- see the WITH_QML block below.
         list(FILTER mmapper_HDRS EXCLUDE REGEX "^display/MapCanvasQuickItem.h$")
+        # display/MapZoomController.h has no Qt Quick dependency of its own,
+        # but MapZoomController.cpp (which defines calcPos(), ODR-used by
+        # this header's static inline s_min/s_max member initializers) is
+        # only compiled -- straight into mmapper_SRCS, like QmlShellWindow.cpp
+        # -- when WITH_QML is on (see the WITH_QML block below); without this
+        # exclusion the header-hygiene .gen.cpp for it would link-fail here
+        # with an undefined reference to calcPos().
+        list(FILTER mmapper_HDRS EXCLUDE REGEX "^display/MapZoomController.h$")
     endif()
     list(SORT mmapper_HDRS)
     file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/odr.cpp "// This generated file exists to help detect ODR violations.\n"
@@ -1022,6 +1039,10 @@ if(WITH_QML)
             qml/DescriptionImageProvider.cpp
             qml/DockLayoutController.h
             qml/DockLayoutController.cpp
+            qml/ToolbarLayoutController.h
+            qml/ToolbarLayoutController.cpp
+            mainwindow/AudioVolumeController.h
+            mainwindow/AudioVolumeController.cpp
             mpi/RemoteEditController.h
             mpi/RemoteEditController.cpp
             qml/RemoteEditDialogHost.h

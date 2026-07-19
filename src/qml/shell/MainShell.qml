@@ -7,22 +7,39 @@ import MMapper
 
 // The first bootable top-level window of the QML shell (Shell B; see
 // ../../main.cpp's --qml-shell handling and QmlShellWindow.h/.cpp, which
-// constructs the QQmlApplicationEngine that loads this file). A pragmatic,
-// minimal bring-up: a subset of MainWindow's menus (see
-// ../../mainwindow/mainwindow.cpp's createActions()/menu building) wired
-// to real CommandRegistry commands via CommandAction (../CommandAction.qml),
-// the map itself (MapView.qml, unchanged from its own commit), and a
-// static status label. NOT feature-complete -- see QmlShellWindow.h's file
-// comment for what's still missing relative to MainWindow.
+// constructs the QQmlApplicationEngine that loads this file). Mirrors
+// MainWindow's full menu bar (setupMenuBar()), toolbars (setupToolBars())
+// and status bar (setupStatusBar()) -- see ../../mainwindow/mainwindow.cpp
+// -- wired to real CommandRegistry commands via CommandAction
+// (../CommandAction.qml) wherever a live implementation exists; everything
+// else stays a disabled placeholder (see QmlShellWindow.cpp's
+// ALL_COMMAND_SPECS/isLiveCommand()). NOT feature-complete -- see
+// QmlShellWindow.h's file comment for what's still missing relative to
+// MainWindow.
 //
 // Context properties, set by QmlShellWindow before loading this file:
 //   commands     -- CommandRegistry* (see ../../mainwindow/CommandRegistry.h)
 //   mapCore      -- MapCanvasCore* (bound into MapView's `core` property)
 //   mapViewModel -- MapViewModel*, consumed by MapView.qml's scrollbars
-//   statusText   -- QString, shown in the footer (currently static -- see
-//                   QmlShellWindow.cpp's TODO on wiring up AppCore)
+//   statusText   -- QString, shown in the footer's message label; funneled
+//                   from a few real signals (see QmlShellWindow.cpp's
+//                   "Funnels a few real signals" comment) -- full AppCore
+//                   statusMessage integration is still a TODO there.
 //   dockLayout   -- DockLayoutController* (../DockLayoutController.h),
 //                   owns the 8 side-panel docks' visibility
+//   toolbarLayout -- ToolbarLayoutController* (../ToolbarLayoutController.h),
+//                   owns the 9 toolbars' visibility
+//   mapZoom      -- MapZoomController* (../../display/MapZoomController.h),
+//                   backs the View toolbar's zoom Slider
+//   musicVolume, soundVolume -- AudioVolumeController*
+//                   (../../mainwindow/AudioVolumeController.h), back the
+//                   Audio toolbar's two volume Sliders
+//   clock        -- ClockAdapter*, consumed by ClockStrip.qml in the footer
+//   xpStatusAdapter -- XpStatusAdapter*, consumed by XpStatusItem.qml in the
+//                   footer (named "xpStatusAdapter", not "adapter" --
+//                   "adapter" is already the DescriptionPanel.qml context
+//                   property on this shell's one shared root context; see
+//                   QmlShellWindow.cpp's comment on the rename)
 //   logModel, groupModel/groupProxyModel/groupController, roomModel,
 //   adventureLogModel, adapter, timerModel/timerController, tasksModel,
 //   clientController/clientLineModel -- one set of context properties per
@@ -44,7 +61,216 @@ QQC2.ApplicationWindow {
             title: qsTr("&File")
 
             QQC2.MenuItem {
+                action: CommandAction { cmd: commands ? commands.command("file.new") : null }
+            }
+            QQC2.MenuItem {
+                action: CommandAction { cmd: commands ? commands.command("file.open") : null }
+            }
+            QQC2.MenuItem {
+                action: CommandAction { cmd: commands ? commands.command("file.save") : null }
+            }
+            // Wasm hides Save As/Reload/Exit entirely (see mainwindow.cpp's
+            // setupMenuBar() `if constexpr (CURRENT_PLATFORM != PlatformEnum::Wasm)`
+            // guards); kept unconditional here for now -- shell B doesn't
+            // ship on Wasm yet (see QmlShellWindow.h's file comment), so
+            // there is no Wasm build of this file to gate. TODO(wasm shell
+            // commit): mirror the platform guard when it does.
+            QQC2.MenuItem {
+                action: CommandAction { cmd: commands ? commands.command("file.save-as") : null }
+            }
+            QQC2.MenuItem {
+                action: CommandAction { cmd: commands ? commands.command("file.reload") : null }
+            }
+
+            QQC2.MenuSeparator {}
+
+            QQC2.Menu {
+                id: fileExportMenu
+                objectName: "fileExportMenu"
+                title: qsTr("&Export")
+
+                QQC2.MenuItem {
+                    action: CommandAction {
+                        cmd: commands ? commands.command("file.export.base-map") : null
+                    }
+                }
+                QQC2.MenuItem {
+                    action: CommandAction {
+                        cmd: commands ? commands.command("file.export.mm2xml") : null
+                    }
+                }
+                QQC2.MenuItem {
+                    action: CommandAction {
+                        cmd: commands ? commands.command("file.export.web") : null
+                    }
+                }
+                QQC2.MenuItem {
+                    action: CommandAction {
+                        cmd: commands ? commands.command("file.export.mmp") : null
+                    }
+                }
+            }
+
+            QQC2.MenuItem {
+                action: CommandAction { cmd: commands ? commands.command("file.merge") : null }
+            }
+
+            QQC2.MenuSeparator {}
+
+            // TODO(wasm shell commit): see the Save As/Reload TODO above.
+            QQC2.MenuItem {
                 action: CommandAction { cmd: commands ? commands.command("file.exit") : null }
+            }
+        }
+
+        QQC2.Menu {
+            title: qsTr("&Edit")
+
+            QQC2.Menu {
+                title: qsTr("&Mode")
+
+                QQC2.MenuItem {
+                    action: CommandAction { cmd: commands ? commands.command("mapper-mode.play") : null }
+                }
+                QQC2.MenuItem {
+                    action: CommandAction { cmd: commands ? commands.command("mapper-mode.map") : null }
+                }
+                QQC2.MenuItem {
+                    action: CommandAction {
+                        cmd: commands ? commands.command("mapper-mode.offline") : null
+                    }
+                }
+            }
+
+            QQC2.MenuSeparator {}
+
+            QQC2.MenuItem {
+                action: CommandAction { cmd: commands ? commands.command("edit.undo") : null }
+            }
+            QQC2.MenuItem {
+                action: CommandAction { cmd: commands ? commands.command("edit.redo") : null }
+            }
+
+            QQC2.MenuSeparator {}
+
+            QQC2.Menu {
+                title: qsTr("M&arkers")
+
+                QQC2.MenuItem {
+                    action: CommandAction {
+                        cmd: commands ? commands.command("mouse-mode.infomark-select") : null
+                    }
+                }
+                QQC2.MenuSeparator {}
+                QQC2.MenuItem {
+                    action: CommandAction {
+                        cmd: commands ? commands.command("mouse-mode.create-infomark") : null
+                    }
+                }
+                QQC2.MenuItem {
+                    action: CommandAction {
+                        cmd: commands ? commands.command("infomark.edit-selected") : null
+                    }
+                }
+                QQC2.MenuItem {
+                    action: CommandAction {
+                        cmd: commands ? commands.command("infomark.delete-selected") : null
+                    }
+                }
+            }
+
+            QQC2.Menu {
+                id: editRoomsMenu
+                objectName: "editRoomsMenu"
+                title: qsTr("&Rooms")
+
+                QQC2.MenuItem {
+                    action: CommandAction {
+                        cmd: commands ? commands.command("mouse-mode.room-select") : null
+                    }
+                }
+                QQC2.MenuItem {
+                    action: CommandAction {
+                        cmd: commands ? commands.command("mouse-mode.room-raypick") : null
+                    }
+                }
+                QQC2.MenuSeparator {}
+                QQC2.MenuItem {
+                    action: CommandAction {
+                        cmd: commands ? commands.command("mouse-mode.create-room") : null
+                    }
+                }
+                QQC2.MenuItem {
+                    action: CommandAction { cmd: commands ? commands.command("room.edit-selected") : null }
+                }
+                QQC2.MenuItem {
+                    action: CommandAction {
+                        cmd: commands ? commands.command("room.delete-selected") : null
+                    }
+                }
+                QQC2.MenuItem {
+                    action: CommandAction {
+                        cmd: commands ? commands.command("room.move-up-selected") : null
+                    }
+                }
+                QQC2.MenuItem {
+                    action: CommandAction {
+                        cmd: commands ? commands.command("room.move-down-selected") : null
+                    }
+                }
+                QQC2.MenuItem {
+                    action: CommandAction {
+                        cmd: commands ? commands.command("room.merge-up-selected") : null
+                    }
+                }
+                QQC2.MenuItem {
+                    action: CommandAction {
+                        cmd: commands ? commands.command("room.merge-down-selected") : null
+                    }
+                }
+                QQC2.MenuItem {
+                    action: CommandAction {
+                        cmd: commands ? commands.command("room.connect-to-neighbours") : null
+                    }
+                }
+            }
+
+            QQC2.Menu {
+                title: qsTr("&Connections")
+
+                QQC2.MenuItem {
+                    action: CommandAction {
+                        cmd: commands ? commands.command("mouse-mode.connection-select") : null
+                    }
+                }
+                QQC2.MenuSeparator {}
+                QQC2.MenuItem {
+                    action: CommandAction {
+                        cmd: commands ? commands.command("mouse-mode.create-connection") : null
+                    }
+                }
+                QQC2.MenuItem {
+                    action: CommandAction {
+                        cmd: commands
+                              ? commands.command("mouse-mode.create-oneway-connection") : null
+                    }
+                }
+                QQC2.MenuItem {
+                    action: CommandAction {
+                        cmd: commands ? commands.command("connection.delete-selected") : null
+                    }
+                }
+            }
+
+            QQC2.MenuSeparator {}
+
+            QQC2.MenuItem {
+                action: CommandAction { cmd: commands ? commands.command("room.find") : null }
+            }
+            QQC2.MenuItem {
+                action: CommandAction {
+                    cmd: commands ? commands.command("edit.preferences") : null
+                }
             }
         }
 
@@ -52,28 +278,75 @@ QQC2.ApplicationWindow {
             title: qsTr("&View")
 
             QQC2.MenuItem {
-                action: CommandAction { cmd: commands ? commands.command("view.zoom-in") : null }
-            }
-            QQC2.MenuItem {
-                action: CommandAction { cmd: commands ? commands.command("view.zoom-out") : null }
-            }
-            QQC2.MenuItem {
-                action: CommandAction { cmd: commands ? commands.command("view.zoom-reset") : null }
+                action: CommandAction { cmd: commands ? commands.command("mouse-mode.move") : null }
             }
 
-            QQC2.MenuSeparator {}
+            // View -> Toolbars -> <toolbar>, mirroring mainwindow.cpp's
+            // setupToolBars()/setupMenuBar() `toolbars->addAction(...
+            // ->toggleViewAction())` calls. Backed by ToolbarLayoutController
+            // (../ToolbarLayoutController.h) rather than a command: unlike
+            // the "Side Panels" menu below, nothing else in this shell ever
+            // mutates these properties (no per-toolbar close button), so a
+            // plain `checked` binding is safe without the Connections
+            // re-sync the dock items below need (see ToolbarLayoutController.h).
+            QQC2.Menu {
+                title: qsTr("&Toolbars")
 
-            QQC2.MenuItem {
-                action: CommandAction { cmd: commands ? commands.command("layer.up") : null }
+                QQC2.MenuItem {
+                    text: qsTr("File")
+                    checkable: true
+                    checked: toolbarLayout ? toolbarLayout.fileVisible : false
+                    onTriggered: if (toolbarLayout) toolbarLayout.fileVisible = checked
+                }
+                QQC2.MenuItem {
+                    text: qsTr("Mapper Mode")
+                    checkable: true
+                    checked: toolbarLayout ? toolbarLayout.mapperModeVisible : false
+                    onTriggered: if (toolbarLayout) toolbarLayout.mapperModeVisible = checked
+                }
+                QQC2.MenuItem {
+                    text: qsTr("Mouse Mode")
+                    checkable: true
+                    checked: toolbarLayout ? toolbarLayout.mouseModeVisible : false
+                    onTriggered: if (toolbarLayout) toolbarLayout.mouseModeVisible = checked
+                }
+                QQC2.MenuItem {
+                    text: qsTr("View")
+                    checkable: true
+                    checked: toolbarLayout ? toolbarLayout.viewVisible : false
+                    onTriggered: if (toolbarLayout) toolbarLayout.viewVisible = checked
+                }
+                QQC2.MenuItem {
+                    text: qsTr("Path Machine")
+                    checkable: true
+                    checked: toolbarLayout ? toolbarLayout.pathMachineVisible : false
+                    onTriggered: if (toolbarLayout) toolbarLayout.pathMachineVisible = checked
+                }
+                QQC2.MenuItem {
+                    text: qsTr("Rooms")
+                    checkable: true
+                    checked: toolbarLayout ? toolbarLayout.roomsVisible : false
+                    onTriggered: if (toolbarLayout) toolbarLayout.roomsVisible = checked
+                }
+                QQC2.MenuItem {
+                    text: qsTr("Connections")
+                    checkable: true
+                    checked: toolbarLayout ? toolbarLayout.connectionsVisible : false
+                    onTriggered: if (toolbarLayout) toolbarLayout.connectionsVisible = checked
+                }
+                QQC2.MenuItem {
+                    text: qsTr("Preferences")
+                    checkable: true
+                    checked: toolbarLayout ? toolbarLayout.preferencesVisible : false
+                    onTriggered: if (toolbarLayout) toolbarLayout.preferencesVisible = checked
+                }
+                QQC2.MenuItem {
+                    text: qsTr("Audio")
+                    checkable: true
+                    checked: toolbarLayout ? toolbarLayout.audioVisible : false
+                    onTriggered: if (toolbarLayout) toolbarLayout.audioVisible = checked
+                }
             }
-            QQC2.MenuItem {
-                action: CommandAction { cmd: commands ? commands.command("layer.down") : null }
-            }
-            QQC2.MenuItem {
-                action: CommandAction { cmd: commands ? commands.command("layer.reset") : null }
-            }
-
-            QQC2.MenuSeparator {}
 
             // View -> Side Panels -> <dock>, mirroring mainwindow.cpp's
             // dock construction comments of the same name. Each item binds
@@ -204,61 +477,435 @@ QQC2.ApplicationWindow {
             QQC2.MenuSeparator {}
 
             QQC2.MenuItem {
+                action: CommandAction { cmd: commands ? commands.command("view.zoom-in") : null }
+            }
+            QQC2.MenuItem {
+                action: CommandAction { cmd: commands ? commands.command("view.zoom-out") : null }
+            }
+            QQC2.MenuItem {
+                action: CommandAction { cmd: commands ? commands.command("view.zoom-reset") : null }
+            }
+
+            QQC2.MenuSeparator {}
+
+            QQC2.MenuItem {
+                action: CommandAction { cmd: commands ? commands.command("layer.up") : null }
+            }
+            QQC2.MenuItem {
+                action: CommandAction { cmd: commands ? commands.command("layer.down") : null }
+            }
+            QQC2.MenuItem {
+                action: CommandAction { cmd: commands ? commands.command("layer.reset") : null }
+            }
+
+            QQC2.MenuSeparator {}
+
+            QQC2.MenuItem {
                 action: CommandAction {
                     cmd: commands ? commands.command("world.rebuild-meshes") : null
+                }
+            }
+
+            QQC2.MenuSeparator {}
+
+            QQC2.MenuItem {
+                action: CommandAction {
+                    cmd: commands ? commands.command("view.show-status-bar") : null
+                }
+            }
+            QQC2.MenuItem {
+                action: CommandAction {
+                    cmd: commands ? commands.command("view.show-scroll-bars") : null
+                }
+            }
+            QQC2.MenuItem {
+                action: CommandAction {
+                    cmd: commands ? commands.command("view.show-menu-bar") : null
+                }
+            }
+            QQC2.MenuItem {
+                action: CommandAction {
+                    cmd: commands ? commands.command("view.always-on-top") : null
                 }
             }
         }
 
         QQC2.Menu {
-            title: qsTr("&Mode")
+            title: qsTr("&Tools")
 
-            // Mirrors MainWindow::createActions()'s exclusive "mouse-mode"
-            // QActionGroup (mainwindow.cpp): CommandRegistry enforces the
-            // same exclusivity (see addToGroup()/enforceExclusive() in
-            // CommandRegistry.cpp), so checking one of these unchecks the
-            // rest without any QML-side bookkeeping.
+            QQC2.Menu {
+                title: qsTr("&Integrated Mud Client")
+
+                QQC2.MenuItem {
+                    action: CommandAction { cmd: commands ? commands.command("client.launch") : null }
+                }
+                QQC2.MenuItem {
+                    action: CommandAction {
+                        cmd: commands ? commands.command("client.save-log") : null
+                    }
+                }
+                QQC2.MenuItem {
+                    action: CommandAction {
+                        cmd: commands ? commands.command("client.save-log-html") : null
+                    }
+                }
+            }
+
+            QQC2.Menu {
+                title: qsTr("&Path Machine")
+
+                QQC2.MenuItem {
+                    action: CommandAction {
+                        cmd: commands ? commands.command("mouse-mode.room-select") : null
+                    }
+                }
+                QQC2.MenuSeparator {}
+                QQC2.MenuItem {
+                    action: CommandAction {
+                        cmd: commands ? commands.command("room.goto-selected") : null
+                    }
+                }
+                QQC2.MenuItem {
+                    action: CommandAction {
+                        cmd: commands ? commands.command("room.force-update-selected") : null
+                    }
+                }
+                QQC2.MenuItem {
+                    action: CommandAction {
+                        cmd: commands ? commands.command("pathmachine.release-all-paths") : null
+                    }
+                }
+            }
+        }
+
+        QQC2.Menu {
+            title: qsTr("&Help")
+
             QQC2.MenuItem {
-                action: CommandAction { cmd: commands ? commands.command("mouse-mode.move") : null }
+                action: CommandAction { cmd: commands ? commands.command("help.setup") : null }
             }
             QQC2.MenuItem {
                 action: CommandAction {
-                    cmd: commands ? commands.command("mouse-mode.room-raypick") : null
+                    cmd: commands ? commands.command("help.report-issue") : null
                 }
             }
             QQC2.MenuItem {
                 action: CommandAction {
-                    cmd: commands ? commands.command("mouse-mode.room-select") : null
+                    cmd: commands ? commands.command("help.check-for-update") : null
                 }
             }
-            QQC2.MenuItem {
-                action: CommandAction {
-                    cmd: commands ? commands.command("mouse-mode.connection-select") : null
+
+            QQC2.MenuSeparator {}
+
+            QQC2.Menu {
+                title: qsTr("M&UME")
+
+                QQC2.MenuItem {
+                    action: CommandAction { cmd: commands ? commands.command("help.vote") : null }
+                }
+                QQC2.MenuItem {
+                    action: CommandAction { cmd: commands ? commands.command("help.newbie") : null }
+                }
+                QQC2.MenuItem {
+                    action: CommandAction { cmd: commands ? commands.command("help.website") : null }
+                }
+                QQC2.MenuItem {
+                    action: CommandAction { cmd: commands ? commands.command("help.forum") : null }
+                }
+                QQC2.MenuItem {
+                    action: CommandAction { cmd: commands ? commands.command("help.wiki") : null }
                 }
             }
+
+            QQC2.MenuSeparator {}
+
             QQC2.MenuItem {
-                action: CommandAction {
-                    cmd: commands ? commands.command("mouse-mode.create-room") : null
+                action: CommandAction { cmd: commands ? commands.command("help.about") : null }
+            }
+            // TODO(wasm shell commit): see the File menu's Save As/Reload TODO.
+            QQC2.MenuItem {
+                action: CommandAction { cmd: commands ? commands.command("help.about-qt") : null }
+            }
+        }
+    }
+
+    // 9 toolbars, mirroring MainWindow::setupToolBars() one-for-one (same
+    // order, same contents); each is a plain QQC2.ToolBar row stacked in
+    // this header Column, visible only when its ToolbarLayoutController
+    // property is true -- all 9 default to false, matching every toolbar's
+    // unconditional ->hide() call at the end of setupToolBars(). Unlike
+    // QToolBar, a QQC2.ToolBar can't float or be dragged to another edge;
+    // that's out of scope for this shell (see DockLayoutController.h's file
+    // comment for the same tradeoff on docks).
+    header: Column {
+        QQC2.ToolBar {
+            objectName: "fileToolBar"
+            visible: toolbarLayout ? toolbarLayout.fileVisible : false
+            width: parent.width
+            Row {
+                anchors.verticalCenter: parent.verticalCenter
+                spacing: 4
+                QQC2.ToolButton {
+                    action: CommandAction { cmd: commands ? commands.command("file.new") : null }
+                }
+                QQC2.ToolButton {
+                    action: CommandAction { cmd: commands ? commands.command("file.open") : null }
+                }
+                QQC2.ToolButton {
+                    action: CommandAction { cmd: commands ? commands.command("file.save") : null }
                 }
             }
-            QQC2.MenuItem {
-                action: CommandAction {
-                    cmd: commands ? commands.command("mouse-mode.create-connection") : null
+        }
+
+        QQC2.ToolBar {
+            objectName: "mapperModeToolBar"
+            visible: toolbarLayout ? toolbarLayout.mapperModeVisible : false
+            width: parent.width
+            Row {
+                anchors.verticalCenter: parent.verticalCenter
+                spacing: 4
+                QQC2.ToolButton {
+                    action: CommandAction { cmd: commands ? commands.command("mapper-mode.play") : null }
+                }
+                QQC2.ToolButton {
+                    action: CommandAction { cmd: commands ? commands.command("mapper-mode.map") : null }
+                }
+                QQC2.ToolButton {
+                    action: CommandAction {
+                        cmd: commands ? commands.command("mapper-mode.offline") : null
+                    }
                 }
             }
-            QQC2.MenuItem {
-                action: CommandAction {
-                    cmd: commands ? commands.command("mouse-mode.create-oneway-connection") : null
+        }
+
+        QQC2.ToolBar {
+            objectName: "mouseModeToolBar"
+            visible: toolbarLayout ? toolbarLayout.mouseModeVisible : false
+            width: parent.width
+            Row {
+                anchors.verticalCenter: parent.verticalCenter
+                spacing: 4
+                QQC2.ToolButton {
+                    action: CommandAction { cmd: commands ? commands.command("mouse-mode.move") : null }
+                }
+                QQC2.ToolButton {
+                    action: CommandAction {
+                        cmd: commands ? commands.command("mouse-mode.room-raypick") : null
+                    }
+                }
+                QQC2.ToolButton {
+                    action: CommandAction {
+                        cmd: commands ? commands.command("mouse-mode.room-select") : null
+                    }
+                }
+                QQC2.ToolButton {
+                    action: CommandAction {
+                        cmd: commands ? commands.command("mouse-mode.connection-select") : null
+                    }
+                }
+                QQC2.ToolButton {
+                    action: CommandAction {
+                        cmd: commands ? commands.command("mouse-mode.create-room") : null
+                    }
+                }
+                QQC2.ToolButton {
+                    action: CommandAction {
+                        cmd: commands ? commands.command("mouse-mode.create-connection") : null
+                    }
+                }
+                QQC2.ToolButton {
+                    action: CommandAction {
+                        cmd: commands
+                              ? commands.command("mouse-mode.create-oneway-connection") : null
+                    }
+                }
+                QQC2.ToolButton {
+                    action: CommandAction {
+                        cmd: commands ? commands.command("mouse-mode.infomark-select") : null
+                    }
+                }
+                QQC2.ToolButton {
+                    action: CommandAction {
+                        cmd: commands ? commands.command("mouse-mode.create-infomark") : null
+                    }
                 }
             }
-            QQC2.MenuItem {
-                action: CommandAction {
-                    cmd: commands ? commands.command("mouse-mode.infomark-select") : null
+        }
+
+        QQC2.ToolBar {
+            objectName: "viewToolBar"
+            visible: toolbarLayout ? toolbarLayout.viewVisible : false
+            width: parent.width
+            Row {
+                anchors.verticalCenter: parent.verticalCenter
+                spacing: 4
+                QQC2.ToolButton {
+                    action: CommandAction { cmd: commands ? commands.command("view.zoom-in") : null }
+                }
+                QQC2.ToolButton {
+                    action: CommandAction { cmd: commands ? commands.command("view.zoom-out") : null }
+                }
+                QQC2.ToolButton {
+                    action: CommandAction {
+                        cmd: commands ? commands.command("view.zoom-reset") : null
+                    }
+                }
+                // Mirrors MapZoomSlider's log-scale position<->zoom mapping
+                // (see ../../display/MapZoomController.h); `value` binds
+                // one-way from the controller and `onMoved` (not
+                // onValueChanged, which would also fire from the
+                // programmatic update below) writes user drags back,
+                // avoiding the feedback loop MapZoomSlider's SignalBlocker
+                // guards against on the widget side.
+                QQC2.Slider {
+                    id: zoomSlider
+                    objectName: "zoomSlider"
+                    width: 120
+                    from: mapZoom ? mapZoom.minimum : 0
+                    to: mapZoom ? mapZoom.maximum : 0
+                    value: mapZoom ? mapZoom.position : 0
+                    onMoved: if (mapZoom) mapZoom.position = Math.round(value)
+                }
+                QQC2.ToolButton {
+                    action: CommandAction { cmd: commands ? commands.command("layer.up") : null }
+                }
+                QQC2.ToolButton {
+                    action: CommandAction { cmd: commands ? commands.command("layer.down") : null }
+                }
+                QQC2.ToolButton {
+                    action: CommandAction { cmd: commands ? commands.command("layer.reset") : null }
                 }
             }
-            QQC2.MenuItem {
-                action: CommandAction {
-                    cmd: commands ? commands.command("mouse-mode.create-infomark") : null
+        }
+
+        QQC2.ToolBar {
+            objectName: "pathMachineToolBar"
+            visible: toolbarLayout ? toolbarLayout.pathMachineVisible : false
+            width: parent.width
+            Row {
+                anchors.verticalCenter: parent.verticalCenter
+                spacing: 4
+                QQC2.ToolButton {
+                    action: CommandAction {
+                        cmd: commands ? commands.command("pathmachine.release-all-paths") : null
+                    }
+                }
+                QQC2.ToolButton {
+                    action: CommandAction {
+                        cmd: commands ? commands.command("room.goto-selected") : null
+                    }
+                }
+                QQC2.ToolButton {
+                    action: CommandAction {
+                        cmd: commands ? commands.command("room.force-update-selected") : null
+                    }
+                }
+            }
+        }
+
+        QQC2.ToolBar {
+            objectName: "roomToolBar"
+            visible: toolbarLayout ? toolbarLayout.roomsVisible : false
+            width: parent.width
+            Row {
+                anchors.verticalCenter: parent.verticalCenter
+                spacing: 4
+                QQC2.ToolButton {
+                    action: CommandAction { cmd: commands ? commands.command("room.find") : null }
+                }
+                QQC2.ToolButton {
+                    action: CommandAction { cmd: commands ? commands.command("room.edit-selected") : null }
+                }
+                QQC2.ToolButton {
+                    action: CommandAction {
+                        cmd: commands ? commands.command("room.delete-selected") : null
+                    }
+                }
+                QQC2.ToolButton {
+                    action: CommandAction {
+                        cmd: commands ? commands.command("room.move-up-selected") : null
+                    }
+                }
+                QQC2.ToolButton {
+                    action: CommandAction {
+                        cmd: commands ? commands.command("room.move-down-selected") : null
+                    }
+                }
+                QQC2.ToolButton {
+                    action: CommandAction {
+                        cmd: commands ? commands.command("room.merge-up-selected") : null
+                    }
+                }
+                QQC2.ToolButton {
+                    action: CommandAction {
+                        cmd: commands ? commands.command("room.merge-down-selected") : null
+                    }
+                }
+                QQC2.ToolButton {
+                    action: CommandAction {
+                        cmd: commands ? commands.command("room.connect-to-neighbours") : null
+                    }
+                }
+            }
+        }
+
+        QQC2.ToolBar {
+            objectName: "connectionToolBar"
+            visible: toolbarLayout ? toolbarLayout.connectionsVisible : false
+            width: parent.width
+            Row {
+                anchors.verticalCenter: parent.verticalCenter
+                spacing: 4
+                QQC2.ToolButton {
+                    action: CommandAction {
+                        cmd: commands ? commands.command("connection.delete-selected") : null
+                    }
+                }
+            }
+        }
+
+        QQC2.ToolBar {
+            objectName: "settingsToolBar"
+            visible: toolbarLayout ? toolbarLayout.preferencesVisible : false
+            width: parent.width
+            Row {
+                anchors.verticalCenter: parent.verticalCenter
+                spacing: 4
+                QQC2.ToolButton {
+                    action: CommandAction {
+                        cmd: commands ? commands.command("edit.preferences") : null
+                    }
+                }
+            }
+        }
+
+        QQC2.ToolBar {
+            objectName: "audioToolBar"
+            visible: toolbarLayout ? toolbarLayout.audioVisible : false
+            width: parent.width
+            Row {
+                anchors.verticalCenter: parent.verticalCenter
+                spacing: 4
+                QQC2.Slider {
+                    id: musicVolumeSlider
+                    objectName: "musicVolumeSlider"
+                    width: 100
+                    from: 0
+                    to: 100
+                    stepSize: 1
+                    value: musicVolume ? musicVolume.volume : 0
+                    onMoved: if (musicVolume) musicVolume.volume = Math.round(value)
+                }
+                QQC2.ToolSeparator {}
+                QQC2.Slider {
+                    id: soundVolumeSlider
+                    objectName: "soundVolumeSlider"
+                    width: 100
+                    from: 0
+                    to: 100
+                    stepSize: 1
+                    value: soundVolume ? soundVolume.volume : 0
+                    onMoved: if (soundVolume) soundVolume.volume = Math.round(value)
                 }
             }
         }
@@ -372,9 +1019,40 @@ QQC2.ApplicationWindow {
         }
     }
 
-    footer: QQC2.Label {
-        objectName: "statusLabel"
-        text: typeof statusText !== "undefined" ? statusText : ""
-        padding: 4
+    // Footer status bar row, mirroring MainWindow::setupStatusBar():
+    // ClockStrip.qml/XpStatusItem.qml permanent widgets (inserted at index
+    // 0, i.e. leftmost of the permanent widgets, which visually places them
+    // at the status bar's right edge -- see QStatusBar::insertPermanentWidget()'s
+    // docs), a path-machine QLabel placeholder (no PathMachine wired into
+    // this offline shell yet -- see the TODO below), and the transient
+    // message label filling the remaining space on the left, exactly like
+    // QStatusBar::showMessage()'s text does relative to permanent widgets.
+    footer: Row {
+        QQC2.Label {
+            objectName: "statusLabel"
+            text: typeof statusText !== "undefined" ? statusText : ""
+            padding: 4
+            width: parent.width - pathMachineLabel.implicitWidth - clockStrip.implicitWidth
+                   - xpStatusItem.implicitWidth - 12
+        }
+        QQC2.Label {
+            id: pathMachineLabel
+            objectName: "pathMachineLabel"
+            // TODO(shell commit): wire to Mmapper2PathMachine::sig_state
+            // once a PathMachine is constructed in this shell (see
+            // QmlShellWindow.h's file comment: "Deliberately NOT
+            // constructed here" -- the async task engine/path machine isn't
+            // part of this offline bring-up yet).
+            text: ""
+            padding: 4
+        }
+        XpStatusItem {
+            id: xpStatusItem
+            objectName: "xpStatusItem"
+        }
+        ClockStrip {
+            id: clockStrip
+            objectName: "clockStrip"
+        }
     }
 }

@@ -73,4 +73,5 @@ private Q_SLOTS:
     void mapViewModelScrollMath();
     void loadMainShell();
     void loadMainShellDocks();
+    void loadMainShellChrome();
 };

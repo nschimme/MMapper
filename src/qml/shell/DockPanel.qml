@@ -31,10 +31,23 @@ Item {
     // URL of the panel's own QML file (e.g. "qrc:/qt/qml/MMapper/LogPanel.qml").
     property url source
 
+    // True when this DockPanel is the content of a floating QtQuick.Window
+    // (see MainShell.qml's FloatingDock inline component) rather than a
+    // docked SplitView child. Purely cosmetic here -- it only flips the
+    // float button's glyph/tooltip below -- the caller (MainShell.qml) is
+    // the one actually deciding whether to dock or float a given panel via
+    // DockLayoutController's xFloating property.
+    property bool floating: false
+
     // Emitted when the header's close button is clicked; the caller is
     // expected to flip the DockLayoutController property this dock's
     // `visible` is bound to (see MainShell.qml).
     signal closeRequested
+
+    // Emitted when the header's float/re-dock button is clicked; the caller
+    // is expected to flip the DockLayoutController property this dock's
+    // `floating` is bound to (see MainShell.qml).
+    signal floatRequested
 
     implicitWidth: Math.max(header.implicitWidth,
                              loader.item ? loader.item.implicitWidth : 0)
@@ -58,10 +71,27 @@ Item {
             anchors.left: parent.left
             anchors.leftMargin: 6
             anchors.verticalCenter: parent.verticalCenter
-            anchors.right: closeButton.left
+            anchors.right: floatButton.left
             elide: Text.ElideRight
             text: root.title
             color: sysPalette.buttonText
+        }
+
+        // Float/re-dock toggle, mirroring QDockWidget::DockWidgetFloatable's
+        // title-bar button (see DockLayoutController.h's file comment).
+        // "⧉" (docked -> click to float) and "⚓" (floating -> click to
+        // re-dock) were picked over text labels to match closeButton's
+        // glyph-only style and keep the header compact at the sidebar's
+        // ~320px default width.
+        QQC2.ToolButton {
+            id: floatButton
+            anchors.right: closeButton.left
+            anchors.verticalCenter: parent.verticalCenter
+            text: root.floating ? "⚓" : "⧉"
+            QQC2.ToolTip.visible: hovered
+            QQC2.ToolTip.text: root.floating ? qsTr("Dock") : qsTr("Float")
+            implicitWidth: implicitHeight
+            onClicked: root.floatRequested()
         }
 
         QQC2.ToolButton {

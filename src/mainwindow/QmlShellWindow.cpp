@@ -292,6 +292,37 @@ protected:
     }
 };
 
+// QRect<->QByteArray codec for DockLayoutController's per-dock
+// xFloatGeometry properties (../qml/DockLayoutController.h) and
+// Configuration::QmlShellSettings's matching dockXFloatGeometry fields
+// (../configuration/configuration.h) -- same QDataStream round-trip
+// restoreWindowState()/persistWindowState() already use for the top-level
+// window's own geometry, reused here so a floating dock's Window restores
+// its last position/size the same way the shell's own top-level window
+// does. An empty/invalid input decodes to a default-constructed (invalid)
+// QRect, which MainShell.qml's FloatingDock treats as "no saved geometry".
+NODISCARD QByteArray encodeFloatGeometry(const QRect &rect)
+{
+    QByteArray bytes;
+    QDataStream out(&bytes, QIODevice::WriteOnly);
+    out << rect;
+    return bytes;
+}
+
+NODISCARD QRect decodeFloatGeometry(const QByteArray &bytes)
+{
+    if (bytes.isEmpty()) {
+        return {};
+    }
+    QDataStream in(bytes);
+    QRect rect;
+    in >> rect;
+    if (in.status() != QDataStream::Ok) {
+        return {};
+    }
+    return rect;
+}
+
 } // namespace
 
 QmlShellWindow::QmlShellWindow(QObject *const parent)
@@ -528,6 +559,30 @@ QmlShellWindow::QmlShellWindow(QObject *const parent)
     m_dockLayout->setProperty("timersVisible", qmlShellConfig.dockTimersVisible);
     m_dockLayout->setProperty("tasksVisible", qmlShellConfig.dockTasksVisible);
     m_dockLayout->setProperty("clientVisible", qmlShellConfig.dockClientVisible);
+    m_dockLayout->setProperty("logFloating", qmlShellConfig.dockLogFloating);
+    m_dockLayout->setProperty("groupFloating", qmlShellConfig.dockGroupFloating);
+    m_dockLayout->setProperty("roomFloating", qmlShellConfig.dockRoomFloating);
+    m_dockLayout->setProperty("adventureFloating", qmlShellConfig.dockAdventureFloating);
+    m_dockLayout->setProperty("descriptionFloating", qmlShellConfig.dockDescriptionFloating);
+    m_dockLayout->setProperty("timersFloating", qmlShellConfig.dockTimersFloating);
+    m_dockLayout->setProperty("tasksFloating", qmlShellConfig.dockTasksFloating);
+    m_dockLayout->setProperty("clientFloating", qmlShellConfig.dockClientFloating);
+    m_dockLayout->setProperty("logFloatGeometry",
+                              decodeFloatGeometry(qmlShellConfig.dockLogFloatGeometry));
+    m_dockLayout->setProperty("groupFloatGeometry",
+                              decodeFloatGeometry(qmlShellConfig.dockGroupFloatGeometry));
+    m_dockLayout->setProperty("roomFloatGeometry",
+                              decodeFloatGeometry(qmlShellConfig.dockRoomFloatGeometry));
+    m_dockLayout->setProperty("adventureFloatGeometry",
+                              decodeFloatGeometry(qmlShellConfig.dockAdventureFloatGeometry));
+    m_dockLayout->setProperty("descriptionFloatGeometry",
+                              decodeFloatGeometry(qmlShellConfig.dockDescriptionFloatGeometry));
+    m_dockLayout->setProperty("timersFloatGeometry",
+                              decodeFloatGeometry(qmlShellConfig.dockTimersFloatGeometry));
+    m_dockLayout->setProperty("tasksFloatGeometry",
+                              decodeFloatGeometry(qmlShellConfig.dockTasksFloatGeometry));
+    m_dockLayout->setProperty("clientFloatGeometry",
+                              decodeFloatGeometry(qmlShellConfig.dockClientFloatGeometry));
     m_toolbarLayout->setProperty("fileVisible", qmlShellConfig.toolbarFileVisible);
     m_toolbarLayout->setProperty("mapperModeVisible", qmlShellConfig.toolbarMapperModeVisible);
     m_toolbarLayout->setProperty("mouseModeVisible", qmlShellConfig.toolbarMouseModeVisible);
@@ -661,6 +716,30 @@ void QmlShellWindow::persistWindowState()
     qmlShellConfig.dockTimersVisible = m_dockLayout->property("timersVisible").toBool();
     qmlShellConfig.dockTasksVisible = m_dockLayout->property("tasksVisible").toBool();
     qmlShellConfig.dockClientVisible = m_dockLayout->property("clientVisible").toBool();
+    qmlShellConfig.dockLogFloating = m_dockLayout->property("logFloating").toBool();
+    qmlShellConfig.dockGroupFloating = m_dockLayout->property("groupFloating").toBool();
+    qmlShellConfig.dockRoomFloating = m_dockLayout->property("roomFloating").toBool();
+    qmlShellConfig.dockAdventureFloating = m_dockLayout->property("adventureFloating").toBool();
+    qmlShellConfig.dockDescriptionFloating = m_dockLayout->property("descriptionFloating").toBool();
+    qmlShellConfig.dockTimersFloating = m_dockLayout->property("timersFloating").toBool();
+    qmlShellConfig.dockTasksFloating = m_dockLayout->property("tasksFloating").toBool();
+    qmlShellConfig.dockClientFloating = m_dockLayout->property("clientFloating").toBool();
+    qmlShellConfig.dockLogFloatGeometry = encodeFloatGeometry(
+        m_dockLayout->property("logFloatGeometry").toRect());
+    qmlShellConfig.dockGroupFloatGeometry = encodeFloatGeometry(
+        m_dockLayout->property("groupFloatGeometry").toRect());
+    qmlShellConfig.dockRoomFloatGeometry = encodeFloatGeometry(
+        m_dockLayout->property("roomFloatGeometry").toRect());
+    qmlShellConfig.dockAdventureFloatGeometry = encodeFloatGeometry(
+        m_dockLayout->property("adventureFloatGeometry").toRect());
+    qmlShellConfig.dockDescriptionFloatGeometry = encodeFloatGeometry(
+        m_dockLayout->property("descriptionFloatGeometry").toRect());
+    qmlShellConfig.dockTimersFloatGeometry = encodeFloatGeometry(
+        m_dockLayout->property("timersFloatGeometry").toRect());
+    qmlShellConfig.dockTasksFloatGeometry = encodeFloatGeometry(
+        m_dockLayout->property("tasksFloatGeometry").toRect());
+    qmlShellConfig.dockClientFloatGeometry = encodeFloatGeometry(
+        m_dockLayout->property("clientFloatGeometry").toRect());
     qmlShellConfig.toolbarFileVisible = m_toolbarLayout->property("fileVisible").toBool();
     qmlShellConfig.toolbarMapperModeVisible = m_toolbarLayout->property("mapperModeVisible").toBool();
     qmlShellConfig.toolbarMouseModeVisible = m_toolbarLayout->property("mouseModeVisible").toBool();

@@ -3,6 +3,7 @@
 
 import QtQuick
 import QtQuick.Controls as QQC2
+import QtQuick.Window
 import MMapper
 
 // The first bootable top-level window of the QML shell (Shell B; see
@@ -943,9 +944,24 @@ QQC2.ApplicationWindow {
     // top/visible, Log/Room/Adventure/Tasks bottom/hidden, Description
     // right/visible, Timers right/hidden, Client left/visible.
     //
-    // Floating docks (QDockWidget::DockWidgetFloatable on the widget side)
-    // are not implemented here -- see DockLayoutController.h's file
-    // comment -- every dock lives in one of these four fixed slots.
+    // Floating docks: a dock whose DockLayoutController xFloating property
+    // is true (toggled via DockPanel.qml's float button, see
+    // ../DockLayoutController.h) is pulled out of its fixed SplitView slot
+    // above (the docked DockPanel instance below hides) and re-parented
+    // into its own QtQuick.Window Loader instance instead (the FloatingDock
+    // inline component below) -- mirrors QDockWidget::setFloating(true)'s
+    // effect on the widget side, minus drag-to-float/drag-to-redock (the
+    // float/re-dock button pair is this shell's equivalent gesture).
+    //
+    // Each fixed-slot container (leftColumn/rightColumn/topRow/bottomRow)
+    // hides itself once none of its panels are docked-and-visible, so a
+    // closed or floated-away sidebar gives its width/height back to the
+    // center MapView -- SplitView skips invisible children entirely (their
+    // preferredWidth/Height stops reserving space), but a container that
+    // stays visible with only hidden/floating panels inside it does not,
+    // which is why this can't be left to each DockPanel's own `visible`
+    // alone. QQC2.SplitView.fillWidth on middleSplit (below) is what
+    // actually reclaims the space once its siblings disappear.
     QQC2.SplitView {
         id: outerSplit
         anchors.fill: parent
@@ -953,14 +969,18 @@ QQC2.ApplicationWindow {
 
         DockColumn {
             id: leftColumn
+            objectName: "leftColumn"
             QQC2.SplitView.preferredWidth: 320
+            visible: dockLayout ? (dockLayout.clientVisible && !dockLayout.clientFloating) : true
 
             DockPanel {
                 objectName: "dockClient"
                 title: qsTr("Client Panel")
                 source: "qrc:/qt/qml/MMapper/ClientPanel.qml"
-                visible: dockLayout ? dockLayout.clientVisible : true
+                visible: dockLayout
+                         ? (dockLayout.clientVisible && !dockLayout.clientFloating) : true
                 onCloseRequested: if (dockLayout) dockLayout.clientVisible = false
+                onFloatRequested: if (dockLayout) dockLayout.clientFloating = true
             }
         }
 
@@ -971,14 +991,18 @@ QQC2.ApplicationWindow {
 
             DockRow {
                 id: topRow
+                objectName: "topRow"
                 QQC2.SplitView.preferredHeight: 220
+                visible: dockLayout ? (dockLayout.groupVisible && !dockLayout.groupFloating) : true
 
                 DockPanel {
                     objectName: "dockGroup"
                     title: qsTr("Group Panel")
                     source: "qrc:/qt/qml/MMapper/GroupPanel.qml"
-                    visible: dockLayout ? dockLayout.groupVisible : true
+                    visible: dockLayout
+                             ? (dockLayout.groupVisible && !dockLayout.groupFloating) : true
                     onCloseRequested: if (dockLayout) dockLayout.groupVisible = false
+                    onFloatRequested: if (dockLayout) dockLayout.groupFloating = true
                 }
             }
 
@@ -990,58 +1014,236 @@ QQC2.ApplicationWindow {
 
             DockRow {
                 id: bottomRow
+                objectName: "bottomRow"
                 QQC2.SplitView.preferredHeight: 220
+                visible: dockLayout
+                         ? ((dockLayout.logVisible && !dockLayout.logFloating)
+                            || (dockLayout.roomVisible && !dockLayout.roomFloating)
+                            || (dockLayout.adventureVisible && !dockLayout.adventureFloating)
+                            || (dockLayout.tasksVisible && !dockLayout.tasksFloating))
+                         : false
 
                 DockPanel {
                     objectName: "dockLog"
                     title: qsTr("Log Panel")
                     source: "qrc:/qt/qml/MMapper/LogPanel.qml"
-                    visible: dockLayout ? dockLayout.logVisible : false
+                    visible: dockLayout ? (dockLayout.logVisible && !dockLayout.logFloating) : false
                     onCloseRequested: if (dockLayout) dockLayout.logVisible = false
+                    onFloatRequested: if (dockLayout) dockLayout.logFloating = true
                 }
                 DockPanel {
                     objectName: "dockRoom"
                     title: qsTr("Room Panel")
                     source: "qrc:/qt/qml/MMapper/RoomPanel.qml"
-                    visible: dockLayout ? dockLayout.roomVisible : false
+                    visible: dockLayout
+                             ? (dockLayout.roomVisible && !dockLayout.roomFloating) : false
                     onCloseRequested: if (dockLayout) dockLayout.roomVisible = false
+                    onFloatRequested: if (dockLayout) dockLayout.roomFloating = true
                 }
                 DockPanel {
                     objectName: "dockAdventure"
                     title: qsTr("Adventure Panel")
                     source: "qrc:/qt/qml/MMapper/AdventurePanel.qml"
-                    visible: dockLayout ? dockLayout.adventureVisible : false
+                    visible: dockLayout
+                             ? (dockLayout.adventureVisible && !dockLayout.adventureFloating)
+                             : false
                     onCloseRequested: if (dockLayout) dockLayout.adventureVisible = false
+                    onFloatRequested: if (dockLayout) dockLayout.adventureFloating = true
                 }
                 DockPanel {
                     objectName: "dockTasks"
                     title: qsTr("Tasks Panel")
                     source: "qrc:/qt/qml/MMapper/TasksPanel.qml"
-                    visible: dockLayout ? dockLayout.tasksVisible : false
+                    visible: dockLayout
+                             ? (dockLayout.tasksVisible && !dockLayout.tasksFloating) : false
                     onCloseRequested: if (dockLayout) dockLayout.tasksVisible = false
+                    onFloatRequested: if (dockLayout) dockLayout.tasksFloating = true
                 }
             }
         }
 
         DockColumn {
             id: rightColumn
+            objectName: "rightColumn"
             QQC2.SplitView.preferredWidth: 320
+            visible: dockLayout
+                     ? ((dockLayout.descriptionVisible && !dockLayout.descriptionFloating)
+                        || (dockLayout.timersVisible && !dockLayout.timersFloating))
+                     : true
 
             DockPanel {
                 objectName: "dockDescription"
                 title: qsTr("Description Panel")
                 source: "qrc:/qt/qml/MMapper/DescriptionPanel.qml"
-                visible: dockLayout ? dockLayout.descriptionVisible : true
+                visible: dockLayout
+                         ? (dockLayout.descriptionVisible && !dockLayout.descriptionFloating)
+                         : true
                 onCloseRequested: if (dockLayout) dockLayout.descriptionVisible = false
+                onFloatRequested: if (dockLayout) dockLayout.descriptionFloating = true
             }
             DockPanel {
                 objectName: "dockTimers"
                 title: qsTr("Timers Panel")
                 source: "qrc:/qt/qml/MMapper/TimerPanel.qml"
-                visible: dockLayout ? dockLayout.timersVisible : false
+                visible: dockLayout
+                         ? (dockLayout.timersVisible && !dockLayout.timersFloating) : false
                 onCloseRequested: if (dockLayout) dockLayout.timersVisible = false
+                onFloatRequested: if (dockLayout) dockLayout.timersFloating = true
             }
         }
+    }
+
+    // Inline component backing every floating dock's top-level window (Qt
+    // 6.4+ `component ... : Base { ... }` syntax) -- one Loader per dock,
+    // instantiated below, rather than 8 near-identical Window blocks
+    // spelled out longhand. `active` only becomes true once a dock is both
+    // visible and floating, so a hidden-and-floating dock (closed while
+    // floating) doesn't leave a stray empty Window around, and re-docking
+    // (floating -> false) tears the Window down rather than merely hiding
+    // it -- the content Loader/DockPanel re-instantiates on every dock<->
+    // float transition either way, so any panel-local UI state (scroll
+    // position, filter text, ...) is lost across a float/re-dock just like
+    // it would be across a close/reopen; this is a deliberate simplicity
+    // tradeoff (see the task report), not a regression from the SplitView-
+    // only layout this replaces.
+    component FloatingDock: Loader {
+        id: floatLoader
+
+        // Property-name prefix into DockLayoutController's per-dock
+        // xVisible/xFloating/xFloatGeometry properties (e.g. "log" ->
+        // logVisible/logFloating/logFloatGeometry) -- looked up with JS
+        // bracket notation below so this one component can back all 8
+        // docks instead of one bespoke Window block per dock.
+        required property string dockId
+        required property string dockTitle
+        required property url dockSource
+
+        active: dockLayout
+                ? (dockLayout[dockId + "Visible"] === true
+                   && dockLayout[dockId + "Floating"] === true)
+                : false
+
+        // sourceComponent needs an explicit `Component { Window { ... } }`
+        // wrapper here -- the usual QML shorthand of assigning an object
+        // literal straight to a QQmlComponent-typed property (letting the
+        // engine implicitly wrap it in a Component) does not apply inside
+        // an inline `component ... : Base { ... }` definition (Qt 6.4;
+        // reproduced as a minimal standalone case while building this),
+        // even though it works fine for a Loader declared directly in a
+        // regular (non-inline) object tree -- hence the explicit wrapper
+        // below, unlike a typical top-level Loader.sourceComponent.
+        sourceComponent: Component {
+            Window {
+                id: floatWindow
+                flags: Qt.Tool
+                title: floatLoader.dockTitle
+                width: 360
+                height: 480
+                x: 100
+                y: 100
+                visible: true
+
+                // Applies the last-saved geometry (if any) once, instead of
+                // a live `width:`/`x:`-style binding -- a binding would
+                // fight with the OS/user resizing or moving this Window
+                // afterwards (each drag imperatively writes x/y/width/
+                // height, which is exactly what the onXChanged/... handlers
+                // below persist, but a live binding back to the same
+                // property the user's drag just wrote would either no-op
+                // or reintroduce a feedback loop) -- applying once on
+                // completion and then persisting imperative changes is the
+                // simpler, reliable option the task asked for.
+                Component.onCompleted: {
+                    if (!dockLayout) {
+                        return;
+                    }
+                    const g = dockLayout[floatLoader.dockId + "FloatGeometry"];
+                    if (g && g.width > 0 && g.height > 0) {
+                        x = g.x;
+                        y = g.y;
+                        width = g.width;
+                        height = g.height;
+                    }
+                }
+
+                function saveGeometry() {
+                    if (dockLayout) {
+                        dockLayout[floatLoader.dockId + "FloatGeometry"] = Qt.rect(x, y, width,
+                                                                                    height);
+                    }
+                }
+                onXChanged: saveGeometry()
+                onYChanged: saveGeometry()
+                onWidthChanged: saveGeometry()
+                onHeightChanged: saveGeometry()
+
+                // Closing the floating window (native close button, Alt+F4,
+                // ...) is equivalent to clicking DockPanel's close button --
+                // hides the dock entirely rather than silently re-docking
+                // it.
+                onClosing: if (dockLayout) dockLayout[floatLoader.dockId + "Visible"] = false
+
+                DockPanel {
+                    anchors.fill: parent
+                    title: floatLoader.dockTitle
+                    source: floatLoader.dockSource
+                    floating: true
+                    onFloatRequested: if (dockLayout)
+                                           dockLayout[floatLoader.dockId + "Floating"] = false
+                    onCloseRequested: if (dockLayout)
+                                           dockLayout[floatLoader.dockId + "Visible"] = false
+                }
+            }
+        }
+    }
+
+    FloatingDock {
+        objectName: "floatLog"
+        dockId: "log"
+        dockTitle: qsTr("Log Panel")
+        dockSource: "qrc:/qt/qml/MMapper/LogPanel.qml"
+    }
+    FloatingDock {
+        objectName: "floatGroup"
+        dockId: "group"
+        dockTitle: qsTr("Group Panel")
+        dockSource: "qrc:/qt/qml/MMapper/GroupPanel.qml"
+    }
+    FloatingDock {
+        objectName: "floatRoom"
+        dockId: "room"
+        dockTitle: qsTr("Room Panel")
+        dockSource: "qrc:/qt/qml/MMapper/RoomPanel.qml"
+    }
+    FloatingDock {
+        objectName: "floatAdventure"
+        dockId: "adventure"
+        dockTitle: qsTr("Adventure Panel")
+        dockSource: "qrc:/qt/qml/MMapper/AdventurePanel.qml"
+    }
+    FloatingDock {
+        objectName: "floatDescription"
+        dockId: "description"
+        dockTitle: qsTr("Description Panel")
+        dockSource: "qrc:/qt/qml/MMapper/DescriptionPanel.qml"
+    }
+    FloatingDock {
+        objectName: "floatTimers"
+        dockId: "timers"
+        dockTitle: qsTr("Timers Panel")
+        dockSource: "qrc:/qt/qml/MMapper/TimerPanel.qml"
+    }
+    FloatingDock {
+        objectName: "floatTasks"
+        dockId: "tasks"
+        dockTitle: qsTr("Tasks Panel")
+        dockSource: "qrc:/qt/qml/MMapper/TasksPanel.qml"
+    }
+    FloatingDock {
+        objectName: "floatClient"
+        dockId: "client"
+        dockTitle: qsTr("Client Panel")
+        dockSource: "qrc:/qt/qml/MMapper/ClientPanel.qml"
     }
 
     // Footer status bar row, mirroring MainWindow::setupStatusBar():

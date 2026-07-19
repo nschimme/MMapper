@@ -73,6 +73,8 @@ private Q_SLOTS:
     void mapViewModelScrollMath();
     void loadMainShell();
     void loadMainShellDocks();
+    void dockContainerCollapsesWhenEmpty();
+    void dockFloatingWindowLifecycle();
     void loadMainShellChrome();
     void mainShellEscapeShortcutForwards();
     void mainShellCommandOpensAboutDialog();

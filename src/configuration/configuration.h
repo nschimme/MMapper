@@ -481,6 +481,29 @@ public:
         bool dockTimersVisible = false;
         bool dockTasksVisible = false;
         bool dockClientVisible = true;
+        // Floating (undocked) state + last-known floating-window geometry
+        // per dock, mirroring DockLayoutController's own xFloating/
+        // xFloatGeometry properties (see ../qml/DockLayoutController.h) --
+        // this struct is that controller's on-disk persistence, so it
+        // carries the same 8+8 fields. An empty QByteArray geometry means
+        // "no saved floating geometry yet" (see the QRect-via-QByteArray
+        // encoding note on QmlShellWindow.cpp's persistWindowState()).
+        bool dockLogFloating = false;
+        bool dockGroupFloating = false;
+        bool dockRoomFloating = false;
+        bool dockAdventureFloating = false;
+        bool dockDescriptionFloating = false;
+        bool dockTimersFloating = false;
+        bool dockTasksFloating = false;
+        bool dockClientFloating = false;
+        QByteArray dockLogFloatGeometry;
+        QByteArray dockGroupFloatGeometry;
+        QByteArray dockRoomFloatGeometry;
+        QByteArray dockAdventureFloatGeometry;
+        QByteArray dockDescriptionFloatGeometry;
+        QByteArray dockTimersFloatGeometry;
+        QByteArray dockTasksFloatGeometry;
+        QByteArray dockClientFloatGeometry;
         bool toolbarFileVisible = false;
         bool toolbarMapperModeVisible = false;
         bool toolbarMouseModeVisible = false;

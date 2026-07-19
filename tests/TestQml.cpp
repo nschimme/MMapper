@@ -65,6 +65,7 @@
 #include <memory>
 #include <thread>
 
+#include <QCloseEvent>
 #include <QDir>
 #include <QFile>
 #include <QFontMetricsF>
@@ -85,6 +86,7 @@
 #include <QQmlIncubationController>
 #include <QQuickItem>
 #include <QQuickWidget>
+#include <QQuickWindow>
 #include <QScopeGuard>
 #include <QScopedPointer>
 #include <QSettings>
@@ -3680,6 +3682,283 @@ void TestQml::loadMainShellDocks()
     QCOMPARE(dockLog->isVisible(), false);
 }
 
+void TestQml::dockContainerCollapsesWhenEmpty()
+{
+    // Covers the "closing panels does not give the space back to the
+    // central map canvas" bug report: MainShell.qml's leftColumn/
+    // rightColumn/topRow/bottomRow (the SplitView children that group the
+    // 8 DockPanels into the shell's four fixed slots) now bind their own
+    // `visible` to "is any panel inside me docked-and-shown", instead of
+    // always staying visible and reserving their SplitView.preferredWidth/
+    // Height even once every panel inside has been hidden. Reuses
+    // loadMainShellDocks()'s exact fixture set (see that test's comment for
+    // why); only the assertions differ.
+    CommandRegistry registry(nullptr);
+    MapViewModel viewModel;
+
+    DockLayoutController dockLayout;
+
+    QmlConfig config;
+
+    LogModel logModel(nullptr);
+
+    GroupModel groupModel;
+    GroupProxyModel groupProxy;
+    groupProxy.setSourceModel(&groupModel);
+    GroupControllerStub groupController(nullptr);
+
+    RoomManager roomManager(nullptr);
+    RoomModel roomModel(nullptr, roomManager.getRoom());
+
+    GameObserver gameObserver;
+    AdventureTracker adventureTracker(gameObserver, nullptr);
+    AdventureLogModel adventureLogModel(adventureTracker, nullptr);
+    XpStatusAdapter xpStatusAdapter(adventureTracker, nullptr);
+    MumeClock mumeClock(/*mumeEpoch=*/0, gameObserver, nullptr);
+    ClockAdapter clockAdapter(gameObserver, mumeClock, nullptr);
+    ToolbarLayoutController toolbarLayout;
+    AudioVolumeController musicVolume(AudioVolumeController::AudioType::Music);
+    AudioVolumeController soundVolume(AudioVolumeController::AudioType::Sound);
+
+    MediaLibrary mediaLibrary;
+    DescriptionAdapter descriptionAdapter(mediaLibrary, nullptr);
+
+    CTimers timers(nullptr);
+    TimerModel timerModel(timers, nullptr);
+    TimerController timerController(timers, timerModel, nullptr);
+
+    TasksModel tasksModel;
+
+    ClientLineModel clientLineModel;
+    HotkeyManager hotkeys;
+    hotkeys.resetToDefaults();
+    ClientController clientController(clientLineModel, hotkeys, nullptr);
+    auto backend = std::make_unique<FakeBackend>();
+    clientController.setBackend(std::move(backend));
+
+    QQmlEngine engine;
+    engine.addImageProvider(QStringLiteral("description"),
+                            new DescriptionImageProvider(descriptionAdapter.getStore()));
+
+    engine.rootContext()->setContextProperty("commands", &registry);
+    engine.rootContext()->setContextProperty("mapCore", QVariant::fromValue<QObject *>(nullptr));
+    engine.rootContext()->setContextProperty("mapViewModel", &viewModel);
+    engine.rootContext()->setContextProperty("statusText", QStringLiteral("test status"));
+    engine.rootContext()->setContextProperty("dockLayout", &dockLayout);
+    engine.rootContext()->setContextProperty("config", &config);
+    engine.rootContext()->setContextProperty("logModel", &logModel);
+    engine.rootContext()->setContextProperty("groupModel", &groupModel);
+    engine.rootContext()->setContextProperty("groupProxyModel", &groupProxy);
+    engine.rootContext()->setContextProperty("groupController", &groupController);
+    engine.rootContext()->setContextProperty("roomModel", &roomModel);
+    engine.rootContext()->setContextProperty("adventureLogModel", &adventureLogModel);
+    engine.rootContext()->setContextProperty("adapter", &descriptionAdapter);
+    engine.rootContext()->setContextProperty("timerModel", &timerModel);
+    engine.rootContext()->setContextProperty("timerController", &timerController);
+    engine.rootContext()->setContextProperty("tasksModel", &tasksModel);
+    engine.rootContext()->setContextProperty("toolbarLayout", &toolbarLayout);
+    engine.rootContext()->setContextProperty("mapZoom", QVariant::fromValue<QObject *>(nullptr));
+    engine.rootContext()->setContextProperty("musicVolume", &musicVolume);
+    engine.rootContext()->setContextProperty("soundVolume", &soundVolume);
+    engine.rootContext()->setContextProperty("clock", &clockAdapter);
+    engine.rootContext()->setContextProperty("xpStatusAdapter", &xpStatusAdapter);
+    engine.rootContext()->setContextProperty("clientController", &clientController);
+    engine.rootContext()->setContextProperty("clientLineModel", &clientLineModel);
+
+    QQmlComponent component(&engine, QUrl(u"qrc:/qt/qml/MMapper/MainShell.qml"_qs));
+    while (component.isLoading()) {
+        QCoreApplication::processEvents();
+    }
+    QVERIFY2(!component.isError(), qPrintable(component.errorString()));
+
+    QScopedPointer<QObject> object(component.create(engine.rootContext()));
+    QVERIFY(object != nullptr);
+    QCoreApplication::processEvents();
+
+    auto *const leftColumn = object->findChild<QQuickItem *>(QStringLiteral("leftColumn"));
+    auto *const rightColumn = object->findChild<QQuickItem *>(QStringLiteral("rightColumn"));
+    auto *const topRow = object->findChild<QQuickItem *>(QStringLiteral("topRow"));
+    auto *const bottomRow = object->findChild<QQuickItem *>(QStringLiteral("bottomRow"));
+    QVERIFY(leftColumn != nullptr);
+    QVERIFY(rightColumn != nullptr);
+    QVERIFY(topRow != nullptr);
+    QVERIFY(bottomRow != nullptr);
+
+    // Defaults: client/description/group visible (left/right/top columns
+    // shown), log/room/adventure/tasks hidden (bottom row starts
+    // collapsed).
+    QCOMPARE(leftColumn->isVisible(), true);
+    QCOMPARE(rightColumn->isVisible(), true);
+    QCOMPARE(topRow->isVisible(), true);
+    QCOMPARE(bottomRow->isVisible(), false);
+
+    // Hiding every panel in the right column (description + timers, timers
+    // already hidden by default) must collapse the column itself so
+    // SplitView.fillWidth on the center MapView can reclaim its width --
+    // the bug report's core complaint.
+    dockLayout.setProperty("descriptionVisible", false);
+    QCoreApplication::processEvents();
+    QCOMPARE(rightColumn->isVisible(), false);
+
+    // Showing it again brings the column back.
+    dockLayout.setProperty("descriptionVisible", true);
+    QCoreApplication::processEvents();
+    QCOMPARE(rightColumn->isVisible(), true);
+
+    // Same story for the single-panel left/top slots.
+    dockLayout.setProperty("clientVisible", false);
+    QCoreApplication::processEvents();
+    QCOMPARE(leftColumn->isVisible(), false);
+
+    dockLayout.setProperty("groupVisible", false);
+    QCoreApplication::processEvents();
+    QCOMPARE(topRow->isVisible(), false);
+
+    // The bottom row (4 panels) only appears once at least one of them is
+    // shown.
+    dockLayout.setProperty("logVisible", true);
+    QCoreApplication::processEvents();
+    QCOMPARE(bottomRow->isVisible(), true);
+    dockLayout.setProperty("logVisible", false);
+    QCoreApplication::processEvents();
+    QCOMPARE(bottomRow->isVisible(), false);
+}
+
+void TestQml::dockFloatingWindowLifecycle()
+{
+    // Covers the "panels cannot pop out (float)" bug report:
+    // DockLayoutController's xFloating property (../src/qml/
+    // DockLayoutController.h) now drives MainShell.qml's per-dock
+    // FloatingDock Loader (see its inline-component comment) -- flipping
+    // one to true hides the docked DockPanel and spins up a real
+    // QtQuick.Window (offscreen-backend software rendering creates a real
+    // QQuickWindow-derived object without GL, same as every other loadX()
+    // test in this file that instantiates Item/Window-derived QML), and
+    // closing that floating window's native close affordance flips
+    // xVisible back to false (DockPanel.qml's own close button already
+    // covered by loadMainShellDocks()'s onCloseRequested wiring). Reuses
+    // loadMainShellDocks()'s exact fixture set.
+    CommandRegistry registry(nullptr);
+    MapViewModel viewModel;
+
+    DockLayoutController dockLayout;
+
+    QmlConfig config;
+
+    LogModel logModel(nullptr);
+
+    GroupModel groupModel;
+    GroupProxyModel groupProxy;
+    groupProxy.setSourceModel(&groupModel);
+    GroupControllerStub groupController(nullptr);
+
+    RoomManager roomManager(nullptr);
+    RoomModel roomModel(nullptr, roomManager.getRoom());
+
+    GameObserver gameObserver;
+    AdventureTracker adventureTracker(gameObserver, nullptr);
+    AdventureLogModel adventureLogModel(adventureTracker, nullptr);
+    XpStatusAdapter xpStatusAdapter(adventureTracker, nullptr);
+    MumeClock mumeClock(/*mumeEpoch=*/0, gameObserver, nullptr);
+    ClockAdapter clockAdapter(gameObserver, mumeClock, nullptr);
+    ToolbarLayoutController toolbarLayout;
+    AudioVolumeController musicVolume(AudioVolumeController::AudioType::Music);
+    AudioVolumeController soundVolume(AudioVolumeController::AudioType::Sound);
+
+    MediaLibrary mediaLibrary;
+    DescriptionAdapter descriptionAdapter(mediaLibrary, nullptr);
+
+    CTimers timers(nullptr);
+    TimerModel timerModel(timers, nullptr);
+    TimerController timerController(timers, timerModel, nullptr);
+
+    TasksModel tasksModel;
+
+    ClientLineModel clientLineModel;
+    HotkeyManager hotkeys;
+    hotkeys.resetToDefaults();
+    ClientController clientController(clientLineModel, hotkeys, nullptr);
+    auto backend = std::make_unique<FakeBackend>();
+    clientController.setBackend(std::move(backend));
+
+    QQmlEngine engine;
+    engine.addImageProvider(QStringLiteral("description"),
+                            new DescriptionImageProvider(descriptionAdapter.getStore()));
+
+    engine.rootContext()->setContextProperty("commands", &registry);
+    engine.rootContext()->setContextProperty("mapCore", QVariant::fromValue<QObject *>(nullptr));
+    engine.rootContext()->setContextProperty("mapViewModel", &viewModel);
+    engine.rootContext()->setContextProperty("statusText", QStringLiteral("test status"));
+    engine.rootContext()->setContextProperty("dockLayout", &dockLayout);
+    engine.rootContext()->setContextProperty("config", &config);
+    engine.rootContext()->setContextProperty("logModel", &logModel);
+    engine.rootContext()->setContextProperty("groupModel", &groupModel);
+    engine.rootContext()->setContextProperty("groupProxyModel", &groupProxy);
+    engine.rootContext()->setContextProperty("groupController", &groupController);
+    engine.rootContext()->setContextProperty("roomModel", &roomModel);
+    engine.rootContext()->setContextProperty("adventureLogModel", &adventureLogModel);
+    engine.rootContext()->setContextProperty("adapter", &descriptionAdapter);
+    engine.rootContext()->setContextProperty("timerModel", &timerModel);
+    engine.rootContext()->setContextProperty("timerController", &timerController);
+    engine.rootContext()->setContextProperty("tasksModel", &tasksModel);
+    engine.rootContext()->setContextProperty("toolbarLayout", &toolbarLayout);
+    engine.rootContext()->setContextProperty("mapZoom", QVariant::fromValue<QObject *>(nullptr));
+    engine.rootContext()->setContextProperty("musicVolume", &musicVolume);
+    engine.rootContext()->setContextProperty("soundVolume", &soundVolume);
+    engine.rootContext()->setContextProperty("clock", &clockAdapter);
+    engine.rootContext()->setContextProperty("xpStatusAdapter", &xpStatusAdapter);
+    engine.rootContext()->setContextProperty("clientController", &clientController);
+    engine.rootContext()->setContextProperty("clientLineModel", &clientLineModel);
+
+    QQmlComponent component(&engine, QUrl(u"qrc:/qt/qml/MMapper/MainShell.qml"_qs));
+    while (component.isLoading()) {
+        QCoreApplication::processEvents();
+    }
+    QVERIFY2(!component.isError(), qPrintable(component.errorString()));
+
+    QScopedPointer<QObject> object(component.create(engine.rootContext()));
+    QVERIFY(object != nullptr);
+    QCoreApplication::processEvents();
+
+    auto *const dockDescription = object->findChild<QQuickItem *>(QStringLiteral("dockDescription"));
+    auto *const floatDescription = object->findChild<QQuickItem *>(
+        QStringLiteral("floatDescription"));
+    QVERIFY(dockDescription != nullptr);
+    QVERIFY(floatDescription != nullptr);
+
+    // Not floating yet: docked panel shown, no floating Window spun up.
+    QCOMPARE(dockDescription->isVisible(), true);
+    QCOMPARE(floatDescription->property("active").toBool(), false);
+    QCOMPARE(floatDescription->property("item").value<QObject *>(), nullptr);
+
+    // Floating it hides the docked instance and creates a real Window.
+    dockLayout.setProperty("descriptionFloating", true);
+    QCoreApplication::processEvents();
+    QCOMPARE(dockDescription->isVisible(), false);
+    QCOMPARE(floatDescription->property("active").toBool(), true);
+    auto *const floatWindowObj = floatDescription->property("item").value<QObject *>();
+    QVERIFY(floatWindowObj != nullptr);
+    auto *const floatWindow = qobject_cast<QQuickWindow *>(floatWindowObj);
+    QVERIFY(floatWindow != nullptr);
+    QCOMPARE(floatWindow->title(), QStringLiteral("Description Panel"));
+
+    // Closing the floating window (its native close affordance, not
+    // DockPanel's own close button inside it) must flip descriptionVisible
+    // back to false, same as clicking DockPanel's close button would --
+    // sent as a real QCloseEvent rather than QQuickWindow::close(), which
+    // this offscreen-backend test environment does not reliably route
+    // through QWindow::closeEvent()/the "closing" signal the way a real
+    // platform window's close (titlebar X, Alt+F4, ...) does.
+    QCloseEvent closeEvent;
+    QCoreApplication::sendEvent(floatWindow, &closeEvent);
+    QCoreApplication::processEvents();
+
+    QCOMPARE(dockLayout.property("descriptionVisible").toBool(), false);
+    // ...which in turn tears the floating Window back down (active follows
+    // xVisible && xFloating).
+    QCOMPARE(floatDescription->property("active").toBool(), false);
+}
+
 void TestQml::loadMainShellChrome()
 {
     // Exercises the menu/toolbar/statusbar chrome added alongside
@@ -3991,6 +4270,8 @@ void TestQml::qmlShellSettingsPersistenceRoundTrip()
     const bool originalDockGroupVisible = qmlShell.dockGroupVisible;
     const bool originalToolbarFileVisible = qmlShell.toolbarFileVisible;
     const bool originalToolbarAudioVisible = qmlShell.toolbarAudioVisible;
+    const bool originalDockDescriptionFloating = qmlShell.dockDescriptionFloating;
+    const auto originalDockDescriptionFloatGeometry = qmlShell.dockDescriptionFloatGeometry;
     auto cleanup = qScopeGuard([&]() {
         auto &restore = setConfig().qmlShell;
         restore.geometry = originalGeometry;
@@ -3998,6 +4279,8 @@ void TestQml::qmlShellSettingsPersistenceRoundTrip()
         restore.dockGroupVisible = originalDockGroupVisible;
         restore.toolbarFileVisible = originalToolbarFileVisible;
         restore.toolbarAudioVisible = originalToolbarAudioVisible;
+        restore.dockDescriptionFloating = originalDockDescriptionFloating;
+        restore.dockDescriptionFloatGeometry = originalDockDescriptionFloatGeometry;
     });
 
     qmlShell.geometry = QByteArray("test-geometry-bytes");
@@ -4005,6 +4288,15 @@ void TestQml::qmlShellSettingsPersistenceRoundTrip()
     qmlShell.dockGroupVisible = false;
     qmlShell.toolbarFileVisible = true;
     qmlShell.toolbarAudioVisible = true;
+    // Floating flag + float geometry -- added alongside DockLayoutController's
+    // xFloating/xFloatGeometry properties (see ../src/qml/
+    // DockLayoutController.h); the geometry itself is an opaque
+    // QDataStream-encoded QRect (see QmlShellWindow.cpp's
+    // encodeFloatGeometry()/decodeFloatGeometry()), so this round-trips the
+    // raw bytes the same way the top-level window's own `geometry` field
+    // does above rather than re-deriving a QRect here.
+    qmlShell.dockDescriptionFloating = true;
+    qmlShell.dockDescriptionFloatGeometry = QByteArray("test-float-geometry-bytes");
 
     {
         QSettings out(path, QSettings::IniFormat);
@@ -4018,6 +4310,8 @@ void TestQml::qmlShellSettingsPersistenceRoundTrip()
     qmlShell.dockGroupVisible = true;
     qmlShell.toolbarFileVisible = false;
     qmlShell.toolbarAudioVisible = false;
+    qmlShell.dockDescriptionFloating = false;
+    qmlShell.dockDescriptionFloatGeometry.clear();
 
     {
         QSettings in(path, QSettings::IniFormat);
@@ -4029,6 +4323,9 @@ void TestQml::qmlShellSettingsPersistenceRoundTrip()
     QCOMPARE(getConfig().qmlShell.dockGroupVisible, false);
     QCOMPARE(getConfig().qmlShell.toolbarFileVisible, true);
     QCOMPARE(getConfig().qmlShell.toolbarAudioVisible, true);
+    QCOMPARE(getConfig().qmlShell.dockDescriptionFloating, true);
+    QCOMPARE(getConfig().qmlShell.dockDescriptionFloatGeometry,
+             QByteArray("test-float-geometry-bytes"));
 }
 
 QTEST_MAIN(TestQml)

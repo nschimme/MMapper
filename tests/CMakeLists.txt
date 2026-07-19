@@ -516,6 +516,19 @@ if(WITH_QML)
             ../src/display/MapViewModel.cpp
             ../src/display/MapViewModel.h
     )
+    # Sources for loadMainShell(). UiCommand/CommandRegistry are QtCore/
+    # QtGui-only (see UiCommand.h's file comment: deliberately depends on
+    # QtCore only, and CommandRegistry.cpp's lone Qt6::Gui use is QAction),
+    # so -- unlike AppCore, which needs a live MapData/Mmapper2PathMachine --
+    # they link into this small test binary without dragging in the
+    # mapfrontend/parser/mapstorage graph the other stubs in TestQml.cpp
+    # avoid.
+    set(command_registry_SRCS
+            ../src/mainwindow/CommandRegistry.cpp
+            ../src/mainwindow/CommandRegistry.h
+            ../src/mainwindow/UiCommand.cpp
+            ../src/mainwindow/UiCommand.h
+    )
     set(log_model_SRCS
             ../src/mainwindow/LogModel.cpp
             ../src/mainwindow/LogModel.h
@@ -628,7 +641,7 @@ if(WITH_QML)
             ${checkable_flag_model_SRCS} ${preferences_adapter_SRCS}
             ${ansi_view_content_SRCS} ${ansi_color_picker_controller_SRCS}
             ${remote_edit_document_ops_SRCS} ${remote_edit_highlighter_SRCS}
-            ${remote_edit_session_SRCS} ${display_map_view_SRCS})
+            ${remote_edit_session_SRCS} ${display_map_view_SRCS} ${command_registry_SRCS})
     add_dependencies(TestQml mm_qml mm_qmlplugin mm_test mm_global mm_map)
     target_link_libraries(TestQml
             mm_qml

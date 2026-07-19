@@ -71,4 +71,5 @@ private Q_SLOTS:
     void loadPasswordDialog();
     void loadMapView();
     void mapViewModelScrollMath();
+    void loadMainShell();
 };

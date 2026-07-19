@@ -68,7 +68,14 @@ public:
                                     bool checkable = false,
                                     bool bulkDisablable = false);
 
-    NODISCARD UiCommand *command(const QString &id) const { return m_commands.value(id, nullptr); }
+    // Q_INVOKABLE so the QML shell can look commands up by id directly from
+    // QML (e.g. `commands.command("view.zoom-in")`, with `commands` exposed
+    // as a context property bound to this registry); see
+    // QmlShellWindow.cpp/MainShell.qml/CommandAction.qml.
+    NODISCARD Q_INVOKABLE UiCommand *command(const QString &id) const
+    {
+        return m_commands.value(id, nullptr);
+    }
 
     // Registers `cmd` as a member of `groupName`, creating the group on
     // first use. All members of a given group must agree on `exclusive`.

@@ -22,9 +22,11 @@
 #include "../src/mainwindow/AboutInfo.h"
 #include "../src/mainwindow/AnsiColorPickerController.h"
 #include "../src/mainwindow/CheckableFlagModel.h"
+#include "../src/mainwindow/CommandRegistry.h"
 #include "../src/mainwindow/FindRoomsModel.h"
 #include "../src/mainwindow/LogModel.h"
 #include "../src/mainwindow/TasksModel.h"
+#include "../src/mainwindow/UiCommand.h"
 #include "../src/mainwindow/UpdateChecker.h"
 #include "../src/map/Map.h"
 #include "../src/map/RawRoom.h"
@@ -54,6 +56,7 @@
 #include "FakeClientBackend.h"
 
 #include <algorithm>
+#include <array>
 #include <atomic>
 #include <chrono>
 #include <memory>
@@ -3384,6 +3387,89 @@ void TestQml::mapViewModelScrollMath()
     stepSpy.clear();
     QTest::qWait(250);
     QCOMPARE(stepSpy.count(), 0);
+}
+
+void TestQml::loadMainShell()
+{
+    // MainShell.qml (../src/qml/shell/MainShell.qml) is Shell B's top-level
+    // window -- see ../src/mainwindow/QmlShellWindow.h/.cpp and
+    // ../src/main.cpp's --qml-shell handling, which construct the
+    // QQmlApplicationEngine that loads it in the real app. This test drives
+    // it with real CommandRegistry/UiCommand/MapViewModel instances (see
+    // command_registry_SRCS/display_map_view_SRCS in tests/CMakeLists.txt
+    // for why those link cleanly here) standing in for QmlShellWindow's
+    // context properties, plus initTestCase()'s MapCanvasItemStub
+    // registration (see its own comment above) for the "MapCanvasItem" type
+    // MapView.qml instantiates.
+    CommandRegistry registry(nullptr);
+    static constexpr std::array kLiveIds{
+        "file.exit",
+        "view.zoom-in",
+        "view.zoom-out",
+        "view.zoom-reset",
+        "layer.up",
+        "layer.down",
+        "layer.reset",
+        "world.rebuild-meshes",
+        "mouse-mode.move",
+        "mouse-mode.room-raypick",
+        "mouse-mode.room-select",
+        "mouse-mode.connection-select",
+        "mouse-mode.create-room",
+        "mouse-mode.create-connection",
+        "mouse-mode.create-oneway-connection",
+        "mouse-mode.infomark-select",
+        "mouse-mode.create-infomark",
+    };
+    for (const char *const id : kLiveIds) {
+        const bool checkable = QByteArray(id).startsWith("mouse-mode.");
+        UiCommand *const cmd = registry.addCommand(QString::fromLatin1(id), checkable);
+        if (checkable) {
+            registry.addToGroup(cmd, QStringLiteral("mouse-mode"), true);
+        }
+    }
+    registry.command(QStringLiteral("mouse-mode.move"))->setChecked(true);
+
+    MapViewModel viewModel;
+
+    QQmlEngine engine;
+    engine.rootContext()->setContextProperty("commands", &registry);
+    engine.rootContext()->setContextProperty("mapCore", QVariant::fromValue<QObject *>(nullptr));
+    engine.rootContext()->setContextProperty("mapViewModel", &viewModel);
+    engine.rootContext()->setContextProperty("statusText", QStringLiteral("test status"));
+
+    QQmlComponent component(&engine, QUrl(u"qrc:/qt/qml/MMapper/MainShell.qml"_qs));
+
+    while (component.isLoading()) {
+        QCoreApplication::processEvents();
+    }
+    QVERIFY2(!component.isError(), qPrintable(component.errorString()));
+
+    QScopedPointer<QObject> object(component.create(engine.rootContext()));
+    QVERIFY(object != nullptr);
+    QCoreApplication::processEvents();
+
+    QVERIFY(qobject_cast<QQuickWindow *>(object.data()) != nullptr);
+
+    // ApplicationWindow's "menuBar" attached property must resolve to a
+    // real MenuBar instance (the File/View/Mode menus built in
+    // MainShell.qml).
+    const QVariant menuBarProp = object->property("menuBar");
+    QVERIFY(menuBarProp.isValid());
+    QVERIFY(menuBarProp.value<QObject *>() != nullptr);
+
+    auto *const mapCanvasItem = object->findChild<MapCanvasItemStub *>();
+    QVERIFY(mapCanvasItem != nullptr);
+    QCOMPARE(mapCanvasItem->getCore(), nullptr);
+
+    auto *const statusLabel = object->findChild<QQuickItem *>(QStringLiteral("statusLabel"));
+    QVERIFY(statusLabel != nullptr);
+    QCOMPARE(statusLabel->property("text").toString(), QStringLiteral("test status"));
+
+    // Triggering a live command through the registry (exactly what
+    // CommandAction.qml's onTriggered does) must not crash even though
+    // nothing here is actually bound to a real MapCanvasCore.
+    registry.command(QStringLiteral("view.zoom-in"))->trigger();
 }
 
 QTEST_MAIN(TestQml)

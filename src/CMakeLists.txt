@@ -718,6 +718,19 @@ if(NOT WITH_QML)
         viewers/AnsiViewWindow.cpp)
 endif()
 
+if(WITH_QML)
+    # QmlShellWindow bootstraps Shell B (the --qml-shell preview; see
+    # main.cpp and QmlShellWindow.h's file comment). It includes
+    # <QQmlApplicationEngine> (Qt6::Qml), so -- like mainwindow.cpp, which
+    # it parallels -- it's compiled directly into the "mmapper" executable's
+    # own sources rather than into any static lib a test binary might link
+    # (see mm_qml_canvas's CMake comment above for why that distinction
+    # matters for MapCanvasCore-touching code).
+    list(APPEND mmapper_SRCS
+        mainwindow/QmlShellWindow.cpp
+        mainwindow/QmlShellWindow.h)
+endif()
+
 qt_add_resources(mmapper_QRC resources/mmapper2.qrc)
 
 if(MMAPPER_BETA)
@@ -927,6 +940,17 @@ if(WITH_QML)
     set_source_files_properties(qml/PrefsGeneralPage.qml PROPERTIES QT_RESOURCE_ALIAS "PrefsGeneralPage.qml")
     set_source_files_properties(qml/PrefsClientPage.qml PROPERTIES QT_RESOURCE_ALIAS "PrefsClientPage.qml")
     set_source_files_properties(qml/MapView.qml PROPERTIES QT_RESOURCE_ALIAS "MapView.qml")
+    set_source_files_properties(qml/CommandAction.qml PROPERTIES QT_RESOURCE_ALIAS "CommandAction.qml")
+    # qml/shell/MainShell.qml is aliased flat at the module root (not
+    # "shell/MainShell.qml"): a qt_add_qml_module QML file that lives in a
+    # subdirectory of the module root is treated by the QML engine as
+    # belonging to its own nested implicit-import scope, which breaks its
+    # `import MMapper` sibling-type lookups (MapView here) even though the
+    # module's qmldir lists it correctly -- see the task report for the
+    # repro. Flattening the alias sidesteps that; MainShell.qml still lives
+    # on disk under qml/shell/ (see the source path above) for repo
+    # organization, it just doesn't carry that into the resource tree.
+    set_source_files_properties(qml/shell/MainShell.qml PROPERTIES QT_RESOURCE_ALIAS "MainShell.qml")
 
     qt_add_qml_module(mm_qml
         STATIC
@@ -968,6 +992,8 @@ if(WITH_QML)
             qml/PrefsGeneralPage.qml
             qml/PrefsClientPage.qml
             qml/MapView.qml
+            qml/CommandAction.qml
+            qml/shell/MainShell.qml
         SOURCES
             qml/AnsiViewDialog.cpp
             qml/AnsiColorPickerLauncher.h

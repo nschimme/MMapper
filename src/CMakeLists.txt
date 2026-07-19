@@ -951,6 +951,13 @@ if(WITH_QML)
     # on disk under qml/shell/ (see the source path above) for repo
     # organization, it just doesn't carry that into the resource tree.
     set_source_files_properties(qml/shell/MainShell.qml PROPERTIES QT_RESOURCE_ALIAS "MainShell.qml")
+    # DockPanel/DockColumn/DockRow.qml live under qml/shell/ alongside
+    # MainShell.qml (see its QT_RESOURCE_ALIAS comment above for why every
+    # qml/shell/*.qml file needs its alias flattened to the module root the
+    # same way).
+    set_source_files_properties(qml/shell/DockPanel.qml PROPERTIES QT_RESOURCE_ALIAS "DockPanel.qml")
+    set_source_files_properties(qml/shell/DockColumn.qml PROPERTIES QT_RESOURCE_ALIAS "DockColumn.qml")
+    set_source_files_properties(qml/shell/DockRow.qml PROPERTIES QT_RESOURCE_ALIAS "DockRow.qml")
 
     qt_add_qml_module(mm_qml
         STATIC
@@ -994,6 +1001,9 @@ if(WITH_QML)
             qml/MapView.qml
             qml/CommandAction.qml
             qml/shell/MainShell.qml
+            qml/shell/DockPanel.qml
+            qml/shell/DockColumn.qml
+            qml/shell/DockRow.qml
         SOURCES
             qml/AnsiViewDialog.cpp
             qml/AnsiColorPickerLauncher.h
@@ -1010,6 +1020,8 @@ if(WITH_QML)
             qml/GroupIconProvider.cpp
             qml/DescriptionImageProvider.h
             qml/DescriptionImageProvider.cpp
+            qml/DockLayoutController.h
+            qml/DockLayoutController.cpp
             mpi/RemoteEditController.h
             mpi/RemoteEditController.cpp
             qml/RemoteEditDialogHost.h

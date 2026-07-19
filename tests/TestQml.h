@@ -72,4 +72,5 @@ private Q_SLOTS:
     void loadMapView();
     void mapViewModelScrollMath();
     void loadMainShell();
+    void loadMainShellDocks();
 };

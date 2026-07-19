@@ -3,15 +3,36 @@
 
 #include "QmlShellWindow.h"
 
+#include "../adventure/AdventureLogModel.h"
+#include "../adventure/adventuretracker.h"
+#include "../client/ClientController.h"
+#include "../client/ClientLineModel.h"
+#include "../client/HotkeyManager.h"
 #include "../display/CanvasMouseModeEnum.h"
 #include "../display/MapCanvasCore.h"
 #include "../display/MapViewModel.h"
 #include "../display/prespammedpath.h"
 #include "../global/utils.h"
+#include "../group/GroupController.h"
+#include "../group/GroupModel.h"
 #include "../group/mmapper2group.h"
 #include "../mapdata/mapdata.h"
+#include "../media/DescriptionAdapter.h"
+#include "../media/MediaLibrary.h"
 #include "../observer/gameobserver.h"
+#include "../proxy/GmcpMessage.h"
+#include "../qml/DescriptionImageProvider.h"
+#include "../qml/DockLayoutController.h"
+#include "../qml/GroupIconProvider.h"
+#include "../qml/QmlConfig.h"
+#include "../roompanel/RoomManager.h"
+#include "../roompanel/RoomModel.h"
+#include "../timers/CTimers.h"
+#include "../timers/TimerController.h"
+#include "../timers/TimerModel.h"
 #include "CommandRegistry.h"
+#include "LogModel.h"
+#include "TasksModel.h"
 #include "UiCommand.h"
 
 #include <array>
@@ -172,6 +193,48 @@ QmlShellWindow::QmlShellWindow(QObject *const parent)
 
     registerCommands();
 
+    // --- dock panel backing objects (see file comment) -- mirrors
+    // mainwindow.cpp's per-panel std::invoke() blocks, minus the
+    // #ifdef MMAPPER_WITH_QML widget-shell branches (this class only ever
+    // builds under WITH_QML; see QmlShellWindow.h's ctor comment). ---
+    m_qmlConfig = new QmlConfig(this);
+
+    m_logModel = new LogModel(this);
+
+    m_groupController = new GroupController(deref(m_groupManager), deref(m_mapData), this);
+
+    m_roomManager = new RoomManager(this);
+    m_roomManager->setObjectName("RoomManager");
+    m_gameObserver->sig2_sentToUserGmcp.connect(m_lifetime, [this](const GmcpMessage &gmcp) {
+        deref(m_roomManager).slot_parseGmcpInput(gmcp);
+    });
+    m_roomModel = new RoomModel(this, deref(m_roomManager).getRoom());
+    connect(m_roomManager, &RoomManager::sig_updateWidget, m_roomModel, &RoomModel::update);
+
+    m_adventureTracker = new AdventureTracker(deref(m_gameObserver), this);
+    m_adventureLogModel = new AdventureLogModel(deref(m_adventureTracker), this);
+
+    m_mediaLibrary = new MediaLibrary(this);
+    m_descriptionAdapter = new DescriptionAdapter(deref(m_mediaLibrary), this);
+
+    m_timers = new CTimers(this);
+    m_timerModel = new TimerModel(deref(m_timers), this);
+    m_timerController = new TimerController(deref(m_timers), deref(m_timerModel), this);
+
+    m_tasksModel = new TasksModel(this);
+
+    m_hotkeyManager = std::make_unique<HotkeyManager>();
+    m_clientLineModel = new ClientLineModel(this);
+    m_clientController = new ClientController(deref(m_clientLineModel),
+                                              deref(m_hotkeyManager),
+                                              this);
+    // No ClientControllerBackend installed -- this shell has no
+    // ConnectionListener/telnet proxy to back it with (see file comment).
+    // Every backend-driving invokable on m_clientController silently no-ops
+    // until a later commit wires one up.
+
+    m_dockLayout = new DockLayoutController(this);
+
     m_engine = new QQmlApplicationEngine(this);
     m_engine->rootContext()->setContextProperty("commands", m_commandRegistry);
     m_engine->rootContext()->setContextProperty("mapCore", m_mapCanvasCore);
@@ -183,6 +246,38 @@ QmlShellWindow::QmlShellWindow(QObject *const parent)
     m_engine->rootContext()->setContextProperty("statusText",
                                                 QStringLiteral(
                                                     "MMapper QML shell preview (offline)"));
+
+    // --- dock panel context properties -- one root context shared by every
+    // panel (see file comment for why this differs from QmlDockWidget's
+    // per-dock setContextProperty()). Image providers must be registered
+    // before the engine loads MainShell.qml. ---
+    m_engine->addImageProvider(QStringLiteral("groupicons"), new GroupIconProvider());
+    m_engine->addImageProvider(QStringLiteral("description"),
+                               new DescriptionImageProvider(m_descriptionAdapter->getStore()));
+
+    QQmlContext *const rootContext = m_engine->rootContext();
+    rootContext->setContextProperty("dockLayout", m_dockLayout);
+    rootContext->setContextProperty("config", m_qmlConfig);
+
+    rootContext->setContextProperty("logModel", m_logModel);
+
+    rootContext->setContextProperty("groupModel", m_groupController->getModel());
+    rootContext->setContextProperty("groupProxyModel", m_groupController->getProxy());
+    rootContext->setContextProperty("groupController", m_groupController);
+
+    rootContext->setContextProperty("roomModel", m_roomModel);
+
+    rootContext->setContextProperty("adventureLogModel", m_adventureLogModel);
+
+    rootContext->setContextProperty("adapter", m_descriptionAdapter);
+
+    rootContext->setContextProperty("timerModel", m_timerModel);
+    rootContext->setContextProperty("timerController", m_timerController);
+
+    rootContext->setContextProperty("tasksModel", m_tasksModel);
+
+    rootContext->setContextProperty("clientController", m_clientController);
+    rootContext->setContextProperty("clientLineModel", m_clientLineModel);
 
     m_engine->load(QUrl(QStringLiteral("qrc:/qt/qml/MMapper/MainShell.qml")));
     m_valid = !m_engine->rootObjects().isEmpty();

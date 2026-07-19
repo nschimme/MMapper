@@ -43,6 +43,7 @@
 #include "../src/preferences/PreferencesController.h"
 #include "../src/proxy/GmcpMessage.h"
 #include "../src/qml/DescriptionImageProvider.h"
+#include "../src/qml/DockLayoutController.h"
 #include "../src/qml/QmlConfig.h"
 #include "../src/qml/QmlDialog.h"
 #include "../src/qml/QmlDockWidget.h"
@@ -3470,6 +3471,141 @@ void TestQml::loadMainShell()
     // CommandAction.qml's onTriggered does) must not crash even though
     // nothing here is actually bound to a real MapCanvasCore.
     registry.command(QStringLiteral("view.zoom-in"))->trigger();
+}
+
+void TestQml::loadMainShellDocks()
+{
+    // Drives MainShell.qml's 8-dock SplitView layout (added alongside
+    // DockLayoutController -- see ../src/qml/DockLayoutController.h and
+    // ../src/mainwindow/QmlShellWindow.cpp's ctor) with one context
+    // property per panel, reusing the exact same stub/fixture objects each
+    // individual panel test above uses (GroupControllerStub for
+    // loadGroupPanel(), FakeBackend for loadClientPanel(), a bare
+    // RoomManager for loadRoomPanel(), ...) rather than constructing a
+    // second copy of QmlShellWindow's real wiring.
+    CommandRegistry registry(nullptr);
+    MapViewModel viewModel;
+
+    DockLayoutController dockLayout;
+
+    QmlConfig config;
+
+    LogModel logModel(nullptr);
+
+    GroupModel groupModel;
+    GroupProxyModel groupProxy;
+    groupProxy.setSourceModel(&groupModel);
+    GroupControllerStub groupController(nullptr);
+
+    RoomManager roomManager(nullptr);
+    RoomModel roomModel(nullptr, roomManager.getRoom());
+
+    GameObserver gameObserver;
+    AdventureTracker adventureTracker(gameObserver, nullptr);
+    AdventureLogModel adventureLogModel(adventureTracker, nullptr);
+
+    MediaLibrary mediaLibrary;
+    DescriptionAdapter descriptionAdapter(mediaLibrary, nullptr);
+
+    CTimers timers(nullptr);
+    TimerModel timerModel(timers, nullptr);
+    TimerController timerController(timers, timerModel, nullptr);
+
+    TasksModel tasksModel;
+
+    ClientLineModel clientLineModel;
+    HotkeyManager hotkeys;
+    hotkeys.resetToDefaults();
+    ClientController clientController(clientLineModel, hotkeys, nullptr);
+    auto backend = std::make_unique<FakeBackend>();
+    clientController.setBackend(std::move(backend));
+
+    QQmlEngine engine;
+    // Deliberately does NOT register a "groupicons" image provider -- same
+    // dependency-graph tradeoff loadGroupPanel() documents above
+    // (GroupIconProvider.cpp would drag in display/Filenames.cpp and, with
+    // it, most of the parser/mapdata graph this small test binary avoids).
+    // Must be registered before component creation, like
+    // QmlDockWidget::addImageProvider()'s doc comment requires.
+    engine.addImageProvider(QStringLiteral("description"),
+                            new DescriptionImageProvider(descriptionAdapter.getStore()));
+
+    engine.rootContext()->setContextProperty("commands", &registry);
+    engine.rootContext()->setContextProperty("mapCore", QVariant::fromValue<QObject *>(nullptr));
+    engine.rootContext()->setContextProperty("mapViewModel", &viewModel);
+    engine.rootContext()->setContextProperty("statusText", QStringLiteral("test status"));
+    engine.rootContext()->setContextProperty("dockLayout", &dockLayout);
+    engine.rootContext()->setContextProperty("config", &config);
+    engine.rootContext()->setContextProperty("logModel", &logModel);
+    engine.rootContext()->setContextProperty("groupModel", &groupModel);
+    engine.rootContext()->setContextProperty("groupProxyModel", &groupProxy);
+    engine.rootContext()->setContextProperty("groupController", &groupController);
+    engine.rootContext()->setContextProperty("roomModel", &roomModel);
+    engine.rootContext()->setContextProperty("adventureLogModel", &adventureLogModel);
+    engine.rootContext()->setContextProperty("adapter", &descriptionAdapter);
+    engine.rootContext()->setContextProperty("timerModel", &timerModel);
+    engine.rootContext()->setContextProperty("timerController", &timerController);
+    engine.rootContext()->setContextProperty("tasksModel", &tasksModel);
+    engine.rootContext()->setContextProperty("clientController", &clientController);
+    engine.rootContext()->setContextProperty("clientLineModel", &clientLineModel);
+
+    QQmlComponent component(&engine, QUrl(u"qrc:/qt/qml/MMapper/MainShell.qml"_qs));
+    while (component.isLoading()) {
+        QCoreApplication::processEvents();
+    }
+    QVERIFY2(!component.isError(), qPrintable(component.errorString()));
+
+    QScopedPointer<QObject> object(component.create(engine.rootContext()));
+    QVERIFY(object != nullptr);
+    QCoreApplication::processEvents();
+
+    static constexpr std::array kDockNames{
+        "dockLog",
+        "dockGroup",
+        "dockRoom",
+        "dockAdventure",
+        "dockDescription",
+        "dockTimers",
+        "dockTasks",
+        "dockClient",
+    };
+    for (const char *const name : kDockNames) {
+        QObject *const dock = object->findChild<QObject *>(QString::fromLatin1(name));
+        QVERIFY2(dock != nullptr, name);
+    }
+
+    // Defaults mirror mainwindow.cpp's dock->hide()/no-hide-call split (see
+    // DockLayoutController.h's Q_PROPERTY comment): Log/Room/Adventure/
+    // Timers/Tasks start hidden, Group/Description/Client start visible.
+    auto *const dockLog = object->findChild<QQuickItem *>(QStringLiteral("dockLog"));
+    auto *const dockGroup = object->findChild<QQuickItem *>(QStringLiteral("dockGroup"));
+    auto *const dockDescription = object->findChild<QQuickItem *>(QStringLiteral("dockDescription"));
+    auto *const dockClient = object->findChild<QQuickItem *>(QStringLiteral("dockClient"));
+    QVERIFY(dockLog != nullptr);
+    QVERIFY(dockGroup != nullptr);
+    QVERIFY(dockDescription != nullptr);
+    QVERIFY(dockClient != nullptr);
+    QCOMPARE(dockLog->isVisible(), false);
+    QCOMPARE(dockGroup->isVisible(), true);
+    QCOMPARE(dockDescription->isVisible(), true);
+    QCOMPARE(dockClient->isVisible(), true);
+
+    // Toggling a dock's visibility through the same controller property the
+    // "Side Panels" menu items and each DockPanel's close button drive must
+    // not crash the surrounding SplitView.
+    dockLayout.setProperty("logVisible", true);
+    QCoreApplication::processEvents();
+    QCOMPARE(dockLog->isVisible(), true);
+
+    dockLayout.setProperty("groupVisible", false);
+    QCoreApplication::processEvents();
+    QCOMPARE(dockGroup->isVisible(), false);
+
+    dockLayout.setProperty("groupVisible", true);
+    dockLayout.setProperty("logVisible", false);
+    QCoreApplication::processEvents();
+    QCOMPARE(dockGroup->isVisible(), true);
+    QCOMPARE(dockLog->isVisible(), false);
 }
 
 QTEST_MAIN(TestQml)

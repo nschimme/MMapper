@@ -648,4 +648,74 @@ void TestGlobal::weakHandleTest()
     test::testWeakHandle();
 }
 
+struct MockFileInfo {
+    QString name;
+    QDateTime birthTime;
+    QDateTime lastModified;
+    qint64 size;
+};
+
+static QDateTime getFileTimeMock(const MockFileInfo &fileInfo)
+{
+    const QDateTime birth = fileInfo.birthTime;
+    static const QDateTime epochCutoff = QDateTime(QDate(1980, 1, 1), QTime(0, 0, 0), Qt::UTC);
+    if (birth.isValid() && birth > epochCutoff) {
+        return birth;
+    }
+    return fileInfo.lastModified;
+}
+
+void TestGlobal::autoLoggerLogicTest()
+{
+    // 1. Verify getFileTimeMock logic
+    MockFileInfo m1{ "f1.txt", QDateTime(QDate(1970, 1, 1), QTime(0, 0, 0), Qt::UTC), QDateTime(QDate(2023, 1, 1), QTime(0, 0, 0), Qt::UTC), 100 };
+    QCOMPARE(getFileTimeMock(m1), QDateTime(QDate(2023, 1, 1), QTime(0, 0, 0), Qt::UTC)); // Falls back to lastModified because birth is epoch 0 (<= 1980)
+
+    MockFileInfo m2{ "f2.txt", QDateTime(), QDateTime(QDate(2022, 1, 1), QTime(0, 0, 0), Qt::UTC), 100 };
+    QCOMPARE(getFileTimeMock(m2), QDateTime(QDate(2022, 1, 1), QTime(0, 0, 0), Qt::UTC)); // Falls back because birth is invalid
+
+    MockFileInfo m3{ "f3.txt", QDateTime(QDate(2024, 1, 1), QTime(0, 0, 0), Qt::UTC), QDateTime(QDate(2025, 1, 1), QTime(0, 0, 0), Qt::UTC), 100 };
+    QCOMPARE(getFileTimeMock(m3), QDateTime(QDate(2024, 1, 1), QTime(0, 0, 0), Qt::UTC)); // Uses birthTime because it is valid and > 1980
+
+    // 2. Verify sorting and cumulative size deletion logic
+    QList<MockFileInfo> fileInfoList = {
+        { "file1.txt", QDateTime(QDate(1970, 1, 1), QTime(0, 0, 0), Qt::UTC), QDateTime(QDate(2023, 5, 10), QTime(0, 0, 0), Qt::UTC), 60 }, // oldest after fallback
+        { "file2.txt", QDateTime(QDate(2024, 5, 10), QTime(0, 0, 0), Qt::UTC), QDateTime(QDate(2024, 5, 10), QTime(0, 0, 0), Qt::UTC), 50 }, // middle
+        { "file3.txt", QDateTime(), QDateTime(QDate(2025, 5, 10), QTime(0, 0, 0), Qt::UTC), 30 } // newest after fallback
+    };
+
+    // Sort newest to oldest
+    std::sort(fileInfoList.begin(), fileInfoList.end(), [](const auto &a, const auto &b) {
+        return getFileTimeMock(a) > getFileTimeMock(b);
+    });
+
+    // Verify sorted order
+    QCOMPARE(fileInfoList[0].name, QString("file3.txt")); // 2025
+    QCOMPARE(fileInfoList[1].name, QString("file2.txt")); // 2024
+    QCOMPARE(fileInfoList[2].name, QString("file1.txt")); // 2023
+
+    // Apply cumulative size check (limit is 100 bytes)
+    qint64 totalFileSize = 0;
+    QList<MockFileInfo> filesToDelete;
+    qint64 deleteWhenLogsReachBytes = 100;
+
+    for (const auto &fileInfo : fileInfoList) {
+        totalFileSize += fileInfo.size;
+        bool deleteFile = false;
+        if (totalFileSize >= deleteWhenLogsReachBytes) {
+            deleteFile = true;
+        }
+        if (deleteFile) {
+            filesToDelete.append(fileInfo);
+        }
+    }
+
+    // Expected:
+    // file3.txt kept (total 30, limit 100)
+    // file2.txt kept (total 80, limit 100)
+    // file1.txt deleted (total 140, limit 100)
+    QCOMPARE(filesToDelete.size(), 1);
+    QCOMPARE(filesToDelete[0].name, QString("file1.txt"));
+}
+
 QTEST_MAIN(TestGlobal)

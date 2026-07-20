@@ -70,6 +70,7 @@ private Q_SLOTS:
     void remoteEditSessionQmlPath();
     void loadPasswordDialog();
     void loadMapView();
+    void loadMapViewFboFallback();
     void mapViewModelScrollMath();
     void loadMainShell();
     void pathMachineStatusFunnel();

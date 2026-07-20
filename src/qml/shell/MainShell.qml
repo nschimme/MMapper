@@ -67,6 +67,43 @@ QQC2.ApplicationWindow {
     width: 1280
     height: 800
     visible: true
+
+    // TRANSPARENT-HOLE AUDIT (see MapCanvasUnderlayItem.h's file comment for
+    // the underlay technique this exists for): MapView's canvas normally
+    // draws the map into MainShell's ApplicationWindow.background --
+    // QQC2.ApplicationWindow's default is an OPAQUE Rectangle filled from
+    // the style palette, drawn as an ordinary scene-graph item BEHIND
+    // contentItem but still AFTER (i.e. on top of, in the same render pass)
+    // whatever MapCanvasUnderlayItem just drew directly into the window's
+    // framebuffer during beforeRenderPassRecording() -- so left at its
+    // default, that Rectangle would simply paint over the entire map every
+    // frame. Replacing it with an empty (transparent) Item removes that
+    // cover for the WHOLE window, not just the map's rect (a single flat
+    // QML Rectangle can't be selectively "holed out" for one child item's
+    // geometry) -- so every other visible piece of chrome must supply its
+    // OWN opaque fill instead of relying on this one. Audited so far (each
+    // gets its fill from the Fusion QQuickStyle set in main.cpp, or an
+    // explicit Rectangle added alongside this change):
+    //   - menuBar (QQC2.MenuBar below): Fusion style backgrounds it.
+    //   - header's QQC2.ToolBar instances: Fusion style backgrounds them.
+    //   - the 8 DockPanel side panels (../shell/DockPanel.qml): the header
+    //     Rectangle{color: sysPalette.button} plus each panel's loaded
+    //     content -- PanelFrame.qml (Rectangle{color: sysPalette.window})
+    //     for 7 of them, ClientPanel.qml's own
+    //     Rectangle{color: config.clientBgColor} for the 8th.
+    //   - outerSplit's QQC2.SplitView handles (../shell/DockColumn.qml/
+    //     DockRow.qml): Fusion style backgrounds them.
+    //   - footer (below): was a bare Row with no fill of its own (relying
+    //     entirely on this window's now-removed background) -- given an
+    //     explicit Rectangle wrapper below.
+    //   - ioProgressPopup (QQC2.Popup below): Fusion style backgrounds
+    //     Popup's own background.
+    //   - MapView.qml's own splash Image / scrollbars: deliberately left
+    //     see-through where they don't paint -- that IS the map's rect, and
+    //     is meant to show the underlay through (matching the previous
+    //     MapCanvasItem/QQuickFramebufferObject behavior, where the splash
+    //     simply sat on top of whatever the item's FBO contained).
+    background: Item {}
     // windowTitle is a context property refreshed by
     // QmlShellWindow::updateWindowTitle() (see its doc comment for how it
     // mirrors MainWindow::setCurrentFile()); the literal fallback below only
@@ -1275,32 +1312,49 @@ QQC2.ApplicationWindow {
     // this offline shell yet -- see the TODO below), and the transient
     // message label filling the remaining space on the left, exactly like
     // QStatusBar::showMessage()'s text does relative to permanent widgets.
-    footer: Row {
-        QQC2.Label {
-            objectName: "statusLabel"
-            text: typeof statusText !== "undefined" ? statusText : ""
-            padding: 4
-            width: parent.width - pathMachineLabel.implicitWidth - clockStrip.implicitWidth
-                   - xpStatusItem.implicitWidth - 12
+    footer: Rectangle {
+        id: footerBar
+        // Explicit opaque fill: see the ApplicationWindow.background
+        // "TRANSPARENT-HOLE AUDIT" comment above -- this row previously
+        // relied entirely on that now-removed background Rectangle to look
+        // opaque.
+        implicitHeight: footerRow.implicitHeight
+        color: footerPalette.window
+
+        SystemPalette {
+            id: footerPalette
+            colorGroup: SystemPalette.Active
         }
-        QQC2.Label {
-            id: pathMachineLabel
-            objectName: "pathMachineLabel"
-            // Fed by Mmapper2PathMachine::sig_state via QmlShellWindow.cpp's
-            // wirePathMachine(), which keeps the "pathMachineStatus" context
-            // property in sync (mirrors MainWindow::setupStatusBar()'s
-            // `connect(m_pathMachine, &Mmapper2PathMachine::sig_state,
-            // pathmachineStatus, &QLabel::setText)`).
-            text: typeof pathMachineStatus !== "undefined" ? pathMachineStatus : ""
-            padding: 4
-        }
-        XpStatusItem {
-            id: xpStatusItem
-            objectName: "xpStatusItem"
-        }
-        ClockStrip {
-            id: clockStrip
-            objectName: "clockStrip"
+
+        Row {
+            id: footerRow
+            anchors.fill: parent
+            QQC2.Label {
+                objectName: "statusLabel"
+                text: typeof statusText !== "undefined" ? statusText : ""
+                padding: 4
+                width: parent.width - pathMachineLabel.implicitWidth - clockStrip.implicitWidth
+                       - xpStatusItem.implicitWidth - 12
+            }
+            QQC2.Label {
+                id: pathMachineLabel
+                objectName: "pathMachineLabel"
+                // Fed by Mmapper2PathMachine::sig_state via QmlShellWindow.cpp's
+                // wirePathMachine(), which keeps the "pathMachineStatus" context
+                // property in sync (mirrors MainWindow::setupStatusBar()'s
+                // `connect(m_pathMachine, &Mmapper2PathMachine::sig_state,
+                // pathmachineStatus, &QLabel::setText)`).
+                text: typeof pathMachineStatus !== "undefined" ? pathMachineStatus : ""
+                padding: 4
+            }
+            XpStatusItem {
+                id: xpStatusItem
+                objectName: "xpStatusItem"
+            }
+            ClockStrip {
+                id: clockStrip
+                objectName: "clockStrip"
+            }
         }
     }
 

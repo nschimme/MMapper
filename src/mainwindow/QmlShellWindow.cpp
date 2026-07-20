@@ -530,6 +530,18 @@ QmlShellWindow::QmlShellWindow(QObject *const parent)
     // ApplicationWindow.title) -- see hideSplash()/updateWindowTitle(), called
     // from the file I/O paths wired below in wireFileCommands().
     m_engine->rootContext()->setContextProperty("mapLoaded", false);
+    // Selects MapView.qml's canvas host type: MapCanvasUnderlay
+    // (MapCanvasUnderlayItem.h -- draws the map directly into the window's
+    // framebuffer beneath the rest of the Quick scene, the performance
+    // end-state) by default, or MapCanvasItem (MapCanvasQuickItem.h, the
+    // older QQuickFramebufferObject item-owns-its-own-FBO path) when the
+    // MMAPPER_CANVAS_FBO=1 environment variable is set -- an escape hatch
+    // for a platform/driver combination where the beforeRenderPassRecording()
+    // underlay misbehaves. See MapView.qml's file comment for how this
+    // property is consumed, and MapCanvasUnderlayItem.h's file comment for
+    // why the underlay is the preferred default.
+    m_engine->rootContext()->setContextProperty("useCanvasUnderlay",
+                                                qgetenv("MMAPPER_CANVAS_FBO") != "1");
     m_engine->rootContext()->setContextProperty("windowTitle",
                                                 QStringLiteral("MMapper (QML shell preview)"));
     // Path-machine status label (MainShell.qml's footer pathMachineLabel) --

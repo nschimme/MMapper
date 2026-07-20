@@ -2,30 +2,66 @@ import QtQuick
 import QtQuick.Controls as QQC2
 import MMapper
 
-// The QML map view's chrome, mirroring MapWindow (mapwindow.h/.cpp): a
-// MapCanvasItem filling the view, right/bottom scrollbars driven by a
-// mapViewModel context property, and a splash-screen overlay. This commit's
-// bar is modest ("loads and would render the core if a GL scene existed") --
-// full chrome parity (audio-hint banner logic, config-driven scrollbar
-// visibility, etc.) is the future QML shell commit's job. Nothing in the
-// running app loads this file yet.
+// The QML map view's chrome, mirroring MapWindow (mapwindow.h/.cpp): a map
+// canvas item filling the view, right/bottom scrollbars driven by a
+// mapViewModel context property, and a splash-screen overlay.
+//
+// Two C++-backed canvas types are registered (see ../qml/QmlTypes.cpp):
+// MapCanvasUnderlay (MapCanvasUnderlayItem.h) draws the map directly into
+// the window's own framebuffer beneath the rest of the Quick scene -- the
+// performance end-state, and the default here -- and MapCanvasItem
+// (MapCanvasQuickItem.h, a QQuickFramebufferObject) is the older
+// item-owns-its-own-FBO fallback, selected instead whenever the
+// "useCanvasUnderlay" root context property is false (QmlShellWindow wires
+// this to the MMAPPER_CANVAS_FBO=1 environment variable -- see
+// QmlShellWindow.cpp). Since the underlay item paints nothing through the
+// ordinary Quick scene graph (see MapCanvasUnderlayItem.h's file comment),
+// nothing else in this file (or MainShell.qml, which hosts this view) may
+// paint an OPAQUE background over the map's rect -- see MainShell.qml's own
+// "transparent hole" comment on its ApplicationWindow.background override.
 Item {
     id: root
 
-    // Bound by whoever instantiates MapView.qml (the future shell); null is
-    // always valid here (see MapCanvasItem's `core` property doc comment in
-    // MapCanvasQuickItem.h) and simply means nothing renders yet.
+    // Bound by whoever instantiates MapView.qml (the shell); null is always
+    // valid here (see MapCanvasUnderlayItem's/MapCanvasQuickItem's `core`
+    // property doc comments) and simply means nothing renders yet.
     // Declared as `var` (not a typed `MapCanvasCore` property) because
     // MapCanvasCore is a plain QObject with no QML type registration of its
-    // own -- only MapCanvasItem is registered (see ../qml/QmlTypes.cpp) --
-    // so a typed QML property declaration would fail to resolve at load
-    // time. Assigning a QObject* through `var` works fine.
+    // own -- only the two canvas item types are registered (see
+    // ../qml/QmlTypes.cpp) -- so a typed QML property declaration would
+    // fail to resolve at load time. Assigning a QObject* through `var`
+    // works fine.
     property var core: null
 
-    MapCanvasItem {
-        id: canvas
+    // Defaults to true (the underlay path) when the "useCanvasUnderlay"
+    // root context property is absent entirely -- e.g. a standalone test
+    // loading this file without QmlShellWindow's context properties set --
+    // matching QmlShellWindow's own default.
+    readonly property bool useUnderlay: typeof useCanvasUnderlay === "undefined"
+                                        ? true : useCanvasUnderlay
+
+    Loader {
+        id: canvasLoader
         anchors.fill: parent
-        core: root.core
+        sourceComponent: root.useUnderlay ? underlayComponent : fboComponent
+    }
+
+    Component {
+        id: underlayComponent
+        MapCanvasUnderlay {
+            id: canvas
+            anchors.fill: parent
+            core: root.core
+        }
+    }
+
+    Component {
+        id: fboComponent
+        MapCanvasItem {
+            id: canvas
+            anchors.fill: parent
+            core: root.core
+        }
     }
 
     // The map canvas's right-click context menu (../qml/shell/

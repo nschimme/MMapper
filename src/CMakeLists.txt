@@ -871,6 +871,9 @@ if(CHECK_ODR)
         # same reason as the qml/ exclusion above; it's only compiled (as
         # part of mm_qml) when WITH_QML is on -- see the WITH_QML block below.
         list(FILTER mmapper_HDRS EXCLUDE REGEX "^display/MapCanvasQuickItem.h$")
+        # display/MapCanvasUnderlayItem.h derives from QQuickItem (Qt6::Quick),
+        # same reason as the MapCanvasQuickItem.h exclusion directly above.
+        list(FILTER mmapper_HDRS EXCLUDE REGEX "^display/MapCanvasUnderlayItem.h$")
         # display/MapZoomController.h has no Qt Quick dependency of its own,
         # but MapZoomController.cpp (which defines calcPos(), ODR-used by
         # this header's static inline s_min/s_max member initializers) is
@@ -1100,6 +1103,8 @@ if(WITH_QML)
     qt_add_library(mm_qml_canvas STATIC
         display/MapCanvasQuickItem.h
         display/MapCanvasQuickItem.cpp
+        display/MapCanvasUnderlayItem.h
+        display/MapCanvasUnderlayItem.cpp
         qml/QmlTypes.h
         qml/QmlTypes.cpp
     )

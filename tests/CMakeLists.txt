@@ -499,19 +499,22 @@ if(WITH_QML)
     set(TestQml_SRCS TestQml.cpp TestQml.h FakeClientBackend.cpp FakeClientBackend.h)
     # MapViewModel is a plain, rendering-independent QObject (see
     # ../src/display/MapViewModel.h's file comment: deliberately has no
-    # dependency on MapCanvasCore/OpenGL), so it's linked directly. The real
-    # MapCanvasQuickItem class (mm_qml's "MapCanvasItem" QML type) is NOT
-    # linked here: its Q_PROPERTY(MapCanvasCore *core ...) drags in
-    # MapCanvasCore's vtable/RTTI (Qt's automatic QMetaType<MapCanvasCore*>
-    # registration needs it even though this binary would never construct
-    # one), which cascades into MapCanvasCore's OpenGL/rendering member
-    # types (FrameManager, GLWeather, OpenGL, GLFont, MapCanvasViewport,
+    # dependency on MapCanvasCore/OpenGL), so it's linked directly. Neither
+    # real canvas host class -- MapCanvasQuickItem (mm_qml_canvas's
+    # "MapCanvasItem" QML type) nor MapCanvasUnderlayItem (its
+    # "MapCanvasUnderlay" QML type) -- is linked here: each one's
+    # Q_PROPERTY(MapCanvasCore *core ...) drags in MapCanvasCore's
+    # vtable/RTTI (Qt's automatic QMetaType<MapCanvasCore*> registration
+    # needs it even though this binary would never construct one), which
+    # cascades into MapCanvasCore's OpenGL/rendering member types
+    # (FrameManager, GLWeather, OpenGL, GLFont, MapCanvasViewport,
     # MapCanvasInputState, ...) -- exactly the mapfrontend/parser/mapstorage-
     # style dependency graph every other stub in TestQml.cpp (see
     # GroupControllerStub, InfomarkEditControllerStub) deliberately avoids.
-    # loadMapView() below instead registers a lightweight QML-only stub
-    # under the same "MapCanvasItem" type name, exercising MapView.qml's
-    # chrome/layout without the real C++ item.
+    # loadMapView()/loadMapViewFboFallback() below instead register
+    # lightweight QML-only stubs under the same "MapCanvasUnderlay"/
+    # "MapCanvasItem" type names, exercising MapView.qml's chrome/layout
+    # (and its "useCanvasUnderlay" toggle) without either real C++ item.
     set(display_map_view_SRCS
             ../src/display/MapViewModel.cpp
             ../src/display/MapViewModel.h

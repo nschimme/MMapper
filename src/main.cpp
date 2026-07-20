@@ -280,14 +280,17 @@ int main(int argc, char **argv)
 
 #ifdef MMAPPER_WITH_QML
     if (shellType == ShellTypeEnum::Qml) {
-        // Shell B (--qml-shell): the map itself will be a genuine
-        // QQuickWindow scene-graph item (MapCanvasQuickItem; see
-        // display/MapCanvasQuickItem.h), not a QOpenGLWindow composited
-        // alongside QQuickWidget docks the way Shell A works -- so none of
-        // the Shell-A-only software-backend rationale below applies. Use a
-        // real hardware-accelerated backend, and the single-threaded
-        // ("basic") render loop MapCanvasQuickItem's file comment documents
-        // as its threading assumption.
+        // Shell B (--qml-shell): the map itself is, by default, drawn
+        // directly into the window's own framebuffer by
+        // MapCanvasUnderlayItem (see display/MapCanvasUnderlayItem.h) --
+        // or, as a fallback (MMAPPER_CANVAS_FBO=1; see QmlShellWindow.cpp),
+        // a genuine QQuickWindow scene-graph item owning its own FBO
+        // (MapCanvasQuickItem; see display/MapCanvasQuickItem.h) -- not a
+        // QOpenGLWindow composited alongside QQuickWidget docks the way
+        // Shell A works -- so none of the Shell-A-only software-backend
+        // rationale below applies. Use a real hardware-accelerated backend,
+        // and the single-threaded ("basic") render loop both classes' file
+        // comments document as their threading assumption.
         QQuickWindow::setGraphicsApi(QSGRendererInterface::OpenGL);
         if (qEnvironmentVariableIsEmpty("QSG_RENDER_LOOP")) {
             qputenv("QSG_RENDER_LOOP", "basic");

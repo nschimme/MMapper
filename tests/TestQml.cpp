@@ -562,6 +562,46 @@ private:
     QObject *m_core = nullptr;
 };
 
+// The real "MapCanvasUnderlay" QML type is MapCanvasUnderlayItem (see
+// ../src/display/MapCanvasUnderlayItem.h), a plain QQuickItem that hooks
+// QQuickWindow::beforeRenderPassRecording() to draw MapCanvasCore directly
+// into the window's own framebuffer -- the default canvas host MapView.qml
+// selects (see its "useCanvasUnderlay" doc comment) unless
+// MMAPPER_CANVAS_FBO=1 is set. Same reasoning as MapCanvasItemStub above for
+// why the real class isn't linked into this binary: this stub is a second,
+// separately-typed twin (rather than reusing MapCanvasItemStub under a
+// second qmlRegisterType<>() name) specifically so loadMapView()/
+// loadMapViewFboFallback() can each assert -- via findChild<T>() -- which of
+// the two canvas types MapView.qml actually instantiated for a given
+// "useCanvasUnderlay" context property value.
+class NODISCARD_QOBJECT MapCanvasUnderlayItemStub : public QQuickItem
+{
+    Q_OBJECT
+    Q_PROPERTY(QObject *core READ getCore WRITE setCore NOTIFY coreChanged)
+
+public:
+    explicit MapCanvasUnderlayItemStub(QQuickItem *const parent = nullptr)
+        : QQuickItem(parent)
+    {}
+
+public:
+    NODISCARD QObject *getCore() const { return m_core; }
+    void setCore(QObject *const core)
+    {
+        if (m_core == core) {
+            return;
+        }
+        m_core = core;
+        emit coreChanged();
+    }
+
+signals:
+    void coreChanged();
+
+private:
+    QObject *m_core = nullptr;
+};
+
 // Stands in for MapCanvasCore's userPressedEscape(Q_INVOKABLE, see
 // ../src/display/MapCanvasCore.h) as the "mapCore" context property for
 // mainShellEscapeShortcutForwards() below: a real MapCanvasCore needs OpenGL
@@ -723,14 +763,17 @@ void TestQml::initTestCase()
     // internal QTimer calls async_tasks::for_each() on every tick.
     async_tasks::init();
 
-    // Registers a QML-only stand-in for MapCanvasItem (the real,
-    // production MapCanvasQuickItem C++ class -- see
-    // ../src/display/MapCanvasQuickItem.h and ../src/qml/QmlTypes.cpp) so
-    // loadMapView() can instantiate MapView.qml's `MapCanvasItem { }`. See
-    // MapCanvasItemStub's own comment (below) and this file's
-    // display_map_view_SRCS CMake comment for why the real class isn't
+    // Registers QML-only stand-ins for MapCanvasItem/MapCanvasUnderlay (the
+    // real, production MapCanvasQuickItem/MapCanvasUnderlayItem C++ classes
+    // -- see ../src/display/MapCanvasQuickItem.h,
+    // ../src/display/MapCanvasUnderlayItem.h, and ../src/qml/QmlTypes.cpp)
+    // so loadMapView()/loadMapViewFboFallback() can instantiate MapView.qml
+    // with either "useCanvasUnderlay" value. See MapCanvasItemStub's/
+    // MapCanvasUnderlayItemStub's own comments (below) and this file's
+    // display_map_view_SRCS CMake comment for why the real classes aren't
     // linked into this binary.
     qmlRegisterType<MapCanvasItemStub>("MMapper", 1, 0, "MapCanvasItem");
+    qmlRegisterType<MapCanvasUnderlayItemStub>("MMapper", 1, 0, "MapCanvasUnderlay");
 }
 
 void TestQml::cleanupTestCase()
@@ -3415,15 +3458,57 @@ void TestQml::loadPasswordDialog()
 
 void TestQml::loadMapView()
 {
-    // MapView.qml instantiates `MapCanvasItem { core: root.core }` with
-    // root.core left at its default (null) -- see MapView.qml. initTestCase()
-    // registered MapCanvasItemStub (see its doc comment above) under that
-    // type name for exactly this test: it lets MapView.qml's chrome/layout
-    // load and bind without needing the real MapCanvasQuickItem class (and
-    // the MapCanvasCore/OpenGL dependency graph that comes with it) linked
-    // into this binary. The real class's own null-core handling is exercised
-    // by it simply compiling/linking cleanly into the production app.
+    // MapView.qml instantiates either `MapCanvasUnderlay { core: root.core }`
+    // or `MapCanvasItem { core: root.core }` (via a Loader keyed on the
+    // "useCanvasUnderlay" root context property -- see MapView.qml's file
+    // comment), with root.core left at its default (null). No
+    // "useCanvasUnderlay" context property is set here, so MapView.qml's own
+    // `typeof useCanvasUnderlay === "undefined"` default (true) applies --
+    // matching QmlShellWindow's own default (see QmlShellWindow.cpp) -- and
+    // it instantiates the MapCanvasUnderlay path. initTestCase() registered
+    // MapCanvasUnderlayItemStub (see its doc comment above) under that type
+    // name for exactly this test: it lets MapView.qml's chrome/layout load
+    // and bind without needing the real MapCanvasUnderlayItem class (and the
+    // MapCanvasCore/OpenGL dependency graph that comes with it) linked into
+    // this binary. The real class's own null-core handling is exercised by
+    // it simply compiling/linking cleanly into the production app (and by
+    // beforeRenderPassRecording() never firing at all under the "software"
+    // Qt Quick backend this test binary forces -- see initTestCase()).
     QQmlEngine engine;
+    QQmlComponent component(&engine, QUrl(u"qrc:/qt/qml/MMapper/MapView.qml"_qs));
+
+    while (component.isLoading()) {
+        QCoreApplication::processEvents();
+    }
+    QVERIFY2(!component.isError(), qPrintable(component.errorString()));
+
+    QScopedPointer<QObject> object(component.create(engine.rootContext()));
+    QVERIFY(object != nullptr);
+    QCoreApplication::processEvents();
+
+    auto *const canvasItem = object->findChild<MapCanvasUnderlayItemStub *>();
+    QVERIFY(canvasItem != nullptr);
+    QCOMPARE(canvasItem->getCore(), nullptr);
+    // The FBO fallback type must NOT have been instantiated on this path.
+    QVERIFY(object->findChild<MapCanvasItemStub *>() == nullptr);
+
+    // Resizing/reparenting the null-core item must not crash.
+    canvasItem->setWidth(400);
+    canvasItem->setHeight(300);
+    QCoreApplication::processEvents();
+}
+
+void TestQml::loadMapViewFboFallback()
+{
+    // Mirrors loadMapView() above, except with the "useCanvasUnderlay" root
+    // context property explicitly set to false -- mirroring
+    // QmlShellWindow.cpp wiring it to `false` when the MMAPPER_CANVAS_FBO=1
+    // escape-hatch environment variable is set. MapView.qml's Loader must
+    // then instantiate the MapCanvasItem (QQuickFramebufferObject fallback)
+    // path instead of the default MapCanvasUnderlay path -- this is the
+    // "context property toggle" MapView.qml's file comment describes.
+    QQmlEngine engine;
+    engine.rootContext()->setContextProperty("useCanvasUnderlay", false);
     QQmlComponent component(&engine, QUrl(u"qrc:/qt/qml/MMapper/MapView.qml"_qs));
 
     while (component.isLoading()) {
@@ -3438,8 +3523,9 @@ void TestQml::loadMapView()
     auto *const canvasItem = object->findChild<MapCanvasItemStub *>();
     QVERIFY(canvasItem != nullptr);
     QCOMPARE(canvasItem->getCore(), nullptr);
+    // The underlay type must NOT have been instantiated on this path.
+    QVERIFY(object->findChild<MapCanvasUnderlayItemStub *>() == nullptr);
 
-    // Resizing/reparenting the null-core item must not crash.
     canvasItem->setWidth(400);
     canvasItem->setHeight(300);
     QCoreApplication::processEvents();
@@ -3592,7 +3678,9 @@ void TestQml::loadMainShell()
     QVERIFY(menuBarProp.isValid());
     QVERIFY(menuBarProp.value<QObject *>() != nullptr);
 
-    auto *const mapCanvasItem = object->findChild<MapCanvasItemStub *>();
+    // No "useCanvasUnderlay" context property is set above, so MapView.qml
+    // defaults to the MapCanvasUnderlay path -- see loadMapView()'s comment.
+    auto *const mapCanvasItem = object->findChild<MapCanvasUnderlayItemStub *>();
     QVERIFY(mapCanvasItem != nullptr);
     QCOMPARE(mapCanvasItem->getCore(), nullptr);
 

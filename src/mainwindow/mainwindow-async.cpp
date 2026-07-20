@@ -21,7 +21,6 @@
 #include "../mapstorage/mapstorage.h"
 #include "../pathmachine/mmapper2pathmachine.h"
 #include "AppCore.h"
-#include "findroomsdlg.h"
 #include "mainwindow.h"
 #include "utils.h"
 

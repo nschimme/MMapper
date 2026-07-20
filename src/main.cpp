@@ -119,14 +119,11 @@ static void tryAutoLoadMap(Shell &shell)
     if constexpr (CURRENT_PLATFORM == PlatformEnum::Wasm) {
         if constexpr (NO_MAP_RESOURCE) {
             return;
-        } else if constexpr (std::is_same_v<Shell, MainWindow>) {
+        } else {
             // On WASM the map is sideloaded from the network; fetch it
-            // asynchronously. WASM builds always run Shell A (see main()'s
-            // ShellTypeEnum comment: determineShellType()/QmlShellWindow
-            // aren't even compiled under Q_OS_WASM), so this branch is
-            // guarded to MainWindow only -- it would never run for
-            // QmlShellWindow anyway, but the `if constexpr` keeps it from
-            // needing to compile against Shell=QmlShellWindow at all.
+            // asynchronously. Works for either shell -- both expose
+            // loadFile(std::shared_ptr<MapSource>) -- and the QML shell is
+            // now the wasm default (see main()'s ShellTypeEnum comment).
             auto *nam = new QNetworkAccessManager(&shell);
             auto *reply = nam->get(QNetworkRequest(QUrl(getAssetsPath() + "map/arda")));
             QObject::connect(reply, &QNetworkReply::finished, &shell, [&shell, reply, nam]() {
@@ -270,12 +267,16 @@ int main(int argc, char **argv)
     }
 
     // WASM has no argv/environment to select a shell from the way a desktop
-    // build does; it always ran the QQuickWidget-panels-on-MainWindow path
-    // below and continues to (see determineShellType(), which isn't even
-    // compiled under Q_OS_WASM).
-    ShellTypeEnum shellType = ShellTypeEnum::Widgets;
-#ifndef Q_OS_WASM
-    shellType = determineShellType(argc, argv);
+    // build does (determineShellType() isn't even compiled under
+    // Q_OS_WASM). It historically ran the QQuickWidget-panels-on-MainWindow
+    // path; as of this branch it defaults to the QML shell so the wasm/
+    // WebGL2 build exercises the single-QQuickWindow architecture the
+    // migration targets. Flip back to Widgets here if wasm testing finds a
+    // blocker.
+#ifdef Q_OS_WASM
+    ShellTypeEnum shellType = ShellTypeEnum::Qml;
+#else
+    ShellTypeEnum shellType = determineShellType(argc, argv);
 #endif
 
 #ifdef MMAPPER_WITH_QML

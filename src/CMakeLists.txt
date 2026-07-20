@@ -585,6 +585,8 @@ set(mmapper_SRCS
     proxy/connectionlistener.h
     proxy/mumesocket.cpp
     proxy/mumesocket.h
+    proxy/ProxyHostApi.cpp
+    proxy/ProxyHostApi.h
     proxy/proxy.cpp
     proxy/proxy.h
     proxy/telnetfilter.cpp

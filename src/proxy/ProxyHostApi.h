@@ -24,7 +24,7 @@ class HotkeyManager;
 class NODISCARD ProxyHostApi
 {
 public:
-    virtual ~ProxyHostApi() = default;
+    virtual ~ProxyHostApi();
 
 public:
     // MainWindow::slot_log() / QmlShellWindow::slot_log(): funnels

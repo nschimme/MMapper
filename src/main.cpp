@@ -151,9 +151,12 @@ static void tryAutoLoadMap(Shell &shell)
     }
 }
 
-#ifndef Q_OS_WASM
+// Declared unconditionally: the wasm build has no determineShellType()
+// (no argv/env to inspect) but still needs the enum to name its
+// hard-coded default below.
 enum class NODISCARD ShellTypeEnum { Widgets, Qml };
 
+#ifndef Q_OS_WASM
 // Picks between Shell A (today's QOpenGLWindow-based MainWindow, unchanged)
 // and Shell B (the --qml-shell preview; see QmlShellWindow.h). Checked in
 // this order, matching the --probe scan's style of a manual argv walk

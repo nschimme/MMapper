@@ -7,6 +7,7 @@
 #include "../configuration/configuration.h"
 #include "../global/TextUtils.h"
 #include "../global/random.h"
+#include "../global/utils.h"
 
 #include <algorithm>
 #include <sstream>
@@ -18,17 +19,6 @@
 #include <QFileInfo>
 #include <QMessageBox>
 #include <QStringList>
-
-NODISCARD static QDateTime getFileTime(const QFileInfo &fileInfo)
-{
-    const QDateTime birth = fileInfo.birthTime();
-    // Use Jan 1, 1980 as a cutoff to guard against epoch 0 (1970-01-01) on FUSE/sandboxed filesystems
-    static const QDateTime epochCutoff = QDateTime(QDate(1980, 1, 1), QTime(0, 0, 0), Qt::UTC);
-    if (birth.isValid() && birth > epochCutoff) {
-        return birth;
-    }
-    return fileInfo.lastModified();
-}
 
 NODISCARD static std::string generateRunId()
 {
@@ -131,7 +121,7 @@ void AutoLogger::deleteOldLogs()
 
     // Sort files from newest to oldest
     std::sort(fileInfoList.begin(), fileInfoList.end(), [](const auto &a, const auto &b) {
-        return getFileTime(a) > getFileTime(b);
+        return utils::getFileTime(a) > utils::getFileTime(b);
     });
 
     qint64 totalFileSize = 0, deleteFileSize = 0;
@@ -142,7 +132,7 @@ void AutoLogger::deleteOldLogs()
         bool deleteFile = false;
         switch (conf.cleanupStrategy) {
         case AutoLoggerEnum::DeleteDays:
-            if (getFileTime(fileInfo).date().daysTo(today) >= conf.deleteWhenLogsReachDays) {
+            if (utils::getFileTime(fileInfo).date().daysTo(today) >= conf.deleteWhenLogsReachDays) {
                 deleteFile = true;
             }
             break;

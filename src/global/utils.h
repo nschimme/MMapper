@@ -19,10 +19,14 @@
 #include <tuple>
 #include <type_traits>
 
+#include <QDateTime>
+#include <QFileInfo>
 #include <QPointer>
 #include <queue>
 
 namespace utils {
+
+NODISCARD QDateTime getFileTime(const QFileInfo &fileInfo);
 
 // This mainly exists to avoid float-equal warnings,
 // but it also checks that the floating point types are the same.

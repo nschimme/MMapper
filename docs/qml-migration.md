@@ -1144,6 +1144,40 @@ methods directly rather than re-implementing the selection -> group-enabling
 logic a second time; `AppCore::sig_statusMessage` is funneled into the same
 `statusText` context property the rest of `QmlShellWindow` already uses.
 
+### Phase 10: shell B dock UX + playability
+
+After the first successful macOS run of Shell B (map rendering in the Quick
+scene confirmed; the startup crash was the shell skipping MainWindow's
+process-global init, fixed in 9d7015f, and the blank view was the missing
+file I/O, fixed in 9386872), phase 10 closed the major gaps:
+
+- **Dock UX** (d50321e): SplitView containers hide when every panel inside
+  is hidden or floating, so closing panels returns space to the fill-width
+  map; every dock floats to a `Qt.Tool` window (shared `FloatingDock`
+  component; float geometry persisted with the qmlShell window state).
+  Content re-instantiates on float/dock transitions (context-model-backed,
+  transient view state loss accepted).
+- **Playability** (5cfc9f3): the proxy stack decoupled from the widget shell
+  via `ProxyHostApi` (src/proxy/ProxyHostApi.h) and `MapCanvasCore` (both
+  shells implement the seam), letting Shell B run the real
+  ConnectionListener, client telnet backend, `Mmapper2PathMachine` (canvas
+  marker, description/audio feeds, statusbar state, map-load hook), goto/
+  force-update commands, MPI mapper-mode switching, and AudioManager.
+- **File operations** (c15236e): `IoTaskController` + a modal progress
+  Popup replace the widget `QProgressDialog` (cancel for loads/merges,
+  never saves); `maybeSave` guards open/new/reload and window close;
+  merge extracted into `MapLoadHelper`; reload + the four exports live.
+- **Context menu + selection ops** (1243b63): `MapContextMenu.qml` with
+  the per-selection-type sections and mouse-mode submenu; room create/
+  delete/move/merge/connect, connection delete, infomark delete ported
+  verbatim onto `MapCanvasCore`; `AppCore`'s selection handlers proved
+  shell-agnostic and drive the enables (incl. per-Z-neighbor logic);
+  first-run centering.
+
+Remaining known deltas are tracked in the parity checklist above
+(menubar auto-hide TODO; the widget shell remains the desktop default
+pending sign-off).
+
 ### Wasm default
 
 `main.cpp`'s `determineShellType()` is compiled out entirely under `Q_OS_WASM`

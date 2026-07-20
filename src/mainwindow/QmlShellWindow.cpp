@@ -767,6 +767,20 @@ QmlShellWindow::QmlShellWindow(QObject *const parent)
 
 QmlShellWindow::~QmlShellWindow()
 {
+    // The engine must go FIRST, explicitly: QObject::deleteChildren()
+    // destroys children in construction order, and MapCanvasCore is
+    // constructed long before the engine -- so left to the base-class
+    // destructor, the core would be freed while the engine's
+    // ApplicationWindow (and its scene graph, including the
+    // MapCanvasQuickItem's node whose teardown calls back into the core)
+    // is still alive. That exact ordering was a heap-use-after-free under
+    // ASan (MapCanvasCore::isCleanedUp() read during
+    // QQuickWindowPrivate::cleanupNodesOnShutdown()). Destroying the engine
+    // here tears the whole QML scene down while the core and every
+    // context-property object are still valid.
+    delete m_engine;
+    m_engine = nullptr;
+
     // Mirrors MainWindow's destructor (mainwindow.cpp): stop and drain the
     // async task engine before tearing down the objects its workers may
     // still reference, then release the top-level window registry.

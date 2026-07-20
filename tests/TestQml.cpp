@@ -79,6 +79,7 @@
 #include <QMessageBox>
 #include <QPainter>
 #include <QPixmap>
+#include <QPoint>
 #include <QPointer>
 #include <QPushButton>
 #include <QQmlComponent>
@@ -586,6 +587,79 @@ public:
 
     int callCount = 0;
     bool lastPressed = false;
+};
+
+// Stands in for the "shell" context property's selection-state Q_PROPERTYs
+// (see ../src/mainwindow/QmlShellWindow.h's Q_PROPERTY block:
+// hasRoomSelection/roomSelectionEmpty/hasConnectionSelection/
+// hasInfomarkSelection/infomarkSelectionEmpty) for
+// loadMapContextMenu()/mapContextMenuSelectionSections() below:
+// QmlShellWindow itself isn't linkable into this small test binary (same
+// tradeoff as MapCoreEscapeStub above -- it drags in the OpenGL-backed
+// MapCanvasCore), so this stub exposes just the five booleans
+// MapContextMenu.qml (../src/qml/shell/MapContextMenu.qml) reads, settable
+// directly from the test to drive each menu section's visibility.
+class NODISCARD_QOBJECT ShellSelectionStub final : public QObject
+{
+    Q_OBJECT
+
+    Q_PROPERTY(bool hasRoomSelection MEMBER m_hasRoomSelection NOTIFY sig_changed)
+    Q_PROPERTY(bool roomSelectionEmpty MEMBER m_roomSelectionEmpty NOTIFY sig_changed)
+    Q_PROPERTY(bool hasConnectionSelection MEMBER m_hasConnectionSelection NOTIFY sig_changed)
+    Q_PROPERTY(bool hasInfomarkSelection MEMBER m_hasInfomarkSelection NOTIFY sig_changed)
+    Q_PROPERTY(bool infomarkSelectionEmpty MEMBER m_infomarkSelectionEmpty NOTIFY sig_changed)
+
+public:
+    explicit ShellSelectionStub(QObject *const parent = nullptr)
+        : QObject(parent)
+    {}
+
+    void setRoomSelection(bool has, bool empty)
+    {
+        m_hasRoomSelection = has;
+        m_roomSelectionEmpty = empty;
+        emit sig_changed();
+    }
+    void setConnectionSelection(bool has)
+    {
+        m_hasConnectionSelection = has;
+        emit sig_changed();
+    }
+    void setInfomarkSelection(bool has, bool empty)
+    {
+        m_hasInfomarkSelection = has;
+        m_infomarkSelectionEmpty = empty;
+        emit sig_changed();
+    }
+
+signals:
+    void sig_changed();
+
+private:
+    bool m_hasRoomSelection = false;
+    bool m_roomSelectionEmpty = true;
+    bool m_hasConnectionSelection = false;
+    bool m_hasInfomarkSelection = false;
+    bool m_infomarkSelectionEmpty = true;
+};
+
+// Stands in for MapCanvasCore's sig_customContextMenuRequested(QPoint)/
+// sig_dismissContextMenu() (see ../src/display/MapCanvasCore.h) as the
+// "core" property MapContextMenu.qml's `Connections { target: root.core }`
+// binds against -- same OpenGL-avoidance tradeoff as MapCoreEscapeStub
+// above.
+class NODISCARD_QOBJECT MapCoreContextMenuStub final : public QObject
+{
+    Q_OBJECT
+
+public:
+    explicit MapCoreContextMenuStub(QObject *const parent = nullptr)
+        : QObject(parent)
+    {}
+
+signals:
+    void sig_customContextMenuRequested(QPoint pos);
+    void sig_dismissContextMenu();
 };
 
 } // namespace
@@ -4239,6 +4313,200 @@ void TestQml::loadMainShellChrome()
     QVERIFY(object->findChild<QObject *>(QStringLiteral("pathMachineLabel")) != nullptr);
     QVERIFY(object->findChild<QObject *>(QStringLiteral("clockStrip")) != nullptr);
     QVERIFY(object->findChild<QObject *>(QStringLiteral("xpStatusItem")) != nullptr);
+}
+
+namespace {
+// Registers the command ids MapContextMenu.qml (../src/qml/shell/
+// MapContextMenu.qml) binds against via CommandAction, mirroring the subset
+// QmlShellWindow.cpp's registerCommands()/wireSelectionCommands() wire live
+// (see that file's ALL_COMMAND_SPECS/isLiveCommand()). Shared by
+// loadMapContextMenu()/mapContextMenuSelectionSections() below.
+void registerMapContextMenuCommands(CommandRegistry &registry)
+{
+    for (const char *const id : {"room.create",
+                                 "room.edit-selected",
+                                 "room.move-up-selected",
+                                 "room.move-down-selected",
+                                 "room.merge-up-selected",
+                                 "room.merge-down-selected",
+                                 "room.delete-selected",
+                                 "room.connect-to-neighbours",
+                                 "room.goto-selected",
+                                 "room.force-update-selected",
+                                 "connection.delete-selected",
+                                 "infomark.edit-selected",
+                                 "infomark.delete-selected"}) {
+        std::ignore = registry.addCommand(QString::fromLatin1(id));
+    }
+    for (const char *const id : {"mouse-mode.move",
+                                 "mouse-mode.room-raypick",
+                                 "mouse-mode.room-select",
+                                 "mouse-mode.infomark-select",
+                                 "mouse-mode.connection-select",
+                                 "mouse-mode.create-infomark",
+                                 "mouse-mode.create-room",
+                                 "mouse-mode.create-connection",
+                                 "mouse-mode.create-oneway-connection"}) {
+        std::ignore = registry.addCommand(QString::fromLatin1(id), true);
+    }
+}
+} // namespace
+
+void TestQml::loadMapContextMenu()
+{
+    // MapContextMenu.qml (../src/qml/shell/MapContextMenu.qml) is the map
+    // canvas's right-click menu, mirroring MainWindow::slot_showContextMenu()
+    // (mainwindow.cpp). This test drives it with a real CommandRegistry (see
+    // registerMapContextMenuCommands() above) and a ShellSelectionStub
+    // standing in for QmlShellWindow's "shell" context property (see that
+    // stub's comment above for why QmlShellWindow itself isn't linkable
+    // here). Default state: no selection of any kind, so only the trailing
+    // "Mouse Mode" submenu should be present/visible.
+    CommandRegistry registry(nullptr);
+    registerMapContextMenuCommands(registry);
+    ShellSelectionStub shell;
+    MapCoreContextMenuStub core;
+
+    QQmlEngine engine;
+    engine.rootContext()->setContextProperty("commands", &registry);
+    engine.rootContext()->setContextProperty("shell", &shell);
+
+    QQmlComponent component(&engine, QUrl(u"qrc:/qt/qml/MMapper/MapContextMenu.qml"_qs));
+    while (component.isLoading()) {
+        QCoreApplication::processEvents();
+    }
+    QVERIFY2(!component.isError(), qPrintable(component.errorString()));
+
+    QScopedPointer<QObject> object(component.create(engine.rootContext()));
+    QVERIFY(object != nullptr);
+    object->setProperty("core", QVariant::fromValue<QObject *>(&core));
+    QCoreApplication::processEvents();
+
+    QObject *const mouseModeMenu = object->findChild<QObject *>(QStringLiteral("ctxMouseModeMenu"));
+    QVERIFY(mouseModeMenu != nullptr);
+    QCOMPARE(mouseModeMenu->property("title").toString(), QStringLiteral("Mouse Mode"));
+
+    // Every conditional item must exist in the object tree regardless of
+    // section state (see MapContextMenu.qml: each one is a plain always-
+    // instantiated child with a `visible:` binding, not a Loader/Repeater),
+    // and with no selection of any kind, every section-driving property on
+    // the root Menu must read false.
+    for (const char *const name : {"ctxDeleteConnection",
+                                   "ctxCreateRoom",
+                                   "ctxEditRoom",
+                                   "ctxMoveUpRoom",
+                                   "ctxMoveDownRoom",
+                                   "ctxMergeUpRoom",
+                                   "ctxMergeDownRoom",
+                                   "ctxDeleteRoom",
+                                   "ctxConnectToNeighbours",
+                                   "ctxRoomOpsSeparator",
+                                   "ctxGotoRoom",
+                                   "ctxForceUpdateRoom",
+                                   "ctxInfomarkSeparator",
+                                   "ctxEditInfomark",
+                                   "ctxDeleteInfomark"}) {
+        QVERIFY2(object->findChild<QObject *>(QString::fromLatin1(name)) != nullptr, name);
+    }
+    QVERIFY(!object->property("showCreateRoom").toBool());
+    QVERIFY(!object->property("showRoomOps").toBool());
+    QVERIFY(!object->property("showInfomarkOps").toBool());
+    QVERIFY(!object->property("hasConnectionSelection").toBool());
+
+    // Emitting the underlying canvas's dismiss signal must not crash even
+    // though the menu was never actually popped up (regression coverage for
+    // the Connections wiring itself, not for QQC2.Popup's own geometry
+    // logic under the offscreen platform).
+    emit core.sig_dismissContextMenu();
+    QCoreApplication::processEvents();
+}
+
+void TestQml::mapContextMenuSelectionSections()
+{
+    // Drives ShellSelectionStub through the same selection combinations
+    // MainWindow::slot_showContextMenu() branches on (mainwindow.cpp),
+    // asserting MapContextMenu.qml's showCreateRoom/showRoomOps/
+    // showInfomarkOps/hasConnectionSelection properties -- each
+    // conditional MenuItem's own `visible:` binding is a direct one-line
+    // expression of exactly one of these (see the QML file), so this is a
+    // faithful proxy for "the right section is visible" without depending
+    // on QQC2.Menu/Popup's own item-visibility machinery, which (being a
+    // Popup that is never actually opened here, under the offscreen
+    // platform) does not reliably reflect a plain `visible:` binding on an
+    // unopened menu's contentData children.
+    CommandRegistry registry(nullptr);
+    registerMapContextMenuCommands(registry);
+    ShellSelectionStub shell;
+
+    QQmlEngine engine;
+    engine.rootContext()->setContextProperty("commands", &registry);
+    engine.rootContext()->setContextProperty("shell", &shell);
+
+    QQmlComponent component(&engine, QUrl(u"qrc:/qt/qml/MMapper/MapContextMenu.qml"_qs));
+    while (component.isLoading()) {
+        QCoreApplication::processEvents();
+    }
+    QVERIFY2(!component.isError(), qPrintable(component.errorString()));
+
+    QScopedPointer<QObject> object(component.create(engine.rootContext()));
+    QVERIFY(object != nullptr);
+    QCoreApplication::processEvents();
+
+    auto sectionProp = [&object](const char *const name) { return object->property(name).toBool(); };
+
+    // --- empty room selection -> only room.create ---
+    shell.setRoomSelection(/*has=*/true, /*empty=*/true);
+    QCoreApplication::processEvents();
+    QVERIFY(sectionProp("showCreateRoom"));
+    QVERIFY(!sectionProp("showRoomOps"));
+
+    // --- non-empty room selection -> the full room operation set ---
+    shell.setRoomSelection(/*has=*/true, /*empty=*/false);
+    QCoreApplication::processEvents();
+    QVERIFY(!sectionProp("showCreateRoom"));
+    QVERIFY(sectionProp("showRoomOps"));
+    // No infomark selection yet -> that section stays hidden.
+    QVERIFY(!sectionProp("showInfomarkOps"));
+
+    // --- infomark selection alongside the room selection -> both sections
+    // shown together (mirrors slot_showContextMenu()'s
+    // `if (m_infoMarkSelection != nullptr && !m_infoMarkSelection->empty())`
+    // branch, which can fire alongside the room branch above it) ---
+    shell.setInfomarkSelection(/*has=*/true, /*empty=*/false);
+    QCoreApplication::processEvents();
+    QVERIFY(sectionProp("showRoomOps"));
+    QVERIFY(sectionProp("showInfomarkOps"));
+
+    // An empty infomark selection (freshly drawn, about to auto-open the
+    // editor -- see QmlShellWindow.cpp's sig_newInfomarkSelection handler)
+    // must NOT show the infomark section, mirroring slot_showContextMenu()'s
+    // `!m_infoMarkSelection->empty()` guard.
+    shell.setInfomarkSelection(/*has=*/true, /*empty=*/true);
+    QCoreApplication::processEvents();
+    QVERIFY(!sectionProp("showInfomarkOps"));
+    shell.setInfomarkSelection(/*has=*/true, /*empty=*/false);
+    QCoreApplication::processEvents();
+
+    // --- a connection selection forecloses the room/infomark sections
+    // entirely, mirroring slot_showContextMenu()'s
+    // `if (m_connectionSelection != nullptr) ... else { ... }` ---
+    shell.setConnectionSelection(/*has=*/true);
+    QCoreApplication::processEvents();
+    QVERIFY(sectionProp("hasConnectionSelection"));
+    QVERIFY(!sectionProp("showRoomOps"));
+    QVERIFY(!sectionProp("showCreateRoom"));
+    QVERIFY(!sectionProp("showInfomarkOps"));
+
+    // --- clearing every selection collapses back to nothing but the
+    // trailing Mouse Mode submenu ---
+    shell.setConnectionSelection(/*has=*/false);
+    shell.setRoomSelection(/*has=*/false, /*empty=*/true);
+    shell.setInfomarkSelection(/*has=*/false, /*empty=*/true);
+    QCoreApplication::processEvents();
+    QVERIFY(!sectionProp("hasConnectionSelection"));
+    QVERIFY(!sectionProp("showCreateRoom"));
+    QVERIFY(!sectionProp("showRoomOps"));
+    QVERIFY(!sectionProp("showInfomarkOps"));
 }
 
 void TestQml::mainShellEscapeShortcutForwards()

@@ -78,6 +78,8 @@ private Q_SLOTS:
     void dockContainerCollapsesWhenEmpty();
     void dockFloatingWindowLifecycle();
     void loadMainShellChrome();
+    void loadMapContextMenu();
+    void mapContextMenuSelectionSections();
     void mainShellEscapeShortcutForwards();
     void mainShellCommandOpensAboutDialog();
     void qmlShellSettingsPersistenceRoundTrip();

@@ -1107,7 +1107,7 @@ known behavioral gap; **absent** = registered (if it's a command) but not wired.
 | Menus (5 top-level menus) | live | Bound to `CommandRegistry` via `CommandAction.qml`. |
 | Status bar (message, clock, XP) | live | Path-machine label is fed by `Mmapper2PathMachine::sig_state` via the `pathMachineStatus` context property (`QmlShellWindow::wirePathMachine()`); status message still lacks full `AppCore::sig_statusMessage` integration (see below). |
 | About / Update / Find Rooms / Preferences dialogs | live | Landed in `53a1326`. |
-| Room-edit / infomark-edit dialogs | live | Enabled only by live canvas selections (`room.edit-selected` / `infomark.edit-selected`); no context menu to launch them from (see below). |
+| Room-edit / infomark-edit dialogs | live | Enabled only by live canvas selections (`room.edit-selected` / `infomark.edit-selected`); also launchable from the right-click context menu now (see below). |
 | Escape key | live | Forwards to `MapCanvasCore`. |
 | Always-on-top / statusbar / scrollbar toggles | live | |
 | Window geometry + dock/toolbar layout persistence | live | Separate `qmlShell` config group. |
@@ -1123,14 +1123,26 @@ known behavioral gap; **absent** = registered (if it's a command) but not wired.
 | `pathmachine.release-all-paths` | live | Wired directly to `PathMachine::slot_releaseAllPaths()`. |
 | Mapper mode (`mapper-mode.play`/`.map`/`.offline`) | live | `QmlShellWindow::setMapperMode()` mirrors `AppCore::setMapperMode()` (persist to config) plus `MainWindow::slot_onMapMode()`/`slot_onOfflineMode()`'s logging; the three commands form an exclusive `CommandRegistry` group like Shell A's `QActionGroup`, and `slot_setMode()` (the MPI mud-driven path, via `ProxyHostApi`) routes through the same helper. No separate "mode menu icon" update is needed here -- unlike Shell A's `modeMenu->setIcon(...)`, MainShell.qml's mode menu items already bind directly to the live `CommandAction`. |
 | Audio (`AudioManager`) | live | Constructed from the same `MediaLibrary`/`GameObserver` deps Shell A uses; `onAreaChanged()` is called everywhere `MainWindow` calls it (path-machine player-moved/position-change, `onSuccessfulLoad()`, and map-discard in `loadFile()`). |
-| Room create / delete-selected / move / merge / connect-to-neighbours | **absent** | `room.create`, `room.delete-selected`, etc. are registered disabled; only `room.edit-selected` is live. Owner: future commit (map-editing command set). |
-| Connection delete-selected / create-connection commands | **absent** | `connection.delete-selected` registered disabled; the create-connection mouse modes are selectable but don't yet drive an editing flow. Owner: future commit. |
-| Right-click context menu on the canvas | **absent** | `MainWindow::customContextMenuRequested` / `m_contextMenu` has no Shell B equivalent. Owner: future commit. |
+| Room create / delete-selected / move / merge / connect-to-neighbours | live | `room.create` is wired to `MapCanvasCore::slot_createRoom()`; `room.delete-selected`/`move-up`/`move-down`/`merge-up`/`merge-down`/`connect-to-neighbours` are ported from `MainWindow::slot_onDeleteRoomSelection()`/`slot_onMoveUpRoomSelection()`/etc. verbatim (`MapData::applyChangesToList()` + the same `Change` types), wired in `QmlShellWindow::wireSelectionCommands()`. Multi-room aware via the live selection, same as Shell A. |
+| Connection delete-selected / create-connection commands | live | `connection.delete-selected` is ported from `MainWindow::slot_onDeleteConnectionSelection()`; the create-connection mouse modes were already live and unchanged. `QmlShellWindow` now tracks `m_connectionSelection` (mirroring `MainWindow::m_connectionSelection`) via `MapCanvasCore::sig_newConnectionSelection`. |
+| Right-click context menu on the canvas | live | `MapContextMenu.qml` (`src/qml/shell/MapContextMenu.qml`) mirrors `MainWindow::slot_showContextMenu()`'s selection-driven sections (connection selected / room empty vs. non-empty / infomarks) plus the nested "Mouse Mode" submenu, instantiated by `MapView.qml` and popped via `MapCanvasCore::sig_customContextMenuRequested`/`sig_dismissContextMenu`. Selection-state bindings come from new `QmlShellWindow` Q_PROPERTYs (`hasRoomSelection`/`roomSelectionEmpty`/`hasConnectionSelection`/`hasInfomarkSelection`/`infomarkSelectionEmpty`) exposed on the existing `shell` context property. |
 | Menu bar auto-hide (mouse-to-top reveal when "Always Show Menubar" is off) | **degraded** | The `view.show-menu-bar` toggle is live, but Shell A's event-filter-driven auto-reveal-on-mouse-move (`MainWindow::slot_setShowMenuBar`) has no Shell B equivalent -- unchecking it just hides the menu bar. Owner: future commit. |
-| First-run window centering | **absent** | `MainWindow` centers the window via `QStyle::alignedRect` on first run; `QmlShellWindow` only restores a saved `qmlShell.geometry` (empty on first run leaves the platform default placement). Owner: future commit. |
-| Per-selection command enabling beyond edit | **degraded** | Only `room.edit-selected`/`infomark.edit-selected` react to selection changes; `AppCore`'s broader selection-driven enabling (move/merge/delete/connect commands) isn't consumed by Shell B yet. Owner: future commit. |
+| First-run window centering | live | `QmlShellWindow::restoreWindowState()` centers the window on `QGuiApplication::primaryScreen()->availableGeometry()` (using the window's already-applied `MainShell.qml` default size) whenever `Configuration::qmlShell.geometry` is empty, mirroring `MainWindow::readSettings()`'s `firstRun` -> `QStyle::alignedRect(...)` branch. |
+| Per-selection command enabling beyond edit | live | `QmlShellWindow` now constructs an `AppCore` instance and reuses `AppCore::onNewRoomSelection()`/`onNewConnectionSelection()`/`onNewInfomarkSelection()`/`updateRoomOffsetCommands()` verbatim (see "AppCore reuse" note below) -- the `room.selection`/`connection.selection`/`infomark.selection` `CommandRegistry` groups now enable/disable together exactly like Shell A, including the per-Z-neighbor move-up/move-down/merge-up/merge-down logic driven off `MapCanvasCore::sig_selectionChanged`. |
 | Updater | closed | `NO_UPDATER`-gated exactly like Shell A (no longer a gap as of `53a1326`). |
 | Wasm | **untested** | Shell B has never been run under `Q_OS_WASM`; see "Wasm default" below. |
+
+**AppCore reuse note:** `AppCore::onNewRoomSelection()`/`onNewConnectionSelection()`/
+`onNewInfomarkSelection()`/`updateRoomOffsetCommands()` (`src/mainwindow/AppCore.{h,cpp}`)
+turned out to already be shell-agnostic -- they only touch `MapData`/
+`Mmapper2PathMachine`/`CommandRegistry`, never the widget-only `MapCanvas`
+(`AppCore::m_canvas` is only read by `setCanvasMouseMode()`/`layerUp()`/
+`layerDown()`/`layerReset()`, none of which Shell B calls: it wires
+`mouse-mode.*`/`layer.*` commands straight to `MapCanvasCore` instead). So
+`QmlShellWindow` now constructs its own `AppCore` and calls those four
+methods directly rather than re-implementing the selection -> group-enabling
+logic a second time; `AppCore::sig_statusMessage` is funneled into the same
+`statusText` context property the rest of `QmlShellWindow` already uses.
 
 ### Wasm default
 

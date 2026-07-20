@@ -20,6 +20,7 @@
 class AboutInfo;
 class AdventureLogModel;
 class AdventureTracker;
+class AppCore;
 class AudioManager;
 class AudioVolumeController;
 class ClientController;
@@ -27,6 +28,7 @@ class ClientLineModel;
 class ClockAdapter;
 class CommandRegistry;
 class ConnectionListener;
+class ConnectionSelection;
 class CTimers;
 class DescriptionAdapter;
 class DockLayoutController;
@@ -113,6 +115,25 @@ class NODISCARD_QOBJECT QmlShellWindow final : public QObject, public ProxyHostA
 {
     Q_OBJECT
 
+    // --- selection-state properties (this commit) ---
+    // Mirror mainwindow.cpp's slot_showContextMenu()'s selection-driven
+    // branches (m_roomSelection/m_connectionSelection/m_infoMarkSelection):
+    // exposed as properties (rather than plain context values) so
+    // MapContextMenu.qml's `visible:` bindings re-evaluate automatically as
+    // the canvas selection changes, the same way CommandAction.qml's
+    // `enabled:` binding reacts to UiCommand::effectiveEnabled. Updated
+    // alongside the existing room/connection/infomark selection tracking in
+    // wireSelectionCommands() below.
+    Q_PROPERTY(bool hasRoomSelection READ getHasRoomSelection NOTIFY sig_roomSelectionStateChanged)
+    Q_PROPERTY(
+        bool roomSelectionEmpty READ getRoomSelectionEmpty NOTIFY sig_roomSelectionStateChanged)
+    Q_PROPERTY(bool hasConnectionSelection READ getHasConnectionSelection NOTIFY
+                   sig_connectionSelectionStateChanged)
+    Q_PROPERTY(bool hasInfomarkSelection READ getHasInfomarkSelection NOTIFY
+                   sig_infomarkSelectionStateChanged)
+    Q_PROPERTY(bool infomarkSelectionEmpty READ getInfomarkSelectionEmpty NOTIFY
+                   sig_infomarkSelectionStateChanged)
+
 public:
     explicit QmlShellWindow(QObject *parent);
     ~QmlShellWindow() final;
@@ -131,6 +152,19 @@ public:
     // missing, or a QML syntax error) -- main() should treat that as fatal,
     // matching how setSurfaceFormat() failures are handled.
     NODISCARD bool isValid() const { return m_valid; }
+
+public:
+    // --- selection-state property readers (see the Q_PROPERTY block above)
+    // ---
+    NODISCARD bool getHasRoomSelection() const { return m_roomSelection != nullptr; }
+    // Defined out-of-line in QmlShellWindow.cpp: RoomSelection/
+    // InfomarkSelection are only forward-declared here (see the class
+    // forward-decl list above), so empty() can't be called from a header
+    // that hasn't included their real definitions.
+    NODISCARD bool getRoomSelectionEmpty() const;
+    NODISCARD bool getHasConnectionSelection() const { return m_connectionSelection != nullptr; }
+    NODISCARD bool getHasInfomarkSelection() const { return m_infoMarkSelection != nullptr; }
+    NODISCARD bool getInfomarkSelectionEmpty() const;
 
 public:
     // Widget-free load path: shared by this class's own file.open command
@@ -159,6 +193,16 @@ public:
     // merge and wait for shutdown; it simply refuses to close while any IO
     // task is in flight (see the task report's documented deviations).
     NODISCARD Q_INVOKABLE bool confirmClose();
+
+signals:
+    // NOTIFY signals for the selection-state Q_PROPERTYs above; fired from
+    // wireSelectionCommands()'s sig_newRoomSelection/sig_newConnectionSelection/
+    // sig_newInfomarkSelection handlers, mirroring how MainWindow's
+    // slot_showContextMenu() reads m_roomSelection/m_connectionSelection/
+    // m_infoMarkSelection live rather than caching a snapshot.
+    void sig_roomSelectionStateChanged();
+    void sig_connectionSelectionStateChanged();
+    void sig_infomarkSelectionStateChanged();
 
 private:
     // Mirrors MainWindow::maybeSave()/mainwindow-saveslots.cpp's
@@ -284,6 +328,19 @@ private:
     MapCanvasCore *m_mapCanvasCore = nullptr;
     MapViewModel *m_mapViewModel = nullptr;
     CommandRegistry *m_commandRegistry = nullptr;
+    // Mirrors MainWindow's m_appCore: the shell-agnostic slice of selection
+    // -> command-enabling logic (AppCore::onNewRoomSelection()/
+    // onNewConnectionSelection()/onNewInfomarkSelection()/
+    // updateRoomOffsetCommands(), see AppCore.h) is reused verbatim here --
+    // it only touches MapData/Mmapper2PathMachine/CommandRegistry, never the
+    // widget-only MapCanvas (see AppCore::setCanvas()'s doc comment), so it
+    // is already shell-agnostic despite living in the same directory as the
+    // widget-only MainWindow. Its setCanvasMouseMode()/layerUp()/layerDown()/
+    // layerReset() methods ARE widget-only (they call through m_canvas,
+    // which is never set here -- see setCanvas()'s doc comment); this shell
+    // continues to wire mouse-mode.*/layer.* commands directly to
+    // MapCanvasCore instead (see registerCommands()/wireMouseModeCommand()).
+    AppCore *m_appCore = nullptr;
 
     Mmapper2PathMachine *m_pathMachine = nullptr;
     AudioManager *m_audioManager = nullptr;
@@ -376,13 +433,17 @@ private:
     PreferencesController *m_preferencesController = nullptr;
     QPointer<QDialog> m_preferencesDialog;
 
-    // Mirrors MainWindow::m_roomSelection/m_infoMarkSelection: storage for
-    // the canvas's current selection, kept here (rather than only inside
-    // MapCanvasCore) so room.edit-selected/infomark.edit-selected can be
-    // enabled/disabled and the edit dialogs constructed with the right
-    // selection, exactly like MainWindow::slot_newRoomSelection()/
-    // slot_newInfomarkSelection() do.
+    // Mirrors MainWindow::m_roomSelection/m_connectionSelection/
+    // m_infoMarkSelection: storage for the canvas's current selection, kept
+    // here (rather than only inside MapCanvasCore) so room.edit-selected/
+    // infomark.edit-selected can be enabled/disabled and the edit dialogs
+    // constructed with the right selection, exactly like
+    // MainWindow::slot_newRoomSelection()/slot_newConnectionSelection()/
+    // slot_newInfomarkSelection() do. m_connectionSelection additionally
+    // backs connection.delete-selected and MapContextMenu.qml's
+    // hasConnectionSelection property (see the Q_PROPERTY block above).
     std::shared_ptr<RoomSelection> m_roomSelection;
+    std::shared_ptr<ConnectionSelection> m_connectionSelection;
     std::shared_ptr<InfomarkSelection> m_infoMarkSelection;
 
     RoomEditController *m_roomEditController = nullptr;

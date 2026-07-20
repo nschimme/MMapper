@@ -977,6 +977,7 @@ if(WITH_QML)
     set_source_files_properties(qml/shell/DockPanel.qml PROPERTIES QT_RESOURCE_ALIAS "DockPanel.qml")
     set_source_files_properties(qml/shell/DockColumn.qml PROPERTIES QT_RESOURCE_ALIAS "DockColumn.qml")
     set_source_files_properties(qml/shell/DockRow.qml PROPERTIES QT_RESOURCE_ALIAS "DockRow.qml")
+    set_source_files_properties(qml/shell/MapContextMenu.qml PROPERTIES QT_RESOURCE_ALIAS "MapContextMenu.qml")
 
     qt_add_qml_module(mm_qml
         STATIC
@@ -1023,6 +1024,7 @@ if(WITH_QML)
             qml/shell/DockPanel.qml
             qml/shell/DockColumn.qml
             qml/shell/DockRow.qml
+            qml/shell/MapContextMenu.qml
         SOURCES
             qml/AnsiViewDialog.cpp
             qml/AnsiColorPickerLauncher.h

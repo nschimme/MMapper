@@ -28,6 +28,19 @@ Item {
         core: root.core
     }
 
+    // The map canvas's right-click context menu (../qml/shell/
+    // MapContextMenu.qml -- see its own file comment). `parent: root` (the
+    // default for a Popup declared as a child Item here) is what makes
+    // MapContextMenu.qml's `root.popup(pos.x, pos.y)` position relative to
+    // this Item's own coordinate space: `canvas` above fills `root` exactly
+    // (anchors.fill: parent, no offset), so MapCanvasCore::
+    // sig_customContextMenuRequested's canvas-local QPoint is already in
+    // this Item's local coordinate space too, with no extra mapping needed.
+    MapContextMenu {
+        id: contextMenu
+        core: root.core
+    }
+
     QQC2.ScrollBar {
         id: verticalScrollBar
         orientation: Qt.Vertical

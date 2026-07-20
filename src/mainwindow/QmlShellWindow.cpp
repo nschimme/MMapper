@@ -18,6 +18,7 @@
 #include "../display/MapCanvasCore.h"
 #include "../display/MapViewModel.h"
 #include "../display/MapZoomController.h"
+#include "../display/connectionselection.h"
 #include "../display/prespammedpath.h"
 #include "../global/AsyncTasks.h"
 #include "../global/ConfigConsts.h"
@@ -63,6 +64,7 @@
 #include "../timers/TimerModel.h"
 #include "../viewers/TopLevelWindows.h"
 #include "AboutInfo.h"
+#include "AppCore.h"
 #include "AudioVolumeController.h"
 #include "CommandRegistry.h"
 #include "FindRoomsController.h"
@@ -82,6 +84,7 @@
 #include <memory>
 #include <optional>
 #include <tuple>
+#include <utility>
 
 #include <QApplication>
 #include <QCloseEvent>
@@ -91,11 +94,13 @@
 #include <QFileDialog>
 #include <QFileInfo>
 #include <QFontDatabase>
+#include <QGuiApplication>
 #include <QMessageBox>
 #include <QQmlApplicationEngine>
 #include <QQmlContext>
 #include <QQuickWindow>
 #include <QRect>
+#include <QScreen>
 #include <QTimer>
 #include <QUrl>
 
@@ -256,6 +261,23 @@ NODISCARD bool isLiveCommand(const QString &id)
         // AppCore::onNewRoomSelection()).
         "room.edit-selected",
         "infomark.edit-selected",
+        // room.create/delete-selected/move-*-selected/merge-*-selected/
+        // connect-to-neighbours, connection.delete-selected, and
+        // infomark.delete-selected are registered live but (except
+        // room.create) START disabled -- wireSelectionCommands() enables
+        // them as the canvas selection changes, mirroring
+        // MainWindow::createActions()'s selectedRoomActGroup/
+        // selectedConnectionActGroup/infomarkGroup->setEnabled(false)
+        // (see this file's wireSelectionCommands()).
+        "room.create",
+        "room.delete-selected",
+        "room.move-up-selected",
+        "room.move-down-selected",
+        "room.merge-up-selected",
+        "room.merge-down-selected",
+        "room.connect-to-neighbours",
+        "connection.delete-selected",
+        "infomark.delete-selected",
     };
     return live.contains(id);
 }
@@ -401,6 +423,19 @@ QmlShellWindow::QmlShellWindow(QObject *const parent)
             &MapFrontend::sig_clearingMap,
             m_pathMachine,
             &PathMachine::slot_releaseAllPaths);
+
+    // See QmlShellWindow.h's m_appCore doc comment for why this reuses
+    // AppCore::onNewRoomSelection()/onNewConnectionSelection()/
+    // onNewInfomarkSelection()/updateRoomOffsetCommands() verbatim rather
+    // than re-implementing the selection -> command-enabling logic here.
+    // setCanvas() is deliberately never called -- its mouse-mode/layer
+    // methods are unused on this path (see the header comment).
+    m_appCore = new AppCore(deref(m_mapData), deref(m_pathMachine), deref(m_commandRegistry), this);
+    connect(m_appCore, &AppCore::sig_statusMessage, this, [this](const QString &text, int) {
+        if (m_engine != nullptr) {
+            deref(m_engine->rootContext()).setContextProperty("statusText", text);
+        }
+    });
 
     registerCommands();
 
@@ -755,12 +790,31 @@ void QmlShellWindow::restoreWindowState()
     // toolbar area state baked into it (that's DockLayoutController/
     // ToolbarLayoutController's job, persisted separately above).
     const QByteArray &geometry = getConfig().qmlShell.geometry;
+    bool restored = false;
     if (!geometry.isEmpty()) {
         QDataStream in(geometry);
         QRect rect;
         in >> rect;
         if (in.status() == QDataStream::Ok && rect.isValid()) {
             window->setGeometry(rect);
+            restored = true;
+        }
+    }
+    if (!restored) {
+        // First run (no stored qmlShell geometry yet): mirrors
+        // MainWindow::readSettings()'s firstRun branch (mainwindow.cpp),
+        // which centers the window on the primary screen via
+        // QStyle::alignedRect(..., size(), primaryScreen()->availableGeometry()).
+        // QQuickWindow has no QStyle::alignedRect() equivalent, so this
+        // centers by hand using the window's own size (already set from
+        // MainShell.qml's Window{width;height} defaults by the time
+        // load() returns, above) against the primary screen's available
+        // geometry.
+        if (QScreen *const screen = QGuiApplication::primaryScreen()) {
+            const QRect avail = screen->availableGeometry();
+            const QSize size = window->size();
+            window->setPosition(avail.x() + (avail.width() - size.width()) / 2,
+                                avail.y() + (avail.height() - size.height()) / 2);
         }
     }
     window->setFlag(Qt::WindowStaysOnTopHint, getConfig().general.alwaysOnTop);
@@ -1121,6 +1175,38 @@ void QmlShellWindow::registerCommands()
             &UiCommand::sig_triggered,
             m_pathMachine,
             &PathMachine::slot_releaseAllPaths);
+
+    // room.create -- mirrors MainWindow::slot_onCreateRoom() ->
+    // MapCanvas::slot_createRoom(); MapCanvasCore owns the exact same slot.
+    connect(m_commandRegistry->command("room.create"),
+            &UiCommand::sig_triggered,
+            m_mapCanvasCore,
+            &MapCanvasCore::slot_createRoom);
+
+    // Registry-side selection groups: purely organizational (no exclusivity,
+    // mirrors mainwindow.cpp's createActions() `addToGroup(..., false)`
+    // calls), used by wireSelectionCommands() below to enable/disable the
+    // whole cluster together as the canvas selection changes. Group members
+    // start disabled, mirroring MainWindow::createActions()'s
+    // selectedRoomActGroup/selectedConnectionActGroup/infomarkGroup->
+    // setEnabled(false).
+    for (const char *const id : {"room.delete-selected",
+                                 "room.move-up-selected",
+                                 "room.move-down-selected",
+                                 "room.merge-up-selected",
+                                 "room.merge-down-selected",
+                                 "room.connect-to-neighbours"}) {
+        m_commandRegistry->addToGroup(m_commandRegistry->command(id), "room.selection", false);
+    }
+    m_commandRegistry->addToGroup(m_commandRegistry->command("connection.delete-selected"),
+                                  "connection.selection",
+                                  false);
+    m_commandRegistry->addToGroup(m_commandRegistry->command("infomark.delete-selected"),
+                                  "infomark.selection",
+                                  false);
+    m_commandRegistry->setGroupEnabled("room.selection", false);
+    m_commandRegistry->setGroupEnabled("connection.selection", false);
+    m_commandRegistry->setGroupEnabled("infomark.selection", false);
 }
 
 void QmlShellWindow::wireDialogCommands()
@@ -1308,7 +1394,11 @@ void QmlShellWindow::wireSelectionCommands()
 {
     // room.edit-selected/infomark.edit-selected/room.goto-selected/
     // room.force-update-selected are registered live (see isLiveCommand())
-    // but start with no selection to act on.
+    // but start with no selection to act on. room.delete-selected/move-*/
+    // merge-*/connect-to-neighbours and connection.delete-selected already
+    // start disabled via their "room.selection"/"connection.selection"
+    // groups (see registerCommands()); infomark.delete-selected likewise via
+    // "infomark.selection".
     if (UiCommand *const cmd = m_commandRegistry->command("room.edit-selected")) {
         cmd->setEnabled(false);
     }
@@ -1322,26 +1412,48 @@ void QmlShellWindow::wireSelectionCommands()
         cmd->setEnabled(false);
     }
 
-    // Mirrors MainWindow::slot_newRoomSelection()/slot_newInfomarkSelection()
-    // (via AppCore::onNewRoomSelection()): track the canvas's current
-    // selection so the edit/goto/force commands can be enabled/disabled and
-    // the edit dialogs constructed with the right selection.
+    // room.edit-selected is a member of AppCore::onNewRoomSelection()'s
+    // "room.selection" group (see registerCommands()'s
+    // addToGroup(..., "room.selection", false) loop, which mirrors
+    // mainwindow.cpp's identical loop -- room.edit-selected is included
+    // there too), so add it to the group here rather than managing its
+    // enabled state by hand alongside the other room.selection members.
+    m_commandRegistry->addToGroup(m_commandRegistry->command("room.edit-selected"),
+                                  "room.selection",
+                                  false);
+    // infomark.edit-selected is likewise a member of AppCore::
+    // onNewInfomarkSelection()'s "infomark.selection" group alongside
+    // infomark.delete-selected (mirrors mainwindow.cpp's
+    // `for (id : {"infomark.delete-selected", "infomark.edit-selected"})`
+    // loop), so its enabled state comes from the group rather than a
+    // separate setEnabled() call below.
+    m_commandRegistry->addToGroup(m_commandRegistry->command("infomark.edit-selected"),
+                                  "infomark.selection",
+                                  false);
+
+    // Mirrors MainWindow::slot_newRoomSelection()/slot_newConnectionSelection()/
+    // slot_newInfomarkSelection(): track the canvas's current selection here
+    // (read by the room.edit-selected/infomark.edit-selected/room.create
+    // triggered handlers and by MapContextMenu.qml's hasRoomSelection/
+    // roomSelectionEmpty/hasConnectionSelection/hasInfomarkSelection
+    // properties -- see QmlShellWindow.h's Q_PROPERTY block), delegating the
+    // "what does this enable/disable" logic to AppCore (m_appCore), exactly
+    // like MainWindow does.
     connect(m_mapCanvasCore,
             &MapCanvasCore::sig_newRoomSelection,
             this,
             [this](const SigRoomSelection &rs) {
                 m_roomSelection = !rs.isValid() ? nullptr : rs.getShared();
-                if (UiCommand *const cmd = m_commandRegistry->command("room.edit-selected")) {
-                    cmd->setEnabled(m_roomSelection != nullptr);
-                }
-                const bool singleRoom = m_roomSelection != nullptr && m_roomSelection->size() == 1;
-                if (UiCommand *const cmd = m_commandRegistry->command("room.goto-selected")) {
-                    cmd->setEnabled(singleRoom);
-                }
-                if (UiCommand *const cmd = m_commandRegistry->command(
-                        "room.force-update-selected")) {
-                    cmd->setEnabled(singleRoom && m_pathMachine->hasLastEvent());
-                }
+                m_appCore->onNewRoomSelection(rs);
+                emit sig_roomSelectionStateChanged();
+            });
+    connect(m_mapCanvasCore,
+            &MapCanvasCore::sig_newConnectionSelection,
+            this,
+            [this](ConnectionSelection *const cs) {
+                m_connectionSelection = (cs != nullptr) ? cs->shared_from_this() : nullptr;
+                m_appCore->onNewConnectionSelection(m_connectionSelection != nullptr);
+                emit sig_connectionSelectionStateChanged();
             });
     connect(m_mapCanvasCore,
             &MapCanvasCore::sig_newInfomarkSelection,
@@ -1349,10 +1461,28 @@ void QmlShellWindow::wireSelectionCommands()
             [this](InfomarkSelection *const is) {
                 const bool isNonNull = is != nullptr;
                 m_infoMarkSelection = isNonNull ? is->shared_from_this() : nullptr;
-                if (UiCommand *const cmd = m_commandRegistry->command("infomark.edit-selected")) {
-                    cmd->setEnabled(m_infoMarkSelection != nullptr);
+                const bool openEditor = m_appCore->onNewInfomarkSelection(isNonNull,
+                                                                          isNonNull ? is->size()
+                                                                                    : size_t{0});
+                emit sig_infomarkSelectionStateChanged();
+                if (openEditor) {
+                    // Mirrors MainWindow::slot_newInfomarkSelection(): an
+                    // empty (just-drawn) infomark selection immediately opens
+                    // the editor to create a new marker.
+                    if (UiCommand *const cmd = m_commandRegistry->command(
+                            "infomark.edit-selected")) {
+                        cmd->trigger();
+                    }
                 }
             });
+
+    // Mirrors MainWindow::wireConnections()'s
+    // `connect(canvas, &MapCanvas::sig_selectionChanged, ...)` lambda:
+    // re-enables the move/merge up/down room commands based on whether an
+    // adjacent-layer room exists under the current selection.
+    connect(m_mapCanvasCore, &MapCanvasCore::sig_selectionChanged, this, [this]() {
+        m_appCore->updateRoomOffsetCommands(m_roomSelection);
+    });
 
     // room.edit-selected -- mirrors MainWindow::slot_onEditRoomSelection()'s
     // MMAPPER_WITH_QML branch: a single persistent RoomEditController +
@@ -1467,6 +1597,186 @@ void QmlShellWindow::wireSelectionCommands()
                     m_mapData->setRoom(id);
                     m_pathMachine->forceUpdate(id);
                 }
+            });
+
+    // room.delete-selected -- mirrors MainWindow::slot_onDeleteRoomSelection():
+    // MapData::applyChangesToList() (multi-room aware -- one Change per room
+    // in the selection) followed by clearing the canvas's room selection.
+    connect(m_commandRegistry->command("room.delete-selected"),
+            &UiCommand::sig_triggered,
+            this,
+            [this]() {
+                if (m_roomSelection == nullptr) {
+                    return;
+                }
+                m_mapData->applyChangesToList(deref(m_roomSelection),
+                                              [](const RawRoom &room) -> Change {
+                                                  return Change{
+                                                      room_change_types::RemoveRoom{room.getId()}};
+                                              });
+                m_mapCanvasCore->slot_clearRoomSelection();
+            });
+
+    // room.move-up-selected/room.move-down-selected -- mirrors
+    // MainWindow::slot_onMoveUpRoomSelection()/slot_onMoveDownRoomSelection()
+    // (via slot_moveRoomSelection()): MoveRelative by one Z layer, then
+    // follow the selection to the new layer (mirrors slot_onLayerUp()/
+    // slot_onLayerDown() -> AppCore::layerUp()/layerDown() ->
+    // MapCanvas::slot_layerUp()/slot_layerDown(), which MapCanvasCore
+    // implements identically).
+    connect(m_commandRegistry->command("room.move-up-selected"),
+            &UiCommand::sig_triggered,
+            this,
+            [this]() {
+                if (m_roomSelection == nullptr) {
+                    return;
+                }
+                const Coordinate offset(0, 0, 1);
+                m_mapData->applyChangesToList(deref(m_roomSelection),
+                                              [&offset](const RawRoom &room) -> Change {
+                                                  return Change{
+                                                      room_change_types::MoveRelative{room.getId(),
+                                                                                      offset}};
+                                              });
+                m_mapCanvasCore->slot_layerUp();
+            });
+    connect(m_commandRegistry->command("room.move-down-selected"),
+            &UiCommand::sig_triggered,
+            this,
+            [this]() {
+                if (m_roomSelection == nullptr) {
+                    return;
+                }
+                const Coordinate offset(0, 0, -1);
+                m_mapData->applyChangesToList(deref(m_roomSelection),
+                                              [&offset](const RawRoom &room) -> Change {
+                                                  return Change{
+                                                      room_change_types::MoveRelative{room.getId(),
+                                                                                      offset}};
+                                              });
+                m_mapCanvasCore->slot_layerDown();
+            });
+
+    // room.merge-up-selected/room.merge-down-selected -- mirrors
+    // MainWindow::slot_onMergeUpRoomSelection()/slot_onMergeDownRoomSelection()
+    // (via slot_mergeRoomSelection()): MergeRelative by one Z layer, follow
+    // the selection to the new layer, then switch back to room-select mouse
+    // mode (mirrors slot_onModeRoomSelect() -> AppCore::setCanvasMouseMode();
+    // this shell's mouse-mode commands are wired directly to MapCanvasCore --
+    // see wireMouseModeCommand() -- so the mouse-mode.room-select command is
+    // triggered here instead, keeping its checked state in sync too).
+    connect(m_commandRegistry->command("room.merge-up-selected"),
+            &UiCommand::sig_triggered,
+            this,
+            [this]() {
+                if (m_roomSelection == nullptr) {
+                    return;
+                }
+                const Coordinate offset(0, 0, 1);
+                m_mapData->applyChangesToList(deref(m_roomSelection),
+                                              [&offset](const RawRoom &room) -> Change {
+                                                  return Change{
+                                                      room_change_types::MergeRelative{room.getId(),
+                                                                                       offset}};
+                                              });
+                m_mapCanvasCore->slot_layerUp();
+                if (UiCommand *const cmd = m_commandRegistry->command("mouse-mode.room-select")) {
+                    cmd->trigger();
+                }
+            });
+    connect(m_commandRegistry->command("room.merge-down-selected"),
+            &UiCommand::sig_triggered,
+            this,
+            [this]() {
+                if (m_roomSelection == nullptr) {
+                    return;
+                }
+                const Coordinate offset(0, 0, -1);
+                m_mapData->applyChangesToList(deref(m_roomSelection),
+                                              [&offset](const RawRoom &room) -> Change {
+                                                  return Change{
+                                                      room_change_types::MergeRelative{room.getId(),
+                                                                                       offset}};
+                                              });
+                m_mapCanvasCore->slot_layerDown();
+                if (UiCommand *const cmd = m_commandRegistry->command("mouse-mode.room-select")) {
+                    cmd->trigger();
+                }
+            });
+
+    // room.connect-to-neighbours -- mirrors
+    // MainWindow::slot_onConnectToNeighboursRoomSelection(): connects every
+    // room in the selection to its map neighbours via Changes.h's
+    // connectToNeighbors(), batched into a single ChangeList.
+    connect(m_commandRegistry->command("room.connect-to-neighbours"),
+            &UiCommand::sig_triggered,
+            this,
+            [this]() {
+                if (m_roomSelection == nullptr) {
+                    return;
+                }
+                auto &mapData = deref(m_mapData);
+                auto &sel = deref(m_roomSelection);
+                sel.removeMissing(mapData);
+
+                const Map &map = mapData.getCurrentMap();
+                ChangeList changes;
+                for (const RoomId id : sel) {
+                    const auto &room = map.getRoomHandle(id);
+                    connectToNeighbors(changes, room, ConnectToNeighborsArgs{});
+                }
+                if (changes.getChanges().empty()) {
+                    return;
+                }
+                mapData.applyChanges(changes);
+            });
+
+    // connection.delete-selected -- mirrors
+    // MainWindow::slot_onDeleteConnectionSelection().
+    connect(m_commandRegistry->command("connection.delete-selected"),
+            &UiCommand::sig_triggered,
+            this,
+            [this]() {
+                if (m_connectionSelection == nullptr) {
+                    return;
+                }
+                const auto &first = m_connectionSelection->getFirst();
+                const auto &second = m_connectionSelection->getSecond();
+                const auto &r1 = first.room;
+                const auto &r2 = second.room;
+                if (!r1 || !r2) {
+                    return;
+                }
+                const ExitDirEnum dir1 = first.direction;
+                const RoomId &id1 = r1.getId();
+                const RoomId &id2 = r2.getId();
+
+                m_mapCanvasCore->slot_clearConnectionSelection();
+
+                m_mapData->applySingleChange(Change{exit_change_types::ModifyExitConnection{
+                    ChangeTypeEnum::Remove, id1, dir1, id2, WaysEnum::TwoWay}});
+            });
+
+    // infomark.delete-selected -- mirrors
+    // MainWindow::slot_onDeleteInfomarkSelection().
+    connect(m_commandRegistry->command("infomark.delete-selected"),
+            &UiCommand::sig_triggered,
+            this,
+            [this]() {
+                if (m_infoMarkSelection == nullptr) {
+                    return;
+                }
+                {
+                    const auto tmp = std::exchange(m_infoMarkSelection, nullptr);
+                    ChangeList changes;
+                    for (const InfomarkId id : tmp->getMarkerList()) {
+                        changes.add(Change{infomark_change_types::RemoveInfomark{id}});
+                    }
+                    if (!changes.empty()) {
+                        m_mapData->applyChanges(changes);
+                    }
+                }
+                m_mapCanvasCore->slot_clearInfomarkSelection();
             });
 }
 
@@ -1706,6 +2016,16 @@ bool QmlShellWindow::maybeSave()
         return doSave();
     }
     return ret != QMessageBox::Cancel;
+}
+
+bool QmlShellWindow::getRoomSelectionEmpty() const
+{
+    return m_roomSelection == nullptr || m_roomSelection->empty();
+}
+
+bool QmlShellWindow::getInfomarkSelectionEmpty() const
+{
+    return m_infoMarkSelection == nullptr || m_infoMarkSelection->empty();
 }
 
 bool QmlShellWindow::confirmClose()

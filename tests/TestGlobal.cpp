@@ -30,6 +30,7 @@
 #include <tuple>
 
 #include <QDebug>
+#include <QTemporaryFile>
 #include <QtTest/QtTest>
 
 TestGlobal::TestGlobal() = default;
@@ -646,6 +647,244 @@ void TestGlobal::unquoteTest()
 void TestGlobal::weakHandleTest()
 {
     test::testWeakHandle();
+}
+
+struct MockFileInfo
+{
+    QString name;
+    QDateTime birthTime;
+    QDateTime lastModified;
+    qint64 size;
+};
+
+static QDateTime getFileTimeMock(const MockFileInfo &fileInfo)
+{
+    const QDateTime birth = fileInfo.birthTime;
+    if (birth.isValid() && birth.toMSecsSinceEpoch() > utils::EPOCH_CUTOFF_MS) {
+        return birth;
+    }
+    return fileInfo.lastModified;
+}
+
+void TestGlobal::autoLoggerLogicTest()
+{
+    // 1. Verify getFileTimeMock and boundary logic
+    // Case A: birthTime is epoch 0 -> falls back to lastModified
+    MockFileInfo m1{"f1.txt",
+                    QDateTime(QDate(1970, 1, 1), QTime(0, 0, 0), Qt::UTC),
+                    QDateTime(QDate(2023, 1, 1), QTime(0, 0, 0), Qt::UTC),
+                    100};
+    QCOMPARE(getFileTimeMock(m1), QDateTime(QDate(2023, 1, 1), QTime(0, 0, 0), Qt::UTC));
+
+    // Case B: birthTime is invalid -> falls back to lastModified
+    MockFileInfo m2{"f2.txt",
+                    QDateTime(),
+                    QDateTime(QDate(2022, 1, 1), QTime(0, 0, 0), Qt::UTC),
+                    100};
+    QCOMPARE(getFileTimeMock(m2), QDateTime(QDate(2022, 1, 1), QTime(0, 0, 0), Qt::UTC));
+
+    // Case C: birthTime is valid and after 1980 -> uses birthTime
+    MockFileInfo m3{"f3.txt",
+                    QDateTime(QDate(2024, 1, 1), QTime(0, 0, 0), Qt::UTC),
+                    QDateTime(QDate(2025, 1, 1), QTime(0, 0, 0), Qt::UTC),
+                    100};
+    QCOMPARE(getFileTimeMock(m3), QDateTime(QDate(2024, 1, 1), QTime(0, 0, 0), Qt::UTC));
+
+    // Case D (Comment 1 Boundary): birthTime exactly at the epoch cutoff (1980-01-01) -> falls back to lastModified
+    MockFileInfo mBoundary{"f_boundary.txt",
+                           QDateTime(QDate(1980, 1, 1), QTime(0, 0, 0), Qt::UTC),
+                           QDateTime(QDate(2021, 1, 1), QTime(0, 0, 0), Qt::UTC),
+                           100};
+    QCOMPARE(getFileTimeMock(mBoundary), QDateTime(QDate(2021, 1, 1), QTime(0, 0, 0), Qt::UTC));
+
+    // Case E (Timezone robustness): verify comparison behaves identically across timezones using milliseconds
+    MockFileInfo mLocal{"f_local.txt",
+                        QDateTime(QDate(2024, 1, 1), QTime(0, 0, 0), Qt::LocalTime),
+                        QDateTime(QDate(2025, 1, 1), QTime(0, 0, 0), Qt::LocalTime),
+                        100};
+    // Should still resolve to birthTime because 2024-01-01 is past 1980-01-01 in any local timezone
+    QCOMPARE(getFileTimeMock(mLocal), mLocal.birthTime);
+
+    // 2. Verify DeleteDays cleanup logic using getFileTimeMock (Comment 3 & Comment 1 suggestion)
+    {
+        // Simulated "now" and retention window
+        const QDateTime now = QDateTime(QDate(2025, 1, 10), QTime(0, 0, 0), Qt::UTC);
+        const int deleteWhenLogsReachDays = 3;
+        const QDateTime cutoff = now.addDays(-deleteWhenLogsReachDays);
+
+        // fOldBirthValid: valid birthTime, older than cutoff -> should be deleted
+        MockFileInfo fOldBirthValid{"old_birth_valid.log",
+                                    QDateTime(QDate(2025, 1, 1),
+                                              QTime(0, 0, 0),
+                                              Qt::UTC), // 9 days old
+                                    QDateTime(QDate(2025, 1, 2), QTime(0, 0, 0), Qt::UTC),
+                                    100};
+
+        // fOldEpochBirth: epoch birthTime (<= 1980) but old lastModified -> should be deleted via lastModified fallback
+        MockFileInfo fOldEpochBirth{"old_epoch_birth.log",
+                                    QDateTime(QDate(1970, 1, 1),
+                                              QTime(0, 0, 0),
+                                              Qt::UTC), // epoch 0 (invalid for age)
+                                    QDateTime(QDate(2025, 1, 1),
+                                              QTime(0, 0, 0),
+                                              Qt::UTC), // 9 days old, older than cutoff
+                                    100};
+
+        // Boundary case: file exactly at deleteWhenLogsReachDays (3 days old) should be deleted
+        MockFileInfo fBoundaryBirthValid{"boundary_birth_valid.log",
+                                         QDateTime(QDate(2025, 1, 7),
+                                                   QTime(0, 0, 0),
+                                                   Qt::UTC), // exactly 3 days old (10 - 7 = 3)
+                                         QDateTime(QDate(2025, 1, 7), QTime(0, 0, 0), Qt::UTC),
+                                         100};
+
+        // Boundary case: file just below the threshold (2 days old) should be retained
+        MockFileInfo fBelowThresholdBirthValid{"below_threshold_birth_valid.log",
+                                               QDateTime(QDate(2025, 1, 8),
+                                                         QTime(0, 0, 0),
+                                                         Qt::UTC), // 2 days old (10 - 8 = 2)
+                                               QDateTime(QDate(2025, 1, 8), QTime(0, 0, 0), Qt::UTC),
+                                               100};
+
+        // fRecentInvalidBirth: invalid birthTime, recent lastModified -> should NOT be deleted
+        MockFileInfo fRecentInvalidBirth{"recent_invalid_birth.log",
+                                         QDateTime(),     // invalid
+                                         now.addDays(-1), // 1 day old, newer than cutoff
+                                         100};
+
+        // fRecentEpochBirth: epoch birthTime, recent lastModified -> should NOT be deleted
+        MockFileInfo fRecentEpochBirth{"recent_epoch_birth.log",
+                                       QDateTime(QDate(1970, 1, 1),
+                                                 QTime(0, 0, 0),
+                                                 Qt::UTC), // epoch 0
+                                       now.addDays(-1),    // 1 day old, newer than cutoff
+                                       100};
+
+        // fRecentValidBirth: valid, recent birthTime -> should NOT be deleted
+        MockFileInfo fRecentValidBirth{"recent_valid_birth.log",
+                                       now.addDays(-1), // 1 day old, newer than cutoff
+                                       now.addDays(-1),
+                                       100};
+
+        const QList<MockFileInfo> files = {fOldBirthValid,
+                                           fOldEpochBirth,
+                                           fBoundaryBirthValid,
+                                           fBelowThresholdBirthValid,
+                                           fRecentInvalidBirth,
+                                           fRecentEpochBirth,
+                                           fRecentValidBirth};
+
+        QStringList deletedFiles;
+        for (const auto &file : files) {
+            const QDateTime fileTime = getFileTimeMock(file);
+            if (fileTime.date().daysTo(now.date()) >= deleteWhenLogsReachDays) {
+                deletedFiles << file.name;
+            }
+        }
+
+        const QStringList expectedDeletedFiles = {"old_birth_valid.log",
+                                                  "old_epoch_birth.log",
+                                                  "boundary_birth_valid.log"};
+
+        QCOMPARE(deletedFiles, expectedDeletedFiles);
+    }
+
+    // 3. Verify sorting and cumulative size deletion logic (Comment 2)
+    QList<MockFileInfo> fileInfoList = {
+        {"file1.txt",
+         QDateTime(QDate(1970, 1, 1), QTime(0, 0, 0), Qt::UTC),
+         QDateTime(QDate(2023, 5, 10), QTime(0, 0, 0), Qt::UTC),
+         60}, // oldest after fallback
+        {"file2.txt",
+         QDateTime(QDate(2024, 5, 10), QTime(0, 0, 0), Qt::UTC),
+         QDateTime(QDate(2024, 5, 10), QTime(0, 0, 0), Qt::UTC),
+         50}, // middle
+        {"file3.txt",
+         QDateTime(),
+         QDateTime(QDate(2025, 5, 10), QTime(0, 0, 0), Qt::UTC),
+         30} // newest after fallback
+    };
+
+    // Sort newest to oldest
+    std::sort(fileInfoList.begin(), fileInfoList.end(), [](const auto &a, const auto &b) {
+        return getFileTimeMock(a) > getFileTimeMock(b);
+    });
+
+    // Verify sorted order
+    QCOMPARE(fileInfoList[0].name, QString("file3.txt")); // 2025
+    QCOMPARE(fileInfoList[1].name, QString("file2.txt")); // 2024
+    QCOMPARE(fileInfoList[2].name, QString("file1.txt")); // 2023
+
+    // Helper to apply cumulative size-based deletion with a given threshold
+    auto collectFilesToDelete = [&](qint64 deleteWhenLogsReachBytes) {
+        qint64 totalFileSize = 0;
+        QList<MockFileInfo> toDelete;
+
+        for (const auto &fileInfo : fileInfoList) {
+            totalFileSize += fileInfo.size;
+            if (totalFileSize >= deleteWhenLogsReachBytes) {
+                toDelete.append(fileInfo);
+            }
+        }
+
+        return toDelete;
+    };
+
+    // Scenario 1: limit is 100 bytes, only the oldest file should be deleted
+    {
+        const qint64 deleteWhenLogsReachBytes = 100;
+        const QList<MockFileInfo> filesToDelete = collectFilesToDelete(deleteWhenLogsReachBytes);
+
+        // Expected:
+        // file3.txt kept (total 30, limit 100)
+        // file2.txt kept (total 80, limit 100)
+        // file1.txt deleted (total 140, limit 100)
+        QCOMPARE(filesToDelete.size(), 1);
+        QCOMPARE(filesToDelete[0].name, QString("file1.txt"));
+    }
+
+    // Scenario 2: cumulative size hits the limit exactly (verifies >= behavior)
+    {
+        const qint64 deleteWhenLogsReachBytes = 140; // total size of all three files
+        const QList<MockFileInfo> filesToDelete = collectFilesToDelete(deleteWhenLogsReachBytes);
+
+        // Expected:
+        // file3.txt kept (total 30, limit 140)
+        // file2.txt kept (total 80, limit 140)
+        // file1.txt deleted when total reaches exactly 140
+        QCOMPARE(filesToDelete.size(), 1);
+        QCOMPARE(filesToDelete[0].name, QString("file1.txt"));
+    }
+
+    // Scenario 3: low limit so that multiple files must be deleted
+    {
+        const qint64 deleteWhenLogsReachBytes = 60;
+        const QList<MockFileInfo> filesToDelete = collectFilesToDelete(deleteWhenLogsReachBytes);
+
+        // Totals:
+        // file3.txt: total 30  (< 60)  -> kept
+        // file2.txt: total 80  (>= 60) -> deleted
+        // file1.txt: total 140 (>= 60) -> deleted
+        QCOMPARE(filesToDelete.size(), 2);
+        QCOMPARE(filesToDelete[0].name, QString("file2.txt"));
+        QCOMPARE(filesToDelete[1].name, QString("file1.txt"));
+    }
+
+    // 4. Verify actual production utils::getFileTime function on a real file (Overall Comment 2)
+    {
+        QTemporaryFile tempFile;
+        QVERIFY(tempFile.open());
+        tempFile.write("test log data");
+        tempFile.flush();
+
+        QFileInfo realFileInfo(tempFile.fileName());
+        QDateTime realFileTime = utils::getFileTime(realFileInfo);
+
+        // The real file was just created, so its file time must be valid and very recent (at least > 2020)
+        QVERIFY(realFileTime.isValid());
+        QVERIFY(realFileTime.toMSecsSinceEpoch()
+                > QDateTime(QDate(2020, 1, 1), QTime(0, 0, 0), Qt::UTC).toMSecsSinceEpoch());
+    }
 }
 
 QTEST_MAIN(TestGlobal)

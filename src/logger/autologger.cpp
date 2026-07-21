@@ -7,12 +7,15 @@
 #include "../configuration/configuration.h"
 #include "../global/TextUtils.h"
 #include "../global/random.h"
+#include "../global/utils.h"
 
 #include <algorithm>
 #include <sstream>
 #include <tuple>
 
+#include <QDateTime>
 #include <QDebug>
+#include <QDir>
 #include <QFileInfo>
 #include <QMessageBox>
 #include <QStringList>
@@ -116,20 +119,32 @@ void AutoLogger::deleteOldLogs()
         return;
     }
 
-    // Sort files so we can delete the oldest
-    std::sort(fileInfoList.begin(), fileInfoList.end(), [](const auto &a, const auto &b) {
-        return a.birthTime() < b.birthTime();
+    struct FileWithTime
+    {
+        QFileInfo info;
+        QDateTime time;
+    };
+
+    QList<FileWithTime> filesWithTime;
+    filesWithTime.reserve(fileInfoList.size());
+    for (const auto &fileInfo : fileInfoList) {
+        filesWithTime.append({fileInfo, utils::getFileTime(fileInfo)});
+    }
+
+    // Sort files from newest to oldest based on cached time
+    std::sort(filesWithTime.begin(), filesWithTime.end(), [](const auto &a, const auto &b) {
+        return a.time > b.time;
     });
 
     qint64 totalFileSize = 0, deleteFileSize = 0;
-    QList<QFileInfo> filesToDelete;
+    QFileInfoList filesToDelete;
     const QDate &today = QDate::currentDate();
-    for (const auto &fileInfo : fileInfoList) {
-        totalFileSize += fileInfo.size();
+    for (const auto &item : filesWithTime) {
+        totalFileSize += item.info.size();
         bool deleteFile = false;
         switch (conf.cleanupStrategy) {
         case AutoLoggerEnum::DeleteDays:
-            if (fileInfo.birthTime().date().daysTo(today) >= conf.deleteWhenLogsReachDays) {
+            if (item.time.date().daysTo(today) >= conf.deleteWhenLogsReachDays) {
                 deleteFile = true;
             }
             break;
@@ -144,8 +159,8 @@ void AutoLogger::deleteOldLogs()
             abort();
         }
         if (deleteFile) {
-            deleteFileSize += fileInfo.size();
-            filesToDelete.append(fileInfo);
+            deleteFileSize += item.info.size();
+            filesToDelete.append(item.info);
         }
     }
 

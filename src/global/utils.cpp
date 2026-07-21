@@ -139,3 +139,12 @@ static_assert(!utils::equals(0.0, 1.0));
 static_assert(utils::equals(1.0, 1.0));
 static_assert(utils::equals(0.0, 0.0));
 static_assert(utils::equals(0.0, -0.0));
+
+QDateTime utils::getFileTime(const QFileInfo &fileInfo)
+{
+    const QDateTime birth = fileInfo.birthTime();
+    if (birth.isValid() && birth.toMSecsSinceEpoch() > EPOCH_CUTOFF_MS) {
+        return birth;
+    }
+    return fileInfo.lastModified();
+}

@@ -19,10 +19,16 @@
 #include <tuple>
 #include <type_traits>
 
+#include <QDateTime>
+#include <QFileInfo>
 #include <QPointer>
 #include <queue>
 
 namespace utils {
+
+inline constexpr qint64 EPOCH_CUTOFF_MS = 315532800000LL; // Milliseconds for Jan 1, 1980 00:00:00 UTC
+
+NODISCARD QDateTime getFileTime(const QFileInfo &fileInfo);
 
 // This mainly exists to avoid float-equal warnings,
 // but it also checks that the floating point types are the same.

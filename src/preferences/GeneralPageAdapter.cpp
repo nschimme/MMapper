@@ -13,7 +13,9 @@
 #include <QFileDialog>
 #include <QMessageBox>
 #include <QSettings>
+#ifndef Q_OS_WASM
 #include <QSslSocket>
+#endif
 #include <QTemporaryFile>
 
 #ifndef MMAPPER_WITH_QML
@@ -172,7 +174,13 @@ void GeneralPageAdapter::setTlsEncryption(const bool value)
 
 bool GeneralPageAdapter::getTlsAvailable()
 {
+#ifdef Q_OS_WASM
+    // Qt for WebAssembly is built without the ssl feature, so QSslSocket
+    // does not exist there; websockets provide the encrypted transport.
+    return !NO_WEBSOCKET;
+#else
     return QSslSocket::supportsSsl() || !NO_WEBSOCKET;
+#endif
 }
 
 bool GeneralPageAdapter::getProxyListensOnAnyInterface() const

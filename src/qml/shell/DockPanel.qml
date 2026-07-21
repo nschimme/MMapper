@@ -73,6 +73,21 @@ Item {
                              loader.item ? loader.item.implicitWidth : 0)
     implicitHeight: header.implicitHeight + (loader.item ? loader.item.implicitHeight : 0)
 
+    // Explicit preferred sizes so a SplitView ALWAYS allocates space to this
+    // panel when it is added at runtime. MainShell.qml places docks
+    // imperatively (SplitView.insertItem, see its "dock pool" comment); once
+    // a SplitView has done its first sized layout, an item inserted later
+    // with no preferred size gets ZERO space and renders invisible/
+    // non-interactive (only the very first layout falls back to implicit
+    // sizes -- which is why this only bites after the shell is already up and
+    // a panel is moved). SplitView uses preferredWidth for a horizontal
+    // parent (top/bottom rows) and preferredHeight for a vertical one
+    // (left/right columns); setting both covers a panel in either kind of
+    // area. Harmless when this DockPanel is a floating window's content
+    // (anchors.fill governs there and the attached props are ignored).
+    QQC2.SplitView.preferredWidth: 320
+    QQC2.SplitView.preferredHeight: 220
+
     SystemPalette {
         id: sysPalette
         colorGroup: SystemPalette.Active

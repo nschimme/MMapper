@@ -4031,6 +4031,57 @@ void TestQml::loadMainShellDocks()
         QVERIFY(l != nullptr);
         QCOMPARE(l->isVisible(), false);
     }
+
+    // Moving a panel to another area must leave it actually shown and
+    // laid-out there (regression: after a move the panel rendered at zero
+    // size / detached, so it was invisible and non-interactive). Move
+    // Description (right) to the left column, which already holds Client --
+    // this also exercises two panels stacked in one area.
+    auto *const leftColumn = object->findChild<QQuickItem *>(QStringLiteral("leftColumn"));
+    QVERIFY(leftColumn != nullptr);
+    QMetaObject::invokeMethod(&dockLayout,
+                              "setDockArea",
+                              Q_ARG(QString, QStringLiteral("description")),
+                              Q_ARG(QString, QStringLiteral("left")));
+    QCoreApplication::processEvents();
+    {
+        auto *const d = object->findChild<QQuickItem *>(QStringLiteral("dockDescription"));
+        auto *const c = object->findChild<QQuickItem *>(QStringLiteral("dockClient"));
+        QVERIFY(d != nullptr);
+        QVERIFY(c != nullptr);
+        // Both stacked panels must be visible and non-zero-sized.
+        QVERIFY2(d->isVisible(), "moved Description not visible");
+        QVERIFY2(d->width() > 0.0 && d->height() > 0.0, "moved Description has zero size");
+        QVERIFY2(c->isVisible(), "stacked Client not visible");
+        QVERIFY2(c->width() > 0.0 && c->height() > 0.0, "stacked Client has zero size");
+        // And Description must now live under the left column, not the right.
+        QCOMPARE(d->parentItem(), leftColumn->property("contentItem").value<QQuickItem *>());
+    }
+
+    // Moving a panel into a previously-EMPTY/collapsed area is the harder
+    // case: that area's container starts visible:false (the outer SplitView
+    // gave its space to the map), so when a panel arrives the container must
+    // flip visible AND be re-allocated non-zero space by the outer
+    // SplitView -- otherwise the panel shows at zero size and can't be
+    // interacted with. bottomRow starts empty (all its default docks
+    // hidden); move Group into it.
+    auto *const bottomRow = object->findChild<QQuickItem *>(QStringLiteral("bottomRow"));
+    QVERIFY(bottomRow != nullptr);
+    QCOMPARE(bottomRow->isVisible(), false);
+    QMetaObject::invokeMethod(&dockLayout,
+                              "setDockArea",
+                              Q_ARG(QString, QStringLiteral("group")),
+                              Q_ARG(QString, QStringLiteral("bottom")));
+    QCoreApplication::processEvents();
+    {
+        auto *const g = object->findChild<QQuickItem *>(QStringLiteral("dockGroup"));
+        QVERIFY(g != nullptr);
+        QVERIFY2(bottomRow->isVisible(), "bottomRow did not become visible after a panel moved in");
+        QVERIFY2(bottomRow->height() > 0.0, "bottomRow has zero height after a panel moved in");
+        QVERIFY2(g->isVisible(), "moved-into-empty-area Group not visible");
+        QVERIFY2(g->width() > 0.0 && g->height() > 0.0,
+                 "moved-into-empty-area Group has zero size");
+    }
 }
 
 void TestQml::dockContainerCollapsesWhenEmpty()

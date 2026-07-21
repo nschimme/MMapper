@@ -222,7 +222,7 @@ void MapCanvasUnderlayItem::paintUnderlay()
     }
 
     const QSize physicalSize(physW, physH);
-    if (physicalSize != m_lastPhysicalSize || dpr != m_lastDpr) {
+    if (physicalSize != m_lastPhysicalSize || !utils::equals(dpr, m_lastDpr)) {
         m_lastPhysicalSize = physicalSize;
         m_lastDpr = dpr;
         m_core->hostResize(physW, physH, dpr);

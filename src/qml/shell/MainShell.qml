@@ -68,6 +68,39 @@ QQC2.ApplicationWindow {
     height: 800
     visible: true
 
+    // Per-dock title/source, keyed by the same 8 ids DockLayoutController
+    // (../DockLayoutController.h) uses for its xVisible/xFloating
+    // properties and its leftDockIds/topDockIds/bottomDockIds/rightDockIds
+    // area lists below. Feeds both the docked-area Repeaters (outerSplit,
+    // below) and the FloatingDock instances further down, replacing what
+    // used to be 8 separate hard-coded DockPanel{ title:...; source:...  }
+    // blocks per fixed slot -- now a dock's *area* is data (dockLayout's
+    // xArea, mutated via its "move to" menu -- see DockPanel.qml), so which
+    // Repeater/container a panel's DockPanel instance lives under can
+    // change at runtime instead of being fixed at compile time.
+    readonly property var dockMeta: ({
+        client: {title: qsTr("Client Panel"), source: "qrc:/qt/qml/MMapper/ClientPanel.qml"},
+        group: {title: qsTr("Group Panel"), source: "qrc:/qt/qml/MMapper/GroupPanel.qml"},
+        log: {title: qsTr("Log Panel"), source: "qrc:/qt/qml/MMapper/LogPanel.qml"},
+        room: {title: qsTr("Room Panel"), source: "qrc:/qt/qml/MMapper/RoomPanel.qml"},
+        adventure: {title: qsTr("Adventure Panel"),
+                    source: "qrc:/qt/qml/MMapper/AdventurePanel.qml"},
+        tasks: {title: qsTr("Tasks Panel"), source: "qrc:/qt/qml/MMapper/TasksPanel.qml"},
+        description: {title: qsTr("Description Panel"),
+                      source: "qrc:/qt/qml/MMapper/DescriptionPanel.qml"},
+        timers: {title: qsTr("Timers Panel"), source: "qrc:/qt/qml/MMapper/TimerPanel.qml"}
+    })
+
+    // "dock" + capitalized id, matching each docked DockPanel's objectName
+    // below (e.g. "dockLog") -- kept as one helper since both the
+    // leftColumn/topRow/bottomRow/rightColumn Repeaters below and
+    // TestQml.cpp's findChild<QQuickItem*>("dockLog"...) lookups need the
+    // exact same mapping from id to objectName that the previous hard-coded
+    // DockPanel blocks spelled out literally.
+    function dockObjectName(id) {
+        return "dock" + id.charAt(0).toUpperCase() + id.slice(1);
+    }
+
     // TRANSPARENT-HOLE AUDIT (see MapCanvasUnderlayItem.h's file comment for
     // the underlay technique this exists for): MapView's canvas normally
     // draws the map into MainShell's ApplicationWindow.background --
@@ -1025,21 +1058,24 @@ QQC2.ApplicationWindow {
         anchors.fill: parent
         orientation: Qt.Horizontal
 
+        // The 4 area containers below are intentionally EMPTY in the markup:
+        // their DockPanel children are placed imperatively by
+        // reconcileDocks() (see the "dock pool" Item further down). Qt 6.4's
+        // QQC2.SplitView does not adopt Repeater-generated delegates as
+        // split items (a Repeater inside it creates nothing usable -- proven
+        // by TestQml), so a declarative `Repeater { DockPanel {} }` per area
+        // simply renders no docks. Instead each dock is a single long-lived
+        // DockPanel instance (created once in the pool) that reconcileDocks()
+        // moves between these SplitViews with insertItem()/removeItem() as
+        // DockLayoutController's leftDockIds/topDockIds/bottomDockIds/
+        // rightDockIds change -- which also means a panel keeps its content
+        // state (scroll position, filter text, ...) when moved or hidden,
+        // since it is never destroyed and re-created.
         DockColumn {
             id: leftColumn
             objectName: "leftColumn"
             QQC2.SplitView.preferredWidth: 320
-            visible: dockLayout ? (dockLayout.clientVisible && !dockLayout.clientFloating) : true
-
-            DockPanel {
-                objectName: "dockClient"
-                title: qsTr("Client Panel")
-                source: "qrc:/qt/qml/MMapper/ClientPanel.qml"
-                visible: dockLayout
-                         ? (dockLayout.clientVisible && !dockLayout.clientFloating) : true
-                onCloseRequested: if (dockLayout) dockLayout.clientVisible = false
-                onFloatRequested: if (dockLayout) dockLayout.clientFloating = true
-            }
+            visible: dockLayout ? dockLayout.leftDockIds.length > 0 : false
         }
 
         QQC2.SplitView {
@@ -1051,17 +1087,7 @@ QQC2.ApplicationWindow {
                 id: topRow
                 objectName: "topRow"
                 QQC2.SplitView.preferredHeight: 220
-                visible: dockLayout ? (dockLayout.groupVisible && !dockLayout.groupFloating) : true
-
-                DockPanel {
-                    objectName: "dockGroup"
-                    title: qsTr("Group Panel")
-                    source: "qrc:/qt/qml/MMapper/GroupPanel.qml"
-                    visible: dockLayout
-                             ? (dockLayout.groupVisible && !dockLayout.groupFloating) : true
-                    onCloseRequested: if (dockLayout) dockLayout.groupVisible = false
-                    onFloatRequested: if (dockLayout) dockLayout.groupFloating = true
-                }
+                visible: dockLayout ? dockLayout.topDockIds.length > 0 : false
             }
 
             MapView {
@@ -1074,49 +1100,7 @@ QQC2.ApplicationWindow {
                 id: bottomRow
                 objectName: "bottomRow"
                 QQC2.SplitView.preferredHeight: 220
-                visible: dockLayout
-                         ? ((dockLayout.logVisible && !dockLayout.logFloating)
-                            || (dockLayout.roomVisible && !dockLayout.roomFloating)
-                            || (dockLayout.adventureVisible && !dockLayout.adventureFloating)
-                            || (dockLayout.tasksVisible && !dockLayout.tasksFloating))
-                         : false
-
-                DockPanel {
-                    objectName: "dockLog"
-                    title: qsTr("Log Panel")
-                    source: "qrc:/qt/qml/MMapper/LogPanel.qml"
-                    visible: dockLayout ? (dockLayout.logVisible && !dockLayout.logFloating) : false
-                    onCloseRequested: if (dockLayout) dockLayout.logVisible = false
-                    onFloatRequested: if (dockLayout) dockLayout.logFloating = true
-                }
-                DockPanel {
-                    objectName: "dockRoom"
-                    title: qsTr("Room Panel")
-                    source: "qrc:/qt/qml/MMapper/RoomPanel.qml"
-                    visible: dockLayout
-                             ? (dockLayout.roomVisible && !dockLayout.roomFloating) : false
-                    onCloseRequested: if (dockLayout) dockLayout.roomVisible = false
-                    onFloatRequested: if (dockLayout) dockLayout.roomFloating = true
-                }
-                DockPanel {
-                    objectName: "dockAdventure"
-                    title: qsTr("Adventure Panel")
-                    source: "qrc:/qt/qml/MMapper/AdventurePanel.qml"
-                    visible: dockLayout
-                             ? (dockLayout.adventureVisible && !dockLayout.adventureFloating)
-                             : false
-                    onCloseRequested: if (dockLayout) dockLayout.adventureVisible = false
-                    onFloatRequested: if (dockLayout) dockLayout.adventureFloating = true
-                }
-                DockPanel {
-                    objectName: "dockTasks"
-                    title: qsTr("Tasks Panel")
-                    source: "qrc:/qt/qml/MMapper/TasksPanel.qml"
-                    visible: dockLayout
-                             ? (dockLayout.tasksVisible && !dockLayout.tasksFloating) : false
-                    onCloseRequested: if (dockLayout) dockLayout.tasksVisible = false
-                    onFloatRequested: if (dockLayout) dockLayout.tasksFloating = true
-                }
+                visible: dockLayout ? dockLayout.bottomDockIds.length > 0 : false
             }
         }
 
@@ -1124,31 +1108,174 @@ QQC2.ApplicationWindow {
             id: rightColumn
             objectName: "rightColumn"
             QQC2.SplitView.preferredWidth: 320
-            visible: dockLayout
-                     ? ((dockLayout.descriptionVisible && !dockLayout.descriptionFloating)
-                        || (dockLayout.timersVisible && !dockLayout.timersFloating))
-                     : true
+            visible: dockLayout ? dockLayout.rightDockIds.length > 0 : false
+        }
+    }
 
-            DockPanel {
-                objectName: "dockDescription"
-                title: qsTr("Description Panel")
-                source: "qrc:/qt/qml/MMapper/DescriptionPanel.qml"
-                visible: dockLayout
-                         ? (dockLayout.descriptionVisible && !dockLayout.descriptionFloating)
-                         : true
-                onCloseRequested: if (dockLayout) dockLayout.descriptionVisible = false
-                onFloatRequested: if (dockLayout) dockLayout.descriptionFloating = true
-            }
-            DockPanel {
-                objectName: "dockTimers"
-                title: qsTr("Timers Panel")
-                source: "qrc:/qt/qml/MMapper/TimerPanel.qml"
-                visible: dockLayout
-                         ? (dockLayout.timersVisible && !dockLayout.timersFloating) : false
-                onCloseRequested: if (dockLayout) dockLayout.timersVisible = false
-                onFloatRequested: if (dockLayout) dockLayout.timersFloating = true
+    // --- Docked-panel pool + imperative placement ------------------------
+    //
+    // The single DockPanel instance per dock id lives here for its whole
+    // lifetime; reconcileDocks() attaches/detaches it to whichever area
+    // SplitView (leftColumn/topRow/bottomRow/rightColumn) currently owns it.
+    // See the comment on the 4 empty containers above for why this is
+    // imperative rather than a Repeater.
+    Component {
+        id: dockPanelComponent
+        DockPanel {}
+    }
+
+    // Invisible parking spot for pooled DockPanels that aren't currently
+    // attached to an area SplitView (hidden, or floated out). It MUST be an
+    // explicit, visible:false holder rather than leaving those panels
+    // parented to the window: an Item created against the ApplicationWindow
+    // gets the window's content item as its visual parent and would render
+    // -- all the hidden-by-default docks would stack up over the shell.
+    // Reparenting a detached panel here instead keeps it alive (state
+    // preserved) but off-screen until reconcileDocks() places it.
+    Item {
+        id: dockPoolHolder
+        visible: false
+    }
+
+    // dockId -> DockPanel instance. Populated once by createDockPool().
+    property var dockPool: ({})
+
+    function areaSplitView(area) {
+        if (area === "left")
+            return leftColumn;
+        if (area === "top")
+            return topRow;
+        if (area === "bottom")
+            return bottomRow;
+        if (area === "right")
+            return rightColumn;
+        return null;
+    }
+
+    function areaIds(area) {
+        if (!dockLayout)
+            return [];
+        if (area === "left")
+            return dockLayout.leftDockIds;
+        if (area === "top")
+            return dockLayout.topDockIds;
+        if (area === "bottom")
+            return dockLayout.bottomDockIds;
+        if (area === "right")
+            return dockLayout.rightDockIds;
+        return [];
+    }
+
+    function createDockPool() {
+        if (!dockLayout)
+            return;
+        const ids = ["client", "group", "log", "room", "adventure", "tasks", "description", "timers"];
+        for (var i = 0; i < ids.length; ++i) {
+            const id = ids[i];
+            if (window.dockPool[id])
+                continue;
+            const meta = window.dockMeta[id];
+            // Parent to the invisible holder so the instance survives being
+            // detached from a SplitView (state preserved) while staying
+            // off-screen until reconcileDocks() attaches it to an area.
+            const inst = dockPanelComponent.createObject(dockPoolHolder, {
+                objectName: window.dockObjectName(id),
+                dockId: id,
+                title: meta ? meta.title : "",
+                source: meta ? meta.source : "",
+                currentArea: dockLayout.dockArea(id)
+            });
+            inst.closeRequested.connect(function (capturedId) {
+                return function () {
+                    if (dockLayout)
+                        dockLayout[capturedId + "Visible"] = false;
+                };
+            }(id));
+            inst.floatRequested.connect(function (capturedId) {
+                return function () {
+                    if (dockLayout)
+                        dockLayout[capturedId + "Floating"] = true;
+                };
+            }(id));
+            inst.moveToAreaRequested.connect(function (capturedId) {
+                return function (area) {
+                    if (dockLayout)
+                        dockLayout.setDockArea(capturedId, area);
+                };
+            }(id));
+            window.dockPool[id] = inst;
+        }
+    }
+
+    function reconcileDocks() {
+        if (!dockLayout)
+            return;
+        const areas = ["left", "top", "bottom", "right"];
+        var a, i, j;
+
+        // Pass 1: detach any panel that no longer belongs in its SplitView
+        // (hidden, floated, or moved to another area). Detached instances
+        // stay alive in dockPool.
+        for (a = 0; a < areas.length; ++a) {
+            const sv1 = areaSplitView(areas[a]);
+            const want1 = areaIds(areas[a]);
+            for (i = sv1.count - 1; i >= 0; --i) {
+                const child = sv1.contentChildren[i];
+                if (!child || want1.indexOf(child.dockId) === -1) {
+                    sv1.removeItem(child);
+                    // removeItem() leaves the item parent-less (and, oddly,
+                    // still effectively visible); park it in the invisible
+                    // holder so it's genuinely off-screen until re-placed.
+                    if (child)
+                        child.parent = dockPoolHolder;
+                }
             }
         }
+
+        // Pass 2: insert/reorder each area's panels to match its id list
+        // exactly (canonical order). After pass 1 a wanted panel is either
+        // already in this SplitView or unparented, never in another one.
+        for (a = 0; a < areas.length; ++a) {
+            const sv2 = areaSplitView(areas[a]);
+            const want2 = areaIds(areas[a]);
+            for (i = 0; i < want2.length; ++i) {
+                const inst = window.dockPool[want2[i]];
+                if (!inst)
+                    continue;
+                inst.currentArea = areas[a];
+                if (i < sv2.count && sv2.contentChildren[i] === inst)
+                    continue;
+                for (j = 0; j < sv2.count; ++j) {
+                    if (sv2.contentChildren[j] === inst) {
+                        sv2.removeItem(inst);
+                        break;
+                    }
+                }
+                sv2.insertItem(i, inst);
+            }
+        }
+    }
+
+    Connections {
+        target: dockLayout
+        ignoreUnknownSignals: true
+        function onLeftDockIdsChanged() {
+            window.reconcileDocks();
+        }
+        function onTopDockIdsChanged() {
+            window.reconcileDocks();
+        }
+        function onBottomDockIdsChanged() {
+            window.reconcileDocks();
+        }
+        function onRightDockIdsChanged() {
+            window.reconcileDocks();
+        }
+    }
+
+    Component.onCompleted: {
+        window.createDockPool();
+        window.reconcileDocks();
     }
 
     // Inline component backing every floating dock's top-level window (Qt
@@ -1243,9 +1370,23 @@ QQC2.ApplicationWindow {
 
                 DockPanel {
                     anchors.fill: parent
+                    dockId: floatLoader.dockId
                     title: floatLoader.dockTitle
                     source: floatLoader.dockSource
                     floating: true
+                    // A floating panel has no single "current area" to grey
+                    // out (it isn't docked anywhere), so leave currentArea
+                    // at "" -- every entry stays enabled -- and treat
+                    // picking one as "re-dock me into that area": set the
+                    // area and clear floating so the docked-area Repeater
+                    // above picks the panel back up.
+                    currentArea: ""
+                    onMoveToAreaRequested: (area) => {
+                        if (dockLayout) {
+                            dockLayout.setDockArea(floatLoader.dockId, area);
+                            dockLayout[floatLoader.dockId + "Floating"] = false;
+                        }
+                    }
                     onFloatRequested: if (dockLayout)
                                            dockLayout[floatLoader.dockId + "Floating"] = false
                     onCloseRequested: if (dockLayout)

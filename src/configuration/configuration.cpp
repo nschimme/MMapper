@@ -334,6 +334,14 @@ ConstString KEY_QML_SHELL_DOCK_DESCRIPTION_FLOAT_GEOMETRY = "Dock Description Fl
 ConstString KEY_QML_SHELL_DOCK_TIMERS_FLOAT_GEOMETRY = "Dock Timers Float Geometry";
 ConstString KEY_QML_SHELL_DOCK_TASKS_FLOAT_GEOMETRY = "Dock Tasks Float Geometry";
 ConstString KEY_QML_SHELL_DOCK_CLIENT_FLOAT_GEOMETRY = "Dock Client Float Geometry";
+ConstString KEY_QML_SHELL_DOCK_LOG_AREA = "Dock Log Area";
+ConstString KEY_QML_SHELL_DOCK_GROUP_AREA = "Dock Group Area";
+ConstString KEY_QML_SHELL_DOCK_ROOM_AREA = "Dock Room Area";
+ConstString KEY_QML_SHELL_DOCK_ADVENTURE_AREA = "Dock Adventure Area";
+ConstString KEY_QML_SHELL_DOCK_DESCRIPTION_AREA = "Dock Description Area";
+ConstString KEY_QML_SHELL_DOCK_TIMERS_AREA = "Dock Timers Area";
+ConstString KEY_QML_SHELL_DOCK_TASKS_AREA = "Dock Tasks Area";
+ConstString KEY_QML_SHELL_DOCK_CLIENT_AREA = "Dock Client Area";
 ConstString KEY_QML_SHELL_TOOLBAR_FILE_VISIBLE = "Toolbar File Visible";
 ConstString KEY_QML_SHELL_TOOLBAR_MAPPER_MODE_VISIBLE = "Toolbar Mapper Mode Visible";
 ConstString KEY_QML_SHELL_TOOLBAR_MOUSE_MODE_VISIBLE = "Toolbar Mouse Mode Visible";
@@ -897,6 +905,16 @@ void Configuration::QmlShellSettings::read(const QSettings &conf)
     dockTimersFloatGeometry = conf.value(KEY_QML_SHELL_DOCK_TIMERS_FLOAT_GEOMETRY).toByteArray();
     dockTasksFloatGeometry = conf.value(KEY_QML_SHELL_DOCK_TASKS_FLOAT_GEOMETRY).toByteArray();
     dockClientFloatGeometry = conf.value(KEY_QML_SHELL_DOCK_CLIENT_FLOAT_GEOMETRY).toByteArray();
+    dockLogArea = conf.value(KEY_QML_SHELL_DOCK_LOG_AREA, QStringLiteral("bottom")).toString();
+    dockGroupArea = conf.value(KEY_QML_SHELL_DOCK_GROUP_AREA, QStringLiteral("top")).toString();
+    dockRoomArea = conf.value(KEY_QML_SHELL_DOCK_ROOM_AREA, QStringLiteral("bottom")).toString();
+    dockAdventureArea = conf.value(KEY_QML_SHELL_DOCK_ADVENTURE_AREA, QStringLiteral("bottom"))
+                            .toString();
+    dockDescriptionArea = conf.value(KEY_QML_SHELL_DOCK_DESCRIPTION_AREA, QStringLiteral("right"))
+                              .toString();
+    dockTimersArea = conf.value(KEY_QML_SHELL_DOCK_TIMERS_AREA, QStringLiteral("right")).toString();
+    dockTasksArea = conf.value(KEY_QML_SHELL_DOCK_TASKS_AREA, QStringLiteral("bottom")).toString();
+    dockClientArea = conf.value(KEY_QML_SHELL_DOCK_CLIENT_AREA, QStringLiteral("left")).toString();
     toolbarFileVisible = conf.value(KEY_QML_SHELL_TOOLBAR_FILE_VISIBLE, false).toBool();
     toolbarMapperModeVisible = conf.value(KEY_QML_SHELL_TOOLBAR_MAPPER_MODE_VISIBLE, false).toBool();
     toolbarMouseModeVisible = conf.value(KEY_QML_SHELL_TOOLBAR_MOUSE_MODE_VISIBLE, false).toBool();
@@ -1123,6 +1141,14 @@ void Configuration::QmlShellSettings::write(QSettings &conf) const
     conf.setValue(KEY_QML_SHELL_DOCK_TIMERS_FLOAT_GEOMETRY, dockTimersFloatGeometry);
     conf.setValue(KEY_QML_SHELL_DOCK_TASKS_FLOAT_GEOMETRY, dockTasksFloatGeometry);
     conf.setValue(KEY_QML_SHELL_DOCK_CLIENT_FLOAT_GEOMETRY, dockClientFloatGeometry);
+    conf.setValue(KEY_QML_SHELL_DOCK_LOG_AREA, dockLogArea);
+    conf.setValue(KEY_QML_SHELL_DOCK_GROUP_AREA, dockGroupArea);
+    conf.setValue(KEY_QML_SHELL_DOCK_ROOM_AREA, dockRoomArea);
+    conf.setValue(KEY_QML_SHELL_DOCK_ADVENTURE_AREA, dockAdventureArea);
+    conf.setValue(KEY_QML_SHELL_DOCK_DESCRIPTION_AREA, dockDescriptionArea);
+    conf.setValue(KEY_QML_SHELL_DOCK_TIMERS_AREA, dockTimersArea);
+    conf.setValue(KEY_QML_SHELL_DOCK_TASKS_AREA, dockTasksArea);
+    conf.setValue(KEY_QML_SHELL_DOCK_CLIENT_AREA, dockClientArea);
     conf.setValue(KEY_QML_SHELL_TOOLBAR_FILE_VISIBLE, toolbarFileVisible);
     conf.setValue(KEY_QML_SHELL_TOOLBAR_MAPPER_MODE_VISIBLE, toolbarMapperModeVisible);
     conf.setValue(KEY_QML_SHELL_TOOLBAR_MOUSE_MODE_VISIBLE, toolbarMouseModeVisible);

@@ -31,6 +31,21 @@ Item {
     // URL of the panel's own QML file (e.g. "qrc:/qt/qml/MMapper/LogPanel.qml").
     property url source
 
+    // Id this panel is registered under in DockLayoutController (e.g.
+    // "log") -- set by the caller (MainShell.qml) so the header's "move to"
+    // menu below can call dockLayout.setDockArea(dockId, ...) without the
+    // caller having to wire up 4 separate onTriggered handlers itself.
+    // Purely a passthrough; this component never reads DockLayoutController
+    // directly (mirrors closeRequested/floatRequested's own
+    // caller-owns-the-property-write design -- see those signals' doc
+    // comments below).
+    property string dockId: ""
+
+    // This panel's current dock area ("left"/"top"/"bottom"/"right"), set
+    // by the caller from dockLayout.dockArea(dockId) -- used only to grey
+    // out the "move to" menu's entry for the area the panel is already in.
+    property string currentArea: ""
+
     // True when this DockPanel is the content of a floating QtQuick.Window
     // (see MainShell.qml's FloatingDock inline component) rather than a
     // docked SplitView child. Purely cosmetic here -- it only flips the
@@ -48,6 +63,11 @@ Item {
     // is expected to flip the DockLayoutController property this dock's
     // `floating` is bound to (see MainShell.qml).
     signal floatRequested
+
+    // Emitted with "left"/"top"/"bottom"/"right" when the header's "move
+    // to" menu picks a new area; the caller is expected to call
+    // dockLayout.setDockArea(dockId, area) (see MainShell.qml).
+    signal moveToAreaRequested(string area)
 
     implicitWidth: Math.max(header.implicitWidth,
                              loader.item ? loader.item.implicitWidth : 0)
@@ -71,10 +91,54 @@ Item {
             anchors.left: parent.left
             anchors.leftMargin: 6
             anchors.verticalCenter: parent.verticalCenter
-            anchors.right: floatButton.left
+            anchors.right: moveButton.left
             elide: Text.ElideRight
             text: root.title
             color: sysPalette.buttonText
+        }
+
+        // "Move to" menu: lets the user re-area this panel between the
+        // shell's 4 fixed dock slots (left/top/bottom/right -- see
+        // MainShell.qml's dockMeta/leftColumn-etc. comments) without
+        // drag-and-drop, which QQC2.SplitView doesn't support here (see the
+        // task report this shipped with). Placed left of floatButton so the
+        // rightmost-to-leftmost header order stays [close][float][move],
+        // matching floatButton/closeButton's existing right-to-left anchor
+        // chain.
+        QQC2.ToolButton {
+            id: moveButton
+            anchors.right: floatButton.left
+            anchors.verticalCenter: parent.verticalCenter
+            text: "⋮"
+            QQC2.ToolTip.visible: hovered
+            QQC2.ToolTip.text: qsTr("Move to…")
+            implicitWidth: implicitHeight
+            onClicked: moveMenu.popup()
+
+            QQC2.Menu {
+                id: moveMenu
+
+                QQC2.MenuItem {
+                    text: qsTr("Move to Left")
+                    enabled: root.currentArea !== "left"
+                    onTriggered: root.moveToAreaRequested("left")
+                }
+                QQC2.MenuItem {
+                    text: qsTr("Move to Top")
+                    enabled: root.currentArea !== "top"
+                    onTriggered: root.moveToAreaRequested("top")
+                }
+                QQC2.MenuItem {
+                    text: qsTr("Move to Bottom")
+                    enabled: root.currentArea !== "bottom"
+                    onTriggered: root.moveToAreaRequested("bottom")
+                }
+                QQC2.MenuItem {
+                    text: qsTr("Move to Right")
+                    enabled: root.currentArea !== "right"
+                    onTriggered: root.moveToAreaRequested("right")
+                }
+            }
         }
 
         // Float/re-dock toggle, mirroring QDockWidget::DockWidgetFloatable's

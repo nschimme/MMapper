@@ -691,6 +691,18 @@ QmlShellWindow::QmlShellWindow(QObject *const parent)
                               decodeFloatGeometry(qmlShellConfig.dockTasksFloatGeometry));
     m_dockLayout->setProperty("clientFloatGeometry",
                               decodeFloatGeometry(qmlShellConfig.dockClientFloatGeometry));
+    // Restore each dock's area (see DockLayoutController::setDockArea());
+    // order relative to the visibility/floating restores above doesn't
+    // matter -- setDockArea() calls recomputeAreaLists() itself, which
+    // reads whatever xVisible/xFloating state is current at the time.
+    m_dockLayout->setDockArea(QStringLiteral("log"), qmlShellConfig.dockLogArea);
+    m_dockLayout->setDockArea(QStringLiteral("group"), qmlShellConfig.dockGroupArea);
+    m_dockLayout->setDockArea(QStringLiteral("room"), qmlShellConfig.dockRoomArea);
+    m_dockLayout->setDockArea(QStringLiteral("adventure"), qmlShellConfig.dockAdventureArea);
+    m_dockLayout->setDockArea(QStringLiteral("description"), qmlShellConfig.dockDescriptionArea);
+    m_dockLayout->setDockArea(QStringLiteral("timers"), qmlShellConfig.dockTimersArea);
+    m_dockLayout->setDockArea(QStringLiteral("tasks"), qmlShellConfig.dockTasksArea);
+    m_dockLayout->setDockArea(QStringLiteral("client"), qmlShellConfig.dockClientArea);
     m_toolbarLayout->setProperty("fileVisible", qmlShellConfig.toolbarFileVisible);
     m_toolbarLayout->setProperty("mapperModeVisible", qmlShellConfig.toolbarMapperModeVisible);
     m_toolbarLayout->setProperty("mouseModeVisible", qmlShellConfig.toolbarMouseModeVisible);
@@ -897,6 +909,14 @@ void QmlShellWindow::persistWindowState()
         m_dockLayout->property("tasksFloatGeometry").toRect());
     qmlShellConfig.dockClientFloatGeometry = encodeFloatGeometry(
         m_dockLayout->property("clientFloatGeometry").toRect());
+    qmlShellConfig.dockLogArea = m_dockLayout->dockArea(QStringLiteral("log"));
+    qmlShellConfig.dockGroupArea = m_dockLayout->dockArea(QStringLiteral("group"));
+    qmlShellConfig.dockRoomArea = m_dockLayout->dockArea(QStringLiteral("room"));
+    qmlShellConfig.dockAdventureArea = m_dockLayout->dockArea(QStringLiteral("adventure"));
+    qmlShellConfig.dockDescriptionArea = m_dockLayout->dockArea(QStringLiteral("description"));
+    qmlShellConfig.dockTimersArea = m_dockLayout->dockArea(QStringLiteral("timers"));
+    qmlShellConfig.dockTasksArea = m_dockLayout->dockArea(QStringLiteral("tasks"));
+    qmlShellConfig.dockClientArea = m_dockLayout->dockArea(QStringLiteral("client"));
     qmlShellConfig.toolbarFileVisible = m_toolbarLayout->property("fileVisible").toBool();
     qmlShellConfig.toolbarMapperModeVisible = m_toolbarLayout->property("mapperModeVisible").toBool();
     qmlShellConfig.toolbarMouseModeVisible = m_toolbarLayout->property("mouseModeVisible").toBool();

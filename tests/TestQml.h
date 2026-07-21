@@ -75,6 +75,7 @@ private Q_SLOTS:
     void loadMainShell();
     void pathMachineStatusFunnel();
     void mapperModeCommandGrouping();
+    void dockLayoutControllerAreas();
     void loadMainShellDocks();
     void dockContainerCollapsesWhenEmpty();
     void dockFloatingWindowLifecycle();

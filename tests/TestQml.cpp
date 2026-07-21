@@ -3788,6 +3788,65 @@ void TestQml::mapperModeCommandGrouping()
     QVERIFY(offlineCmd->isChecked());
 }
 
+void TestQml::dockLayoutControllerAreas()
+{
+    // Covers the "move panels between dock areas" feature: DockLayoutController's
+    // leftDockIds/topDockIds/bottomDockIds/rightDockIds (see
+    // ../src/qml/DockLayoutController.h) and its setDockArea()/dockArea()
+    // invokables, exercised directly against the controller (no QML/engine
+    // needed -- MainShell.qml's Repeaters just bind straight to these
+    // lists, covered separately by loadMainShellDocks()/
+    // dockContainerCollapsesWhenEmpty() above).
+    DockLayoutController dockLayout;
+
+    // Defaults mirror mainwindow.cpp's dock construction (see
+    // DockLayoutController.h's Q_PROPERTY comment): Client left/visible,
+    // Group top/visible, Description right/visible; Log/Room/Adventure/
+    // Tasks/Timers all start hidden, so bottom starts empty despite 4 docks
+    // defaulting there.
+    QCOMPARE(dockLayout.property("leftDockIds").toStringList(), QStringList{"client"});
+    QCOMPARE(dockLayout.property("topDockIds").toStringList(), QStringList{"group"});
+    QCOMPARE(dockLayout.property("rightDockIds").toStringList(), QStringList{"description"});
+    QCOMPARE(dockLayout.property("bottomDockIds").toStringList(), QStringList{});
+
+    // Showing 2 of the bottom-area-default docks populates bottomDockIds in
+    // canonical id order (client, group, log, room, adventure, tasks,
+    // description, timers -- see DockLayoutController.h's file comment),
+    // not insertion order.
+    dockLayout.setProperty("logVisible", true);
+    dockLayout.setProperty("roomVisible", true);
+    QCOMPARE(dockLayout.property("bottomDockIds").toStringList(), (QStringList{"log", "room"}));
+
+    // Moving "log" to the left area: leftDockIds gains it (after "client",
+    // per canonical order), bottomDockIds loses it.
+    dockLayout.setDockArea(QStringLiteral("log"), QStringLiteral("left"));
+    QCOMPARE(dockLayout.property("leftDockIds").toStringList(), (QStringList{"client", "log"}));
+    QCOMPARE(dockLayout.property("bottomDockIds").toStringList(), QStringList{"room"});
+
+    // Moving "group" (currently top, visible) to bottom: topDockIds empties
+    // out, bottomDockIds gains it in canonical id order -- "group" (index 1)
+    // sorts before "room" (index 3), so it lands ahead of the "room" that's
+    // already there.
+    dockLayout.setDockArea(QStringLiteral("group"), QStringLiteral("bottom"));
+    QCOMPARE(dockLayout.property("topDockIds").toStringList(), QStringList{});
+    QCOMPARE(dockLayout.property("bottomDockIds").toStringList(), (QStringList{"group", "room"}));
+
+    QCOMPARE(dockLayout.dockArea(QStringLiteral("group")), QStringLiteral("bottom"));
+    QCOMPARE(dockLayout.dockArea(QStringLiteral("nonexistent")), QString());
+
+    // An invalid area string is a silent no-op -- "group" stays in bottom.
+    dockLayout.setDockArea(QStringLiteral("group"), QStringLiteral("nonsense"));
+    QCOMPARE(dockLayout.dockArea(QStringLiteral("group")), QStringLiteral("bottom"));
+    QCOMPARE(dockLayout.property("bottomDockIds").toStringList(), (QStringList{"group", "room"}));
+
+    // Floating a dock excludes it from every area list, same as hiding it
+    // does -- MainShell.qml's per-area Repeaters rely on this to drop a
+    // dock the instant it's popped out into its own Window (see
+    // FloatingDock in MainShell.qml).
+    dockLayout.setProperty("clientFloating", true);
+    QVERIFY(!dockLayout.property("leftDockIds").toStringList().contains("client"));
+}
+
 void TestQml::loadMainShellDocks()
 {
     // Drives MainShell.qml's 8-dock SplitView layout (added alongside
@@ -3890,53 +3949,88 @@ void TestQml::loadMainShellDocks()
     QVERIFY(object != nullptr);
     QCoreApplication::processEvents();
 
-    static constexpr std::array kDockNames{
-        "dockLog",
+    // Each of the 4 fixed slots' DockPanel children are now Repeater
+    // delegates driven by DockLayoutController's leftDockIds/topDockIds/
+    // bottomDockIds/rightDockIds (see ../src/qml/DockLayoutController.h and
+    // MainShell.qml's "dock region" comment) instead of 8 hard-coded
+    // DockPanel blocks -- a dock only exists as a child at all while it's
+    // both docked (area == its Repeater's container) and xVisible, so
+    // Log/Room/Adventure/Timers/Tasks (all hidden by default) simply have
+    // no "dockX"-named child yet, unlike the old always-instantiated-but-
+    // hidden Loader design. Only Group/Description/Client -- visible by
+    // default -- are found up front; the rest are looked up again after
+    // being toggled visible below.
+    static constexpr std::array kVisibleByDefaultDockNames{
         "dockGroup",
-        "dockRoom",
-        "dockAdventure",
         "dockDescription",
-        "dockTimers",
-        "dockTasks",
         "dockClient",
     };
-    for (const char *const name : kDockNames) {
+    for (const char *const name : kVisibleByDefaultDockNames) {
         QObject *const dock = object->findChild<QObject *>(QString::fromLatin1(name));
         QVERIFY2(dock != nullptr, name);
+    }
+    static constexpr std::array kHiddenByDefaultDockNames{
+        "dockLog",
+        "dockRoom",
+        "dockAdventure",
+        "dockTimers",
+        "dockTasks",
+    };
+    for (const char *const name : kHiddenByDefaultDockNames) {
+        // Pooled-placement design (see MainShell.qml's "dock pool" comment):
+        // every dock's single DockPanel instance exists for the window's
+        // whole lifetime -- that's how a panel keeps its content state when
+        // hidden or moved -- so findChild always finds it. What "hidden"
+        // means here is that the instance is detached from every area
+        // SplitView and therefore not visible, not that it doesn't exist.
+        auto *const dock = object->findChild<QQuickItem *>(QString::fromLatin1(name));
+        QVERIFY2(dock != nullptr, name);
+        QVERIFY2(!dock->isVisible(), name);
     }
 
     // Defaults mirror mainwindow.cpp's dock->hide()/no-hide-call split (see
     // DockLayoutController.h's Q_PROPERTY comment): Log/Room/Adventure/
     // Timers/Tasks start hidden, Group/Description/Client start visible.
-    auto *const dockLog = object->findChild<QQuickItem *>(QStringLiteral("dockLog"));
     auto *const dockGroup = object->findChild<QQuickItem *>(QStringLiteral("dockGroup"));
     auto *const dockDescription = object->findChild<QQuickItem *>(QStringLiteral("dockDescription"));
     auto *const dockClient = object->findChild<QQuickItem *>(QStringLiteral("dockClient"));
-    QVERIFY(dockLog != nullptr);
     QVERIFY(dockGroup != nullptr);
     QVERIFY(dockDescription != nullptr);
     QVERIFY(dockClient != nullptr);
-    QCOMPARE(dockLog->isVisible(), false);
     QCOMPARE(dockGroup->isVisible(), true);
     QCOMPARE(dockDescription->isVisible(), true);
     QCOMPARE(dockClient->isVisible(), true);
 
     // Toggling a dock's visibility through the same controller property the
     // "Side Panels" menu items and each DockPanel's close button drive must
-    // not crash the surrounding SplitView.
+    // not crash the surrounding SplitView, and must attach/detach the dock's
+    // pooled DockPanel to/from its area SplitView accordingly -- reflected
+    // as an isVisible() flip on the (always-present) instance.
     dockLayout.setProperty("logVisible", true);
     QCoreApplication::processEvents();
+    auto *const dockLog = object->findChild<QQuickItem *>(QStringLiteral("dockLog"));
+    QVERIFY(dockLog != nullptr);
     QCOMPARE(dockLog->isVisible(), true);
 
     dockLayout.setProperty("groupVisible", false);
     QCoreApplication::processEvents();
-    QCOMPARE(dockGroup->isVisible(), false);
+    {
+        auto *const g = object->findChild<QQuickItem *>(QStringLiteral("dockGroup"));
+        QVERIFY(g != nullptr);
+        QCOMPARE(g->isVisible(), false);
+    }
 
     dockLayout.setProperty("groupVisible", true);
     dockLayout.setProperty("logVisible", false);
     QCoreApplication::processEvents();
-    QCOMPARE(dockGroup->isVisible(), true);
-    QCOMPARE(dockLog->isVisible(), false);
+    {
+        auto *const g = object->findChild<QQuickItem *>(QStringLiteral("dockGroup"));
+        auto *const l = object->findChild<QQuickItem *>(QStringLiteral("dockLog"));
+        QVERIFY(g != nullptr);
+        QCOMPARE(g->isVisible(), true);
+        QVERIFY(l != nullptr);
+        QCOMPARE(l->isVisible(), false);
+    }
 }
 
 void TestQml::dockContainerCollapsesWhenEmpty()
@@ -4188,9 +4282,15 @@ void TestQml::dockFloatingWindowLifecycle()
     QCOMPARE(floatDescription->property("active").toBool(), false);
     QCOMPARE(floatDescription->property("item").value<QObject *>(), nullptr);
 
-    // Floating it hides the docked instance and creates a real Window.
+    // Floating it removes "description" from rightDockIds (see
+    // DockLayoutController::recomputeAreaLists(), which excludes floating
+    // docks), which DETACHES the dock's pooled DockPanel from the right
+    // column and spins up the floating Window instead. The pooled instance
+    // is NOT destroyed (that's how its content state survives re-docking),
+    // so it stays findable but goes not-visible.
     dockLayout.setProperty("descriptionFloating", true);
     QCoreApplication::processEvents();
+    QVERIFY(dockDescription != nullptr);
     QCOMPARE(dockDescription->isVisible(), false);
     QCOMPARE(floatDescription->property("active").toBool(), true);
     auto *const floatWindowObj = floatDescription->property("item").value<QObject *>();

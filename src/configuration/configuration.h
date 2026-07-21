@@ -504,6 +504,22 @@ public:
         QByteArray dockTimersFloatGeometry;
         QByteArray dockTasksFloatGeometry;
         QByteArray dockClientFloatGeometry;
+        // Which of the 4 fixed SplitView slots ("left"/"top"/"bottom"/
+        // "right") each dock is currently in, mirroring
+        // DockLayoutController's own per-dock area strings (see
+        // ../qml/DockLayoutController.h) -- this struct is that
+        // controller's on-disk persistence, so it carries the same 8
+        // fields the "move to" menu can change. Defaults match
+        // DockLayoutController's compiled-in defaults so a fresh profile
+        // lays out identically to today.
+        QString dockLogArea = QStringLiteral("bottom");
+        QString dockGroupArea = QStringLiteral("top");
+        QString dockRoomArea = QStringLiteral("bottom");
+        QString dockAdventureArea = QStringLiteral("bottom");
+        QString dockDescriptionArea = QStringLiteral("right");
+        QString dockTimersArea = QStringLiteral("right");
+        QString dockTasksArea = QStringLiteral("bottom");
+        QString dockClientArea = QStringLiteral("left");
         bool toolbarFileVisible = false;
         bool toolbarMapperModeVisible = false;
         bool toolbarMouseModeVisible = false;

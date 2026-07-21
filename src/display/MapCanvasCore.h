@@ -77,6 +77,18 @@ public:
 
     // Set the shape of the cursor shown while hovering the host.
     virtual void setHostCursor(Qt::CursorShape shape) = 0;
+
+    // Called with the GL context current, immediately before the core
+    // composites its internal FBO into the currently bound framebuffer
+    // (blitFboToDefault()). By this point the paint has left the viewport
+    // at (0, 0, w, h) -- the right presentation rect for every host that
+    // owns its whole framebuffer (QOpenGLWindow, QQuickFramebufferObject),
+    // hence the no-op default. A host that presents into a SUB-RECT of a
+    // framebuffer it shares (MapCanvasUnderlayItem, drawing into the Quick
+    // window's backbuffer) must re-apply its own viewport here, or the
+    // blit lands at the framebuffer's bottom-left corner instead of the
+    // host's rect.
+    virtual void applyPresentViewport() {}
 };
 
 class NODISCARD_QOBJECT MapCanvasCore : public QObject,

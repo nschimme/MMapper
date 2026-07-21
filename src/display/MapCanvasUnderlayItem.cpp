@@ -221,11 +221,15 @@ void MapCanvasUnderlayItem::paintUnderlay()
         return;
     }
 
-    const QSize physicalSize(physW, physH);
-    if (physicalSize != m_lastPhysicalSize || !utils::equals(dpr, m_lastDpr)) {
-        m_lastPhysicalSize = physicalSize;
+    // hostResize() speaks LOGICAL pixels (the same unit hostSize() returns
+    // and MapCanvasQuickItemRenderer::synchronize() passes): the core's GL
+    // layer applies the DPR itself (Legacy::Functions::glViewport()), so
+    // handing it physical pixels here would inflate its viewport by dpr^2.
+    const QSize logicalSize(qRound(width()), qRound(height()));
+    if (logicalSize != m_lastLogicalSize || !utils::equals(dpr, m_lastDpr)) {
+        m_lastLogicalSize = logicalSize;
         m_lastDpr = dpr;
-        m_core->hostResize(physW, physH, dpr);
+        m_core->hostResize(logicalSize.width(), logicalSize.height(), dpr);
     }
 
     // OpenGL's viewport/scissor origin is bottom-left, but the rect just
@@ -245,11 +249,17 @@ void MapCanvasUnderlayItem::paintUnderlay()
     // this is the one piece of this design that can't be verified in this
     // GL-less container and needs the user's own visual check on macOS.
     const int viewportY = windowPhysicalHeight - (physY + physH);
+    m_presentRect = QRect(physX, viewportY, physW, physH);
 
     win->beginExternalCommands();
 
     if (QOpenGLContext *const ctx = QOpenGLContext::currentContext()) {
         QOpenGLFunctions *const f = ctx->functions();
+        // The scissor confines every direct GL write to this item's rect.
+        // The viewport set here only covers hostPaintGL()'s early
+        // blit-only path; a full paint overwrites it with (0, 0, w, h) for
+        // FBO rendering and then calls applyPresentViewport() (below) to
+        // restore it before the final blit.
         f->glViewport(physX, viewportY, physW, physH);
         f->glEnable(GL_SCISSOR_TEST);
         f->glScissor(physX, viewportY, physW, physH);
@@ -260,4 +270,14 @@ void MapCanvasUnderlayItem::paintUnderlay()
     }
 
     win->endExternalCommands();
+}
+
+void MapCanvasUnderlayItem::applyPresentViewport()
+{
+    if (QOpenGLContext *const ctx = QOpenGLContext::currentContext()) {
+        ctx->functions()->glViewport(m_presentRect.x(),
+                                     m_presentRect.y(),
+                                     m_presentRect.width(),
+                                     m_presentRect.height());
+    }
 }

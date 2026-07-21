@@ -55,6 +55,7 @@
 
 #include <QPointer>
 #include <QQuickItem>
+#include <QRect>
 #include <QSize>
 
 class QHoverEvent;
@@ -104,6 +105,16 @@ private:
     NODISCARD qreal hostDevicePixelRatio() const override;
     NODISCARD QSize hostSize() const override { return QSize(qRound(width()), qRound(height())); }
     void setHostCursor(Qt::CursorShape shape) override { QQuickItem::setCursor(shape); }
+    // Re-applies m_presentRect (this item's rect in the window's physical
+    // pixels, computed by paintUnderlay()) as the GL viewport right before
+    // MapCanvasCore composites its FBO into the window's backbuffer. This
+    // is required, not optional, for this host: the core's own paint sets
+    // the viewport to (0, 0, w, h) for rendering into its internal FBO, and
+    // without this hook the final blit would land at the window's
+    // bottom-left corner (scissored to this item's rect), showing the map
+    // horizontally/vertically shifted and leaving part of the rect showing
+    // stale alternating backbuffer contents.
+    void applyPresentViewport() override;
 
 private:
     // Backstop cleanup path: connected (DirectConnection) to the current
@@ -139,15 +150,22 @@ private:
     QPointer<QQuickWindow> m_connectedWindow;
     bool m_glInitialized = false;
 
-    // The physical-pixel size (and DPR) last passed to
+    // The logical-pixel size (and DPR) last passed to
     // MapCanvasCore::hostResize() by paintUnderlay(), so it's only called
     // again when the item's on-screen size (or the window's DPR) actually
     // changes -- mirroring MapCanvasQuickItemRenderer::synchronize()'s
     // once-per-synchronize call, adapted to "once per change" since this
     // class has no separate synchronize() phase to hook: paintUnderlay()
-    // runs every frame regardless of whether anything changed.
-    QSize m_lastPhysicalSize;
+    // runs every frame regardless of whether anything changed. Logical
+    // pixels, because that is the unit hostResize()/hostSize() speak
+    // (Legacy::Functions::glViewport() applies the DPR itself).
+    QSize m_lastLogicalSize;
     qreal m_lastDpr = 0.0;
+
+    // This item's rect in the window's physical-pixel, bottom-left-origin
+    // GL coordinates, refreshed by every paintUnderlay() and consumed by
+    // applyPresentViewport().
+    QRect m_presentRect;
 
 signals:
     void coreChanged();

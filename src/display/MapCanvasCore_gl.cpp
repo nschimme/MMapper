@@ -666,6 +666,9 @@ void MapCanvasCore::actuallyPaintGL()
     }
 
     if (paintSucceeded) {
+        if (ICanvasHost *const host = getHost()) {
+            host->applyPresentViewport();
+        }
         gl.blitFboToDefault();
     }
 }
@@ -836,6 +839,9 @@ void MapCanvasCore::hostPaintGL()
     auto frame = m_frameManager.beginFrame();
     if (!frame) {
         // Blit the existing FBO on resize or expose
+        if (ICanvasHost *const host = getHost()) {
+            host->applyPresentViewport();
+        }
         getOpenGL().blitFboToDefault();
         return;
     }

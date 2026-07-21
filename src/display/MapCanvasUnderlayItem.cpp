@@ -255,14 +255,22 @@ void MapCanvasUnderlayItem::paintUnderlay()
 
     if (QOpenGLContext *const ctx = QOpenGLContext::currentContext()) {
         QOpenGLFunctions *const f = ctx->functions();
-        // The scissor confines every direct GL write to this item's rect.
-        // The viewport set here only covers hostPaintGL()'s early
-        // blit-only path; a full paint overwrites it with (0, 0, w, h) for
-        // FBO rendering and then calls applyPresentViewport() (below) to
-        // restore it before the final blit.
+        // The scissor must be DISABLED across hostPaintGL()'s FBO rendering.
+        // The core renders the whole map into its own internal FBO whose
+        // coordinate origin is (0, 0); a scissor set to this item's rect --
+        // which lives in window coordinates offset by the item's on-screen
+        // position (physX, viewportY) -- would clip that FBO render to the
+        // offset sub-rect, dropping the FBO's left/bottom edge (the bug that
+        // left only the right side of the map visible when docks pushed the
+        // item's origin away from the window corner). The scissor is instead
+        // enabled only for the final composite, inside applyPresentViewport()
+        // (called by hostPaintGL() with the default framebuffer bound, where
+        // window coordinates are the correct space), and cleared again here.
+        f->glDisable(GL_SCISSOR_TEST);
+        // Viewport for hostPaintGL()'s early blit-only path (the full-paint
+        // path overrides it for FBO rendering, then applyPresentViewport()
+        // restores it for the composite).
         f->glViewport(physX, viewportY, physW, physH);
-        f->glEnable(GL_SCISSOR_TEST);
-        f->glScissor(physX, viewportY, physW, physH);
 
         m_core->hostPaintGL();
 
@@ -275,9 +283,22 @@ void MapCanvasUnderlayItem::paintUnderlay()
 void MapCanvasUnderlayItem::applyPresentViewport()
 {
     if (QOpenGLContext *const ctx = QOpenGLContext::currentContext()) {
-        ctx->functions()->glViewport(m_presentRect.x(),
-                                     m_presentRect.y(),
-                                     m_presentRect.width(),
-                                     m_presentRect.height());
+        QOpenGLFunctions *const f = ctx->functions();
+        // Called by MapCanvasCore right before blitFboToDefault(), with the
+        // default framebuffer bound and its own paint viewport (0, 0, w, h)
+        // still in effect. Restore this item's window-space rect as both the
+        // viewport (so the full-screen-triangle composite lands on the item)
+        // and the scissor (belt-and-suspenders against the triangle's
+        // deliberate overdraw). Both are cleared by paintUnderlay() after
+        // hostPaintGL() returns, so nothing leaks into Quick's render pass.
+        f->glViewport(m_presentRect.x(),
+                      m_presentRect.y(),
+                      m_presentRect.width(),
+                      m_presentRect.height());
+        f->glEnable(GL_SCISSOR_TEST);
+        f->glScissor(m_presentRect.x(),
+                     m_presentRect.y(),
+                     m_presentRect.width(),
+                     m_presentRect.height());
     }
 }

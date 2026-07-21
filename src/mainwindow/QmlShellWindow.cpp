@@ -89,6 +89,7 @@
 #include <QApplication>
 #include <QCloseEvent>
 #include <QCoreApplication>
+#include <QCursor>
 #include <QDataStream>
 #include <QDir>
 #include <QFileDialog>
@@ -102,6 +103,7 @@
 #include <QRect>
 #include <QScreen>
 #include <QTimer>
+#include <QToolTip>
 #include <QUrl>
 
 namespace { // anonymous
@@ -1509,6 +1511,20 @@ void QmlShellWindow::wireSelectionCommands()
     connect(m_mapCanvasCore, &MapCanvasCore::sig_selectionChanged, this, [this]() {
         m_appCore->updateRoomOffsetCommands(m_roomSelection);
     });
+
+    // Mirrors MapWindow::slot_showTooltip(): MapCanvasCore emits
+    // sig_showTooltip() when a room is left-clicked in MOVE mode without a
+    // drag, carrying the room-details preview text. The widget shell routes
+    // it through MapWindow to a QToolTip anchored on the canvas container;
+    // there is no such container here (the canvas is a QQuickItem in a
+    // QQuickWindow), so anchor at the cursor -- which, for a click-triggered
+    // tooltip, is exactly the point that was tapped. This is the same
+    // no-hosting-widget fallback ClockAdapter uses (see the setToolTipWidget
+    // comment in this window's constructor).
+    connect(m_mapCanvasCore,
+            &MapCanvasCore::sig_showTooltip,
+            this,
+            [](const QString &text, const QPoint &) { QToolTip::showText(QCursor::pos(), text); });
 
     // room.edit-selected -- mirrors MainWindow::slot_onEditRoomSelection()'s
     // MMAPPER_WITH_QML branch: a single persistent RoomEditController +

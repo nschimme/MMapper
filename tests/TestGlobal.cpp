@@ -660,10 +660,7 @@ struct MockFileInfo
 static QDateTime getFileTimeMock(const MockFileInfo &fileInfo)
 {
     const QDateTime birth = fileInfo.birthTime;
-    // Use Jan 1, 1980 in UTC as a timezone-independent cutoff
-    static const qint64 epochCutoffMs = QDateTime(QDate(1980, 1, 1), QTime(0, 0, 0), Qt::UTC)
-                                            .toMSecsSinceEpoch();
-    if (birth.isValid() && birth.toMSecsSinceEpoch() > epochCutoffMs) {
+    if (birth.isValid() && birth.toMSecsSinceEpoch() > utils::EPOCH_CUTOFF_MS) {
         return birth;
     }
     return fileInfo.lastModified;
@@ -708,7 +705,7 @@ void TestGlobal::autoLoggerLogicTest()
     // Should still resolve to birthTime because 2024-01-01 is past 1980-01-01 in any local timezone
     QCOMPARE(getFileTimeMock(mLocal), mLocal.birthTime);
 
-    // 2. Verify DeleteDays cleanup logic using getFileTimeMock (Comment 3)
+    // 2. Verify DeleteDays cleanup logic using getFileTimeMock (Comment 3 & Comment 1 suggestion)
     {
         // Simulated "now" and retention window
         const QDateTime now = QDateTime(QDate(2025, 1, 10), QTime(0, 0, 0), Qt::UTC);
@@ -733,6 +730,22 @@ void TestGlobal::autoLoggerLogicTest()
                                               Qt::UTC), // 9 days old, older than cutoff
                                     100};
 
+        // Boundary case: file exactly at deleteWhenLogsReachDays (3 days old) should be deleted
+        MockFileInfo fBoundaryBirthValid{"boundary_birth_valid.log",
+                                         QDateTime(QDate(2025, 1, 7),
+                                                   QTime(0, 0, 0),
+                                                   Qt::UTC), // exactly 3 days old (10 - 7 = 3)
+                                         QDateTime(QDate(2025, 1, 7), QTime(0, 0, 0), Qt::UTC),
+                                         100};
+
+        // Boundary case: file just below the threshold (2 days old) should be retained
+        MockFileInfo fBelowThresholdBirthValid{"below_threshold_birth_valid.log",
+                                               QDateTime(QDate(2025, 1, 8),
+                                                         QTime(0, 0, 0),
+                                                         Qt::UTC), // 2 days old (10 - 8 = 2)
+                                               QDateTime(QDate(2025, 1, 8), QTime(0, 0, 0), Qt::UTC),
+                                               100};
+
         // fRecentInvalidBirth: invalid birthTime, recent lastModified -> should NOT be deleted
         MockFileInfo fRecentInvalidBirth{"recent_invalid_birth.log",
                                          QDateTime(),     // invalid
@@ -755,6 +768,8 @@ void TestGlobal::autoLoggerLogicTest()
 
         const QList<MockFileInfo> files = {fOldBirthValid,
                                            fOldEpochBirth,
+                                           fBoundaryBirthValid,
+                                           fBelowThresholdBirthValid,
                                            fRecentInvalidBirth,
                                            fRecentEpochBirth,
                                            fRecentValidBirth};
@@ -767,7 +782,9 @@ void TestGlobal::autoLoggerLogicTest()
             }
         }
 
-        const QStringList expectedDeletedFiles = {"old_birth_valid.log", "old_epoch_birth.log"};
+        const QStringList expectedDeletedFiles = {"old_birth_valid.log",
+                                                  "old_epoch_birth.log",
+                                                  "boundary_birth_valid.log"};
 
         QCOMPARE(deletedFiles, expectedDeletedFiles);
     }

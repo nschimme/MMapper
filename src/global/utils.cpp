@@ -143,10 +143,7 @@ static_assert(utils::equals(0.0, -0.0));
 QDateTime utils::getFileTime(const QFileInfo &fileInfo)
 {
     const QDateTime birth = fileInfo.birthTime();
-    // Use Jan 1, 1980 in UTC as a timezone-independent cutoff (to avoid timezone/dst differences)
-    static const qint64 epochCutoffMs = QDateTime(QDate(1980, 1, 1), QTime(0, 0, 0), Qt::UTC)
-                                            .toMSecsSinceEpoch();
-    if (birth.isValid() && birth.toMSecsSinceEpoch() > epochCutoffMs) {
+    if (birth.isValid() && birth.toMSecsSinceEpoch() > EPOCH_CUTOFF_MS) {
         return birth;
     }
     return fileInfo.lastModified();

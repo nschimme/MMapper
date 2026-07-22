@@ -33,6 +33,7 @@ Column {
         Label { text: qsTr("Max Paths:"); width: 180 }
         SpinBox {
             id: maxPathsBox
+            editable: true
             from: 0
             to: 100000
             value: root.pathMachine.maxPaths
@@ -45,6 +46,7 @@ Column {
         Label { text: qsTr("Matching Tolerance:"); width: 180 }
         SpinBox {
             id: matchingToleranceBox
+            editable: true
             from: 0
             to: 100
             value: root.pathMachine.matchingTolerance

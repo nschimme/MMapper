@@ -36,6 +36,11 @@ void MumeProtocolPageAdapter::setExternalRemoteEditorCommand(const QString &valu
     emit sig_changed();
 }
 
+bool MumeProtocolPageAdapter::getIsWasm()
+{
+    return CURRENT_PLATFORM == PlatformEnum::Wasm;
+}
+
 void MumeProtocolPageAdapter::browseForEditor()
 {
     auto &command = setConfig().mumeClientProtocol.externalRemoteEditorCommand;

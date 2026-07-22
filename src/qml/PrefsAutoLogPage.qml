@@ -42,6 +42,7 @@ Column {
         }
 
         Button {
+            enabled: !root.autoLog.isWasm
             text: qsTr("Select")
             onClicked: root.autoLog.browseForDirectory()
         }
@@ -69,6 +70,7 @@ Column {
         }
         SpinBox {
             id: deleteDaysBox
+            editable: true
             from: 0
             to: 9999999
             enabled: deleteDaysRadio.checked
@@ -89,6 +91,7 @@ Column {
         }
         SpinBox {
             id: deleteSizeBox
+            editable: true
             from: 1
             to: 10000
             enabled: deleteSizeRadio.checked
@@ -112,6 +115,7 @@ Column {
         Label { text: qsTr("Rotate logs after") }
         SpinBox {
             id: rotateBox
+            editable: true
             from: 1
             to: 1000
             value: root.autoLog.rotateWhenLogsReachMB

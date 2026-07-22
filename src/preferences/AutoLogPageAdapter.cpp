@@ -94,6 +94,11 @@ void AutoLogPageAdapter::setAskDelete(const bool value)
     emit sig_changed();
 }
 
+bool AutoLogPageAdapter::getIsWasm()
+{
+    return CURRENT_PLATFORM == PlatformEnum::Wasm;
+}
+
 void AutoLogPageAdapter::browseForDirectory()
 {
     auto &config = setConfig().autoLog;

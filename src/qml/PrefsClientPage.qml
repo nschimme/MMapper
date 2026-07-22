@@ -77,6 +77,7 @@ Column {
         Label { text: qsTr("Columns:"); width: 160 }
         SpinBox {
             // Mirrors clientpage.ui's columnsSpinBox range.
+            editable: true
             from: 80
             to: 1000
             value: root.client.columns
@@ -88,6 +89,7 @@ Column {
         Label { text: qsTr("Rows:"); width: 160 }
         SpinBox {
             // Mirrors clientpage.ui's rowsSpinBox range.
+            editable: true
             from: 24
             to: 1000
             value: root.client.rows
@@ -99,6 +101,7 @@ Column {
         Label { text: qsTr("Lines of scrollback:"); width: 160 }
         SpinBox {
             // Mirrors clientpage.ui's scrollbackSpinBox range.
+            editable: true
             from: 0
             to: 2147483647
             value: root.client.linesOfScrollback
@@ -111,6 +114,7 @@ Column {
         SpinBox {
             // clientpage.ui's previewSpinBox leaves QSpinBox's default
             // range (0-99) unset.
+            editable: true
             from: 0
             to: 99
             value: root.client.linesOfPeekPreview
@@ -122,6 +126,7 @@ Column {
         Label { text: qsTr("Lines of input history:"); width: 160 }
         SpinBox {
             // Mirrors clientpage.ui's inputHistorySpinBox range.
+            editable: true
             from: 0
             to: 1000
             value: root.client.linesOfInputHistory
@@ -133,6 +138,7 @@ Column {
         Label { text: qsTr("Tab dictionary size:"); width: 160 }
         SpinBox {
             // Mirrors clientpage.ui's tabDictionarySpinBox range.
+            editable: true
             from: 0
             to: 1000
             value: root.client.tabCompletionDictionarySize

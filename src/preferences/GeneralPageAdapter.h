@@ -65,6 +65,12 @@ public:
     Q_PROPERTY(int localPort READ getLocalPort WRITE setLocalPort NOTIFY sig_changed)
     Q_PROPERTY(bool tlsEncryption READ getTlsEncryption WRITE setTlsEncryption NOTIFY sig_changed)
     Q_PROPERTY(bool tlsAvailable READ getTlsAvailable CONSTANT)
+    // True when running under WebAssembly, where native QFileDialog pickers
+    // do not exist; mirrors the `CURRENT_PLATFORM == PlatformEnum::Wasm`
+    // guards in generalpage.cpp (ctor lines 264-272, slot_loadConfig lines
+    // 315-321). Used by PrefsGeneralPage.qml to disable the resources-
+    // directory and world-file Browse buttons on WASM.
+    Q_PROPERTY(bool isWasm READ getIsWasm CONSTANT)
     Q_PROPERTY(bool proxyListensOnAnyInterface READ getProxyListensOnAnyInterface WRITE
                    setProxyListensOnAnyInterface NOTIFY sig_changed)
     Q_PROPERTY(bool proxyConnectionStatus READ getProxyConnectionStatus WRITE
@@ -134,6 +140,7 @@ public:
     NODISCARD bool getTlsEncryption() const;
     void setTlsEncryption(bool value);
     NODISCARD static bool getTlsAvailable();
+    NODISCARD static bool getIsWasm();
     NODISCARD bool getProxyListensOnAnyInterface() const;
     void setProxyListensOnAnyInterface(bool value);
     NODISCARD bool getProxyConnectionStatus() const;

@@ -39,6 +39,10 @@ class NODISCARD_QOBJECT AutoLogPageAdapter final : public QObject
     Q_PROPERTY(int deleteWhenLogsReachMB READ getDeleteWhenLogsReachMB WRITE
                    setDeleteWhenLogsReachMB NOTIFY sig_changed)
     Q_PROPERTY(bool askDelete READ getAskDelete WRITE setAskDelete NOTIFY sig_changed)
+    // True when running under WebAssembly, where the native "choose log
+    // location" directory dialog does not exist; mirrors autologpage.cpp:62
+    // (Select button disabled under CURRENT_PLATFORM == PlatformEnum::Wasm).
+    Q_PROPERTY(bool isWasm READ getIsWasm CONSTANT)
 
 private:
     // Parent for the native QFileDialog invoked by browseForDirectory();
@@ -69,6 +73,8 @@ public:
 
     NODISCARD bool getAskDelete() const;
     void setAskDelete(bool value);
+
+    NODISCARD static bool getIsWasm();
 
 public:
     // Opens a native "choose log location" directory dialog and, if a

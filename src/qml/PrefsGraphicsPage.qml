@@ -190,9 +190,20 @@ Column {
                     value: model.value
                     onMoved: root.graphics.advancedModel.setValue(index, value)
                 }
-                Label {
+                TextField {
+                    id: advField
+                    width: 80
                     anchors.verticalCenter: advSlider.verticalCenter
                     text: model.displayValue.toFixed(model.digits)
+                    validator: DoubleValidator {
+                        bottom: model.min / Math.pow(10, model.digits)
+                        top: model.max / Math.pow(10, model.digits)
+                        decimals: model.digits
+                    }
+                    onEditingFinished: {
+                        const rawValue = Math.round(parseFloat(text) * Math.pow(10, model.digits));
+                        root.graphics.advancedModel.setValue(index, rawValue);
+                    }
                 }
                 Button {
                     text: qsTr("Reset")

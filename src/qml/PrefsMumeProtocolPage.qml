@@ -32,6 +32,7 @@ Column {
         id: externalEditorRadio
         text: qsTr("External editor:")
         checked: !root.mumeProtocol.internalRemoteEditor
+        enabled: !root.mumeProtocol.isWasm
         ButtonGroup.group: editorGroup
     }
 

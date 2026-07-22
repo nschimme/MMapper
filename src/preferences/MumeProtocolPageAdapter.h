@@ -22,6 +22,11 @@ class NODISCARD_QOBJECT MumeProtocolPageAdapter final : public QObject
                    NOTIFY sig_changed)
     Q_PROPERTY(QString externalRemoteEditorCommand READ getExternalRemoteEditorCommand WRITE
                    setExternalRemoteEditorCommand NOTIFY sig_changed)
+    // True when running under WebAssembly, where there is no external
+    // process to spawn an editor in; mirrors mumeprotocolpage.cpp:49
+    // (externalEditorRadioButton disabled under CURRENT_PLATFORM ==
+    // PlatformEnum::Wasm).
+    Q_PROPERTY(bool isWasm READ getIsWasm CONSTANT)
 
 private:
     // Parent for the native QFileDialog invoked by browseForEditor(); owned
@@ -37,6 +42,8 @@ public:
 
     NODISCARD QString getExternalRemoteEditorCommand() const;
     void setExternalRemoteEditorCommand(const QString &value);
+
+    NODISCARD static bool getIsWasm();
 
 public:
     // Opens a native "choose editor" file dialog (mirrors

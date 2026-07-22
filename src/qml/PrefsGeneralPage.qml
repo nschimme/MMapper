@@ -48,6 +48,7 @@ Column {
         SpinBox {
             from: 0
             to: 65535
+            editable: true
             value: root.general.remotePort
             onValueModified: root.general.remotePort = value
         }
@@ -58,6 +59,7 @@ Column {
         SpinBox {
             from: 0
             to: 65535
+            editable: true
             value: root.general.localPort
             onValueModified: root.general.localPort = value
         }
@@ -135,13 +137,16 @@ Column {
             checked: root.general.autoLoadMap
             onToggled: root.general.autoLoadMap = checked
         }
-        Label {
+        TextField {
             width: 260
-            elide: Text.ElideMiddle
+            enabled: autoLoadCheckBox.checked
+            placeholderText: qsTr("Default Map")
             text: root.general.autoLoadFileName
+            onEditingFinished: root.general.autoLoadFileName = text
             anchors.verticalCenter: parent.verticalCenter
         }
         Button {
+            enabled: autoLoadCheckBox.checked && !root.general.isWasm
             text: qsTr("Browse")
             onClicked: root.general.selectWorldFile()
         }
@@ -162,13 +167,16 @@ Column {
     Row {
         spacing: 8
         Label { text: qsTr("Resources directory:"); width: 160 }
-        Label {
+        TextField {
             width: 220
-            elide: Text.ElideMiddle
+            enabled: !root.general.isWasm
+            placeholderText: qsTr("Path to resources")
             text: root.general.resourcesDirectory
+            onEditingFinished: root.general.resourcesDirectory = text
             anchors.verticalCenter: parent.verticalCenter
         }
         Button {
+            enabled: !root.general.isWasm
             text: qsTr("Browse")
             onClicked: root.general.chooseResourcesDirectory()
         }

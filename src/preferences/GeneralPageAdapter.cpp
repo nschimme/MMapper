@@ -163,7 +163,18 @@ void GeneralPageAdapter::setLocalPort(const int value)
 
 bool GeneralPageAdapter::getTlsEncryption() const
 {
+#ifdef Q_OS_WASM
+    // WASM always uses secure websockets; mirror generalpage.cpp's
+    // slot_loadConfig() Q_OS_WASM branch, which forces checked=true.
+    return true;
+#else
+    if (!getTlsAvailable()) {
+        // Mirrors generalpage.cpp: disabled+forced-false when SSL support is
+        // missing and websockets aren't compiled in either.
+        return false;
+    }
     return getConfig().connection.tlsEncryption;
+#endif
 }
 
 void GeneralPageAdapter::setTlsEncryption(const bool value)
@@ -176,11 +187,19 @@ bool GeneralPageAdapter::getTlsAvailable()
 {
 #ifdef Q_OS_WASM
     // Qt for WebAssembly is built without the ssl feature, so QSslSocket
-    // does not exist there; websockets provide the encrypted transport.
-    return !NO_WEBSOCKET;
+    // does not exist there; websockets always provide the encrypted
+    // transport and the user has no choice, so mirror generalpage.cpp's
+    // slot_loadConfig() Q_OS_WASM branch: unconditionally unavailable
+    // (disabled) with the checked state forced true by getTlsEncryption().
+    return false;
 #else
     return QSslSocket::supportsSsl() || !NO_WEBSOCKET;
 #endif
+}
+
+bool GeneralPageAdapter::getIsWasm()
+{
+    return CURRENT_PLATFORM == PlatformEnum::Wasm;
 }
 
 bool GeneralPageAdapter::getProxyListensOnAnyInterface() const

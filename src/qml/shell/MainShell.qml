@@ -1070,17 +1070,16 @@ QQC2.ApplicationWindow {
 
         // The 4 area containers below are intentionally EMPTY in the markup:
         // their DockPanel children are placed imperatively by
-        // reconcileDocks() (see the "dock pool" Item further down). Qt 6.4's
-        // QQC2.SplitView does not adopt Repeater-generated delegates as
-        // split items (a Repeater inside it creates nothing usable -- proven
-        // by TestQml), so a declarative `Repeater { DockPanel {} }` per area
-        // simply renders no docks. Instead each dock is a single long-lived
-        // DockPanel instance (created once in the pool) that reconcileDocks()
-        // moves between these SplitViews with insertItem()/removeItem() as
-        // DockLayoutController's leftDockIds/topDockIds/bottomDockIds/
-        // rightDockIds change -- which also means a panel keeps its content
-        // state (scroll position, filter text, ...) when moved or hidden,
-        // since it is never destroyed and re-created.
+        // reconcileDocks() (see it further down). Qt 6.4's QQC2.SplitView
+        // does not adopt Repeater-generated delegates as split items (a
+        // Repeater inside it creates nothing usable -- proven by TestQml), so
+        // a declarative `Repeater { DockPanel {} }` per area simply renders no
+        // docks. reconcileDocks() instead creates one DockPanel per
+        // docked-and-shown dock directly in its area SplitView (via
+        // insertItem()) and destroys it when the dock is hidden/floated/moved,
+        // tracking DockLayoutController's leftDockIds/topDockIds/
+        // bottomDockIds/rightDockIds -- create/destroy rather than reparenting
+        // a persistent instance, see createDockPanel()'s comment for why.
         DockColumn {
             id: leftColumn
             objectName: "leftColumn"
@@ -1122,33 +1121,35 @@ QQC2.ApplicationWindow {
         }
     }
 
-    // --- Docked-panel pool + imperative placement ------------------------
+    // --- Docked-panel placement ------------------------------------------
     //
-    // The single DockPanel instance per dock id lives here for its whole
-    // lifetime; reconcileDocks() attaches/detaches it to whichever area
-    // SplitView (leftColumn/topRow/bottomRow/rightColumn) currently owns it.
-    // See the comment on the 4 empty containers above for why this is
-    // imperative rather than a Repeater.
+    // reconcileDocks() creates one DockPanel per docked-and-shown dock, in
+    // its area SplitView (leftColumn/topRow/bottomRow/rightColumn), and
+    // destroys it when the dock is hidden, floated, or moved elsewhere. See
+    // the comment on the 4 empty containers above and createDockPanel().
     Component {
         id: dockPanelComponent
         DockPanel {}
     }
 
-    // Invisible parking spot for pooled DockPanels that aren't currently
-    // attached to an area SplitView (hidden, or floated out). It MUST be an
-    // explicit, visible:false holder rather than leaving those panels
-    // parented to the window: an Item created against the ApplicationWindow
-    // gets the window's content item as its visual parent and would render
-    // -- all the hidden-by-default docks would stack up over the shell.
-    // Reparenting a detached panel here instead keeps it alive (state
-    // preserved) but off-screen until reconcileDocks() places it.
+    // Transient creation parent: a DockPanel is created here (visible:false,
+    // so it never flashes on screen) and then immediately insertItem()'d
+    // into its area SplitView by createDockPanel(). It MUST be an explicit,
+    // visible:false holder rather than creating the panel against the window
+    // directly -- an Item created against the ApplicationWindow takes the
+    // window's content item as its visual parent and would briefly render
+    // stacked over the shell before being moved into its SplitView.
     Item {
         id: dockPoolHolder
         visible: false
     }
 
-    // dockId -> DockPanel instance. Populated once by createDockPool().
-    property var dockPool: ({})
+    // dockId -> the DockPanel instance CURRENTLY placed in an area SplitView
+    // (only docked-and-shown panels have an entry; hidden/floated ones have
+    // none). reconcileDocks() creates and destroys these to match the
+    // controller's area lists -- see its comment for why placement is
+    // create/destroy rather than reparenting.
+    property var dockInstances: ({})
 
     function areaSplitView(area) {
         if (area === "left")
@@ -1176,92 +1177,92 @@ QQC2.ApplicationWindow {
         return [];
     }
 
-    function createDockPool() {
-        if (!dockLayout)
-            return;
-        const ids = ["client", "group", "log", "room", "adventure", "tasks", "description", "timers"];
-        for (var i = 0; i < ids.length; ++i) {
-            const id = ids[i];
-            if (window.dockPool[id])
-                continue;
-            const meta = window.dockMeta[id];
-            // Parent to the invisible holder so the instance survives being
-            // detached from a SplitView (state preserved) while staying
-            // off-screen until reconcileDocks() attaches it to an area.
-            const inst = dockPanelComponent.createObject(dockPoolHolder, {
-                objectName: window.dockObjectName(id),
-                dockId: id,
-                title: meta ? meta.title : "",
-                source: meta ? meta.source : "",
-                currentArea: dockLayout.dockArea(id)
-            });
-            inst.closeRequested.connect(function (capturedId) {
-                return function () {
-                    if (dockLayout)
-                        dockLayout[capturedId + "Visible"] = false;
-                };
-            }(id));
-            inst.floatRequested.connect(function (capturedId) {
-                return function () {
-                    if (dockLayout)
-                        dockLayout[capturedId + "Floating"] = true;
-                };
-            }(id));
-            inst.moveToAreaRequested.connect(function (capturedId) {
-                return function (area) {
-                    if (dockLayout)
-                        dockLayout.setDockArea(capturedId, area);
-                };
-            }(id));
-            window.dockPool[id] = inst;
-        }
+    function createDockPanel(id, area, sv, index) {
+        const meta = window.dockMeta[id];
+        // Create parented to the invisible holder first, then insertItem()
+        // moves it into the area SplitView -- this is exactly the path that
+        // renders correctly for the panels shown at startup. We deliberately
+        // do NOT keep one long-lived instance and reparent it between
+        // SplitViews on a move: reparenting a live QQuickItem across
+        // SplitViews leaves a stale scene-graph node on the OpenGL backend,
+        // so the moved panel reserves layout space but never actually draws
+        // (it looks correct in the software-rendered headless tests, which is
+        // why this only showed up on the real GL shell). Creating a fresh
+        // instance in the target and destroying the old one sidesteps that
+        // entirely. The cost is that a panel's transient view state (scroll
+        // position, unapplied filter text) resets on a move or a hide/show --
+        // the same tradeoff a float/re-dock already makes; the panel's real
+        // data lives in its C++ model/controller, not the delegate.
+        const inst = dockPanelComponent.createObject(dockPoolHolder, {
+            objectName: window.dockObjectName(id),
+            dockId: id,
+            title: meta ? meta.title : "",
+            source: meta ? meta.source : "",
+            currentArea: area
+        });
+        inst.closeRequested.connect(function () {
+            if (dockLayout)
+                dockLayout[id + "Visible"] = false;
+        });
+        inst.floatRequested.connect(function () {
+            if (dockLayout)
+                dockLayout[id + "Floating"] = true;
+        });
+        inst.moveToAreaRequested.connect(function (targetArea) {
+            if (dockLayout)
+                dockLayout.setDockArea(id, targetArea);
+        });
+        sv.insertItem(index, inst);
+        return inst;
     }
 
     function reconcileDocks() {
         if (!dockLayout)
             return;
         const areas = ["left", "top", "bottom", "right"];
-        var a, i, j;
+        var a, i;
 
-        // Pass 1: detach any panel that no longer belongs in its SplitView
-        // (hidden, floated, or moved to another area). Detached instances
-        // stay alive in dockPool.
+        // Which area (if any) each id should be docked-and-shown in now.
+        var wantedArea = ({});
         for (a = 0; a < areas.length; ++a) {
-            const sv1 = areaSplitView(areas[a]);
-            const want1 = areaIds(areas[a]);
-            for (i = sv1.count - 1; i >= 0; --i) {
-                const child = sv1.contentChildren[i];
-                if (!child || want1.indexOf(child.dockId) === -1) {
-                    sv1.removeItem(child);
-                    // removeItem() leaves the item parent-less (and, oddly,
-                    // still effectively visible); park it in the invisible
-                    // holder so it's genuinely off-screen until re-placed.
-                    if (child)
-                        child.parent = dockPoolHolder;
-                }
+            const ids = areaIds(areas[a]);
+            for (i = 0; i < ids.length; ++i)
+                wantedArea[ids[i]] = areas[a];
+        }
+
+        // Destroy any placed instance that is no longer wanted, or is wanted
+        // in a DIFFERENT area (the move case -- destroy here, recreate fresh
+        // in the target below).
+        for (var id in window.dockInstances) {
+            const inst = window.dockInstances[id];
+            if (!inst) {
+                delete window.dockInstances[id];
+                continue;
+            }
+            if (wantedArea[id] !== inst.currentArea) {
+                const sv = areaSplitView(inst.currentArea);
+                if (sv)
+                    sv.removeItem(inst);
+                inst.destroy();
+                delete window.dockInstances[id];
             }
         }
 
-        // Pass 2: insert/reorder each area's panels to match its id list
-        // exactly (canonical order). After pass 1 a wanted panel is either
-        // already in this SplitView or unparented, never in another one.
+        // Ensure each area's SplitView holds exactly its ids, in canonical
+        // order. A missing id is created fresh at its slot; an id already
+        // present but at the wrong index only happens when a sibling was
+        // added/removed, and removeItem()/insertItem() auto-shift the rest,
+        // so by creating in index order the survivors already sit correctly.
         for (a = 0; a < areas.length; ++a) {
             const sv2 = areaSplitView(areas[a]);
-            const want2 = areaIds(areas[a]);
-            for (i = 0; i < want2.length; ++i) {
-                const inst = window.dockPool[want2[i]];
-                if (!inst)
+            const want = areaIds(areas[a]);
+            for (i = 0; i < want.length; ++i) {
+                const wantId = want[i];
+                const existing = window.dockInstances[wantId];
+                if (existing && i < sv2.count && sv2.contentChildren[i] === existing)
                     continue;
-                inst.currentArea = areas[a];
-                if (i < sv2.count && sv2.contentChildren[i] === inst)
-                    continue;
-                for (j = 0; j < sv2.count; ++j) {
-                    if (sv2.contentChildren[j] === inst) {
-                        sv2.removeItem(inst);
-                        break;
-                    }
-                }
-                sv2.insertItem(i, inst);
+                if (!existing)
+                    window.dockInstances[wantId] = createDockPanel(wantId, areas[a], sv2, i);
             }
         }
     }
@@ -1284,7 +1285,6 @@ QQC2.ApplicationWindow {
     }
 
     Component.onCompleted: {
-        window.createDockPool();
         window.reconcileDocks();
     }
 

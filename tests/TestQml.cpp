@@ -3977,15 +3977,11 @@ void TestQml::loadMainShellDocks()
         "dockTasks",
     };
     for (const char *const name : kHiddenByDefaultDockNames) {
-        // Pooled-placement design (see MainShell.qml's "dock pool" comment):
-        // every dock's single DockPanel instance exists for the window's
-        // whole lifetime -- that's how a panel keeps its content state when
-        // hidden or moved -- so findChild always finds it. What "hidden"
-        // means here is that the instance is detached from every area
-        // SplitView and therefore not visible, not that it doesn't exist.
-        auto *const dock = object->findChild<QQuickItem *>(QString::fromLatin1(name));
-        QVERIFY2(dock != nullptr, name);
-        QVERIFY2(!dock->isVisible(), name);
+        // Create/destroy placement (see MainShell.qml's reconcileDocks): a
+        // dock has a DockPanel instance ONLY while it is docked-and-shown; a
+        // hidden dock has none at all (it is created on show and destroyed on
+        // hide/float/move), so findChild does not find it.
+        QVERIFY2(object->findChild<QObject *>(QString::fromLatin1(name)) == nullptr, name);
     }
 
     // Defaults mirror mainwindow.cpp's dock->hide()/no-hide-call split (see
@@ -4003,47 +3999,47 @@ void TestQml::loadMainShellDocks()
 
     // Toggling a dock's visibility through the same controller property the
     // "Side Panels" menu items and each DockPanel's close button drive must
-    // not crash the surrounding SplitView, and must attach/detach the dock's
-    // pooled DockPanel to/from its area SplitView accordingly -- reflected
-    // as an isVisible() flip on the (always-present) instance.
+    // not crash the surrounding SplitView, and must create/destroy the dock's
+    // DockPanel accordingly -- reflected as the instance appearing/vanishing
+    // from the object tree.
     dockLayout.setProperty("logVisible", true);
     QCoreApplication::processEvents();
-    auto *const dockLog = object->findChild<QQuickItem *>(QStringLiteral("dockLog"));
-    QVERIFY(dockLog != nullptr);
-    QCOMPARE(dockLog->isVisible(), true);
+    {
+        auto *const l = object->findChild<QQuickItem *>(QStringLiteral("dockLog"));
+        QVERIFY(l != nullptr);
+        QCOMPARE(l->isVisible(), true);
+    }
 
     dockLayout.setProperty("groupVisible", false);
-    QCoreApplication::processEvents();
-    {
-        auto *const g = object->findChild<QQuickItem *>(QStringLiteral("dockGroup"));
-        QVERIFY(g != nullptr);
-        QCOMPARE(g->isVisible(), false);
-    }
+    // QTRY_*: destroy() defers deletion to a later event-loop pass, so the
+    // instance may outlive a single processEvents().
+    QTRY_COMPARE(object->findChild<QObject *>(QStringLiteral("dockGroup")), nullptr);
 
     dockLayout.setProperty("groupVisible", true);
     dockLayout.setProperty("logVisible", false);
-    QCoreApplication::processEvents();
-    {
-        auto *const g = object->findChild<QQuickItem *>(QStringLiteral("dockGroup"));
-        auto *const l = object->findChild<QQuickItem *>(QStringLiteral("dockLog"));
-        QVERIFY(g != nullptr);
-        QCOMPARE(g->isVisible(), true);
-        QVERIFY(l != nullptr);
-        QCOMPARE(l->isVisible(), false);
-    }
+    QTRY_VERIFY(object->findChild<QQuickItem *>(QStringLiteral("dockGroup")) != nullptr);
+    QCOMPARE(object->findChild<QQuickItem *>(QStringLiteral("dockGroup"))->isVisible(), true);
+    QTRY_COMPARE(object->findChild<QObject *>(QStringLiteral("dockLog")), nullptr);
 
     // Moving a panel to another area must leave it actually shown and
-    // laid-out there (regression: after a move the panel rendered at zero
-    // size / detached, so it was invisible and non-interactive). Move
-    // Description (right) to the left column, which already holds Client --
-    // this also exercises two panels stacked in one area.
+    // laid-out there (regression: reparenting a live item between SplitViews
+    // left it reserving space but not drawing). A move destroys the source
+    // instance and creates a fresh one in the target. Move Description
+    // (right) to the left column, which already holds Client -- this also
+    // exercises two panels stacked in one area.
     auto *const leftColumn = object->findChild<QQuickItem *>(QStringLiteral("leftColumn"));
     QVERIFY(leftColumn != nullptr);
+    auto *const leftContent = leftColumn->property("contentItem").value<QQuickItem *>();
     QMetaObject::invokeMethod(&dockLayout,
                               "setDockArea",
                               Q_ARG(QString, QStringLiteral("description")),
                               Q_ARG(QString, QStringLiteral("left")));
-    QCoreApplication::processEvents();
+    // QTRY_*: the destroyed source instance (same objectName) can linger in
+    // the object tree until its deferred delete runs, so wait until the
+    // fresh Description instance is the one parented under the left column.
+    QTRY_VERIFY(object->findChild<QQuickItem *>(QStringLiteral("dockDescription")) != nullptr
+                && object->findChild<QQuickItem *>(QStringLiteral("dockDescription"))->parentItem()
+                       == leftContent);
     {
         auto *const d = object->findChild<QQuickItem *>(QStringLiteral("dockDescription"));
         auto *const c = object->findChild<QQuickItem *>(QStringLiteral("dockClient"));
@@ -4054,8 +4050,6 @@ void TestQml::loadMainShellDocks()
         QVERIFY2(d->width() > 0.0 && d->height() > 0.0, "moved Description has zero size");
         QVERIFY2(c->isVisible(), "stacked Client not visible");
         QVERIFY2(c->width() > 0.0 && c->height() > 0.0, "stacked Client has zero size");
-        // And Description must now live under the left column, not the right.
-        QCOMPARE(d->parentItem(), leftColumn->property("contentItem").value<QQuickItem *>());
     }
 
     // Moving a panel into a previously-EMPTY/collapsed area is the harder
@@ -4068,11 +4062,14 @@ void TestQml::loadMainShellDocks()
     auto *const bottomRow = object->findChild<QQuickItem *>(QStringLiteral("bottomRow"));
     QVERIFY(bottomRow != nullptr);
     QCOMPARE(bottomRow->isVisible(), false);
+    auto *const bottomContent = bottomRow->property("contentItem").value<QQuickItem *>();
     QMetaObject::invokeMethod(&dockLayout,
                               "setDockArea",
                               Q_ARG(QString, QStringLiteral("group")),
                               Q_ARG(QString, QStringLiteral("bottom")));
-    QCoreApplication::processEvents();
+    QTRY_VERIFY(object->findChild<QQuickItem *>(QStringLiteral("dockGroup")) != nullptr
+                && object->findChild<QQuickItem *>(QStringLiteral("dockGroup"))->parentItem()
+                       == bottomContent);
     {
         auto *const g = object->findChild<QQuickItem *>(QStringLiteral("dockGroup"));
         QVERIFY(g != nullptr);
@@ -4334,14 +4331,11 @@ void TestQml::dockFloatingWindowLifecycle()
 
     // Floating it removes "description" from rightDockIds (see
     // DockLayoutController::recomputeAreaLists(), which excludes floating
-    // docks), which DETACHES the dock's pooled DockPanel from the right
-    // column and spins up the floating Window instead. The pooled instance
-    // is NOT destroyed (that's how its content state survives re-docking),
-    // so it stays findable but goes not-visible.
+    // docks), so reconcileDocks() DESTROYS the docked DockPanel in the right
+    // column and the FloatingDock spins up the floating Window instead.
+    // (dockDescription is dangling after this point -- don't dereference it.)
     dockLayout.setProperty("descriptionFloating", true);
-    QCoreApplication::processEvents();
-    QVERIFY(dockDescription != nullptr);
-    QCOMPARE(dockDescription->isVisible(), false);
+    QTRY_COMPARE(object->findChild<QObject *>(QStringLiteral("dockDescription")), nullptr);
     QCOMPARE(floatDescription->property("active").toBool(), true);
     auto *const floatWindowObj = floatDescription->property("item").value<QObject *>();
     QVERIFY(floatWindowObj != nullptr);

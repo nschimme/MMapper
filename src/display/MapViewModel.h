@@ -32,6 +32,17 @@ class NODISCARD_QOBJECT MapViewModel final : public QObject
     Q_PROPERTY(int horizontalScrollMax READ getHorizontalScrollMax NOTIFY sig_rangeChanged)
     Q_PROPERTY(int verticalScrollMax READ getVerticalScrollMax NOTIFY sig_rangeChanged)
     Q_PROPERTY(float zoom READ getZoom WRITE setZoom NOTIFY sig_zoomChanged)
+    // Current scroll-bar values (scroll units, matching horizontalScrollMax/
+    // verticalScrollMax's range), mirroring what used to live directly on
+    // MapWindow's QScrollBar widgets (see mapwindow.cpp's
+    // m_horizontalScrollBar/m_verticalScrollBar). MapView.qml's QQC2.ScrollBar
+    // instances bind their `position` to these (scaled by *ScrollMax) and
+    // write back through the WRITE setters on drag -- see MapView.qml's
+    // onMoved handlers.
+    Q_PROPERTY(int horizontalScrollValue READ getHorizontalScrollValue WRITE
+                   setHorizontalScrollValue NOTIFY sig_valueChanged)
+    Q_PROPERTY(int verticalScrollValue READ getVerticalScrollValue WRITE setVerticalScrollValue
+                   NOTIFY sig_valueChanged)
 
 public:
     // Must match MapCanvasCore::SCROLL_SCALE (display/MapCanvasCore.h);
@@ -60,6 +71,8 @@ private:
     int m_verticalScrollStep = 0;
     int m_horizontalScrollMax = 0;
     int m_verticalScrollMax = 0;
+    int m_horizontalScrollValue = 0;
+    int m_verticalScrollValue = 0;
     float m_zoom = 1.f;
 
 public:
@@ -79,6 +92,9 @@ public:
     NODISCARD int getHorizontalScrollMax() const { return m_horizontalScrollMax; }
     NODISCARD int getVerticalScrollMax() const { return m_verticalScrollMax; }
 
+    NODISCARD int getHorizontalScrollValue() const { return m_horizontalScrollValue; }
+    NODISCARD int getVerticalScrollValue() const { return m_verticalScrollValue; }
+
     NODISCARD float getZoom() const { return m_zoom; }
     void setZoom(float zoom);
 
@@ -95,15 +111,70 @@ public slots:
     // 'continuous scroll.'"
     void slot_continuousScroll(int hStep, int vStep);
 
+    // Ported from MapWindow::slot_centerOnWorldPos(): converts a world
+    // position (MapCanvasCore::sig_onCenter) to scroll-bar units, updates
+    // horizontalScrollValue/verticalScrollValue (clamped to the current
+    // range, mirroring QScrollBar::setValue()'s own clamping), and emits
+    // sig_scrollToWorld() with the ORIGINAL (unclamped) world position --
+    // exactly what MapWindow::slot_centerOnWorldPos() re-emits as
+    // sig_setScroll(worldPos) for MapCanvas::slot_setScroll() to consume
+    // (mapwindow.cpp:257-269).
+    void slot_centerOnWorldPos(glm::vec2 worldPos);
+
+    // Ported from MapWindow::slot_mapMove() (mapwindow.cpp:216-231): applies
+    // a canvas-drag delta to the current scroll position (Y negated, since
+    // the delta arrives in world space) and emits sig_scrollToWorld() with
+    // the resulting world position.
+    void slot_mapMove(int dx, int dy);
+
+    // WRITE half of horizontalScrollValue/verticalScrollValue -- used by
+    // MapView.qml's ScrollBar.onMoved (user dragging the QML scrollbar
+    // handle directly), mirroring MapWindow's per-axis
+    // `connect(m_horizontalScrollBar, &QScrollBar::valueChanged, ...)` /
+    // `connect(m_verticalScrollBar, &QScrollBar::valueChanged, ...)` lambdas
+    // (mapwindow.cpp:153-167), which likewise update only one axis of the
+    // canvas's scroll position at a time via
+    // slot_setHorizontalScroll()/slot_setVerticalScroll() rather than the
+    // combined slot_setScroll().
+    void setHorizontalScrollValue(int value);
+    void setVerticalScrollValue(int value);
+
 signals:
     void sig_rangeChanged();
     void sig_zoomChanged(float zoom);
     // Emitted every 100ms while a continuous scroll is active (see
-    // slot_continuousScroll()); the consumer (MapWindow, or a future
-    // MapView.qml controller) is responsible for applying the step to
-    // whatever holds the current scroll position.
+    // slot_continuousScroll()); applied internally by this class (see the
+    // .cpp) the same way MapWindow::slot_applyScrollStep() applied it to its
+    // QScrollBar widgets (mapwindow.cpp:238-250).
     void sig_continuousScrollStep(int hStep, int vStep);
+
+    // NOTIFY signal for horizontalScrollValue/verticalScrollValue.
+    void sig_valueChanged();
+
+    // Emitted whenever the scroll position moves as a two-axis world
+    // position (slot_centerOnWorldPos()/slot_mapMove()/the continuous-scroll
+    // timer) -- connect to MapCanvasCore::slot_setScroll(), mirroring
+    // MapWindow::sig_setScroll() -> MapCanvas::slot_setScroll()
+    // (mapwindow.cpp:169).
+    void sig_scrollToWorld(glm::vec2 worldPos);
+
+    // Emitted by setHorizontalScrollValue()/setVerticalScrollValue() with
+    // just the single axis's new world coordinate -- connect to
+    // MapCanvasCore::slot_setHorizontalScroll()/slot_setVerticalScroll(),
+    // mirroring the per-axis QScrollBar::valueChanged lambdas above.
+    void sig_scrollWorldXChanged(float worldX);
+    void sig_scrollWorldYChanged(float worldY);
 
 private slots:
     void slot_scrollTimerTimeout();
+
+private:
+    // Shared by slot_mapMove() and the continuous-scroll timer's internal
+    // sig_continuousScrollStep consumer: adds a delta already expressed in
+    // scroll-bar units to the current position, clamps to range, and emits
+    // sig_valueChanged()/sig_scrollToWorld() -- ported from the shared
+    // "SignalBlocker + setValue() + centerOnScrollPos()" pattern in
+    // MapWindow::slot_mapMove()/slot_applyScrollStep() (mapwindow.cpp:216-
+    // 250).
+    void applyScrollDelta(int dh, int dv);
 };

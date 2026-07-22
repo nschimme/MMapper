@@ -4079,8 +4079,7 @@ void TestQml::loadMainShellDocks()
         QVERIFY2(bottomRow->isVisible(), "bottomRow did not become visible after a panel moved in");
         QVERIFY2(bottomRow->height() > 0.0, "bottomRow has zero height after a panel moved in");
         QVERIFY2(g->isVisible(), "moved-into-empty-area Group not visible");
-        QVERIFY2(g->width() > 0.0 && g->height() > 0.0,
-                 "moved-into-empty-area Group has zero size");
+        QVERIFY2(g->width() > 0.0 && g->height() > 0.0, "moved-into-empty-area Group has zero size");
     }
 }
 
@@ -4407,6 +4406,13 @@ void TestQml::loadMainShellChrome()
     }
     registry.command(QStringLiteral("mouse-mode.move"))->setChecked(true);
 
+    // view.show-menu-bar -- covers the menuBar.visible binding
+    // QmlShellWindow.cpp/MainShell.qml wire this command to (see this file's
+    // assertions after `object` is constructed below).
+    UiCommand *const showMenuBarCmd = registry.addCommand(QStringLiteral("view.show-menu-bar"),
+                                                          true);
+    showMenuBarCmd->setChecked(true);
+
     MapViewModel viewModel;
     DockLayoutController dockLayout;
     ToolbarLayoutController toolbarLayout;
@@ -4552,6 +4558,21 @@ void TestQml::loadMainShellChrome()
     QVERIFY(object->findChild<QObject *>(QStringLiteral("pathMachineLabel")) != nullptr);
     QVERIFY(object->findChild<QObject *>(QStringLiteral("clockStrip")) != nullptr);
     QVERIFY(object->findChild<QObject *>(QStringLiteral("xpStatusItem")) != nullptr);
+
+    // --- menuBar.visible follows the view.show-menu-bar command's checked
+    // state (see MainShell.qml's `menuBar: QQC2.MenuBar { visible: ... }`
+    // binding and QmlShellWindow.cpp's view.show-menu-bar wiring) ---
+    QObject *const menuBarObj = object->property("menuBar").value<QObject *>();
+    QVERIFY(menuBarObj != nullptr);
+    QVERIFY(menuBarObj->property("visible").toBool());
+
+    showMenuBarCmd->setChecked(false);
+    QCoreApplication::processEvents();
+    QVERIFY(!menuBarObj->property("visible").toBool());
+
+    showMenuBarCmd->setChecked(true);
+    QCoreApplication::processEvents();
+    QVERIFY(menuBarObj->property("visible").toBool());
 }
 
 namespace {

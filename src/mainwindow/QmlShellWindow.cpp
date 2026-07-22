@@ -23,6 +23,7 @@
 #include "../global/AsyncTasks.h"
 #include "../global/ConfigConsts.h"
 #include "../global/TextUtils.h"
+#include "../global/Version.h"
 #include "../global/utils.h"
 #include "../group/GroupController.h"
 #include "../group/GroupModel.h"
@@ -91,6 +92,8 @@
 #include <QCoreApplication>
 #include <QCursor>
 #include <QDataStream>
+#include <QDateTime>
+#include <QDesktopServices>
 #include <QDir>
 #include <QFileDialog>
 #include <QFileInfo>
@@ -225,12 +228,15 @@ NODISCARD bool isLiveCommand(const QString &id)
         "file.export.web",
         "file.export.mmp",
         "file.exit",
+        "edit.undo",
+        "edit.redo",
         "view.zoom-in",
         "view.zoom-out",
         "view.zoom-reset",
         "view.always-on-top",
         "view.show-status-bar",
         "view.show-scroll-bars",
+        "view.show-menu-bar",
         "layer.up",
         "layer.down",
         "layer.reset",
@@ -239,6 +245,9 @@ NODISCARD bool isLiveCommand(const QString &id)
         "mapper-mode.map",
         "mapper-mode.offline",
         "pathmachine.release-all-paths",
+        "client.launch",
+        "client.save-log",
+        "client.save-log-html",
         "room.goto-selected",
         "room.force-update-selected",
         "mouse-mode.move",
@@ -253,7 +262,15 @@ NODISCARD bool isLiveCommand(const QString &id)
         "room.find",
         "edit.preferences",
         "help.about",
+        "help.about-qt",
         "help.check-for-update",
+        "help.vote",
+        "help.website",
+        "help.forum",
+        "help.wiki",
+        "help.setup",
+        "help.newbie",
+        "help.report-issue",
         // room.edit-selected/infomark.edit-selected are registered live but
         // START disabled (see registerCommands()'s
         // "no selection yet" comment below) -- wireSelectionCommands()
@@ -418,6 +435,40 @@ QmlShellWindow::QmlShellWindow(QObject *const parent)
             &MapCanvasCore::sig_setScrollBars,
             m_mapViewModel,
             &MapViewModel::slot_setScrollBars);
+    // Remaining canvas <-> scroll-model wiring, mirroring MapWindow's ctor
+    // "from canvas to map window" / "from map window to canvas" blocks
+    // (mapwindow.cpp:150-186) -- MapWindow's sig_setScrollBars connection is
+    // already mirrored just above; these cover the rest: drag-pan feedback
+    // (sig_mapMove), edge auto-scroll (sig_continuousScroll), the room-find/
+    // path-machine "center on this position" path (sig_onCenter), and the
+    // resulting scroll position being pushed back into the canvas
+    // (sig_scrollToWorld/sig_scrollWorldXChanged/sig_scrollWorldYChanged --
+    // see MapViewModel.h's doc comments on those signals for exactly which
+    // MapWindow lambda/slot each one replaces).
+    connect(m_mapCanvasCore,
+            &MapCanvasCore::sig_onCenter,
+            m_mapViewModel,
+            &MapViewModel::slot_centerOnWorldPos);
+    connect(m_mapCanvasCore,
+            &MapCanvasCore::sig_mapMove,
+            m_mapViewModel,
+            &MapViewModel::slot_mapMove);
+    connect(m_mapCanvasCore,
+            &MapCanvasCore::sig_continuousScroll,
+            m_mapViewModel,
+            &MapViewModel::slot_continuousScroll);
+    connect(m_mapViewModel,
+            &MapViewModel::sig_scrollToWorld,
+            m_mapCanvasCore,
+            &MapCanvasCore::slot_setScroll);
+    connect(m_mapViewModel,
+            &MapViewModel::sig_scrollWorldXChanged,
+            m_mapCanvasCore,
+            &MapCanvasCore::slot_setHorizontalScroll);
+    connect(m_mapViewModel,
+            &MapViewModel::sig_scrollWorldYChanged,
+            m_mapCanvasCore,
+            &MapCanvasCore::slot_setVerticalScroll);
 
     m_pathMachine = new Mmapper2PathMachine(deref(m_mapData), this);
     m_pathMachine->setObjectName("Mmapper2PathMachine");
@@ -519,15 +570,15 @@ QmlShellWindow::QmlShellWindow(QObject *const parent)
     m_engine->rootContext()->setContextProperty("commands", m_commandRegistry);
     m_engine->rootContext()->setContextProperty("mapCore", m_mapCanvasCore);
     m_engine->rootContext()->setContextProperty("mapViewModel", m_mapViewModel);
-    // TODO(shell commit): drive this from AppCore::sig_statusMessage once
-    // AppCore's canvas-facing methods are ported from MapCanvas (widget) to
-    // MapCanvasCore -- see AppCore.h's m_canvas, which is still typed
-    // MapCanvas*. Until then this is a static placeholder string, updated
-    // only by the XpStatusAdapter show/clear-status-message signals below
-    // (see MainShell.qml's footer statusText handling).
-    m_engine->rootContext()->setContextProperty("statusText",
-                                                QStringLiteral(
-                                                    "MMapper QML shell preview (offline)"));
+    // Idle status text, mirroring MainWindow::setupStatusBar()'s
+    // `m_appCore->showStatusForever(tr("Say friend and enter..."))`
+    // (mainwindow.cpp:2002) exactly. AppCore::sig_statusMessage (connected
+    // above, right after m_appCore's construction) is the sole driver of
+    // "statusText" from here on -- this just seeds it with the same idle
+    // string shell A shows before anything else has posted a status
+    // message; the lambda needs a non-null m_engine to write the context
+    // property, so this can't run any earlier than here.
+    m_appCore->showStatusForever(tr("Say friend and enter..."));
     // Splash-overlay visibility (MapView.qml) and window title (MainShell.qml's
     // ApplicationWindow.title) -- see hideSplash()/updateWindowTitle(), called
     // from the file I/O paths wired below in wireFileCommands().
@@ -622,19 +673,21 @@ QmlShellWindow::QmlShellWindow(QObject *const parent)
 
     // Funnels a few real signals into the footer's status message, mirroring
     // (in miniature) MainWindow::setupStatusBar()'s AppCore::showStatusForever()
-    // / XpStatusAdapter show/clear-status-message wiring; see this ctor's
-    // "statusText" comment above for what's still missing (full AppCore
-    // integration). setContextProperty() re-fires bindings that read
-    // "statusText" the same way a Q_PROPERTY NOTIFY would.
-    static const QString defaultStatus = QStringLiteral("MMapper QML shell preview (offline)");
+    // / XpStatusAdapter show/clear-status-message wiring. setContextProperty()
+    // re-fires bindings that read "statusText" the same way a Q_PROPERTY
+    // NOTIFY would. sig_clearStatusMessage routes back through
+    // AppCore::showStatusForever() (rather than setting the context property
+    // directly) so AppCore stays the single source of truth for the idle
+    // string (mainwindow.cpp:2002) -- see this ctor's m_appCore->
+    // showStatusForever() call above.
     connect(m_xpStatusAdapter,
             &XpStatusAdapter::sig_showStatusMessage,
             this,
             [rootContext](const QString &msg) {
                 rootContext->setContextProperty("statusText", msg);
             });
-    connect(m_xpStatusAdapter, &XpStatusAdapter::sig_clearStatusMessage, this, [rootContext]() {
-        rootContext->setContextProperty("statusText", defaultStatus);
+    connect(m_xpStatusAdapter, &XpStatusAdapter::sig_clearStatusMessage, this, [this]() {
+        m_appCore->showStatusForever(tr("Say friend and enter..."));
     });
     connect(m_commandRegistry->command("world.rebuild-meshes"),
             &UiCommand::sig_triggered,
@@ -729,6 +782,9 @@ QmlShellWindow::QmlShellWindow(QObject *const parent)
     if (UiCommand *const cmd = m_commandRegistry->command("view.show-scroll-bars")) {
         cmd->setChecked(getConfig().general.showScrollBars);
     }
+    if (UiCommand *const cmd = m_commandRegistry->command("view.show-menu-bar")) {
+        cmd->setChecked(getConfig().general.showMenuBar);
+    }
     connect(m_commandRegistry->command("view.always-on-top"),
             &UiCommand::sig_triggered,
             this,
@@ -755,6 +811,18 @@ QmlShellWindow::QmlShellWindow(QObject *const parent)
             [this]() {
                 UiCommand *const cmd = m_commandRegistry->command("view.show-scroll-bars");
                 setConfig().general.showScrollBars = cmd != nullptr && cmd->isChecked();
+            });
+    // view.show-menu-bar -- mirrors MainWindow::slot_setShowMenuBar()
+    // (mainwindow.cpp:1889-1919), minus the auto-reveal-on-hover event-filter
+    // dance (m_dockDialog*->installEventFilter()/setMouseTracking()): this
+    // shell has no widget event-filter equivalent yet. TODO(future shell
+    // commit): reproduce auto-reveal-on-hover for the QML menu bar.
+    connect(m_commandRegistry->command("view.show-menu-bar"),
+            &UiCommand::sig_triggered,
+            this,
+            [this]() {
+                UiCommand *const cmd = m_commandRegistry->command("view.show-menu-bar");
+                setConfig().general.showMenuBar = cmd != nullptr && cmd->isChecked();
             });
 
     m_engine->load(QUrl(QStringLiteral("qrc:/qt/qml/MMapper/MainShell.qml")));
@@ -1149,6 +1217,22 @@ void QmlShellWindow::registerCommands()
         qApp->quit();
     });
 
+    // edit.undo/edit.redo -- mirrors mainwindow.cpp's m_undoAction/
+    // m_redoAction wiring (mainwindow.cpp:1003-1022): both start disabled
+    // and stay in sync with MapData::sig_undoAvailable/sig_redoAvailable
+    // (MapData inherits MapFrontend, which owns the undo/redo history and
+    // these signals -- see mapfrontend.h).
+    if (UiCommand *const cmd = m_commandRegistry->command("edit.undo")) {
+        cmd->setEnabled(false);
+        connect(cmd, &UiCommand::sig_triggered, m_mapData, &MapData::slot_undo);
+        connect(m_mapData, &MapData::sig_undoAvailable, cmd, &UiCommand::setEnabled);
+    }
+    if (UiCommand *const cmd = m_commandRegistry->command("edit.redo")) {
+        cmd->setEnabled(false);
+        connect(cmd, &UiCommand::sig_triggered, m_mapData, &MapData::slot_redo);
+        connect(m_mapData, &MapData::sig_redoAvailable, cmd, &UiCommand::setEnabled);
+    }
+
     connect(m_commandRegistry->command("view.zoom-in"),
             &UiCommand::sig_triggered,
             m_mapCanvasCore,
@@ -1224,6 +1308,45 @@ void QmlShellWindow::registerCommands()
             m_pathMachine,
             &PathMachine::slot_releaseAllPaths);
 
+    // client.launch -- mirrors MainWindow::slot_onLaunchClient(), which just
+    // shows/raises the m_dockDialogClient QDockWidget (mainwindow.cpp:1388-
+    // 1390). This shell has no QDockWidget for the client -- it's a
+    // DockLayoutController-tracked panel (ClientPanel.qml) instead -- so
+    // "show/raise" becomes "make the dock visible and un-float it", the same
+    // property-setting pattern MainShell.qml's own client dock-panel menu
+    // item toggle already uses (see the "Panel" MenuItems' `dockLayout.
+    // clientVisible = checked` bindings).
+    connect(m_commandRegistry->command("client.launch"), &UiCommand::sig_triggered, this, [this]() {
+        m_dockLayout->setProperty("clientVisible", true);
+        m_dockLayout->setProperty("clientFloating", false);
+    });
+
+    // client.save-log/client.save-log-html -- mirror mainwindow.cpp's own
+    // MMAPPER_WITH_QML branch for saveLogAct/saveLogAsHtmlAct
+    // (mainwindow.cpp:1388-1425), which already reads from
+    // m_clientLineModel (ClientLineModel::toPlainText()/toHtml(), see
+    // ClientLineModel.h) instead of ClientWidget::slot_saveLog()/
+    // slot_saveLogAsHtml()'s QTextDocument -- reused verbatim here since
+    // QmlShellWindow owns the same m_clientLineModel.
+    connect(m_commandRegistry->command("client.save-log"), &UiCommand::sig_triggered, this, [this]() {
+        const QByteArray logContent = m_clientLineModel->toPlainText().toUtf8();
+        const QString newFileName = "log-"
+                                    + QDateTime::currentDateTime().toString("yyyyMMdd-hhmmss")
+                                    + ".txt";
+        QFileDialog::saveFileContent(logContent, newFileName);
+    });
+    connect(m_commandRegistry->command("client.save-log-html"),
+            &UiCommand::sig_triggered,
+            this,
+            [this]() {
+                const QByteArray logContent = m_clientLineModel->toHtml().toUtf8();
+                const QString newFileNameHtml = "log-"
+                                                + QDateTime::currentDateTime().toString(
+                                                    "yyyyMMdd-hhmmss")
+                                                + ".html";
+                QFileDialog::saveFileContent(logContent, newFileNameHtml);
+            });
+
     // room.create -- mirrors MainWindow::slot_onCreateRoom() ->
     // MapCanvas::slot_createRoom(); MapCanvasCore owns the exact same slot.
     connect(m_commandRegistry->command("room.create"),
@@ -1271,6 +1394,43 @@ void QmlShellWindow::wireDialogCommands()
         dialog->setContextProperty("aboutInfo", info);
         dialog->setQmlSource(QUrl(QStringLiteral("qrc:/qt/qml/MMapper/AboutDialog.qml")));
         dialog->open();
+    });
+
+    // help.about-qt -- mirrors mainwindow.cpp's aboutQtAct wiring
+    // (`connect(aboutQtAct, &QAction::triggered, qApp, &QApplication::aboutQt)`).
+    connect(m_commandRegistry->command("help.about-qt"),
+            &UiCommand::sig_triggered,
+            qApp,
+            &QApplication::aboutQt);
+
+    // help.website/forum/wiki/setup/newbie/report-issue/vote -- mirror
+    // mainwindow.cpp's slot_openMumeWebsite()/slot_openMumeForum()/
+    // slot_openMumeWiki()/slot_openSettingUpMmapper()/slot_openNewbieHelp()/
+    // onReportIssueTriggered()/slot_voteForMUME() (mainwindow.cpp:2895-2941),
+    // each just a QDesktopServices::openUrl() one-liner.
+    connect(m_commandRegistry->command("help.website"), &UiCommand::sig_triggered, this, []() {
+        QDesktopServices::openUrl(QUrl(QStringLiteral("https://mume.org/")));
+    });
+    connect(m_commandRegistry->command("help.forum"), &UiCommand::sig_triggered, this, []() {
+        QDesktopServices::openUrl(QUrl(QStringLiteral("https://mume.org/forum/")));
+    });
+    connect(m_commandRegistry->command("help.wiki"), &UiCommand::sig_triggered, this, []() {
+        QDesktopServices::openUrl(QUrl(QStringLiteral("https://mume.org/wiki/")));
+    });
+    connect(m_commandRegistry->command("help.setup"), &UiCommand::sig_triggered, this, []() {
+        QDesktopServices::openUrl(
+            QUrl(QStringLiteral("https://github.com/MUME/MMapper/wiki/Troubleshooting")));
+    });
+    connect(m_commandRegistry->command("help.report-issue"), &UiCommand::sig_triggered, this, []() {
+        QDesktopServices::openUrl(QUrl(QStringLiteral("https://github.com/MUME/MMapper/issues")));
+    });
+    connect(m_commandRegistry->command("help.newbie"), &UiCommand::sig_triggered, this, []() {
+        QDesktopServices::openUrl(QUrl(QStringLiteral("https://mume.org/newbie.php")));
+    });
+    connect(m_commandRegistry->command("help.vote"), &UiCommand::sig_triggered, this, []() {
+        QDesktopServices::openUrl(QUrl(QStringLiteral(
+            "https://www.mudconnect.com/cgi-bin/search.cgi?mode=mud_listing&mud=MUME+-+Multi+"
+            "Users+In+Middle+Earth")));
     });
 
     // help.check-for-update -- mirrors MainWindow's constant-if branch in
@@ -2604,8 +2764,9 @@ void QmlShellWindow::updateWindowTitle()
                                    ? QStringLiteral(" [read-only]")
                                    : QString{};
     const QString modifiedMark = m_mapData->dataChanged() ? QStringLiteral("*") : QString{};
-    const QString title = QStringLiteral("%1%2%3 - MMapper (QML shell preview)")
-                              .arg(shownName, modifiedMark, fileSuffix);
+    const QString appSuffix = isMMapperBeta() ? QStringLiteral(" Beta") : QString{};
+    const QString title = QStringLiteral("%1%2%3 - MMapper%4")
+                              .arg(shownName, modifiedMark, fileSuffix, appSuffix);
     m_engine->rootContext()->setContextProperty("windowTitle", title);
 }
 

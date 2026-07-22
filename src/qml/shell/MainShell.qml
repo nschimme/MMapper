@@ -174,6 +174,16 @@ QQC2.ApplicationWindow {
     }
 
     menuBar: QQC2.MenuBar {
+        // Mirrors MainWindow::slot_setShowMenuBar()'s menuBar()->show()/hide()
+        // (mainwindow.cpp:1889-1919); the checked state is persisted to the
+        // same Configuration::general.showMenuBar key (see
+        // QmlShellWindow.cpp's view.show-menu-bar wiring). Initial state is
+        // visible, matching GeneralSettings::showMenuBar's default (true).
+        // TODO(future shell commit): auto-reveal-on-hover when hidden, like
+        // MainWindow's installEventFilter()/setMouseTracking() dance.
+        visible: commands && commands.command("view.show-menu-bar")
+                 ? commands.command("view.show-menu-bar").checked : true
+
         QQC2.Menu {
             title: qsTr("&File")
 

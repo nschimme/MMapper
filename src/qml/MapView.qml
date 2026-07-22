@@ -77,6 +77,28 @@ Item {
         core: root.core
     }
 
+    // Both scrollbars below mirror MapWindow's QScrollBar pair
+    // (mapwindow.cpp:115-129, 153-167, 291-312): `size` is the visible
+    // fraction of the scrollable range (unchanged from before this commit),
+    // `position` is now a real two-way binding to MapViewModel's current
+    // scroll-bar value (see MapViewModel.h's horizontalScrollValue/
+    // verticalScrollValue Q_PROPERTYs) instead of the previous always-0
+    // default, and `visible` is gated on the same "view.show-scroll-bars"
+    // UiCommand MainShell.qml's own menu item drives
+    // (../shell/QmlShellWindow.cpp), which mirrors
+    // Configuration::general.showScrollBars -- exactly the setting
+    // MapWindow::updateScrollBars() reads (mapwindow.cpp:291-312) -- AND a
+    // non-empty range, matching updateScrollBars()'s `hMax > 0 &&
+    // showScrollBars` / `vMax > 0 && showScrollBars` conditions.
+    //
+    // QQC2.ScrollBar has no "moved"-while-dragging signal to hook a
+    // model-write onto without also fighting the model->view direction (see
+    // Qt's own two-way-binding idiom for interactive controls): `position`
+    // is driven from the model via a `Binding` that's only active while the
+    // user ISN'T dragging (`when: !pressed`), and while dragging (`pressed`
+    // true) `onPositionChanged` -- which also fires for the control's own
+    // internal, interaction-driven writes to `position` -- pushes the new
+    // value back into the model instead.
     QQC2.ScrollBar {
         id: verticalScrollBar
         orientation: Qt.Vertical
@@ -85,12 +107,22 @@ Item {
         anchors.bottom: horizontalScrollBar.top
         size: typeof mapViewModel !== "undefined" && mapViewModel.verticalScrollMax > 0
               ? Math.min(1.0, height / mapViewModel.verticalScrollMax) : 1.0
-        // TODO(shell commit): gate visibility on Configuration's
-        // general.showScrollBars, mirroring MapWindow::updateScrollBars().
-        // QmlConfig has no facade for that setting yet; always-visible is a
-        // safe, honest placeholder until this view is actually driven by
-        // the shell.
-        visible: true
+        Binding on position {
+            value: typeof mapViewModel !== "undefined" && mapViewModel.verticalScrollMax > 0
+                   ? mapViewModel.verticalScrollValue / mapViewModel.verticalScrollMax : 0.0
+            when: !verticalScrollBar.pressed
+        }
+        onPositionChanged: {
+            if (pressed && typeof mapViewModel !== "undefined"
+                    && mapViewModel.verticalScrollMax > 0) {
+                mapViewModel.verticalScrollValue = Math.round(
+                    position * mapViewModel.verticalScrollMax);
+            }
+        }
+        visible: (typeof commands !== "undefined" && commands
+                  && commands.command("view.show-scroll-bars")
+                  ? commands.command("view.show-scroll-bars").checked : true)
+                 && typeof mapViewModel !== "undefined" && mapViewModel.verticalScrollMax > 0
     }
 
     QQC2.ScrollBar {
@@ -101,7 +133,22 @@ Item {
         anchors.bottom: parent.bottom
         size: typeof mapViewModel !== "undefined" && mapViewModel.horizontalScrollMax > 0
               ? Math.min(1.0, width / mapViewModel.horizontalScrollMax) : 1.0
-        visible: true
+        Binding on position {
+            value: typeof mapViewModel !== "undefined" && mapViewModel.horizontalScrollMax > 0
+                   ? mapViewModel.horizontalScrollValue / mapViewModel.horizontalScrollMax : 0.0
+            when: !horizontalScrollBar.pressed
+        }
+        onPositionChanged: {
+            if (pressed && typeof mapViewModel !== "undefined"
+                    && mapViewModel.horizontalScrollMax > 0) {
+                mapViewModel.horizontalScrollValue = Math.round(
+                    position * mapViewModel.horizontalScrollMax);
+            }
+        }
+        visible: (typeof commands !== "undefined" && commands
+                  && commands.command("view.show-scroll-bars")
+                  ? commands.command("view.show-scroll-bars").checked : true)
+                 && typeof mapViewModel !== "undefined" && mapViewModel.horizontalScrollMax > 0
     }
 
     // Splash screen overlay, shown until the shell hides it (mirroring

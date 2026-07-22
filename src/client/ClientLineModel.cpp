@@ -8,6 +8,8 @@
 
 #include <algorithm>
 
+#include <QClipboard>
+#include <QGuiApplication>
 #include <QRegularExpression>
 #include <QStringList>
 
@@ -350,6 +352,13 @@ QString ClientLineModel::toPlainText() const
     }
     lines.push_back(m_partialPlain);
     return lines.join(QChar::fromLatin1('\n'));
+}
+
+void ClientLineModel::copyAll() const
+{
+    if (auto *const clipboard = QGuiApplication::clipboard()) {
+        clipboard->setText(toPlainText());
+    }
 }
 
 QString ClientLineModel::toHtml() const

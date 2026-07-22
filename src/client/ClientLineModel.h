@@ -78,6 +78,9 @@ public:
     void appendText(QStringView text);
 
     Q_INVOKABLE void clear();
+    // Copies toPlainText() to the system clipboard; mirrors LogModel::copyAll()
+    // and backs ClientDisplay.qml's "Copy All" context-menu action.
+    Q_INVOKABLE void copyAll() const;
 
 public:
     // Joins every finished line's plain text (plus the current partial

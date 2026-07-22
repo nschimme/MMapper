@@ -382,6 +382,7 @@ MainWindow::MainWindow()
                           | QDockWidget::DockWidgetMovable);
         addDockWidget(Qt::BottomDockWidgetArea, dock);
         dock->setContextProperty("adventureLogModel", model);
+        dock->setContextProperty("config", m_qmlConfig);
         dock->setQmlSource(QUrl(QStringLiteral("qrc:/qt/qml/MMapper/AdventurePanel.qml")));
         dock->hide();
 #else

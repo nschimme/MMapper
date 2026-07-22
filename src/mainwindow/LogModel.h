@@ -10,6 +10,10 @@
 class NODISCARD_QOBJECT LogModel final : public QAbstractListModel
 {
     Q_OBJECT
+    // Joined plain-text view of every line, '\n'-separated, backing
+    // LogPanel.qml's single read-only selectable text control (mirrors the
+    // QTextBrowser this replaces, see mainwindow.cpp's "logWindow").
+    Q_PROPERTY(QString text READ getText NOTIFY textChanged)
 
 private:
     QStringList m_lines;
@@ -23,8 +27,13 @@ public:
     NODISCARD QVariant data(const QModelIndex &index, int role = Qt::DisplayRole) const override;
     NODISCARD QHash<int, QByteArray> roleNames() const override;
 
+    NODISCARD QString getText() const;
+
 public slots:
     void append(const QString &mod, const QString &message);
     Q_INVOKABLE void clear();
     Q_INVOKABLE void copyAll() const;
+
+signals:
+    void textChanged();
 };

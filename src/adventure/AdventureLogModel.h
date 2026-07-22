@@ -11,6 +11,11 @@
 class NODISCARD_QOBJECT AdventureLogModel final : public QAbstractListModel
 {
     Q_OBJECT
+    // Joined plain-text view of every line, '\n'-separated, mirroring
+    // AdventureWidget's QTextEdit document contents. Backs AdventurePanel.qml's
+    // single read-only selectable text control (see addAdventureUpdate()/clear()
+    // for where textChanged() is emitted).
+    Q_PROPERTY(QString text READ getText NOTIFY textChanged)
 
 private:
     QStringList m_lines;
@@ -34,8 +39,16 @@ public:
     NODISCARD QVariant data(const QModelIndex &index, int role = Qt::DisplayRole) const override;
     NODISCARD QHash<int, QByteArray> roleNames() const override;
 
+    NODISCARD QString getText() const;
+
 public slots:
     Q_INVOKABLE void clear();
+    // Copies the joined log text to the system clipboard; mirrors
+    // LogModel::copyAll().
+    Q_INVOKABLE void copyAll() const;
+
+signals:
+    void textChanged();
 
 private:
     void addDefaultContent();

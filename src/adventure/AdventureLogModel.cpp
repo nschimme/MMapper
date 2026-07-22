@@ -6,6 +6,9 @@
 #include "../global/Consts.h"
 #include "adventuresession.h"
 
+#include <QClipboard>
+#include <QGuiApplication>
+
 AdventureLogModel::AdventureLogModel(AdventureTracker &tracker, QObject *const parent)
     : QAbstractListModel(parent)
 {
@@ -64,6 +67,11 @@ QHash<int, QByteArray> AdventureLogModel::roleNames() const
     return roles;
 }
 
+QString AdventureLogModel::getText() const
+{
+    return m_lines.join(QChar::fromLatin1('\n'));
+}
+
 void AdventureLogModel::clear()
 {
     if (!m_lines.isEmpty()) {
@@ -72,6 +80,13 @@ void AdventureLogModel::clear()
         endRemoveRows();
     }
     addDefaultContent();
+}
+
+void AdventureLogModel::copyAll() const
+{
+    if (auto *const clipboard = QGuiApplication::clipboard()) {
+        clipboard->setText(getText());
+    }
 }
 
 void AdventureLogModel::addDefaultContent()
@@ -98,6 +113,8 @@ void AdventureLogModel::addAdventureUpdate(const QString &msg)
         m_lines.erase(m_lines.begin(), m_lines.begin() + over);
         endRemoveRows();
     }
+
+    emit textChanged();
 }
 
 void AdventureLogModel::slot_onAccomplishedTask(double xpGained)

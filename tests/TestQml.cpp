@@ -1088,8 +1088,14 @@ void TestQml::loadAdventurePanel()
     AdventureTracker tracker(observer, nullptr);
     AdventureLogModel model(tracker, nullptr);
 
+    // AdventurePanel.qml themes its single TextArea from `config`
+    // (integratedClient background/foreground/font, mirroring
+    // AdventureWidget's ctor), same as loadGroupPanel()/loadClientPanel().
+    QmlConfig config;
+
     QmlDockWidget dock("t", "TestDockAdventure", nullptr);
     dock.setContextProperty("adventureLogModel", &model);
+    dock.setContextProperty("config", &config);
     dock.setQmlSource(QUrl(u"qrc:/qt/qml/MMapper/AdventurePanel.qml"_qs));
 
     QQuickWidget *const quick = dock.quickWidget();
@@ -1103,6 +1109,17 @@ void TestQml::loadAdventurePanel()
 
     QCOMPARE(quick->status(), QQuickWidget::Ready);
     QVERIFY(quick->rootObject() != nullptr);
+
+    // The text control must expose the joined log content selectably (see
+    // AdventureLogModel::text), replacing the old non-selectable ListView
+    // delegate.
+    auto *const textArea = quick->rootObject()->findChild<QQuickItem *>(
+        QStringLiteral("adventureLogTextArea"));
+    QVERIFY(textArea != nullptr);
+    QVERIFY(textArea->property("selectByMouse").toBool());
+    QVERIFY(textArea->property("readOnly").toBool());
+    QVERIFY(textArea->property("text").toString().contains(
+        QStringLiteral("Your adventures in Middle Earth will be tracked here!")));
 }
 
 void TestQml::roomModelLongestTextInColumn()
@@ -1211,6 +1228,16 @@ void TestQml::loadLogPanel()
 
     QCOMPARE(quick->status(), QQuickWidget::Ready);
     QVERIFY(quick->rootObject() != nullptr);
+
+    // The panel must expose a selectable read-only text control bound to
+    // LogModel::text (rather than the old non-selectable ListView delegate),
+    // restoring the widget-era QTextBrowser's drag-select + copy.
+    auto *const textArea = quick->rootObject()->findChild<QQuickItem *>(
+        QStringLiteral("logTextArea"));
+    QVERIFY(textArea != nullptr);
+    QVERIFY(textArea->property("selectByMouse").toBool());
+    QVERIFY(textArea->property("readOnly").toBool());
+    QCOMPARE(textArea->property("text").toString(), QStringLiteral("[Test] hello world"));
 }
 
 void TestQml::logModelCap()

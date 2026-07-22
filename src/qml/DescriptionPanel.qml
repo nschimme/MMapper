@@ -81,22 +81,30 @@ PanelFrame {
             id: textColumn
             width: parent.width
 
-            Text {
+            TextEdit {
+                objectName: "roomNameText"
                 width: parent.width
                 text: adapter.roomName
                 color: adapter.nameColor
                 font.family: adapter.fontFamily
                 font.pointSize: fm.font.pointSize
-                wrapMode: Text.Wrap
+                wrapMode: TextEdit.Wrap
+                readOnly: true
+                selectByMouse: true
+                persistentSelection: true
                 visible: text !== ""
             }
-            Text {
+            TextEdit {
+                objectName: "roomDescText"
                 width: parent.width
                 text: adapter.roomDesc
                 color: adapter.descColor
                 font.family: adapter.fontFamily
                 font.pointSize: fm.font.pointSize
-                wrapMode: Text.Wrap
+                wrapMode: TextEdit.Wrap
+                readOnly: true
+                selectByMouse: true
+                persistentSelection: true
                 visible: text !== ""
             }
         }

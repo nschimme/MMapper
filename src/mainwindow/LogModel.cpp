@@ -38,6 +38,11 @@ QHash<int, QByteArray> LogModel::roleNames() const
     return roles;
 }
 
+QString LogModel::getText() const
+{
+    return m_lines.join(QChar::fromLatin1('\n'));
+}
+
 void LogModel::append(const QString &mod, const QString &message)
 {
     const QString line = QString("[%1] %2").arg(mod, message);
@@ -54,6 +59,8 @@ void LogModel::append(const QString &mod, const QString &message)
         m_lines.erase(m_lines.begin(), m_lines.begin() + over);
         endRemoveRows();
     }
+
+    emit textChanged();
 }
 
 void LogModel::clear()
@@ -63,6 +70,7 @@ void LogModel::clear()
         m_lines.clear();
         endRemoveRows();
     }
+    emit textChanged();
 }
 
 void LogModel::copyAll() const

@@ -92,6 +92,21 @@ Rectangle {
         root.stick = root.atBottom();
     }
 
+    // Right-click / long-press "Copy All" for the scrollback, mirroring
+    // LogPanel.qml's context menu. Per-line drag-select is deliberately not
+    // implemented here: a per-delegate selectable text control would fight
+    // the ListView's own drag-to-scroll and the stick-to-bottom gesture
+    // gating above, so this is Copy-All only (see ClientLineModel::copyAll(),
+    // which mirrors LogModel::copyAll()).
+    Menu {
+        id: contextMenu
+
+        MenuItem {
+            text: qsTr("Copy All")
+            onTriggered: clientLineModel.copyAll()
+        }
+    }
+
     ListView {
         id: listView
         objectName: "clientListView"
@@ -101,6 +116,16 @@ Rectangle {
 
         ScrollBar.vertical: ScrollBar {
             id: vbar
+        }
+
+        TapHandler {
+            acceptedButtons: Qt.RightButton
+            onTapped: contextMenu.popup()
+        }
+
+        TapHandler {
+            acceptedButtons: Qt.LeftButton
+            onLongPressed: contextMenu.popup()
         }
 
         // Only re-derive `stick` from a *user-driven* movement:

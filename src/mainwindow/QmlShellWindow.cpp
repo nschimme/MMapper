@@ -785,11 +785,25 @@ QmlShellWindow::QmlShellWindow(QObject *const parent)
     if (UiCommand *const cmd = m_commandRegistry->command("view.show-menu-bar")) {
         cmd->setChecked(getConfig().general.showMenuBar);
     }
+    // These four checkable View toggles must flip their own UiCommand::checked
+    // on trigger: unlike shell A's QAction (which toggles itself and writes
+    // back to the command via CommandRegistry::bindQAction), shell B drives
+    // them through CommandAction.qml, whose QQC2.Action calls cmd.trigger()
+    // but never propagates the toggle to the UiCommand. So without this the
+    // command's checked never changes -- the config write reads a stale value
+    // and, worse, the QML `visible` bindings that key off
+    // commands.command(...).checked (menuBar/footer/scrollbars) never react.
+    // They are NOT in an exclusive group, so a plain invert is correct (an
+    // exclusive radio must not allow un-checking the active member, which is
+    // why this isn't done in UiCommand::trigger() for all checkable commands).
     connect(m_commandRegistry->command("view.always-on-top"),
             &UiCommand::sig_triggered,
             this,
             [this]() {
                 UiCommand *const cmd = m_commandRegistry->command("view.always-on-top");
+                if (cmd != nullptr) {
+                    cmd->setChecked(!cmd->isChecked());
+                }
                 const bool alwaysOnTop = cmd != nullptr && cmd->isChecked();
                 setConfig().general.alwaysOnTop = alwaysOnTop;
                 if (auto *const window = qobject_cast<QQuickWindow *>(
@@ -803,6 +817,9 @@ QmlShellWindow::QmlShellWindow(QObject *const parent)
             this,
             [this]() {
                 UiCommand *const cmd = m_commandRegistry->command("view.show-status-bar");
+                if (cmd != nullptr) {
+                    cmd->setChecked(!cmd->isChecked());
+                }
                 setConfig().general.showStatusBar = cmd != nullptr && cmd->isChecked();
             });
     connect(m_commandRegistry->command("view.show-scroll-bars"),
@@ -810,6 +827,9 @@ QmlShellWindow::QmlShellWindow(QObject *const parent)
             this,
             [this]() {
                 UiCommand *const cmd = m_commandRegistry->command("view.show-scroll-bars");
+                if (cmd != nullptr) {
+                    cmd->setChecked(!cmd->isChecked());
+                }
                 setConfig().general.showScrollBars = cmd != nullptr && cmd->isChecked();
             });
     // view.show-menu-bar -- mirrors MainWindow::slot_setShowMenuBar()
@@ -822,6 +842,9 @@ QmlShellWindow::QmlShellWindow(QObject *const parent)
             this,
             [this]() {
                 UiCommand *const cmd = m_commandRegistry->command("view.show-menu-bar");
+                if (cmd != nullptr) {
+                    cmd->setChecked(!cmd->isChecked());
+                }
                 setConfig().general.showMenuBar = cmd != nullptr && cmd->isChecked();
             });
 

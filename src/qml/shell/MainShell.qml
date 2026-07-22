@@ -1469,6 +1469,12 @@ QQC2.ApplicationWindow {
         // "TRANSPARENT-HOLE AUDIT" comment above -- this row previously
         // relied entirely on that now-removed background Rectangle to look
         // opaque.
+        // Mirrors MainWindow's statusBar()->setVisible(showStatusBar): hidden
+        // when the "Always Show Status Bar" toggle (view.show-status-bar) is
+        // unchecked. ApplicationWindow gives a hidden footer no height, so
+        // this reclaims the space too.
+        visible: commands && commands.command("view.show-status-bar")
+                 ? commands.command("view.show-status-bar").checked : true
         implicitHeight: footerRow.implicitHeight
         color: footerPalette.window
 

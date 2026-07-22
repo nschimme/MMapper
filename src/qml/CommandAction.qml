@@ -22,6 +22,12 @@ QQC2.Action {
     // The UiCommand this action mirrors; see CommandRegistry::command().
     property var cmd: null
 
+    // Mirrors UiCommand::toolTip -- the widget shell's QAction::statusTip()
+    // text (see QmlShellWindow.cpp's CommandSpec::toolTip). Not a QQC2.Action
+    // property, so it's exposed here for toolbar buttons to bind a hover
+    // QQC2.ToolTip against (menus don't show tooltips natively).
+    property string toolTip: cmd ? cmd.toolTip : ""
+
     text: cmd ? cmd.text : ""
     shortcut: cmd ? cmd.shortcut : ""
     enabled: cmd ? cmd.effectiveEnabled : false

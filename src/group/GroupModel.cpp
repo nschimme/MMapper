@@ -541,6 +541,12 @@ QVariant GroupModel::roleDataForCharacter(const SharedGroupChar &pCharacter, con
         return buildStateIcons(character);
     case StateTipRole:
         return dataForCharacter(pCharacter, ColumnTypeEnum::STATE, Qt::ToolTipRole);
+    case HpTipRole:
+        return dataForCharacter(pCharacter, ColumnTypeEnum::HP, Qt::ToolTipRole);
+    case ManaTipRole:
+        return dataForCharacter(pCharacter, ColumnTypeEnum::MANA, Qt::ToolTipRole);
+    case MovesTipRole:
+        return dataForCharacter(pCharacter, ColumnTypeEnum::MOVES, Qt::ToolTipRole);
     case RoomNameRole:
         return dataForCharacter(pCharacter, ColumnTypeEnum::ROOM_NAME, Qt::DisplayRole);
     case IsYouRole:
@@ -605,6 +611,9 @@ QHash<int, QByteArray> GroupModel::roleNames() const
     roles[ManaHiddenRole] = "manaHidden";
     roles[StateIconsRole] = "stateIcons";
     roles[StateTipRole] = "stateTip";
+    roles[HpTipRole] = "hpTip";
+    roles[ManaTipRole] = "manaTip";
+    roles[MovesTipRole] = "movesTip";
     roles[RoomNameRole] = "roomName";
     roles[IsYouRole] = "isYou";
     roles[IsNpcRole] = "isNpc";

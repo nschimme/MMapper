@@ -500,4 +500,28 @@ void TestMainWindow::commandRegistrySync()
     QVERIFY(!actionB.isChecked());
 }
 
+// Exercises UiCommand::toolTip (see UiCommand.h/.cpp): default-empty, settable
+// independently of text/shortcut, idempotent (no redundant signal), and
+// change-notified -- the same shape QmlShellWindow::registerCommands() relies
+// on when it copies CommandSpec::toolTip into each command at startup.
+void TestMainWindow::uiCommandToolTip()
+{
+    UiCommand cmd("test.tooltip", nullptr);
+    QCOMPARE(cmd.getToolTip(), QString());
+
+    QSignalSpy toolTipSpy(&cmd, &UiCommand::sig_toolTipChanged);
+    cmd.setToolTip("Create a new file");
+    QCOMPARE(cmd.getToolTip(), QString("Create a new file"));
+    QCOMPARE(toolTipSpy.count(), 1);
+
+    // Setting the same value again must not re-emit (mirrors setText()'s
+    // early-return-on-equal behavior).
+    cmd.setToolTip("Create a new file");
+    QCOMPARE(toolTipSpy.count(), 1);
+
+    cmd.setToolTip("");
+    QCOMPARE(cmd.getToolTip(), QString());
+    QCOMPARE(toolTipSpy.count(), 2);
+}
+
 QTEST_MAIN(TestMainWindow)

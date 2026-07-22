@@ -68,6 +68,16 @@ Rectangle {
             border.color: "gray"
             border.width: 1
         }
+
+        // Mirrors AnsiColorDialog::slot_updateColors()'s setToolTip() on the
+        // example label -- the only place the raw generated ANSI escape
+        // string (e.g. "\x1b[1;31m") is surfaced to the user.
+        ToolTip.text: ansiColorPickerController.resultAnsiString.length > 0
+                      ? ansiColorPickerController.resultAnsiString : "[0m"
+        ToolTip.visible: previewHover.hovered
+        HoverHandler {
+            id: previewHover
+        }
     }
 
     Label {

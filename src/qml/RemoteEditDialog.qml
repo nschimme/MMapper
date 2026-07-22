@@ -385,21 +385,29 @@ Rectangle {
                     text: qsTr("Previous")
                     enabled: findInput.text.length > 0
                     onClicked: root.performFind(true)
+                    ToolTip.text: qsTr("Find Previous")
+                    ToolTip.visible: hovered
                 }
                 Button {
                     text: qsTr("Next")
                     enabled: findInput.text.length > 0
                     onClicked: root.performFind(false)
+                    ToolTip.text: qsTr("Find Next (Enter)")
+                    ToolTip.visible: hovered
                 }
                 CheckBox {
                     id: replaceToggle
                     objectName: "replaceToggle"
                     text: qsTr("Replace")
                     enabled: root.editSession
+                    ToolTip.text: qsTr("Show/Hide Replace Options")
+                    ToolTip.visible: hovered
                 }
                 Button {
                     text: qsTr("Close")
                     onClicked: root.hideFindBar()
+                    ToolTip.text: qsTr("Close (Esc)")
+                    ToolTip.visible: hovered
                 }
             }
 
@@ -420,11 +428,15 @@ Rectangle {
                     text: qsTr("Replace")
                     enabled: findInput.text.length > 0
                     onClicked: root.performReplaceCurrent()
+                    ToolTip.text: qsTr("Replace Current")
+                    ToolTip.visible: hovered
                 }
                 Button {
                     text: qsTr("All")
                     enabled: findInput.text.length > 0
                     onClicked: root.performReplaceAll()
+                    ToolTip.text: qsTr("Replace All")
+                    ToolTip.visible: hovered
                 }
             }
         }

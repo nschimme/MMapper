@@ -27,4 +27,5 @@ private Q_SLOTS:
     void generalPageAdapterRoundTrip();
     void clientPageAdapterRoundTrip();
     void commandRegistrySync();
+    void uiCommandToolTip();
 };

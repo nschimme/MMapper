@@ -21,6 +21,15 @@ void UiCommand::setText(QString text)
     emit sig_textChanged();
 }
 
+void UiCommand::setToolTip(QString toolTip)
+{
+    if (m_toolTip == toolTip) {
+        return;
+    }
+    m_toolTip = std::move(toolTip);
+    emit sig_toolTipChanged();
+}
+
 void UiCommand::setShortcut(QString shortcut)
 {
     if (m_shortcut == shortcut) {

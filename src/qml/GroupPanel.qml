@@ -76,6 +76,17 @@ PanelFrame {
         property string label: ""
         property bool low: false
         property color fillColor: "gray"
+        // Mirrors GroupModel::data()'s Qt::ToolTipRole for the HP/Mana/Moves
+        // columns (e.g. "42%"), shown by QTableView on hover in the widget;
+        // ported here as a hover ToolTip on the bar itself.
+        property string toolTip: ""
+
+        ToolTip.text: statBar.toolTip
+        ToolTip.visible: statBar.toolTip.length > 0 && hoverHandler.hovered
+
+        HoverHandler {
+            id: hoverHandler
+        }
 
         Rectangle {
             anchors.fill: parent
@@ -175,6 +186,12 @@ PanelFrame {
                 // which two rows to swap via groupController.moveCharacter().
                 property int dragIndex: index
 
+                // Captured here (rather than read as `model.stateTip` inside
+                // the state-icon Repeater below) because a Repeater delegate
+                // has its own `model` context (the stateIcons array item),
+                // which would shadow this row's `model.stateTip`.
+                property string rowStateTip: model.stateTip ? model.stateTip : ""
+
                 Row {
                     anchors.fill: parent
 
@@ -194,6 +211,7 @@ PanelFrame {
                         label: model.hpText
                         low: model.hpLow
                         fillColor: model.hpLow ? "#FF5555" : "#50FA7B"
+                        toolTip: model.hpTip ? model.hpTip : ""
                     }
                     Item {
                         width: statW
@@ -206,6 +224,7 @@ PanelFrame {
                             ratio: model.manaRatio
                             label: model.manaText
                             fillColor: "#8BE9FD"
+                            toolTip: model.manaTip ? model.manaTip : ""
                         }
                         Text {
                             anchors.centerIn: parent
@@ -221,6 +240,7 @@ PanelFrame {
                         label: model.movesText
                         low: model.movesLow
                         fillColor: "#FFB86C"
+                        toolTip: model.movesTip ? model.movesTip : ""
                     }
                     Row {
                         width: stateW
@@ -228,16 +248,24 @@ PanelFrame {
 
                         Repeater {
                             model: model.stateIcons
+
                             Image {
+                                id: stateIcon
                                 source: modelData
                                 width: 18
                                 height: 18
                                 fillMode: Image.PreserveAspectFit
-                                ToolTip.visible: false
+
+                                HoverHandler {
+                                    id: stateIconHover
+                                }
+                                ToolTip.text: delegateRoot.rowStateTip
+                                ToolTip.visible: stateIcon.ToolTip.text.length > 0 && stateIconHover.hovered
                             }
                         }
                     }
                     Text {
+                        id: roomNameText
                         width: Math.max(0, delegateRoot.width - nameW - statW * root.statsVisibleCount - stateW)
                         height: rowH
                         leftPadding: 4
@@ -245,7 +273,16 @@ PanelFrame {
                         elide: Text.ElideRight
                         text: model.roomName
                         color: model.textColor
-                        ToolTip.visible: false
+
+                        HoverHandler {
+                            id: roomNameHover
+                        }
+                        // Mirrors the widget's STATE-column tooltip (same
+                        // Qt::ToolTipRole source) shown here on the room-name
+                        // cell as well since GroupWidget's QTableView applies
+                        // the row's tooltip role across the whole row.
+                        ToolTip.text: model.stateTip ? model.stateTip : ""
+                        ToolTip.visible: roomNameText.ToolTip.text.length > 0 && roomNameHover.hovered
                     }
                 }
 

@@ -69,16 +69,22 @@ Column {
         enabled: root.general.tlsAvailable
         checked: root.general.tlsEncryption
         onToggled: root.general.tlsEncryption = checked
+        ToolTip.text: qsTr("Require that your connection to MUME is always secure")
+        ToolTip.visible: hovered
     }
     CheckBox {
         text: qsTr("Proxy listens on any interface")
         checked: root.general.proxyListensOnAnyInterface
         onToggled: root.general.proxyListensOnAnyInterface = checked
+        ToolTip.text: qsTr("Allow external traffic to connect to MMapper")
+        ToolTip.visible: hovered
     }
     CheckBox {
         text: qsTr("Show proxy connection status")
         checked: root.general.proxyConnectionStatus
         onToggled: root.general.proxyConnectionStatus = checked
+        ToolTip.text: qsTr("Disconnect from the mud client when MUME disconnects")
+        ToolTip.visible: hovered
     }
     Row {
         spacing: 8

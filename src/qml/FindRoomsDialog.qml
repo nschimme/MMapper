@@ -187,6 +187,12 @@ Rectangle {
                 color: root.isSelected(index) ? "#3399ff" : "transparent"
                 opacity: root.isSelected(index) ? 0.35 : 1.0
 
+                // Mirrors FindRoomsDlg's item->setToolTip(0/1, toolTip) --
+                // FindRoomsController::find() precomputes an ANSI-stripped
+                // room preview per result row (FindRoomsModel::Entry::toolTip).
+                ToolTip.text: model.toolTip ? model.toolTip : ""
+                ToolTip.visible: mouseArea.containsMouse && delegateRoot.ToolTip.text.length > 0
+
                 Row {
                     anchors.fill: parent
                     anchors.margins: 2
@@ -209,8 +215,10 @@ Rectangle {
                 }
 
                 MouseArea {
+                    id: mouseArea
                     anchors.fill: parent
                     acceptedButtons: Qt.LeftButton
+                    hoverEnabled: true
                     onClicked: mouse => root.toggleSelect(index, (mouse.modifiers & Qt.ControlModifier) !== 0)
                     onDoubleClicked: findRoomsController.activateRow(index)
                 }

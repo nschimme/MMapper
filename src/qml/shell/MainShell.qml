@@ -799,12 +799,18 @@ QQC2.ApplicationWindow {
                 spacing: 4
                 QQC2.ToolButton {
                     action: CommandAction { cmd: commands ? commands.command("file.new") : null }
+                    QQC2.ToolTip.text: action ? action.toolTip : ""
+                    QQC2.ToolTip.visible: hovered && action && action.toolTip.length > 0
                 }
                 QQC2.ToolButton {
                     action: CommandAction { cmd: commands ? commands.command("file.open") : null }
+                    QQC2.ToolTip.text: action ? action.toolTip : ""
+                    QQC2.ToolTip.visible: hovered && action && action.toolTip.length > 0
                 }
                 QQC2.ToolButton {
                     action: CommandAction { cmd: commands ? commands.command("file.save") : null }
+                    QQC2.ToolTip.text: action ? action.toolTip : ""
+                    QQC2.ToolTip.visible: hovered && action && action.toolTip.length > 0
                 }
             }
         }
@@ -818,14 +824,20 @@ QQC2.ApplicationWindow {
                 spacing: 4
                 QQC2.ToolButton {
                     action: CommandAction { cmd: commands ? commands.command("mapper-mode.play") : null }
+                    QQC2.ToolTip.text: action ? action.toolTip : ""
+                    QQC2.ToolTip.visible: hovered && action && action.toolTip.length > 0
                 }
                 QQC2.ToolButton {
                     action: CommandAction { cmd: commands ? commands.command("mapper-mode.map") : null }
+                    QQC2.ToolTip.text: action ? action.toolTip : ""
+                    QQC2.ToolTip.visible: hovered && action && action.toolTip.length > 0
                 }
                 QQC2.ToolButton {
                     action: CommandAction {
                         cmd: commands ? commands.command("mapper-mode.offline") : null
                     }
+                    QQC2.ToolTip.text: action ? action.toolTip : ""
+                    QQC2.ToolTip.visible: hovered && action && action.toolTip.length > 0
                 }
             }
         }
@@ -839,47 +851,65 @@ QQC2.ApplicationWindow {
                 spacing: 4
                 QQC2.ToolButton {
                     action: CommandAction { cmd: commands ? commands.command("mouse-mode.move") : null }
+                    QQC2.ToolTip.text: action ? action.toolTip : ""
+                    QQC2.ToolTip.visible: hovered && action && action.toolTip.length > 0
                 }
                 QQC2.ToolButton {
                     action: CommandAction {
                         cmd: commands ? commands.command("mouse-mode.room-raypick") : null
                     }
+                    QQC2.ToolTip.text: action ? action.toolTip : ""
+                    QQC2.ToolTip.visible: hovered && action && action.toolTip.length > 0
                 }
                 QQC2.ToolButton {
                     action: CommandAction {
                         cmd: commands ? commands.command("mouse-mode.room-select") : null
                     }
+                    QQC2.ToolTip.text: action ? action.toolTip : ""
+                    QQC2.ToolTip.visible: hovered && action && action.toolTip.length > 0
                 }
                 QQC2.ToolButton {
                     action: CommandAction {
                         cmd: commands ? commands.command("mouse-mode.connection-select") : null
                     }
+                    QQC2.ToolTip.text: action ? action.toolTip : ""
+                    QQC2.ToolTip.visible: hovered && action && action.toolTip.length > 0
                 }
                 QQC2.ToolButton {
                     action: CommandAction {
                         cmd: commands ? commands.command("mouse-mode.create-room") : null
                     }
+                    QQC2.ToolTip.text: action ? action.toolTip : ""
+                    QQC2.ToolTip.visible: hovered && action && action.toolTip.length > 0
                 }
                 QQC2.ToolButton {
                     action: CommandAction {
                         cmd: commands ? commands.command("mouse-mode.create-connection") : null
                     }
+                    QQC2.ToolTip.text: action ? action.toolTip : ""
+                    QQC2.ToolTip.visible: hovered && action && action.toolTip.length > 0
                 }
                 QQC2.ToolButton {
                     action: CommandAction {
                         cmd: commands
                               ? commands.command("mouse-mode.create-oneway-connection") : null
                     }
+                    QQC2.ToolTip.text: action ? action.toolTip : ""
+                    QQC2.ToolTip.visible: hovered && action && action.toolTip.length > 0
                 }
                 QQC2.ToolButton {
                     action: CommandAction {
                         cmd: commands ? commands.command("mouse-mode.infomark-select") : null
                     }
+                    QQC2.ToolTip.text: action ? action.toolTip : ""
+                    QQC2.ToolTip.visible: hovered && action && action.toolTip.length > 0
                 }
                 QQC2.ToolButton {
                     action: CommandAction {
                         cmd: commands ? commands.command("mouse-mode.create-infomark") : null
                     }
+                    QQC2.ToolTip.text: action ? action.toolTip : ""
+                    QQC2.ToolTip.visible: hovered && action && action.toolTip.length > 0
                 }
             }
         }
@@ -893,14 +923,20 @@ QQC2.ApplicationWindow {
                 spacing: 4
                 QQC2.ToolButton {
                     action: CommandAction { cmd: commands ? commands.command("view.zoom-in") : null }
+                    QQC2.ToolTip.text: action ? action.toolTip : ""
+                    QQC2.ToolTip.visible: hovered && action && action.toolTip.length > 0
                 }
                 QQC2.ToolButton {
                     action: CommandAction { cmd: commands ? commands.command("view.zoom-out") : null }
+                    QQC2.ToolTip.text: action ? action.toolTip : ""
+                    QQC2.ToolTip.visible: hovered && action && action.toolTip.length > 0
                 }
                 QQC2.ToolButton {
                     action: CommandAction {
                         cmd: commands ? commands.command("view.zoom-reset") : null
                     }
+                    QQC2.ToolTip.text: action ? action.toolTip : ""
+                    QQC2.ToolTip.visible: hovered && action && action.toolTip.length > 0
                 }
                 // Mirrors MapZoomSlider's log-scale position<->zoom mapping
                 // (see ../../display/MapZoomController.h); `value` binds
@@ -920,12 +956,18 @@ QQC2.ApplicationWindow {
                 }
                 QQC2.ToolButton {
                     action: CommandAction { cmd: commands ? commands.command("layer.up") : null }
+                    QQC2.ToolTip.text: action ? action.toolTip : ""
+                    QQC2.ToolTip.visible: hovered && action && action.toolTip.length > 0
                 }
                 QQC2.ToolButton {
                     action: CommandAction { cmd: commands ? commands.command("layer.down") : null }
+                    QQC2.ToolTip.text: action ? action.toolTip : ""
+                    QQC2.ToolTip.visible: hovered && action && action.toolTip.length > 0
                 }
                 QQC2.ToolButton {
                     action: CommandAction { cmd: commands ? commands.command("layer.reset") : null }
+                    QQC2.ToolTip.text: action ? action.toolTip : ""
+                    QQC2.ToolTip.visible: hovered && action && action.toolTip.length > 0
                 }
             }
         }
@@ -941,16 +983,22 @@ QQC2.ApplicationWindow {
                     action: CommandAction {
                         cmd: commands ? commands.command("pathmachine.release-all-paths") : null
                     }
+                    QQC2.ToolTip.text: action ? action.toolTip : ""
+                    QQC2.ToolTip.visible: hovered && action && action.toolTip.length > 0
                 }
                 QQC2.ToolButton {
                     action: CommandAction {
                         cmd: commands ? commands.command("room.goto-selected") : null
                     }
+                    QQC2.ToolTip.text: action ? action.toolTip : ""
+                    QQC2.ToolTip.visible: hovered && action && action.toolTip.length > 0
                 }
                 QQC2.ToolButton {
                     action: CommandAction {
                         cmd: commands ? commands.command("room.force-update-selected") : null
                     }
+                    QQC2.ToolTip.text: action ? action.toolTip : ""
+                    QQC2.ToolTip.visible: hovered && action && action.toolTip.length > 0
                 }
             }
         }
@@ -964,39 +1012,55 @@ QQC2.ApplicationWindow {
                 spacing: 4
                 QQC2.ToolButton {
                     action: CommandAction { cmd: commands ? commands.command("room.find") : null }
+                    QQC2.ToolTip.text: action ? action.toolTip : ""
+                    QQC2.ToolTip.visible: hovered && action && action.toolTip.length > 0
                 }
                 QQC2.ToolButton {
                     action: CommandAction { cmd: commands ? commands.command("room.edit-selected") : null }
+                    QQC2.ToolTip.text: action ? action.toolTip : ""
+                    QQC2.ToolTip.visible: hovered && action && action.toolTip.length > 0
                 }
                 QQC2.ToolButton {
                     action: CommandAction {
                         cmd: commands ? commands.command("room.delete-selected") : null
                     }
+                    QQC2.ToolTip.text: action ? action.toolTip : ""
+                    QQC2.ToolTip.visible: hovered && action && action.toolTip.length > 0
                 }
                 QQC2.ToolButton {
                     action: CommandAction {
                         cmd: commands ? commands.command("room.move-up-selected") : null
                     }
+                    QQC2.ToolTip.text: action ? action.toolTip : ""
+                    QQC2.ToolTip.visible: hovered && action && action.toolTip.length > 0
                 }
                 QQC2.ToolButton {
                     action: CommandAction {
                         cmd: commands ? commands.command("room.move-down-selected") : null
                     }
+                    QQC2.ToolTip.text: action ? action.toolTip : ""
+                    QQC2.ToolTip.visible: hovered && action && action.toolTip.length > 0
                 }
                 QQC2.ToolButton {
                     action: CommandAction {
                         cmd: commands ? commands.command("room.merge-up-selected") : null
                     }
+                    QQC2.ToolTip.text: action ? action.toolTip : ""
+                    QQC2.ToolTip.visible: hovered && action && action.toolTip.length > 0
                 }
                 QQC2.ToolButton {
                     action: CommandAction {
                         cmd: commands ? commands.command("room.merge-down-selected") : null
                     }
+                    QQC2.ToolTip.text: action ? action.toolTip : ""
+                    QQC2.ToolTip.visible: hovered && action && action.toolTip.length > 0
                 }
                 QQC2.ToolButton {
                     action: CommandAction {
                         cmd: commands ? commands.command("room.connect-to-neighbours") : null
                     }
+                    QQC2.ToolTip.text: action ? action.toolTip : ""
+                    QQC2.ToolTip.visible: hovered && action && action.toolTip.length > 0
                 }
             }
         }
@@ -1012,6 +1076,8 @@ QQC2.ApplicationWindow {
                     action: CommandAction {
                         cmd: commands ? commands.command("connection.delete-selected") : null
                     }
+                    QQC2.ToolTip.text: action ? action.toolTip : ""
+                    QQC2.ToolTip.visible: hovered && action && action.toolTip.length > 0
                 }
             }
         }
@@ -1027,6 +1093,8 @@ QQC2.ApplicationWindow {
                     action: CommandAction {
                         cmd: commands ? commands.command("edit.preferences") : null
                     }
+                    QQC2.ToolTip.text: action ? action.toolTip : ""
+                    QQC2.ToolTip.visible: hovered && action && action.toolTip.length > 0
                 }
             }
         }

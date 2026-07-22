@@ -120,6 +120,8 @@ Column {
             to: 1000
             value: root.autoLog.rotateWhenLogsReachMB
             onValueModified: root.autoLog.rotateWhenLogsReachMB = value
+            ToolTip.text: qsTr("Rotate logs to keep files small for editors")
+            ToolTip.visible: hovered
         }
         Label { text: qsTr("MBs"); anchors.verticalCenter: parent.verticalCenter }
     }

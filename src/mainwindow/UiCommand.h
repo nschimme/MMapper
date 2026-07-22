@@ -35,6 +35,7 @@ class NODISCARD_QOBJECT UiCommand final : public QObject
 
     Q_PROPERTY(QString id READ getId CONSTANT)
     Q_PROPERTY(QString text READ getText WRITE setText NOTIFY sig_textChanged)
+    Q_PROPERTY(QString toolTip READ getToolTip WRITE setToolTip NOTIFY sig_toolTipChanged)
     Q_PROPERTY(QString shortcut READ getShortcut WRITE setShortcut NOTIFY sig_shortcutChanged)
     Q_PROPERTY(QUrl iconSource READ getIconSource WRITE setIconSource NOTIFY sig_iconSourceChanged)
     Q_PROPERTY(bool enabled READ isEnabled WRITE setEnabled NOTIFY sig_enabledChanged)
@@ -47,6 +48,7 @@ private:
 
     QString m_id;
     QString m_text;
+    QString m_toolTip;
     QString m_shortcut;
     QUrl m_iconSource;
     bool m_enabled = true;
@@ -69,6 +71,9 @@ public:
 
     NODISCARD QString getText() const { return m_text; }
     void setText(QString text);
+
+    NODISCARD QString getToolTip() const { return m_toolTip; }
+    void setToolTip(QString toolTip);
 
     NODISCARD QString getShortcut() const { return m_shortcut; }
     void setShortcut(QString shortcut);
@@ -100,6 +105,7 @@ private:
 signals:
     void sig_triggered();
     void sig_textChanged();
+    void sig_toolTipChanged();
     void sig_shortcutChanged();
     void sig_iconSourceChanged();
     void sig_enabledChanged(bool enabled);

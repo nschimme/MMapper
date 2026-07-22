@@ -431,8 +431,17 @@ QmlShellWindow::QmlShellWindow(QObject *const parent)
                                         this);
 
     m_mapViewModel = new MapViewModel(this);
-    connect(m_mapCanvasCore,
-            &MapCanvasCore::sig_setScrollBars,
+    // Feed the scroll range from the map's own size, mirroring
+    // MainWindow's `connect(m_mapData, &MapData::sig_mapSizeChanged,
+    // m_mapWindow, &MapWindow::slot_setScrollBars)` (mainwindow.cpp:782).
+    // NOTE: MapCanvasCore::sig_setScrollBars is declared but never emitted
+    // anywhere -- the real range source has always been
+    // MapFrontend::sig_mapSizeChanged. Wiring the dead signal (as an earlier
+    // pass did) left verticalScrollMax/horizontalScrollMax stuck at 0, so
+    // the scrollbars' `... && mapViewModel.verticalScrollMax > 0` visibility
+    // gate never became true and they never appeared.
+    connect(m_mapData,
+            &MapData::sig_mapSizeChanged,
             m_mapViewModel,
             &MapViewModel::slot_setScrollBars);
     // Remaining canvas <-> scroll-model wiring, mirroring MapWindow's ctor

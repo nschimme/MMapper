@@ -105,6 +105,13 @@ Item {
         anchors.top: parent.top
         anchors.right: parent.right
         anchors.bottom: horizontalScrollBar.top
+        // AlwaysOn: without it a standalone ScrollBar defaults to the
+        // AsNeeded overlay that fades out when idle -- on macOS's overlay
+        // scrollbar style that means it's effectively never seen. The
+        // `visible` binding below already hides it when there's nothing to
+        // scroll or the setting is off, so AlwaysOn just keeps the handle
+        // drawn whenever it IS meant to be shown.
+        policy: QQC2.ScrollBar.AlwaysOn
         size: typeof mapViewModel !== "undefined" && mapViewModel.verticalScrollMax > 0
               ? Math.min(1.0, height / mapViewModel.verticalScrollMax) : 1.0
         Binding on position {
@@ -131,6 +138,8 @@ Item {
         anchors.left: parent.left
         anchors.right: verticalScrollBar.left
         anchors.bottom: parent.bottom
+        // See verticalScrollBar's policy comment.
+        policy: QQC2.ScrollBar.AlwaysOn
         size: typeof mapViewModel !== "undefined" && mapViewModel.horizontalScrollMax > 0
               ? Math.min(1.0, width / mapViewModel.horizontalScrollMax) : 1.0
         Binding on position {

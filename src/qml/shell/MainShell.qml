@@ -68,6 +68,20 @@ QQC2.ApplicationWindow {
     height: 800
     visible: true
 
+    // Auto-hide "peek" reveal for the menu bar and status bar: when their
+    // "Always Show ..." toggle (view.show-menu-bar / view.show-status-bar) is
+    // off, moving the pointer to the very top / bottom edge of the window
+    // slides the bar back in (like a Windows auto-hidden taskbar), and it
+    // hides again shortly after the pointer leaves it. `...Shown` mirrors the
+    // persisted toggle; `...Peek` is the transient hover reveal; the bar is
+    // visible when either is true.
+    readonly property bool menuBarShown: commands && commands.command("view.show-menu-bar")
+                                         ? commands.command("view.show-menu-bar").checked : true
+    readonly property bool statusBarShown: commands && commands.command("view.show-status-bar")
+                                           ? commands.command("view.show-status-bar").checked : true
+    property bool menuBarPeek: false
+    property bool statusBarPeek: false
+
     // Per-dock title/source, keyed by the same 8 ids DockLayoutController
     // (../DockLayoutController.h) uses for its xVisible/xFloating
     // properties and its leftDockIds/topDockIds/bottomDockIds/rightDockIds
@@ -177,12 +191,23 @@ QQC2.ApplicationWindow {
         // Mirrors MainWindow::slot_setShowMenuBar()'s menuBar()->show()/hide()
         // (mainwindow.cpp:1889-1919); the checked state is persisted to the
         // same Configuration::general.showMenuBar key (see
-        // QmlShellWindow.cpp's view.show-menu-bar wiring). Initial state is
-        // visible, matching GeneralSettings::showMenuBar's default (true).
-        // TODO(future shell commit): auto-reveal-on-hover when hidden, like
-        // MainWindow's installEventFilter()/setMouseTracking() dance.
-        visible: commands && commands.command("view.show-menu-bar")
-                 ? commands.command("view.show-menu-bar").checked : true
+        // QmlShellWindow.cpp's view.show-menu-bar wiring). When the toggle is
+        // off it can still be revealed by the top-edge peek (see
+        // window.menuBarPeek and the menuPeekStrip below), which is this
+        // shell's take on MainWindow's auto-reveal-on-hover.
+        visible: window.menuBarShown || window.menuBarPeek
+
+        // Keep the reveal up while the pointer is on the bar itself; hide
+        // shortly after it leaves (unless it moved onto the peek strip).
+        HoverHandler {
+            id: menuBarHover
+            onHoveredChanged: {
+                if (hovered)
+                    window.menuBarPeek = true;
+                else
+                    menuBarHideTimer.restart();
+            }
+        }
 
         QQC2.Menu {
             title: qsTr("&File")
@@ -1144,6 +1169,66 @@ QQC2.ApplicationWindow {
         visible: false
     }
 
+    // Edge hover zones + hide timers backing the menu-bar / status-bar peek
+    // (see window.menuBarPeek/statusBarPeek and the menuBar/footer above). A
+    // thin strip pinned to the window's top / bottom edge, z above outerSplit
+    // so it wins the hover in that band; its HoverHandler is passive so map
+    // clicks still fall through, and only enabled while the corresponding bar
+    // is hidden. The bar's own HoverHandler keeps the reveal up once the
+    // pointer moves onto it; the timer hides it a beat after the pointer has
+    // left BOTH the strip and the bar (so sliding from strip to bar doesn't
+    // flicker it away).
+    Item {
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.top: parent.top
+        height: 4
+        z: 10000
+        HoverHandler {
+            id: menuPeekStrip
+            enabled: !window.menuBarShown
+            onHoveredChanged: {
+                if (hovered)
+                    window.menuBarPeek = true;
+                else
+                    menuBarHideTimer.restart();
+            }
+        }
+    }
+    Item {
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.bottom: parent.bottom
+        height: 4
+        z: 10000
+        HoverHandler {
+            id: statusPeekStrip
+            enabled: !window.statusBarShown
+            onHoveredChanged: {
+                if (hovered)
+                    window.statusBarPeek = true;
+                else
+                    statusBarHideTimer.restart();
+            }
+        }
+    }
+    Timer {
+        id: menuBarHideTimer
+        interval: 400
+        onTriggered: {
+            if (!menuBarHover.hovered && !menuPeekStrip.hovered)
+                window.menuBarPeek = false;
+        }
+    }
+    Timer {
+        id: statusBarHideTimer
+        interval: 400
+        onTriggered: {
+            if (!statusBarHover.hovered && !statusPeekStrip.hovered)
+                window.statusBarPeek = false;
+        }
+    }
+
     // dockId -> the DockPanel instance CURRENTLY placed in an area SplitView
     // (only docked-and-shown panels have an entry; hidden/floated ones have
     // none). reconcileDocks() creates and destroys these to match the
@@ -1471,12 +1556,22 @@ QQC2.ApplicationWindow {
         // opaque.
         // Mirrors MainWindow's statusBar()->setVisible(showStatusBar): hidden
         // when the "Always Show Status Bar" toggle (view.show-status-bar) is
-        // unchecked. ApplicationWindow gives a hidden footer no height, so
-        // this reclaims the space too.
-        visible: commands && commands.command("view.show-status-bar")
-                 ? commands.command("view.show-status-bar").checked : true
+        // unchecked -- but still revealable by the bottom-edge peek (see
+        // window.statusBarPeek and statusPeekStrip below). ApplicationWindow
+        // gives a hidden footer no height, so this reclaims the space too.
+        visible: window.statusBarShown || window.statusBarPeek
         implicitHeight: footerRow.implicitHeight
         color: footerPalette.window
+
+        HoverHandler {
+            id: statusBarHover
+            onHoveredChanged: {
+                if (hovered)
+                    window.statusBarPeek = true;
+                else
+                    statusBarHideTimer.restart();
+            }
+        }
 
         SystemPalette {
             id: footerPalette

@@ -105,6 +105,14 @@ QQC2.ApplicationWindow {
     readonly property real keyboardInset: (window.compact && Qt.inputMethod.visible)
         ? Qt.inputMethod.keyboardRectangle.height : 0
 
+    // Scope: dismissed state for the compact-mode "a physical keyboard is
+    // recommended" tip (keyboardTipBanner below). MUD play is keyboard-heavy
+    // and an on-screen keyboard eats half a phone screen, so the tip nudges
+    // players toward a hardware keyboard -- shown once per session in compact
+    // mode until dismissed. Session-scoped (not persisted): cheap, and on
+    // wasm every page load is a fresh session anyway.
+    property bool keyboardTipDismissed: false
+
     // Ids of the docks currently docked-and-shown in ANY of the 4 areas, in
     // area order (left, top, bottom, right) -- used only by the compact
     // drawer below to populate its tab list. Reuses areaIds() (further down)
@@ -2030,5 +2038,45 @@ QQC2.ApplicationWindow {
         QQC2.ToolTip.text: qsTr("Menu")
         QQC2.ToolTip.visible: hovered
         onClicked: appMenu.popup()
+    }
+
+    // Compact-only, dismissible tip: MUD play is keyboard-heavy and a soft
+    // keyboard covers half a phone screen, so nudge players toward a physical
+    // keyboard. Anchored across the top between the menu button (top-left) and
+    // the right edge so it clears both corner RoundButtons. Opaque via the
+    // Fusion-styled Frame background (see the TRANSPARENT-HOLE AUDIT comment).
+    QQC2.Frame {
+        id: keyboardTipBanner
+        objectName: "keyboardTipBanner"
+        visible: window.compact && !window.keyboardTipDismissed
+        z: 9500
+        anchors.top: parent.top
+        anchors.left: hamburgerButton.right
+        anchors.right: parent.right
+        anchors.topMargin: 16
+        anchors.leftMargin: 8
+        anchors.rightMargin: 16
+
+        Row {
+            width: parent.width
+            spacing: 8
+
+            QQC2.Label {
+                width: parent.width - dismissButton.width - parent.spacing
+                anchors.verticalCenter: parent.verticalCenter
+                wrapMode: Text.WordWrap
+                text: qsTr("A physical keyboard is recommended for the best experience.")
+            }
+
+            QQC2.ToolButton {
+                id: dismissButton
+                objectName: "keyboardTipDismiss"
+                anchors.verticalCenter: parent.verticalCenter
+                text: "✕"
+                QQC2.ToolTip.text: qsTr("Dismiss")
+                QQC2.ToolTip.visible: hovered
+                onClicked: window.keyboardTipDismissed = true
+            }
+        }
     }
 }

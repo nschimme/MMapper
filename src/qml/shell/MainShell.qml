@@ -1978,7 +1978,13 @@ QQC2.ApplicationWindow {
         anchors.margins: 16
         implicitWidth: Theme.controlHeight
         implicitHeight: Theme.controlHeight
-        text: "☰"
+        // A "panels/docks" glyph, deliberately NOT the ☰ used by the app-menu
+        // opener (hamburgerButton below): the two float on screen at the same
+        // time in compact mode, so identical icons read as two mismatched
+        // hamburgers. This one opens the dock drawer; ☰ opens the menu.
+        text: "▤"
+        QQC2.ToolTip.text: qsTr("Panels")
+        QQC2.ToolTip.visible: hovered
         onClicked: compactDockDrawer.open()
     }
 
@@ -2007,7 +2013,7 @@ QQC2.ApplicationWindow {
     // keeps it clear of compactDockButton's bottom-right corner. z matches
     // compactDockButton's -- both float above outerSplit but below the
     // menu/status-bar peek strips (z: 10000).
-    QQC2.ToolButton {
+    QQC2.RoundButton {
         id: hamburgerButton
         objectName: "hamburgerButton"
         visible: window.compact
@@ -2017,7 +2023,12 @@ QQC2.ApplicationWindow {
         anchors.margins: 16
         implicitWidth: Theme.controlHeight
         implicitHeight: Theme.controlHeight
+        // ☰ is the app menu; the dock-drawer opener (compactDockButton above)
+        // uses ▤ instead. Both are RoundButtons so the pair reads as a
+        // consistent set rather than two mismatched controls.
         text: "☰"
+        QQC2.ToolTip.text: qsTr("Menu")
+        QQC2.ToolTip.visible: hovered
         onClicked: appMenu.popup()
     }
 }

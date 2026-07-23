@@ -15,16 +15,60 @@ import MMapper
 // has no "decimals"/double value support like QDoubleSpinBox. Rather than
 // the scaled-integer recipe from Qt's own SpinBox docs (storing value*10^n
 // as an int, which risks off-by-one rounding bugs in textFromValue/
-// valueFromText), each double field here is a plain TextField constrained
-// by a DoubleValidator(0, 100, 4) (matching acceptBestRelativeDoubleSpinBox
-// et al.'s 0..100 range / 4 decimals in pathmachinepage.ui) that commits to
-// the adapter on editingFinished. This is the pattern used for every
-// double-valued field across the five ported pages.
+// valueFromText), each double field is the DoubleField inline component
+// below: a TextField constrained by DoubleValidator(0, 100, 4) (matching
+// acceptBestRelativeDoubleSpinBox et al.'s 0..100 range / 4 decimals in
+// pathmachinepage.ui) plus −/+ stepper buttons (a non-keyboard input path
+// for touch), committing the clamped value to the adapter.
 Column {
     id: root
     spacing: 8
 
     readonly property var pathMachine: preferencesController.pathMachine
+
+    // A 0..100 double field with −/+ steppers (a non-keyboard input path for
+    // touch, which the bare TextField+DoubleValidator lacked) plus direct
+    // typing. Step 1.0 matches the widget's QDoubleSpinBox default; the
+    // steppers and typing both clamp to [0,100] via commit().
+    component DoubleField: Row {
+        id: df
+        spacing: 8
+        property string label
+        property real value
+        property real step: 1.0
+        signal committed(real v)
+
+        function commit(v) {
+            if (!isNaN(v))
+                df.committed(Math.max(0, Math.min(100, v)));
+        }
+
+        Label {
+            text: df.label
+            width: 180
+            anchors.verticalCenter: parent.verticalCenter
+        }
+        Button {
+            text: "−"
+            implicitHeight: Theme.controlHeight
+            implicitWidth: Theme.controlHeight
+            onClicked: df.commit(df.value - df.step)
+        }
+        TextField {
+            width: 100
+            text: df.value.toFixed(4)
+            horizontalAlignment: TextInput.AlignRight
+            inputMethodHints: Qt.ImhFormattedNumbersOnly
+            validator: DoubleValidator { bottom: 0; top: 100; decimals: 4 }
+            onEditingFinished: df.commit(parseFloat(text))
+        }
+        Button {
+            text: "+"
+            implicitHeight: Theme.controlHeight
+            implicitWidth: Theme.controlHeight
+            onClicked: df.commit(df.value + df.step)
+        }
+    }
 
     Label { text: qsTr("WARNING: These settings are for advanced users only"); font.bold: true }
 
@@ -54,63 +98,33 @@ Column {
         }
     }
 
-    Row {
-        spacing: 8
-        Label { text: qsTr("Accept Best Relative:"); width: 180 }
-        TextField {
-            id: acceptBestRelativeField
-            width: 100
-            text: root.pathMachine.acceptBestRelative.toFixed(4)
-            validator: DoubleValidator { bottom: 0; top: 100; decimals: 4 }
-            onEditingFinished: root.pathMachine.acceptBestRelative = parseFloat(text)
-        }
+    DoubleField {
+        label: qsTr("Accept Best Relative:")
+        value: root.pathMachine.acceptBestRelative
+        onCommitted: root.pathMachine.acceptBestRelative = v
     }
 
-    Row {
-        spacing: 8
-        Label { text: qsTr("Accept Best Absolute:"); width: 180 }
-        TextField {
-            id: acceptBestAbsoluteField
-            width: 100
-            text: root.pathMachine.acceptBestAbsolute.toFixed(4)
-            validator: DoubleValidator { bottom: 0; top: 100; decimals: 4 }
-            onEditingFinished: root.pathMachine.acceptBestAbsolute = parseFloat(text)
-        }
+    DoubleField {
+        label: qsTr("Accept Best Absolute:")
+        value: root.pathMachine.acceptBestAbsolute
+        onCommitted: root.pathMachine.acceptBestAbsolute = v
     }
 
-    Row {
-        spacing: 8
-        Label { text: qsTr("New Room Penalty:"); width: 180 }
-        TextField {
-            id: newRoomPenaltyField
-            width: 100
-            text: root.pathMachine.newRoomPenalty.toFixed(4)
-            validator: DoubleValidator { bottom: 0; top: 100; decimals: 4 }
-            onEditingFinished: root.pathMachine.newRoomPenalty = parseFloat(text)
-        }
+    DoubleField {
+        label: qsTr("New Room Penalty:")
+        value: root.pathMachine.newRoomPenalty
+        onCommitted: root.pathMachine.newRoomPenalty = v
     }
 
-    Row {
-        spacing: 8
-        Label { text: qsTr("Correct Position bonus:"); width: 180 }
-        TextField {
-            id: correctPositionBonusField
-            width: 100
-            text: root.pathMachine.correctPositionBonus.toFixed(4)
-            validator: DoubleValidator { bottom: 0; top: 100; decimals: 4 }
-            onEditingFinished: root.pathMachine.correctPositionBonus = parseFloat(text)
-        }
+    DoubleField {
+        label: qsTr("Correct Position bonus:")
+        value: root.pathMachine.correctPositionBonus
+        onCommitted: root.pathMachine.correctPositionBonus = v
     }
 
-    Row {
-        spacing: 8
-        Label { text: qsTr("Multiple Connections Penalty:"); width: 180 }
-        TextField {
-            id: multipleConnectionsPenaltyField
-            width: 100
-            text: root.pathMachine.multipleConnectionsPenalty.toFixed(4)
-            validator: DoubleValidator { bottom: 0; top: 100; decimals: 4 }
-            onEditingFinished: root.pathMachine.multipleConnectionsPenalty = parseFloat(text)
-        }
+    DoubleField {
+        label: qsTr("Multiple Connections Penalty:")
+        value: root.pathMachine.multipleConnectionsPenalty
+        onCommitted: root.pathMachine.multipleConnectionsPenalty = v
     }
 }

@@ -74,6 +74,7 @@ private Q_SLOTS:
     void loadMapViewFboFallback();
     void mapViewModelScrollMath();
     void loadMainShell();
+    void mainShellCompactBreakpoint();
     void pathMachineStatusFunnel();
     void mapperModeCommandGrouping();
     void dockLayoutControllerAreas();

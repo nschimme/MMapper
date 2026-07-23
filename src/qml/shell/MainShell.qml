@@ -82,6 +82,28 @@ QQC2.ApplicationWindow {
     property bool menuBarPeek: false
     property bool statusBarPeek: false
 
+    // Scope 13a: reactive compact/mobile breakpoint. This is a plain live
+    // binding on `width`, so a window resize or a phone/tablet rotation
+    // re-evaluates it (and everything bound to it below) instantly -- no
+    // reload, no explicit orientation handling needed. Desktop behavior is
+    // exactly `compact === false`; every compact-only bit of markup below is
+    // additive and gated on this flag, so the desktop code path is
+    // unchanged when it's false.
+    readonly property bool compact: width < 720
+
+    // Ids of the docks currently docked-and-shown in ANY of the 4 areas, in
+    // area order (left, top, bottom, right) -- used only by the compact
+    // drawer below to populate its tab list. Reuses areaIds() (further down)
+    // rather than duplicating DockLayoutController's area lists; recomputes
+    // whenever any of the 4 *DockIds properties changes (they're NOTIFYing
+    // properties, see DockLayoutController.h) since areaIds() reads them
+    // directly.
+    readonly property var compactDockIds: dockLayout
+        ? window.areaIds("left").concat(window.areaIds("top"),
+                                         window.areaIds("bottom"),
+                                         window.areaIds("right"))
+        : []
+
     // Per-dock title/source, keyed by the same 8 ids DockLayoutController
     // (../DockLayoutController.h) uses for its xVisible/xFloating
     // properties and its leftDockIds/topDockIds/bottomDockIds/rightDockIds
@@ -1192,6 +1214,7 @@ QQC2.ApplicationWindow {
     // actually reclaims the space once its siblings disappear.
     QQC2.SplitView {
         id: outerSplit
+        objectName: "outerSplit"
         anchors.fill: parent
         orientation: Qt.Horizontal
 
@@ -1207,11 +1230,20 @@ QQC2.ApplicationWindow {
         // tracking DockLayoutController's leftDockIds/topDockIds/
         // bottomDockIds/rightDockIds -- create/destroy rather than reparenting
         // a persistent instance, see createDockPanel()'s comment for why.
+        // Scope 13a: each area container is ALSO hidden whenever
+        // window.compact is true, regardless of what it holds -- SplitView
+        // skips invisible children entirely (see the comment above), so this
+        // alone makes middleSplit/mapView fill the whole outerSplit in
+        // compact mode; the hidden docks reappear in the compactDockDrawer
+        // below instead. reconcileDocks() is untouched -- it still places
+        // DockPanel instances into these containers even while they're
+        // hidden, so nothing needs to be recreated when compact flips back
+        // off.
         DockColumn {
             id: leftColumn
             objectName: "leftColumn"
             QQC2.SplitView.preferredWidth: 320
-            visible: dockLayout ? dockLayout.leftDockIds.length > 0 : false
+            visible: !window.compact && (dockLayout ? dockLayout.leftDockIds.length > 0 : false)
         }
 
         QQC2.SplitView {
@@ -1223,7 +1255,7 @@ QQC2.ApplicationWindow {
                 id: topRow
                 objectName: "topRow"
                 QQC2.SplitView.preferredHeight: 220
-                visible: dockLayout ? dockLayout.topDockIds.length > 0 : false
+                visible: !window.compact && (dockLayout ? dockLayout.topDockIds.length > 0 : false)
             }
 
             MapView {
@@ -1236,7 +1268,7 @@ QQC2.ApplicationWindow {
                 id: bottomRow
                 objectName: "bottomRow"
                 QQC2.SplitView.preferredHeight: 220
-                visible: dockLayout ? dockLayout.bottomDockIds.length > 0 : false
+                visible: !window.compact && (dockLayout ? dockLayout.bottomDockIds.length > 0 : false)
             }
         }
 
@@ -1244,7 +1276,7 @@ QQC2.ApplicationWindow {
             id: rightColumn
             objectName: "rightColumn"
             QQC2.SplitView.preferredWidth: 320
-            visible: dockLayout ? dockLayout.rightDockIds.length > 0 : false
+            visible: !window.compact && (dockLayout ? dockLayout.rightDockIds.length > 0 : false)
         }
     }
 
@@ -1765,5 +1797,145 @@ QQC2.ApplicationWindow {
                 onClicked: if (ioTask) ioTask.cancel()
             }
         }
+    }
+
+    // --- Scope 13a: compact/mobile dock drawer -----------------------------
+    //
+    // In compact mode the 4 fixed-slot dock areas are hidden (see their
+    // visible: bindings above), so the docks they would have held (Group,
+    // Log, Room, etc.) have nowhere to be seen -- this Drawer is that
+    // somewhere. It's a sibling of outerSplit (a direct child of window, NOT
+    // inside outerSplit), so it slides in over the full-screen map rather
+    // than fighting it for SplitView space. compactDockButton below is its
+    // only opener; it never auto-opens.
+    QQC2.Drawer {
+        id: compactDockDrawer
+        objectName: "compactDockDrawer"
+        edge: Qt.BottomEdge
+        width: window.width
+        height: window.height * 0.6
+        // Swiping it open from a hidden edge only makes sense in compact
+        // mode -- on desktop this stays uninteractive so it can never be
+        // dragged into view by accident.
+        interactive: window.compact
+
+        // A drawer left open across a resize/rotate back to desktop width
+        // must not stay open floating over the now-restored dock columns --
+        // force it closed the instant compact goes false. (compact lives on
+        // window, not on this Drawer, so this has to be a Connections block
+        // rather than an onCompactChanged handler here.)
+        Connections {
+            target: window
+            function onCompactChanged() {
+                if (!window.compact)
+                    compactDockDrawer.close();
+            }
+        }
+
+        // Index into window.compactDockIds selected by the tab row below;
+        // clamped whenever the list changes (a dock can close, move, or
+        // float away while the drawer is open) so it never points past the
+        // end -- and never goes negative when the list becomes empty.
+        property int selectedIndex: 0
+        function clampSelectedIndex() {
+            const n = window.compactDockIds.length;
+            if (n === 0) {
+                compactDockDrawer.selectedIndex = 0;
+            } else if (compactDockDrawer.selectedIndex >= n) {
+                compactDockDrawer.selectedIndex = n - 1;
+            } else if (compactDockDrawer.selectedIndex < 0) {
+                compactDockDrawer.selectedIndex = 0;
+            }
+        }
+        Connections {
+            target: window
+            function onCompactDockIdsChanged() { compactDockDrawer.clampSelectedIndex(); }
+        }
+
+        SystemPalette {
+            id: drawerPalette
+            colorGroup: SystemPalette.Active
+        }
+
+        // Explicit opaque fill -- see the ApplicationWindow.background
+        // "TRANSPARENT-HOLE AUDIT" comment above; Drawer's own background is
+        // themed by the Fusion style, but the Column below is content we add
+        // on top of it, not styled chrome, so it gets its own Rectangle too.
+        Rectangle {
+            anchors.fill: parent
+            color: drawerPalette.window
+
+            Column {
+                anchors.fill: parent
+
+                QQC2.TabBar {
+                    id: compactDockTabBar
+                    objectName: "compactDockTabBar"
+                    width: parent.width
+                    visible: window.compactDockIds.length > 0
+                    currentIndex: compactDockDrawer.selectedIndex
+                    onCurrentIndexChanged: compactDockDrawer.selectedIndex = currentIndex
+
+                    Repeater {
+                        model: window.compactDockIds
+                        delegate: QQC2.TabButton {
+                            required property string modelData
+                            text: window.dockMeta[modelData]
+                                  ? window.dockMeta[modelData].title : modelData
+                        }
+                    }
+                }
+
+                QQC2.Label {
+                    objectName: "compactDockEmptyLabel"
+                    width: parent.width
+                    height: window.compactDockIds.length === 0 ? parent.height : 0
+                    visible: window.compactDockIds.length === 0
+                    horizontalAlignment: Text.AlignHCenter
+                    verticalAlignment: Text.AlignVCenter
+                    text: qsTr("No panels open")
+                }
+
+                QQC2.Frame {
+                    id: compactDockFrame
+                    width: parent.width
+                    height: parent.height - compactDockTabBar.height
+                    visible: window.compactDockIds.length > 0
+
+                    Loader {
+                        id: compactDockLoader
+                        objectName: "compactDockLoader"
+                        anchors.fill: parent
+                        source: {
+                            const ids = window.compactDockIds;
+                            const idx = compactDockDrawer.selectedIndex;
+                            if (idx < 0 || idx >= ids.length)
+                                return "";
+                            const meta = window.dockMeta[ids[idx]];
+                            return meta ? meta.source : "";
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Compact-only floating affordance that opens compactDockDrawer -- the
+    // drawer has no other opener (its edge-swipe gesture is easy to miss on
+    // a full-screen map that also wants drag gestures for panning). Sits
+    // above outerSplit (z: 9000) but below the menu/status-bar peek strips
+    // (z: 10000) so it never steals those edge hovers.
+    QQC2.RoundButton {
+        id: compactDockButton
+        objectName: "compactDockButton"
+        visible: window.compact
+        z: 9000
+        anchors.right: parent.right
+        anchors.bottom: parent.bottom
+        anchors.margins: 16
+        implicitWidth: Theme.controlHeight
+        implicitHeight: Theme.controlHeight
+        text: "☰"
+        onClicked: compactDockDrawer.open()
     }
 }

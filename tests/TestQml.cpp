@@ -3749,6 +3749,106 @@ void TestQml::loadMainShell()
     registry.command(QStringLiteral("view.zoom-in"))->trigger();
 }
 
+void TestQml::mainShellCompactBreakpoint()
+{
+    // Scope 13a: proves MainShell.qml's `compact` breakpoint (width < 720)
+    // is a live binding that actually re-lays-out the shell on resize, not
+    // just a property nobody reads. Modeled on loadMainShell() above --
+    // same context-property fixture setup, duplicated rather than factored
+    // out (matches this file's existing style: loadMainShellDocks() and
+    // loadMainShellChrome() both duplicate it too). Deliberately does NOT
+    // set a "dockLayout" context property, exactly like loadMainShell() --
+    // this also exercises window.compactDockIds' `dockLayout ? ... : []`
+    // guard and the drawer's "No panels open" empty-state placeholder with
+    // dockLayout entirely absent, not just empty.
+    CommandRegistry registry(nullptr);
+    static constexpr std::array kLiveIds{
+        "file.exit",
+        "view.zoom-in",
+        "view.zoom-out",
+        "view.zoom-reset",
+        "layer.up",
+        "layer.down",
+        "layer.reset",
+        "world.rebuild-meshes",
+        "mouse-mode.move",
+        "mouse-mode.room-raypick",
+        "mouse-mode.room-select",
+        "mouse-mode.connection-select",
+        "mouse-mode.create-room",
+        "mouse-mode.create-connection",
+        "mouse-mode.create-oneway-connection",
+        "mouse-mode.infomark-select",
+        "mouse-mode.create-infomark",
+    };
+    for (const char *const id : kLiveIds) {
+        const bool checkable = QByteArray(id).startsWith("mouse-mode.");
+        UiCommand *const cmd = registry.addCommand(QString::fromLatin1(id), checkable);
+        if (checkable) {
+            registry.addToGroup(cmd, QStringLiteral("mouse-mode"), true);
+        }
+    }
+    registry.command(QStringLiteral("mouse-mode.move"))->setChecked(true);
+
+    MapViewModel viewModel;
+
+    ToolbarLayoutController toolbarLayout;
+    AudioVolumeController musicVolume(AudioVolumeController::AudioType::Music);
+    AudioVolumeController soundVolume(AudioVolumeController::AudioType::Sound);
+    GameObserver gameObserver;
+    MumeClock mumeClock(/*mumeEpoch=*/0, gameObserver, nullptr);
+    ClockAdapter clockAdapter(gameObserver, mumeClock, nullptr);
+    AdventureTracker adventureTracker(gameObserver, nullptr);
+    XpStatusAdapter xpStatusAdapter(adventureTracker, nullptr);
+
+    QQmlEngine engine;
+    engine.rootContext()->setContextProperty("commands", &registry);
+    engine.rootContext()->setContextProperty("mapCore", QVariant::fromValue<QObject *>(nullptr));
+    engine.rootContext()->setContextProperty("mapViewModel", &viewModel);
+    engine.rootContext()->setContextProperty("statusText", QStringLiteral("test status"));
+    engine.rootContext()->setContextProperty("toolbarLayout", &toolbarLayout);
+    engine.rootContext()->setContextProperty("mapZoom", QVariant::fromValue<QObject *>(nullptr));
+    engine.rootContext()->setContextProperty("musicVolume", &musicVolume);
+    engine.rootContext()->setContextProperty("soundVolume", &soundVolume);
+    engine.rootContext()->setContextProperty("clock", &clockAdapter);
+    engine.rootContext()->setContextProperty("xpStatusAdapter", &xpStatusAdapter);
+
+    QQmlComponent component(&engine, QUrl(u"qrc:/qt/qml/MMapper/MainShell.qml"_qs));
+
+    while (component.isLoading()) {
+        QCoreApplication::processEvents();
+    }
+    QVERIFY2(!component.isError(), qPrintable(component.errorString()));
+
+    QScopedPointer<QObject> object(component.create(engine.rootContext()));
+    QVERIFY(object != nullptr);
+    QCoreApplication::processEvents();
+
+    auto *const window = qobject_cast<QQuickWindow *>(object.data());
+    QVERIFY(window != nullptr);
+
+    auto *const outerSplit = object->findChild<QQuickItem *>(QStringLiteral("outerSplit"));
+    QVERIFY(outerSplit != nullptr);
+    auto *const compactDockButton = object->findChild<QQuickItem *>(
+        QStringLiteral("compactDockButton"));
+    QVERIFY(compactDockButton != nullptr);
+
+    // Wide: desktop path, compact == false, the drawer's opener is hidden.
+    object->setProperty("width", 1280);
+    QCoreApplication::processEvents();
+    QCOMPARE(object->property("compact").toBool(), false);
+    QVERIFY(outerSplit->isVisible());
+    QVERIFY(outerSplit->isEnabled());
+    QCOMPARE(compactDockButton->property("visible").toBool(), false);
+
+    // Narrow: live re-layout without a reload -- compact flips true and the
+    // opener appears, purely from the width binding.
+    object->setProperty("width", 400);
+    QCoreApplication::processEvents();
+    QCOMPARE(object->property("compact").toBool(), true);
+    QCOMPARE(compactDockButton->property("visible").toBool(), true);
+}
+
 void TestQml::pathMachineStatusFunnel()
 {
     // QmlShellWindow itself isn't linkable into this small test binary (see

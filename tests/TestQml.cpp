@@ -3832,21 +3832,31 @@ void TestQml::mainShellCompactBreakpoint()
     auto *const compactDockButton = object->findChild<QQuickItem *>(
         QStringLiteral("compactDockButton"));
     QVERIFY(compactDockButton != nullptr);
+    auto *const hamburgerButton = object->findChild<QQuickItem *>(QStringLiteral("hamburgerButton"));
+    QVERIFY(hamburgerButton != nullptr);
+    auto *const menuBar = window->property("menuBar").value<QObject *>();
+    QVERIFY(menuBar != nullptr);
 
-    // Wide: desktop path, compact == false, the drawer's opener is hidden.
+    // Wide: desktop path, compact == false, the drawer's opener is hidden,
+    // the hamburger is hidden, and the real MenuBar is shown.
     object->setProperty("width", 1280);
     QCoreApplication::processEvents();
     QCOMPARE(object->property("compact").toBool(), false);
     QVERIFY(outerSplit->isVisible());
     QVERIFY(outerSplit->isEnabled());
     QCOMPARE(compactDockButton->property("visible").toBool(), false);
+    QCOMPARE(hamburgerButton->property("visible").toBool(), false);
+    QCOMPARE(menuBar->property("visible").toBool(), true);
 
-    // Narrow: live re-layout without a reload -- compact flips true and the
-    // opener appears, purely from the width binding.
+    // Narrow: live re-layout without a reload -- compact flips true, the
+    // dock-drawer opener and hamburger both appear, and the MenuBar (which
+    // would overflow) hides -- purely from the width binding.
     object->setProperty("width", 400);
     QCoreApplication::processEvents();
     QCOMPARE(object->property("compact").toBool(), true);
     QCOMPARE(compactDockButton->property("visible").toBool(), true);
+    QCOMPARE(hamburgerButton->property("visible").toBool(), true);
+    QCOMPARE(menuBar->property("visible").toBool(), false);
 }
 
 void TestQml::pathMachineStatusFunnel()

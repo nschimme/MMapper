@@ -209,6 +209,577 @@ QQC2.ApplicationWindow {
         }
     }
 
+    component FileMenu: QQC2.Menu {
+        title: qsTr("&File")
+
+        QQC2.MenuItem {
+            action: CommandAction { cmd: commands ? commands.command("file.new") : null }
+        }
+        QQC2.MenuItem {
+            action: CommandAction { cmd: commands ? commands.command("file.open") : null }
+        }
+        QQC2.MenuItem {
+            action: CommandAction { cmd: commands ? commands.command("file.save") : null }
+        }
+        // Wasm hides Save As/Reload/Exit entirely (see mainwindow.cpp's
+        // setupMenuBar() `if constexpr (CURRENT_PLATFORM != PlatformEnum::Wasm)`
+        // guards); kept unconditional here for now -- shell B doesn't
+        // ship on Wasm yet (see QmlShellWindow.h's file comment), so
+        // there is no Wasm build of this file to gate. TODO(wasm shell
+        // commit): mirror the platform guard when it does.
+        QQC2.MenuItem {
+            action: CommandAction { cmd: commands ? commands.command("file.save-as") : null }
+        }
+        QQC2.MenuItem {
+            action: CommandAction { cmd: commands ? commands.command("file.reload") : null }
+        }
+
+        QQC2.MenuSeparator {}
+
+        QQC2.Menu {
+            id: fileExportMenu
+            objectName: "fileExportMenu"
+            title: qsTr("&Export")
+
+            QQC2.MenuItem {
+                action: CommandAction {
+                    cmd: commands ? commands.command("file.export.base-map") : null
+                }
+            }
+            QQC2.MenuItem {
+                action: CommandAction {
+                    cmd: commands ? commands.command("file.export.mm2xml") : null
+                }
+            }
+            QQC2.MenuItem {
+                action: CommandAction {
+                    cmd: commands ? commands.command("file.export.web") : null
+                }
+            }
+            QQC2.MenuItem {
+                action: CommandAction {
+                    cmd: commands ? commands.command("file.export.mmp") : null
+                }
+            }
+        }
+
+        QQC2.MenuItem {
+            action: CommandAction { cmd: commands ? commands.command("file.merge") : null }
+        }
+
+        QQC2.MenuSeparator {}
+
+        // TODO(wasm shell commit): see the Save As/Reload TODO above.
+        QQC2.MenuItem {
+            action: CommandAction { cmd: commands ? commands.command("file.exit") : null }
+        }
+    }
+
+    component EditMenu: QQC2.Menu {
+        title: qsTr("&Edit")
+
+        QQC2.Menu {
+            title: qsTr("&Mode")
+
+            QQC2.MenuItem {
+                action: CommandAction { cmd: commands ? commands.command("mapper-mode.play") : null }
+            }
+            QQC2.MenuItem {
+                action: CommandAction { cmd: commands ? commands.command("mapper-mode.map") : null }
+            }
+            QQC2.MenuItem {
+                action: CommandAction {
+                    cmd: commands ? commands.command("mapper-mode.offline") : null
+                }
+            }
+        }
+
+        QQC2.MenuSeparator {}
+
+        QQC2.MenuItem {
+            action: CommandAction { cmd: commands ? commands.command("edit.undo") : null }
+        }
+        QQC2.MenuItem {
+            action: CommandAction { cmd: commands ? commands.command("edit.redo") : null }
+        }
+
+        QQC2.MenuSeparator {}
+
+        QQC2.Menu {
+            title: qsTr("M&arkers")
+
+            QQC2.MenuItem {
+                action: CommandAction {
+                    cmd: commands ? commands.command("mouse-mode.infomark-select") : null
+                }
+            }
+            QQC2.MenuSeparator {}
+            QQC2.MenuItem {
+                action: CommandAction {
+                    cmd: commands ? commands.command("mouse-mode.create-infomark") : null
+                }
+            }
+            QQC2.MenuItem {
+                action: CommandAction {
+                    cmd: commands ? commands.command("infomark.edit-selected") : null
+                }
+            }
+            QQC2.MenuItem {
+                action: CommandAction {
+                    cmd: commands ? commands.command("infomark.delete-selected") : null
+                }
+            }
+        }
+
+        QQC2.Menu {
+            id: editRoomsMenu
+            objectName: "editRoomsMenu"
+            title: qsTr("&Rooms")
+
+            QQC2.MenuItem {
+                action: CommandAction {
+                    cmd: commands ? commands.command("mouse-mode.room-select") : null
+                }
+            }
+            QQC2.MenuItem {
+                action: CommandAction {
+                    cmd: commands ? commands.command("mouse-mode.room-raypick") : null
+                }
+            }
+            QQC2.MenuSeparator {}
+            QQC2.MenuItem {
+                action: CommandAction {
+                    cmd: commands ? commands.command("mouse-mode.create-room") : null
+                }
+            }
+            QQC2.MenuItem {
+                action: CommandAction { cmd: commands ? commands.command("room.edit-selected") : null }
+            }
+            QQC2.MenuItem {
+                action: CommandAction {
+                    cmd: commands ? commands.command("room.delete-selected") : null
+                }
+            }
+            QQC2.MenuItem {
+                action: CommandAction {
+                    cmd: commands ? commands.command("room.move-up-selected") : null
+                }
+            }
+            QQC2.MenuItem {
+                action: CommandAction {
+                    cmd: commands ? commands.command("room.move-down-selected") : null
+                }
+            }
+            QQC2.MenuItem {
+                action: CommandAction {
+                    cmd: commands ? commands.command("room.merge-up-selected") : null
+                }
+            }
+            QQC2.MenuItem {
+                action: CommandAction {
+                    cmd: commands ? commands.command("room.merge-down-selected") : null
+                }
+            }
+            QQC2.MenuItem {
+                action: CommandAction {
+                    cmd: commands ? commands.command("room.connect-to-neighbours") : null
+                }
+            }
+        }
+
+        QQC2.Menu {
+            title: qsTr("&Connections")
+
+            QQC2.MenuItem {
+                action: CommandAction {
+                    cmd: commands ? commands.command("mouse-mode.connection-select") : null
+                }
+            }
+            QQC2.MenuSeparator {}
+            QQC2.MenuItem {
+                action: CommandAction {
+                    cmd: commands ? commands.command("mouse-mode.create-connection") : null
+                }
+            }
+            QQC2.MenuItem {
+                action: CommandAction {
+                    cmd: commands
+                          ? commands.command("mouse-mode.create-oneway-connection") : null
+                }
+            }
+            QQC2.MenuItem {
+                action: CommandAction {
+                    cmd: commands ? commands.command("connection.delete-selected") : null
+                }
+            }
+        }
+
+        QQC2.MenuSeparator {}
+
+        QQC2.MenuItem {
+            action: CommandAction { cmd: commands ? commands.command("room.find") : null }
+        }
+        QQC2.MenuItem {
+            action: CommandAction {
+                cmd: commands ? commands.command("edit.preferences") : null
+            }
+        }
+    }
+
+    component ViewMenu: QQC2.Menu {
+        title: qsTr("&View")
+
+        QQC2.MenuItem {
+            action: CommandAction { cmd: commands ? commands.command("mouse-mode.move") : null }
+        }
+
+        // View -> Toolbars -> <toolbar>, mirroring mainwindow.cpp's
+        // setupToolBars()/setupMenuBar() `toolbars->addAction(...
+        // ->toggleViewAction())` calls. Backed by ToolbarLayoutController
+        // (../ToolbarLayoutController.h) rather than a command: unlike
+        // the "Side Panels" menu below, nothing else in this shell ever
+        // mutates these properties (no per-toolbar close button), so a
+        // plain `checked` binding is safe without the Connections
+        // re-sync the dock items below need (see ToolbarLayoutController.h).
+        QQC2.Menu {
+            title: qsTr("&Toolbars")
+
+            QQC2.MenuItem {
+                text: qsTr("File")
+                checkable: true
+                checked: toolbarLayout ? toolbarLayout.fileVisible : false
+                onTriggered: if (toolbarLayout) toolbarLayout.fileVisible = checked
+            }
+            QQC2.MenuItem {
+                text: qsTr("Mapper Mode")
+                checkable: true
+                checked: toolbarLayout ? toolbarLayout.mapperModeVisible : false
+                onTriggered: if (toolbarLayout) toolbarLayout.mapperModeVisible = checked
+            }
+            QQC2.MenuItem {
+                text: qsTr("Mouse Mode")
+                checkable: true
+                checked: toolbarLayout ? toolbarLayout.mouseModeVisible : false
+                onTriggered: if (toolbarLayout) toolbarLayout.mouseModeVisible = checked
+            }
+            QQC2.MenuItem {
+                text: qsTr("View")
+                checkable: true
+                checked: toolbarLayout ? toolbarLayout.viewVisible : false
+                onTriggered: if (toolbarLayout) toolbarLayout.viewVisible = checked
+            }
+            QQC2.MenuItem {
+                text: qsTr("Path Machine")
+                checkable: true
+                checked: toolbarLayout ? toolbarLayout.pathMachineVisible : false
+                onTriggered: if (toolbarLayout) toolbarLayout.pathMachineVisible = checked
+            }
+            QQC2.MenuItem {
+                text: qsTr("Rooms")
+                checkable: true
+                checked: toolbarLayout ? toolbarLayout.roomsVisible : false
+                onTriggered: if (toolbarLayout) toolbarLayout.roomsVisible = checked
+            }
+            QQC2.MenuItem {
+                text: qsTr("Connections")
+                checkable: true
+                checked: toolbarLayout ? toolbarLayout.connectionsVisible : false
+                onTriggered: if (toolbarLayout) toolbarLayout.connectionsVisible = checked
+            }
+            QQC2.MenuItem {
+                text: qsTr("Preferences")
+                checkable: true
+                checked: toolbarLayout ? toolbarLayout.preferencesVisible : false
+                onTriggered: if (toolbarLayout) toolbarLayout.preferencesVisible = checked
+            }
+            QQC2.MenuItem {
+                text: qsTr("Audio")
+                checkable: true
+                checked: toolbarLayout ? toolbarLayout.audioVisible : false
+                onTriggered: if (toolbarLayout) toolbarLayout.audioVisible = checked
+            }
+        }
+
+        // View -> Side Panels -> <dock>, mirroring mainwindow.cpp's
+        // dock construction comments of the same name. Each item binds
+        // straight to a DockLayoutController property (see
+        // ../DockLayoutController.h); the Connections block re-syncs
+        // `checked` after every click because QQC2.MenuItem's built-in
+        // checkable-click handling overwrites `checked` imperatively,
+        // which (per normal QML semantics) permanently breaks a plain
+        // `checked: dockLayout.xVisible` binding expression the first
+        // time the item is clicked -- without the explicit re-sync, a
+        // dock hidden via its own close button (DockPanel.qml) would
+        // stop updating this menu item's checkmark after that.
+        QQC2.Menu {
+            title: qsTr("Side &Panels")
+
+            QQC2.MenuItem {
+                id: logPanelMenuItem
+                // MenuItem has no "shortcut" property of its own (only
+                // Action does); mirrors mainwindow.cpp's
+                // dock->toggleViewAction()->setShortcut(tr("Ctrl+L")).
+                action: QQC2.Action {
+                    text: qsTr("Log Panel")
+                    checkable: true
+                    checked: dockLayout ? dockLayout.logVisible : false
+                    shortcut: "Ctrl+L"
+                    onTriggered: if (dockLayout) dockLayout.logVisible = checked
+                }
+                Connections {
+                    target: dockLayout
+                    function onLogVisibleChanged() {
+                        logPanelMenuItem.action.checked = dockLayout.logVisible;
+                    }
+                }
+            }
+            QQC2.MenuItem {
+                id: groupPanelMenuItem
+                text: qsTr("Group Panel")
+                checkable: true
+                checked: dockLayout ? dockLayout.groupVisible : false
+                onTriggered: if (dockLayout) dockLayout.groupVisible = checked
+                Connections {
+                    target: dockLayout
+                    function onGroupVisibleChanged() {
+                        groupPanelMenuItem.checked = dockLayout.groupVisible;
+                    }
+                }
+            }
+            QQC2.MenuItem {
+                id: roomPanelMenuItem
+                text: qsTr("Room Panel")
+                checkable: true
+                checked: dockLayout ? dockLayout.roomVisible : false
+                onTriggered: if (dockLayout) dockLayout.roomVisible = checked
+                Connections {
+                    target: dockLayout
+                    function onRoomVisibleChanged() {
+                        roomPanelMenuItem.checked = dockLayout.roomVisible;
+                    }
+                }
+            }
+            QQC2.MenuItem {
+                id: adventurePanelMenuItem
+                text: qsTr("Adventure Panel")
+                checkable: true
+                checked: dockLayout ? dockLayout.adventureVisible : false
+                onTriggered: if (dockLayout) dockLayout.adventureVisible = checked
+                Connections {
+                    target: dockLayout
+                    function onAdventureVisibleChanged() {
+                        adventurePanelMenuItem.checked = dockLayout.adventureVisible;
+                    }
+                }
+            }
+            QQC2.MenuItem {
+                id: descriptionPanelMenuItem
+                text: qsTr("Description Panel")
+                checkable: true
+                checked: dockLayout ? dockLayout.descriptionVisible : false
+                onTriggered: if (dockLayout) dockLayout.descriptionVisible = checked
+                Connections {
+                    target: dockLayout
+                    function onDescriptionVisibleChanged() {
+                        descriptionPanelMenuItem.checked = dockLayout.descriptionVisible;
+                    }
+                }
+            }
+            QQC2.MenuItem {
+                id: timersPanelMenuItem
+                text: qsTr("Timers Panel")
+                checkable: true
+                checked: dockLayout ? dockLayout.timersVisible : false
+                onTriggered: if (dockLayout) dockLayout.timersVisible = checked
+                Connections {
+                    target: dockLayout
+                    function onTimersVisibleChanged() {
+                        timersPanelMenuItem.checked = dockLayout.timersVisible;
+                    }
+                }
+            }
+            QQC2.MenuItem {
+                id: tasksPanelMenuItem
+                text: qsTr("Tasks Panel")
+                checkable: true
+                checked: dockLayout ? dockLayout.tasksVisible : false
+                onTriggered: if (dockLayout) dockLayout.tasksVisible = checked
+                Connections {
+                    target: dockLayout
+                    function onTasksVisibleChanged() {
+                        tasksPanelMenuItem.checked = dockLayout.tasksVisible;
+                    }
+                }
+            }
+            QQC2.MenuItem {
+                id: clientPanelMenuItem
+                text: qsTr("Client Panel")
+                checkable: true
+                checked: dockLayout ? dockLayout.clientVisible : false
+                onTriggered: if (dockLayout) dockLayout.clientVisible = checked
+                Connections {
+                    target: dockLayout
+                    function onClientVisibleChanged() {
+                        clientPanelMenuItem.checked = dockLayout.clientVisible;
+                    }
+                }
+            }
+        }
+
+        QQC2.MenuSeparator {}
+
+        QQC2.MenuItem {
+            action: CommandAction { cmd: commands ? commands.command("view.zoom-in") : null }
+        }
+        QQC2.MenuItem {
+            action: CommandAction { cmd: commands ? commands.command("view.zoom-out") : null }
+        }
+        QQC2.MenuItem {
+            action: CommandAction { cmd: commands ? commands.command("view.zoom-reset") : null }
+        }
+
+        QQC2.MenuSeparator {}
+
+        QQC2.MenuItem {
+            action: CommandAction { cmd: commands ? commands.command("layer.up") : null }
+        }
+        QQC2.MenuItem {
+            action: CommandAction { cmd: commands ? commands.command("layer.down") : null }
+        }
+        QQC2.MenuItem {
+            action: CommandAction { cmd: commands ? commands.command("layer.reset") : null }
+        }
+
+        QQC2.MenuSeparator {}
+
+        QQC2.MenuItem {
+            action: CommandAction {
+                cmd: commands ? commands.command("world.rebuild-meshes") : null
+            }
+        }
+
+        QQC2.MenuSeparator {}
+
+        QQC2.MenuItem {
+            action: CommandAction {
+                cmd: commands ? commands.command("view.show-status-bar") : null
+            }
+        }
+        QQC2.MenuItem {
+            action: CommandAction {
+                cmd: commands ? commands.command("view.show-scroll-bars") : null
+            }
+        }
+        QQC2.MenuItem {
+            action: CommandAction {
+                cmd: commands ? commands.command("view.show-menu-bar") : null
+            }
+        }
+        QQC2.MenuItem {
+            action: CommandAction {
+                cmd: commands ? commands.command("view.always-on-top") : null
+            }
+        }
+    }
+
+    component ToolsMenu: QQC2.Menu {
+        title: qsTr("&Tools")
+
+        QQC2.Menu {
+            title: qsTr("&Integrated Mud Client")
+
+            QQC2.MenuItem {
+                action: CommandAction { cmd: commands ? commands.command("client.launch") : null }
+            }
+            QQC2.MenuItem {
+                action: CommandAction {
+                    cmd: commands ? commands.command("client.save-log") : null
+                }
+            }
+            QQC2.MenuItem {
+                action: CommandAction {
+                    cmd: commands ? commands.command("client.save-log-html") : null
+                }
+            }
+        }
+
+        QQC2.Menu {
+            title: qsTr("&Path Machine")
+
+            QQC2.MenuItem {
+                action: CommandAction {
+                    cmd: commands ? commands.command("mouse-mode.room-select") : null
+                }
+            }
+            QQC2.MenuSeparator {}
+            QQC2.MenuItem {
+                action: CommandAction {
+                    cmd: commands ? commands.command("room.goto-selected") : null
+                }
+            }
+            QQC2.MenuItem {
+                action: CommandAction {
+                    cmd: commands ? commands.command("room.force-update-selected") : null
+                }
+            }
+            QQC2.MenuItem {
+                action: CommandAction {
+                    cmd: commands ? commands.command("pathmachine.release-all-paths") : null
+                }
+            }
+        }
+    }
+
+    component HelpMenu: QQC2.Menu {
+        title: qsTr("&Help")
+
+        QQC2.MenuItem {
+            action: CommandAction { cmd: commands ? commands.command("help.setup") : null }
+        }
+        QQC2.MenuItem {
+            action: CommandAction {
+                cmd: commands ? commands.command("help.report-issue") : null
+            }
+        }
+        QQC2.MenuItem {
+            action: CommandAction {
+                cmd: commands ? commands.command("help.check-for-update") : null
+            }
+        }
+
+        QQC2.MenuSeparator {}
+
+        QQC2.Menu {
+            title: qsTr("M&UME")
+
+            QQC2.MenuItem {
+                action: CommandAction { cmd: commands ? commands.command("help.vote") : null }
+            }
+            QQC2.MenuItem {
+                action: CommandAction { cmd: commands ? commands.command("help.newbie") : null }
+            }
+            QQC2.MenuItem {
+                action: CommandAction { cmd: commands ? commands.command("help.website") : null }
+            }
+            QQC2.MenuItem {
+                action: CommandAction { cmd: commands ? commands.command("help.forum") : null }
+            }
+            QQC2.MenuItem {
+                action: CommandAction { cmd: commands ? commands.command("help.wiki") : null }
+            }
+        }
+
+        QQC2.MenuSeparator {}
+
+        QQC2.MenuItem {
+            action: CommandAction { cmd: commands ? commands.command("help.about") : null }
+        }
+        // TODO(wasm shell commit): see the File menu's Save As/Reload TODO.
+        QQC2.MenuItem {
+            action: CommandAction { cmd: commands ? commands.command("help.about-qt") : null }
+        }
+    }
+
     menuBar: QQC2.MenuBar {
         // Mirrors MainWindow::slot_setShowMenuBar()'s menuBar()->show()/hide()
         // (mainwindow.cpp:1889-1919); the checked state is persisted to the
@@ -217,7 +788,7 @@ QQC2.ApplicationWindow {
         // off it can still be revealed by the top-edge peek (see
         // window.menuBarPeek and the menuPeekStrip below), which is this
         // shell's take on MainWindow's auto-reveal-on-hover.
-        visible: window.menuBarShown || window.menuBarPeek
+        visible: (window.menuBarShown || window.menuBarPeek) && !window.compact
 
         // Keep the reveal up while the pointer is on the bar itself; hide
         // shortly after it leaves (unless it moved onto the peek strip).
@@ -231,576 +802,11 @@ QQC2.ApplicationWindow {
             }
         }
 
-        QQC2.Menu {
-            title: qsTr("&File")
-
-            QQC2.MenuItem {
-                action: CommandAction { cmd: commands ? commands.command("file.new") : null }
-            }
-            QQC2.MenuItem {
-                action: CommandAction { cmd: commands ? commands.command("file.open") : null }
-            }
-            QQC2.MenuItem {
-                action: CommandAction { cmd: commands ? commands.command("file.save") : null }
-            }
-            // Wasm hides Save As/Reload/Exit entirely (see mainwindow.cpp's
-            // setupMenuBar() `if constexpr (CURRENT_PLATFORM != PlatformEnum::Wasm)`
-            // guards); kept unconditional here for now -- shell B doesn't
-            // ship on Wasm yet (see QmlShellWindow.h's file comment), so
-            // there is no Wasm build of this file to gate. TODO(wasm shell
-            // commit): mirror the platform guard when it does.
-            QQC2.MenuItem {
-                action: CommandAction { cmd: commands ? commands.command("file.save-as") : null }
-            }
-            QQC2.MenuItem {
-                action: CommandAction { cmd: commands ? commands.command("file.reload") : null }
-            }
-
-            QQC2.MenuSeparator {}
-
-            QQC2.Menu {
-                id: fileExportMenu
-                objectName: "fileExportMenu"
-                title: qsTr("&Export")
-
-                QQC2.MenuItem {
-                    action: CommandAction {
-                        cmd: commands ? commands.command("file.export.base-map") : null
-                    }
-                }
-                QQC2.MenuItem {
-                    action: CommandAction {
-                        cmd: commands ? commands.command("file.export.mm2xml") : null
-                    }
-                }
-                QQC2.MenuItem {
-                    action: CommandAction {
-                        cmd: commands ? commands.command("file.export.web") : null
-                    }
-                }
-                QQC2.MenuItem {
-                    action: CommandAction {
-                        cmd: commands ? commands.command("file.export.mmp") : null
-                    }
-                }
-            }
-
-            QQC2.MenuItem {
-                action: CommandAction { cmd: commands ? commands.command("file.merge") : null }
-            }
-
-            QQC2.MenuSeparator {}
-
-            // TODO(wasm shell commit): see the Save As/Reload TODO above.
-            QQC2.MenuItem {
-                action: CommandAction { cmd: commands ? commands.command("file.exit") : null }
-            }
-        }
-
-        QQC2.Menu {
-            title: qsTr("&Edit")
-
-            QQC2.Menu {
-                title: qsTr("&Mode")
-
-                QQC2.MenuItem {
-                    action: CommandAction { cmd: commands ? commands.command("mapper-mode.play") : null }
-                }
-                QQC2.MenuItem {
-                    action: CommandAction { cmd: commands ? commands.command("mapper-mode.map") : null }
-                }
-                QQC2.MenuItem {
-                    action: CommandAction {
-                        cmd: commands ? commands.command("mapper-mode.offline") : null
-                    }
-                }
-            }
-
-            QQC2.MenuSeparator {}
-
-            QQC2.MenuItem {
-                action: CommandAction { cmd: commands ? commands.command("edit.undo") : null }
-            }
-            QQC2.MenuItem {
-                action: CommandAction { cmd: commands ? commands.command("edit.redo") : null }
-            }
-
-            QQC2.MenuSeparator {}
-
-            QQC2.Menu {
-                title: qsTr("M&arkers")
-
-                QQC2.MenuItem {
-                    action: CommandAction {
-                        cmd: commands ? commands.command("mouse-mode.infomark-select") : null
-                    }
-                }
-                QQC2.MenuSeparator {}
-                QQC2.MenuItem {
-                    action: CommandAction {
-                        cmd: commands ? commands.command("mouse-mode.create-infomark") : null
-                    }
-                }
-                QQC2.MenuItem {
-                    action: CommandAction {
-                        cmd: commands ? commands.command("infomark.edit-selected") : null
-                    }
-                }
-                QQC2.MenuItem {
-                    action: CommandAction {
-                        cmd: commands ? commands.command("infomark.delete-selected") : null
-                    }
-                }
-            }
-
-            QQC2.Menu {
-                id: editRoomsMenu
-                objectName: "editRoomsMenu"
-                title: qsTr("&Rooms")
-
-                QQC2.MenuItem {
-                    action: CommandAction {
-                        cmd: commands ? commands.command("mouse-mode.room-select") : null
-                    }
-                }
-                QQC2.MenuItem {
-                    action: CommandAction {
-                        cmd: commands ? commands.command("mouse-mode.room-raypick") : null
-                    }
-                }
-                QQC2.MenuSeparator {}
-                QQC2.MenuItem {
-                    action: CommandAction {
-                        cmd: commands ? commands.command("mouse-mode.create-room") : null
-                    }
-                }
-                QQC2.MenuItem {
-                    action: CommandAction { cmd: commands ? commands.command("room.edit-selected") : null }
-                }
-                QQC2.MenuItem {
-                    action: CommandAction {
-                        cmd: commands ? commands.command("room.delete-selected") : null
-                    }
-                }
-                QQC2.MenuItem {
-                    action: CommandAction {
-                        cmd: commands ? commands.command("room.move-up-selected") : null
-                    }
-                }
-                QQC2.MenuItem {
-                    action: CommandAction {
-                        cmd: commands ? commands.command("room.move-down-selected") : null
-                    }
-                }
-                QQC2.MenuItem {
-                    action: CommandAction {
-                        cmd: commands ? commands.command("room.merge-up-selected") : null
-                    }
-                }
-                QQC2.MenuItem {
-                    action: CommandAction {
-                        cmd: commands ? commands.command("room.merge-down-selected") : null
-                    }
-                }
-                QQC2.MenuItem {
-                    action: CommandAction {
-                        cmd: commands ? commands.command("room.connect-to-neighbours") : null
-                    }
-                }
-            }
-
-            QQC2.Menu {
-                title: qsTr("&Connections")
-
-                QQC2.MenuItem {
-                    action: CommandAction {
-                        cmd: commands ? commands.command("mouse-mode.connection-select") : null
-                    }
-                }
-                QQC2.MenuSeparator {}
-                QQC2.MenuItem {
-                    action: CommandAction {
-                        cmd: commands ? commands.command("mouse-mode.create-connection") : null
-                    }
-                }
-                QQC2.MenuItem {
-                    action: CommandAction {
-                        cmd: commands
-                              ? commands.command("mouse-mode.create-oneway-connection") : null
-                    }
-                }
-                QQC2.MenuItem {
-                    action: CommandAction {
-                        cmd: commands ? commands.command("connection.delete-selected") : null
-                    }
-                }
-            }
-
-            QQC2.MenuSeparator {}
-
-            QQC2.MenuItem {
-                action: CommandAction { cmd: commands ? commands.command("room.find") : null }
-            }
-            QQC2.MenuItem {
-                action: CommandAction {
-                    cmd: commands ? commands.command("edit.preferences") : null
-                }
-            }
-        }
-
-        QQC2.Menu {
-            title: qsTr("&View")
-
-            QQC2.MenuItem {
-                action: CommandAction { cmd: commands ? commands.command("mouse-mode.move") : null }
-            }
-
-            // View -> Toolbars -> <toolbar>, mirroring mainwindow.cpp's
-            // setupToolBars()/setupMenuBar() `toolbars->addAction(...
-            // ->toggleViewAction())` calls. Backed by ToolbarLayoutController
-            // (../ToolbarLayoutController.h) rather than a command: unlike
-            // the "Side Panels" menu below, nothing else in this shell ever
-            // mutates these properties (no per-toolbar close button), so a
-            // plain `checked` binding is safe without the Connections
-            // re-sync the dock items below need (see ToolbarLayoutController.h).
-            QQC2.Menu {
-                title: qsTr("&Toolbars")
-
-                QQC2.MenuItem {
-                    text: qsTr("File")
-                    checkable: true
-                    checked: toolbarLayout ? toolbarLayout.fileVisible : false
-                    onTriggered: if (toolbarLayout) toolbarLayout.fileVisible = checked
-                }
-                QQC2.MenuItem {
-                    text: qsTr("Mapper Mode")
-                    checkable: true
-                    checked: toolbarLayout ? toolbarLayout.mapperModeVisible : false
-                    onTriggered: if (toolbarLayout) toolbarLayout.mapperModeVisible = checked
-                }
-                QQC2.MenuItem {
-                    text: qsTr("Mouse Mode")
-                    checkable: true
-                    checked: toolbarLayout ? toolbarLayout.mouseModeVisible : false
-                    onTriggered: if (toolbarLayout) toolbarLayout.mouseModeVisible = checked
-                }
-                QQC2.MenuItem {
-                    text: qsTr("View")
-                    checkable: true
-                    checked: toolbarLayout ? toolbarLayout.viewVisible : false
-                    onTriggered: if (toolbarLayout) toolbarLayout.viewVisible = checked
-                }
-                QQC2.MenuItem {
-                    text: qsTr("Path Machine")
-                    checkable: true
-                    checked: toolbarLayout ? toolbarLayout.pathMachineVisible : false
-                    onTriggered: if (toolbarLayout) toolbarLayout.pathMachineVisible = checked
-                }
-                QQC2.MenuItem {
-                    text: qsTr("Rooms")
-                    checkable: true
-                    checked: toolbarLayout ? toolbarLayout.roomsVisible : false
-                    onTriggered: if (toolbarLayout) toolbarLayout.roomsVisible = checked
-                }
-                QQC2.MenuItem {
-                    text: qsTr("Connections")
-                    checkable: true
-                    checked: toolbarLayout ? toolbarLayout.connectionsVisible : false
-                    onTriggered: if (toolbarLayout) toolbarLayout.connectionsVisible = checked
-                }
-                QQC2.MenuItem {
-                    text: qsTr("Preferences")
-                    checkable: true
-                    checked: toolbarLayout ? toolbarLayout.preferencesVisible : false
-                    onTriggered: if (toolbarLayout) toolbarLayout.preferencesVisible = checked
-                }
-                QQC2.MenuItem {
-                    text: qsTr("Audio")
-                    checkable: true
-                    checked: toolbarLayout ? toolbarLayout.audioVisible : false
-                    onTriggered: if (toolbarLayout) toolbarLayout.audioVisible = checked
-                }
-            }
-
-            // View -> Side Panels -> <dock>, mirroring mainwindow.cpp's
-            // dock construction comments of the same name. Each item binds
-            // straight to a DockLayoutController property (see
-            // ../DockLayoutController.h); the Connections block re-syncs
-            // `checked` after every click because QQC2.MenuItem's built-in
-            // checkable-click handling overwrites `checked` imperatively,
-            // which (per normal QML semantics) permanently breaks a plain
-            // `checked: dockLayout.xVisible` binding expression the first
-            // time the item is clicked -- without the explicit re-sync, a
-            // dock hidden via its own close button (DockPanel.qml) would
-            // stop updating this menu item's checkmark after that.
-            QQC2.Menu {
-                title: qsTr("Side &Panels")
-
-                QQC2.MenuItem {
-                    id: logPanelMenuItem
-                    // MenuItem has no "shortcut" property of its own (only
-                    // Action does); mirrors mainwindow.cpp's
-                    // dock->toggleViewAction()->setShortcut(tr("Ctrl+L")).
-                    action: QQC2.Action {
-                        text: qsTr("Log Panel")
-                        checkable: true
-                        checked: dockLayout ? dockLayout.logVisible : false
-                        shortcut: "Ctrl+L"
-                        onTriggered: if (dockLayout) dockLayout.logVisible = checked
-                    }
-                    Connections {
-                        target: dockLayout
-                        function onLogVisibleChanged() {
-                            logPanelMenuItem.action.checked = dockLayout.logVisible;
-                        }
-                    }
-                }
-                QQC2.MenuItem {
-                    id: groupPanelMenuItem
-                    text: qsTr("Group Panel")
-                    checkable: true
-                    checked: dockLayout ? dockLayout.groupVisible : false
-                    onTriggered: if (dockLayout) dockLayout.groupVisible = checked
-                    Connections {
-                        target: dockLayout
-                        function onGroupVisibleChanged() {
-                            groupPanelMenuItem.checked = dockLayout.groupVisible;
-                        }
-                    }
-                }
-                QQC2.MenuItem {
-                    id: roomPanelMenuItem
-                    text: qsTr("Room Panel")
-                    checkable: true
-                    checked: dockLayout ? dockLayout.roomVisible : false
-                    onTriggered: if (dockLayout) dockLayout.roomVisible = checked
-                    Connections {
-                        target: dockLayout
-                        function onRoomVisibleChanged() {
-                            roomPanelMenuItem.checked = dockLayout.roomVisible;
-                        }
-                    }
-                }
-                QQC2.MenuItem {
-                    id: adventurePanelMenuItem
-                    text: qsTr("Adventure Panel")
-                    checkable: true
-                    checked: dockLayout ? dockLayout.adventureVisible : false
-                    onTriggered: if (dockLayout) dockLayout.adventureVisible = checked
-                    Connections {
-                        target: dockLayout
-                        function onAdventureVisibleChanged() {
-                            adventurePanelMenuItem.checked = dockLayout.adventureVisible;
-                        }
-                    }
-                }
-                QQC2.MenuItem {
-                    id: descriptionPanelMenuItem
-                    text: qsTr("Description Panel")
-                    checkable: true
-                    checked: dockLayout ? dockLayout.descriptionVisible : false
-                    onTriggered: if (dockLayout) dockLayout.descriptionVisible = checked
-                    Connections {
-                        target: dockLayout
-                        function onDescriptionVisibleChanged() {
-                            descriptionPanelMenuItem.checked = dockLayout.descriptionVisible;
-                        }
-                    }
-                }
-                QQC2.MenuItem {
-                    id: timersPanelMenuItem
-                    text: qsTr("Timers Panel")
-                    checkable: true
-                    checked: dockLayout ? dockLayout.timersVisible : false
-                    onTriggered: if (dockLayout) dockLayout.timersVisible = checked
-                    Connections {
-                        target: dockLayout
-                        function onTimersVisibleChanged() {
-                            timersPanelMenuItem.checked = dockLayout.timersVisible;
-                        }
-                    }
-                }
-                QQC2.MenuItem {
-                    id: tasksPanelMenuItem
-                    text: qsTr("Tasks Panel")
-                    checkable: true
-                    checked: dockLayout ? dockLayout.tasksVisible : false
-                    onTriggered: if (dockLayout) dockLayout.tasksVisible = checked
-                    Connections {
-                        target: dockLayout
-                        function onTasksVisibleChanged() {
-                            tasksPanelMenuItem.checked = dockLayout.tasksVisible;
-                        }
-                    }
-                }
-                QQC2.MenuItem {
-                    id: clientPanelMenuItem
-                    text: qsTr("Client Panel")
-                    checkable: true
-                    checked: dockLayout ? dockLayout.clientVisible : false
-                    onTriggered: if (dockLayout) dockLayout.clientVisible = checked
-                    Connections {
-                        target: dockLayout
-                        function onClientVisibleChanged() {
-                            clientPanelMenuItem.checked = dockLayout.clientVisible;
-                        }
-                    }
-                }
-            }
-
-            QQC2.MenuSeparator {}
-
-            QQC2.MenuItem {
-                action: CommandAction { cmd: commands ? commands.command("view.zoom-in") : null }
-            }
-            QQC2.MenuItem {
-                action: CommandAction { cmd: commands ? commands.command("view.zoom-out") : null }
-            }
-            QQC2.MenuItem {
-                action: CommandAction { cmd: commands ? commands.command("view.zoom-reset") : null }
-            }
-
-            QQC2.MenuSeparator {}
-
-            QQC2.MenuItem {
-                action: CommandAction { cmd: commands ? commands.command("layer.up") : null }
-            }
-            QQC2.MenuItem {
-                action: CommandAction { cmd: commands ? commands.command("layer.down") : null }
-            }
-            QQC2.MenuItem {
-                action: CommandAction { cmd: commands ? commands.command("layer.reset") : null }
-            }
-
-            QQC2.MenuSeparator {}
-
-            QQC2.MenuItem {
-                action: CommandAction {
-                    cmd: commands ? commands.command("world.rebuild-meshes") : null
-                }
-            }
-
-            QQC2.MenuSeparator {}
-
-            QQC2.MenuItem {
-                action: CommandAction {
-                    cmd: commands ? commands.command("view.show-status-bar") : null
-                }
-            }
-            QQC2.MenuItem {
-                action: CommandAction {
-                    cmd: commands ? commands.command("view.show-scroll-bars") : null
-                }
-            }
-            QQC2.MenuItem {
-                action: CommandAction {
-                    cmd: commands ? commands.command("view.show-menu-bar") : null
-                }
-            }
-            QQC2.MenuItem {
-                action: CommandAction {
-                    cmd: commands ? commands.command("view.always-on-top") : null
-                }
-            }
-        }
-
-        QQC2.Menu {
-            title: qsTr("&Tools")
-
-            QQC2.Menu {
-                title: qsTr("&Integrated Mud Client")
-
-                QQC2.MenuItem {
-                    action: CommandAction { cmd: commands ? commands.command("client.launch") : null }
-                }
-                QQC2.MenuItem {
-                    action: CommandAction {
-                        cmd: commands ? commands.command("client.save-log") : null
-                    }
-                }
-                QQC2.MenuItem {
-                    action: CommandAction {
-                        cmd: commands ? commands.command("client.save-log-html") : null
-                    }
-                }
-            }
-
-            QQC2.Menu {
-                title: qsTr("&Path Machine")
-
-                QQC2.MenuItem {
-                    action: CommandAction {
-                        cmd: commands ? commands.command("mouse-mode.room-select") : null
-                    }
-                }
-                QQC2.MenuSeparator {}
-                QQC2.MenuItem {
-                    action: CommandAction {
-                        cmd: commands ? commands.command("room.goto-selected") : null
-                    }
-                }
-                QQC2.MenuItem {
-                    action: CommandAction {
-                        cmd: commands ? commands.command("room.force-update-selected") : null
-                    }
-                }
-                QQC2.MenuItem {
-                    action: CommandAction {
-                        cmd: commands ? commands.command("pathmachine.release-all-paths") : null
-                    }
-                }
-            }
-        }
-
-        QQC2.Menu {
-            title: qsTr("&Help")
-
-            QQC2.MenuItem {
-                action: CommandAction { cmd: commands ? commands.command("help.setup") : null }
-            }
-            QQC2.MenuItem {
-                action: CommandAction {
-                    cmd: commands ? commands.command("help.report-issue") : null
-                }
-            }
-            QQC2.MenuItem {
-                action: CommandAction {
-                    cmd: commands ? commands.command("help.check-for-update") : null
-                }
-            }
-
-            QQC2.MenuSeparator {}
-
-            QQC2.Menu {
-                title: qsTr("M&UME")
-
-                QQC2.MenuItem {
-                    action: CommandAction { cmd: commands ? commands.command("help.vote") : null }
-                }
-                QQC2.MenuItem {
-                    action: CommandAction { cmd: commands ? commands.command("help.newbie") : null }
-                }
-                QQC2.MenuItem {
-                    action: CommandAction { cmd: commands ? commands.command("help.website") : null }
-                }
-                QQC2.MenuItem {
-                    action: CommandAction { cmd: commands ? commands.command("help.forum") : null }
-                }
-                QQC2.MenuItem {
-                    action: CommandAction { cmd: commands ? commands.command("help.wiki") : null }
-                }
-            }
-
-            QQC2.MenuSeparator {}
-
-            QQC2.MenuItem {
-                action: CommandAction { cmd: commands ? commands.command("help.about") : null }
-            }
-            // TODO(wasm shell commit): see the File menu's Save As/Reload TODO.
-            QQC2.MenuItem {
-                action: CommandAction { cmd: commands ? commands.command("help.about-qt") : null }
-            }
-        }
+        FileMenu {}
+        EditMenu {}
+        ViewMenu {}
+        ToolsMenu {}
+        HelpMenu {}
     }
 
     // 9 toolbars, mirroring MainWindow::setupToolBars() one-for-one (same
@@ -1937,5 +1943,44 @@ QQC2.ApplicationWindow {
         implicitHeight: Theme.controlHeight
         text: "☰"
         onClicked: compactDockDrawer.open()
+    }
+
+    // Compact-mode replacement for the (now-hidden, see menuBar's
+    // `visible:` binding above) horizontal QQC2.MenuBar: the same 6
+    // top-level menus, reused verbatim via the FileMenu/EditMenu/ViewMenu/
+    // ToolsMenu/HelpMenu inline components above rather than duplicating
+    // their ~600 lines of CommandAction-wired items, just nested as
+    // submenus of one popup Menu instead of laid out side-by-side in a
+    // MenuBar. QQC2.Menu accepts Menu children as cascading submenus in Qt
+    // 6.4 (tap/click opens them), which is an acceptable touch affordance
+    // here even though it is one extra tap deep versus a MenuBar.
+    QQC2.Menu {
+        id: appMenu
+        objectName: "appMenu"
+
+        FileMenu {}
+        EditMenu {}
+        ViewMenu {}
+        ToolsMenu {}
+        HelpMenu {}
+    }
+
+    // Compact-only opener for appMenu above, replacing the hidden MenuBar.
+    // Top-left placement (mirroring where a hamburger conventionally sits)
+    // keeps it clear of compactDockButton's bottom-right corner. z matches
+    // compactDockButton's -- both float above outerSplit but below the
+    // menu/status-bar peek strips (z: 10000).
+    QQC2.ToolButton {
+        id: hamburgerButton
+        objectName: "hamburgerButton"
+        visible: window.compact
+        z: 9000
+        anchors.left: parent.left
+        anchors.top: parent.top
+        anchors.margins: 16
+        implicitWidth: Theme.controlHeight
+        implicitHeight: Theme.controlHeight
+        text: "☰"
+        onClicked: appMenu.popup()
     }
 }

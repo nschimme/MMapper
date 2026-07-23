@@ -18,10 +18,12 @@
 // enough to serve as a drop-in replacement for the QML client display, but
 // it produces small cached HTML strings per row instead of mutating a
 // QTextDocument. See ClientLineModel.cpp for the specific ways this
-// diverges from the widget (URL linkification is not implemented, and
-// backspace/erase-line handling is simplified to an immediate
-// delete-previous-character rather than the widget's lazy/document-cursor
-// based approach).
+// diverges from the widget (URL linkification IS implemented, reusing
+// AnsiTextToDocument's url_regex/style from global/AnsiHtml.cpp; the visual
+// bell is signaled via sig_visualBell() instead of flashing a document
+// background directly; and backspace/erase-line handling is simplified to
+// an immediate delete-previous-character rather than the widget's
+// lazy/document-cursor based approach).
 class NODISCARD_QOBJECT ClientLineModel final : public QAbstractListModel
 {
     Q_OBJECT
@@ -94,6 +96,15 @@ public:
     // per-run <head>/<style> metadata, just inline styles already baked
     // into each row's cached HTML by htmlForRuns().
     NODISCARD QString toHtml() const;
+
+signals:
+    // Emitted once per QC_ALERT (bell) character found in appendText()'s
+    // input, but only when config.integratedClient.visualBell is enabled;
+    // mirrors DisplayWidget::slot_displayText()'s on_bell() visual-flash
+    // branch (see client/displaywidget.cpp), except the actual flashing is
+    // left to the QML delegate (ClientDisplay.qml) since this model has no
+    // window of its own to flash.
+    void sig_visualBell();
 
 private:
     void processSegment(QStringView segment);

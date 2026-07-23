@@ -12,7 +12,31 @@ import MMapper
 Rectangle {
     id: root
 
-    color: config.clientBgColor
+    // Visual bell: flashes the background red-ish for 250ms, mirroring
+    // DisplayWidget's on_bell() (see client/displaywidget.cpp), which bumps
+    // the document's background red channel by 80 (clamped) then reverts
+    // after a 250ms timer.
+    property color flashColor: Qt.rgba(Math.min(1, config.clientBgColor.r + 80 / 255),
+                                        config.clientBgColor.g,
+                                        config.clientBgColor.b,
+                                        1)
+    property bool flashing: false
+
+    color: flashing ? flashColor : config.clientBgColor
+
+    Timer {
+        id: flashTimer
+        interval: 250
+        onTriggered: root.flashing = false
+    }
+
+    Connections {
+        target: clientLineModel
+        function onSig_visualBell() {
+            root.flashing = true;
+            flashTimer.restart();
+        }
+    }
 
     // Stick-to-bottom autoscroll: only force the view back to the end when
     // it was already at (or essentially at) the end before new rows
@@ -166,6 +190,8 @@ Rectangle {
             font.family: config.clientFontFamily
             font.pointSize: config.clientFontPointSize > 0 ? config.clientFontPointSize : 10
             color: config.clientFgColor
+            linkColor: "cyan"
+            onLinkActivated: Qt.openUrlExternally(link)
         }
     }
 }

@@ -204,6 +204,44 @@ void TestClient::scrollbackCap()
     setConfig().integratedClient.linesOfScrollback = savedLimit;
 }
 
+void TestClient::urlLinkified()
+{
+    ClientLineModel model;
+    model.appendText(u"visit https://example.com/foo now\n");
+
+    const QString h = html(model, 0);
+    QVERIFY2(h.contains(QStringLiteral("<a href=")), qPrintable(h));
+    QVERIFY2(h.contains(QStringLiteral("example.com")), qPrintable(h));
+    // The plain-text role must remain untouched by linkification.
+    QCOMPARE(plain(model, 0), QStringLiteral("visit https://example.com/foo now"));
+}
+
+void TestClient::plainWordNotLinkified()
+{
+    ClientLineModel model;
+    model.appendText(u"just a plain word\n");
+
+    const QString h = html(model, 0);
+    QVERIFY2(!h.contains(QStringLiteral("<a href=")), qPrintable(h));
+}
+
+void TestClient::visualBellEmitsSignal()
+{
+    const bool savedVisual = getConfig().integratedClient.visualBell;
+    setConfig().integratedClient.visualBell = true;
+
+    ClientLineModel model;
+    QSignalSpy spy(&model, &ClientLineModel::sig_visualBell);
+
+    model.appendText(u"ding\adong\n");
+
+    QVERIFY(spy.count() >= 1);
+    // The bell character itself must never reach the displayed text.
+    QCOMPARE(plain(model, 0), QStringLiteral("dingdong"));
+
+    setConfig().integratedClient.visualBell = savedVisual;
+}
+
 void TestClient::clearResetsModel()
 {
     ClientLineModel model;

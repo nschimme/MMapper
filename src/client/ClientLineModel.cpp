@@ -8,10 +8,12 @@
 
 #include <algorithm>
 
+#include <QApplication>
 #include <QClipboard>
 #include <QGuiApplication>
 #include <QRegularExpression>
 #include <QStringList>
+#include <QUrl>
 
 namespace { // anonymous
 
@@ -21,6 +23,15 @@ namespace { // anonymous
 const QRegularExpression &ansiRegex()
 {
     static const QRegularExpression regex{R"regex(\x1B[^A-Za-z\x1B]*[A-Za-z]?)regex"};
+    return regex;
+}
+
+// Identical to the regex used by AnsiTextToDocument::displayText() (see
+// global/AnsiHtml.cpp).
+const QRegularExpression &urlRegex()
+{
+    static const QRegularExpression regex{
+        R"regex(https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*))regex"};
     return regex;
 }
 
@@ -47,6 +58,27 @@ QString htmlEscape(const QStringView text)
             break;
         }
     }
+    return result;
+}
+
+// Mirrors AnsiTextToDocument::displayText()'s linkify branch (see
+// global/AnsiHtml.cpp): URL matches are wrapped in an <a> tag styled
+// identically to that reference implementation, everything else is
+// htmlEscape()'d as before.
+QString linkifyEscaped(const QStringView text)
+{
+    QString result;
+    mmqt::foreach_regex(
+        urlRegex(),
+        text,
+        [&result](const QStringView url) {
+            const auto s = url.toString();
+            result
+                += QString(
+                       R"(<a href="%1" style="color: cyan; background-color: #003333; font-weight: normal;" target="_blank">%2</a>)")
+                       .arg(QString::fromUtf8(QUrl::fromUserInput(s).toEncoded()), htmlEscape(url));
+        },
+        [&result](const QStringView non_url) { result += htmlEscape(non_url); });
     return result;
 }
 
@@ -114,8 +146,10 @@ void ClientLineModel::appendText(const QStringView text)
 {
     // Bell handling mirrors DisplayWidget::slot_displayText()'s
     // foreach_char(QC_ALERT, ...) split: the alert character never reaches
-    // the display; DisplayWidget additionally beeps/flashes, which has no
-    // equivalent here since this model has no notion of a window to flash.
+    // the display. Unlike the widget (which flashes its own QTextDocument
+    // background directly), this model has no notion of a window to flash,
+    // so it emits sig_visualBell() and lets ClientDisplay.qml do the
+    // flashing.
     qsizetype pos = 0;
     const qsizetype len = text.size();
     while (pos < len) {
@@ -125,6 +159,13 @@ void ClientLineModel::appendText(const QStringView text)
             break;
         }
         processSegment(text.mid(pos, bellPos - pos));
+        const auto &s = getConfig().integratedClient;
+        if (s.audibleBell) {
+            QApplication::beep();
+        }
+        if (s.visualBell) {
+            emit sig_visualBell();
+        }
         pos = bellPos + 1;
     }
 
@@ -333,7 +374,7 @@ QString ClientLineModel::htmlForRuns(const std::vector<Run> &runs) const
             style += QStringLiteral("text-decoration:underline;");
         }
 
-        const QString escaped = htmlEscape(run.text);
+        const QString escaped = linkifyEscaped(run.text);
         if (style.isEmpty()) {
             html += escaped;
         } else {

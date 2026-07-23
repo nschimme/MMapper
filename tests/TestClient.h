@@ -28,6 +28,9 @@ private Q_SLOTS:
     void crLfSplitAcrossAppendCalls();
     void scrollbackCap();
     void clearResetsModel();
+    void urlLinkified();
+    void plainWordNotLinkified();
+    void visualBellEmitsSignal();
 
     // InputHistory
     void inputHistoryDedupVsBackOnly();

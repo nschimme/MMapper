@@ -22,7 +22,15 @@ Rectangle {
                                         1)
     property bool flashing: false
 
-    color: flashing ? flashColor : config.clientBgColor
+    // Opacity knob for the translucent-over-the-map compact overlay (see
+    // MainShell.qml's compactClientOverlay). Defaults to fully opaque so
+    // normal/desktop rendering is unchanged.
+    property real bgOpacity: 1.0
+
+    color: {
+        const c = flashing ? flashColor : config.clientBgColor;
+        return Qt.rgba(c.r, c.g, c.b, bgOpacity);
+    }
 
     Timer {
         id: flashTimer

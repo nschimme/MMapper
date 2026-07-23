@@ -120,11 +120,24 @@ QQC2.ApplicationWindow {
     // whenever any of the 4 *DockIds properties changes (they're NOTIFYing
     // properties, see DockLayoutController.h) since areaIds() reads them
     // directly.
+    // Excludes "client": in compact mode the client is the persistent
+    // translucent overlay (compactClientOverlay below), not a drawer tab.
     readonly property var compactDockIds: dockLayout
         ? window.areaIds("left").concat(window.areaIds("top"),
                                          window.areaIds("bottom"),
                                          window.areaIds("right"))
+              .filter(id => id !== "client")
         : []
+
+    // Collapsed state of the compact-mode client overlay (below): true hides
+    // the scrollback and shows only the input strip, so the map underneath
+    // is mostly visible while still leaving the command line reachable.
+    property bool clientCollapsed: false
+
+    // Tunable translucency for the compact client overlay's terminal
+    // surface -- low enough that the map underlay reads through, high
+    // enough that scrollback text stays legible.
+    readonly property real clientOverlayOpacity: 0.82
 
     // Per-dock title/source, keyed by the same 8 ids DockLayoutController
     // (../DockLayoutController.h) uses for its xVisible/xFloating
@@ -1981,18 +1994,90 @@ QQC2.ApplicationWindow {
         }
     }
 
+    // --- Scope: compact/mobile persistent client overlay -------------------
+    //
+    // In compact mode the client is no longer a drawer tab (see
+    // compactDockIds' filter above) -- instead it's a persistent translucent
+    // surface docked to the bottom of the window, sitting over the
+    // full-screen map underlay (see the TRANSPARENT-HOLE AUDIT comment on
+    // ApplicationWindow.background: the ClientPanel/ClientDisplay
+    // backgroundOpacity knobs added for this let the map show through).
+    // Sits below the ☰/▤ buttons and peek strips (z: 9000/10000) but above
+    // outerSplit/the map.
+    Item {
+        id: compactClientOverlay
+        objectName: "compactClientOverlay"
+        visible: window.compact
+        z: 8500
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.bottom: parent.bottom
+        // Keep the overlay (and its input line) above an on-screen keyboard,
+        // same rationale as compactDockDrawer's content Rectangle above.
+        anchors.bottomMargin: window.keyboardInset
+        height: window.clientCollapsed
+                ? Theme.controlHeight + 16
+                : Math.round(window.height * 0.55)
+        clip: true
+
+        // The client surface. clip: true on this Item and bottom-anchoring
+        // the Loader taller than the collapsed viewport means only its
+        // bottom strip (the input area) stays visible when collapsed --
+        // simpler and more robust in Qt 6.4 than reaching into the loaded
+        // ClientPanel to find its input area's geometry. active: is gated
+        // on window.compact so the client is never instantiated twice
+        // (desktop keeps its own docked/floating ClientPanel instance).
+        Loader {
+            id: compactClientLoader
+            objectName: "compactClientLoader"
+            active: window.compact
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.bottom: parent.bottom
+            // Expanded: fill the overlay exactly. Collapsed: the loaded
+            // panel keeps its natural (expanded) height so its scrollback
+            // still lays out normally, but only the bottom
+            // Theme.controlHeight + 16 px of it is visible through the
+            // overlay's own clip -- which is exactly the input strip,
+            // since ClientPanel's SplitView stacks display-then-input.
+            height: window.clientCollapsed
+                    ? Math.round(window.height * 0.55)
+                    : compactClientOverlay.height
+            source: "qrc:/qt/qml/MMapper/ClientPanel.qml"
+            onLoaded: item.backgroundOpacity = window.clientOverlayOpacity
+        }
+
+        // Collapse/expand handle, pinned to the overlay's top edge so it's
+        // reachable in both states (collapsed shrinks the overlay upward
+        // toward this handle, never past it).
+        QQC2.ToolButton {
+            id: compactClientCollapse
+            objectName: "compactClientCollapse"
+            anchors.top: parent.top
+            anchors.horizontalCenter: parent.horizontalCenter
+            text: window.clientCollapsed ? "▴" : "▾"
+            QQC2.ToolTip.text: window.clientCollapsed ? qsTr("Expand client") : qsTr("Collapse client")
+            QQC2.ToolTip.visible: hovered
+            onClicked: window.clientCollapsed = !window.clientCollapsed
+        }
+    }
+
     // Compact-only floating affordance that opens compactDockDrawer -- the
     // drawer has no other opener (its edge-swipe gesture is easy to miss on
     // a full-screen map that also wants drag gestures for panning). Sits
     // above outerSplit (z: 9000) but below the menu/status-bar peek strips
     // (z: 10000) so it never steals those edge hovers.
+    //
+    // Top-right placement: bottom-right would collide with
+    // compactClientOverlay (the client is now a persistent bottom surface,
+    // not a drawer tab -- see compactDockIds' filter above).
     QQC2.RoundButton {
         id: compactDockButton
         objectName: "compactDockButton"
         visible: window.compact
         z: 9000
         anchors.right: parent.right
-        anchors.bottom: parent.bottom
+        anchors.top: parent.top
         anchors.margins: 16
         implicitWidth: Theme.controlHeight
         implicitHeight: Theme.controlHeight
@@ -2062,10 +2147,13 @@ QQC2.ApplicationWindow {
         z: 9500
         anchors.top: parent.top
         anchors.left: hamburgerButton.right
-        anchors.right: parent.right
+        // Right edge now stops at compactDockButton (moved to top-right,
+        // see its comment above) instead of the window edge, so the banner
+        // no longer overlaps it.
+        anchors.right: compactDockButton.left
         anchors.topMargin: 16
         anchors.leftMargin: 8
-        anchors.rightMargin: 16
+        anchors.rightMargin: 8
 
         Row {
             width: parent.width

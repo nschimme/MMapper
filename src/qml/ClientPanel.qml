@@ -29,9 +29,14 @@ FocusScope {
     implicitHeight: config.clientRows * clientFm.lineSpacing + clientMinMargin * 2
                     + clientMinScrollbar
 
+    // Opacity knob for the translucent-over-the-map compact overlay (see
+    // MainShell.qml's compactClientOverlay). Defaults to fully opaque so
+    // normal/desktop rendering is unchanged.
+    property real backgroundOpacity: 1.0
+
     Rectangle {
         anchors.fill: parent
-        color: config.clientBgColor
+        color: Qt.rgba(config.clientBgColor.r, config.clientBgColor.g, config.clientBgColor.b, root.backgroundOpacity)
     }
 
     // Font metrics for the client font, shared by the preview tail and the
@@ -115,6 +120,7 @@ FocusScope {
         ClientDisplay {
             id: display
             SplitView.fillHeight: true
+            bgOpacity: root.backgroundOpacity
 
             // Exposed for future NAWS (telnet window-size negotiation)
             // wiring; see ClientController::reportWindowSize().

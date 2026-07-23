@@ -3860,6 +3860,9 @@ void TestQml::mainShellCompactBreakpoint()
     QVERIFY(menuBar != nullptr);
     auto *const toolBarHeader = object->findChild<QQuickItem *>(QStringLiteral("toolBarHeader"));
     QVERIFY(toolBarHeader != nullptr);
+    auto *const compactClientOverlay = object->findChild<QQuickItem *>(
+        QStringLiteral("compactClientOverlay"));
+    QVERIFY(compactClientOverlay != nullptr);
 
     // Wide: desktop path, compact == false, the drawer's opener is hidden,
     // the hamburger is hidden, and the real MenuBar and toolbar header show.
@@ -3872,11 +3875,13 @@ void TestQml::mainShellCompactBreakpoint()
     QCOMPARE(hamburgerButton->property("visible").toBool(), false);
     QCOMPARE(menuBar->property("visible").toBool(), true);
     QCOMPARE(toolBarHeader->property("visible").toBool(), true);
+    QCOMPARE(compactClientOverlay->property("visible").toBool(), false);
 
     // Narrow: live re-layout without a reload -- compact flips true, the
     // dock-drawer opener and hamburger both appear, and the MenuBar and the
     // toolbar header (both of which would overflow) hide -- purely from the
-    // width binding.
+    // width binding. The persistent client overlay (compactClientOverlay)
+    // also appears, replacing the client's former drawer tab.
     object->setProperty("width", 400);
     QCoreApplication::processEvents();
     QCOMPARE(object->property("compact").toBool(), true);
@@ -3884,6 +3889,7 @@ void TestQml::mainShellCompactBreakpoint()
     QCOMPARE(hamburgerButton->property("visible").toBool(), true);
     QCOMPARE(menuBar->property("visible").toBool(), false);
     QCOMPARE(toolBarHeader->property("visible").toBool(), false);
+    QCOMPARE(compactClientOverlay->property("visible").toBool(), true);
 
     // The keyboard-occlusion inset is inert without a soft keyboard: the
     // offscreen platform has no input method reporting a rectangle, so the

@@ -3884,6 +3884,13 @@ void TestQml::mainShellCompactBreakpoint()
     QCOMPARE(hamburgerButton->property("visible").toBool(), true);
     QCOMPARE(menuBar->property("visible").toBool(), false);
     QCOMPARE(toolBarHeader->property("visible").toBool(), false);
+
+    // The keyboard-occlusion inset is inert without a soft keyboard: the
+    // offscreen platform has no input method reporting a rectangle, so the
+    // binding must evaluate to 0 (a no-op) rather than a stale/garbage value.
+    // This just proves the Qt.inputMethod binding compiles and defaults safe;
+    // the actual lift is verified on a real touch device.
+    QCOMPARE(object->property("keyboardInset").toReal(), 0.0);
 }
 
 void TestQml::pathMachineStatusFunnel()

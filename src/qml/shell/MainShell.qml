@@ -91,6 +91,20 @@ QQC2.ApplicationWindow {
     // unchanged when it's false.
     readonly property bool compact: width < 720
 
+    // Scope 16: on-screen-keyboard occlusion inset. When a soft keyboard is
+    // shown (phone/tablet/wasm), the platform reports its rectangle via
+    // Qt.inputMethod; the overlap with the window is subtracted from the
+    // compact dock drawer's content below so a focused input at the drawer's
+    // bottom (the client command line) lifts above the keyboard instead of
+    // being covered. Only applied in compact mode -- desktop has a real
+    // keyboard with no occlusion. This is a pure no-op wherever the platform
+    // does not report a keyboard rectangle (desktop, and wasm if the browser
+    // doesn't surface it): inputMethod.visible is then false / the rect is
+    // empty, so keyboardInset stays 0 and nothing moves. Verified on device
+    // (headless offscreen has no input method to drive it).
+    readonly property real keyboardInset: (window.compact && Qt.inputMethod.visible)
+        ? Qt.inputMethod.keyboardRectangle.height : 0
+
     // Ids of the docks currently docked-and-shown in ANY of the 4 areas, in
     // area order (left, top, bottom, right) -- used only by the compact
     // drawer below to populate its tab list. Reuses areaIds() (further down)
@@ -1886,6 +1900,12 @@ QQC2.ApplicationWindow {
         // on top of it, not styled chrome, so it gets its own Rectangle too.
         Rectangle {
             anchors.fill: parent
+            // Lift the drawer's content above the on-screen keyboard: the
+            // bottom margin shrinks the usable area by the keyboard overlap
+            // (window.keyboardInset), so a focused field at the bottom (the
+            // client command line) stays visible. Zero when no keyboard is
+            // reported, so desktop/unsupported platforms are unaffected.
+            anchors.bottomMargin: window.keyboardInset
             color: drawerPalette.window
 
             Column {

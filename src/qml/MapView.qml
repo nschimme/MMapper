@@ -46,6 +46,22 @@ Item {
         sourceComponent: root.useUnderlay ? underlayComponent : fboComponent
     }
 
+    // Touch long-press opens the same map context menu as a desktop
+    // right-click: MapCanvasCore::requestContextMenuAt() runs the identical
+    // "select room+infomarks under the point, then emit
+    // sig_customContextMenuRequested" logic. Touch never synthesizes a
+    // right-click, so this is the only path to the menu on a touchscreen.
+    // Restricted to TouchScreen so a desktop mouse/trackpad -- which already
+    // has right-click -- doesn't get a second, redundant trigger.
+    // point.position is root-local, the same canvas-local coordinate space
+    // requestContextMenuAt() expects (the canvas fills root with no offset --
+    // see the MapContextMenu comment below).
+    TapHandler {
+        acceptedDevices: PointerDevice.TouchScreen
+        onLongPressed: if (root.core)
+                           root.core.requestContextMenuAt(point.position)
+    }
+
     Component {
         id: underlayComponent
         MapCanvasUnderlay {

@@ -425,6 +425,36 @@ std::shared_ptr<InfomarkSelection> MapCanvasCore::getInfomarkSelection(const Mou
     return InfomarkSelection::alloc(m_data, lo, hi);
 }
 
+void MapCanvasCore::requestContextMenuAt(const QPointF &pos)
+{
+    // getMouseCoords() derives its glm coordinate from a QMouseEvent as
+    // {x, height()-y} (see MapCanvasData.cpp); a touch long-press reaches
+    // here with no QMouseEvent, so reproduce that transform directly. This is
+    // the same selection + emit the right-mouse-button branch of
+    // handleMousePress() runs (which now calls this), so mouse behavior is
+    // unchanged.
+    const glm::vec2 xy{static_cast<float>(pos.x()), static_cast<float>(height() - pos.y())};
+    if (m_canvasMouseMode == CanvasMouseModeEnum::MOVE) {
+        const auto worldPos = unproject_clamped(xy);
+        m_sel1 = m_sel2 = MouseSel{Coordinate2f{worldPos.x, worldPos.y}, getCurrentLayer()};
+    } else {
+        m_sel1 = m_sel2 = getUnprojectedMouseSel(xy);
+    }
+
+    if (m_canvasMouseMode == CanvasMouseModeEnum::MOVE && hasSel1()) {
+        // Select the room under the cursor
+        m_roomSelection = RoomSelection::createSelection(
+            m_data.findAllRooms(getSel1().getCoordinate()));
+        slot_setRoomSelection(SigRoomSelection{m_roomSelection});
+
+        // Select infomarks under the cursor.
+        slot_setInfomarkSelection(getInfomarkSelection(getSel1()));
+
+        selectionChanged();
+    }
+    emit sig_customContextMenuRequested(pos.toPoint());
+}
+
 void MapCanvasCore::handleMousePress(QMouseEvent *const event)
 {
     if (event->button() != Qt::RightButton) {
@@ -465,18 +495,7 @@ void MapCanvasCore::handleMousePress(QMouseEvent *const event)
         slot_layerDown();
         return event->accept();
     } else if (!m_mouseLeftPressed && m_mouseRightPressed) {
-        if (m_canvasMouseMode == CanvasMouseModeEnum::MOVE && hasSel1()) {
-            // Select the room under the cursor
-            m_roomSelection = RoomSelection::createSelection(
-                m_data.findAllRooms(getSel1().getCoordinate()));
-            slot_setRoomSelection(SigRoomSelection{m_roomSelection});
-
-            // Select infomarks under the cursor.
-            slot_setInfomarkSelection(getInfomarkSelection(getSel1()));
-
-            selectionChanged();
-        }
-        emit sig_customContextMenuRequested(event->position().toPoint());
+        requestContextMenuAt(event->position());
         m_mouseRightPressed = false;
         event->accept();
         return;

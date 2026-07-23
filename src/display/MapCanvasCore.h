@@ -352,6 +352,16 @@ public:
     // shell; the bool parameter is otherwise unused (see the .cpp).
     Q_INVOKABLE void userPressedEscape(bool);
 
+    // Opens the map context menu at a canvas-local point, running the exact
+    // same "select the room + infomarks under the point, then emit
+    // sig_customContextMenuRequested" logic the right-mouse-button press does
+    // (see handleMousePress()). Q_INVOKABLE so Shell B's MapView.qml can give
+    // touch devices a long-press path to the menu (touch never synthesizes a
+    // right-click). `pos` is in the same canvas-local, top-left-origin pixel
+    // space as sig_customContextMenuRequested's QPoint and QMouseEvent
+    // positions.
+    Q_INVOKABLE void requestContextMenuAt(const QPointF &pos);
+
 private:
     void log(const QString &msg) { emit sig_log("MapCanvas", msg); }
 

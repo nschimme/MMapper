@@ -458,7 +458,7 @@ Rectangle {
 
         delegate: Rectangle {
             width: resultsList.width
-            height: 28
+            height: Theme.rowHeight
             color: "transparent"
 
             Row {

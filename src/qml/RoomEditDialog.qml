@@ -298,7 +298,7 @@ Rectangle {
                     model: roomEditController.exitFlagsModel
                     delegate: Item {
                         width: ListView.view.width
-                        height: 20
+                        height: Theme.rowHeight
                         CheckBox {
                             id: exitCb
                             anchors.verticalCenter: parent.verticalCenter
@@ -329,7 +329,7 @@ Rectangle {
                     model: roomEditController.doorFlagsModel
                     delegate: Item {
                         width: ListView.view.width
-                        height: 20
+                        height: Theme.rowHeight
                         CheckBox {
                             id: doorCb
                             anchors.verticalCenter: parent.verticalCenter
@@ -369,7 +369,7 @@ Rectangle {
                         model: roomEditController.loadFlagsModel
                         delegate: Item {
                             width: ListView.view.width
-                            height: 20
+                            height: Theme.rowHeight
                             Row {
                                 anchors.fill: parent
                                 spacing: 4
@@ -408,7 +408,7 @@ Rectangle {
                         model: roomEditController.mobFlagsModel
                         delegate: Item {
                             width: ListView.view.width
-                            height: 20
+                            height: Theme.rowHeight
                             Row {
                                 anchors.fill: parent
                                 spacing: 4

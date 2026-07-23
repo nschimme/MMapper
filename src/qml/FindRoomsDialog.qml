@@ -183,7 +183,7 @@ Rectangle {
             delegate: Rectangle {
                 id: delegateRoot
                 width: ListView.view.width
-                height: 22
+                height: Theme.rowHeight
                 color: root.isSelected(index) ? "#3399ff" : "transparent"
                 opacity: root.isSelected(index) ? 0.35 : 1.0
 

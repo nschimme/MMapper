@@ -1336,7 +1336,11 @@ QQC2.ApplicationWindow {
         z: 10000
         HoverHandler {
             id: menuPeekStrip
-            enabled: !window.menuBarShown
+            // Inert in compact/mobile: a finger can't trigger a hover peek,
+            // and the menu bar is hamburger-driven there anyway (its toggle
+            // lives in the hamburger's View menu). Also keeps a dead hover
+            // zone off the top edge of the full-screen map.
+            enabled: !window.menuBarShown && !window.compact
             onHoveredChanged: {
                 if (hovered)
                     window.menuBarPeek = true;
@@ -1353,7 +1357,10 @@ QQC2.ApplicationWindow {
         z: 10000
         HoverHandler {
             id: statusPeekStrip
-            enabled: !window.statusBarShown
+            // Inert in compact/mobile for the same reason as menuPeekStrip:
+            // touch can't hover-peek, and the status-bar toggle is reachable
+            // from the hamburger's View menu there.
+            enabled: !window.statusBarShown && !window.compact
             onHoveredChanged: {
                 if (hovered)
                     window.statusBarPeek = true;

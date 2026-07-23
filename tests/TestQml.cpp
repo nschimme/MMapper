@@ -977,6 +977,34 @@ void TestQml::timerModelTickUpdatesAllRoles()
     QTRY_VERIFY_WITH_TIMEOUT(model.data(idx, TimerModel::TimeRole) != before, 2000);
 }
 
+void TestQml::timerControllerMoveReorders()
+{
+    // Backs TimerPanel.qml's drag-to-reorder DragHandler/DropArea, which
+    // calls timerController.move(from, to) on drop. Exercises the same path
+    // TimerModel::dropMimeData() uses (CTimers::moveTimer()), just reached
+    // through TimerController::move() -> TimerModel::moveRow() instead of a
+    // QAbstractItemView drag. No QML/GL needed since this only checks the
+    // C++ model/controller plumbing.
+    CTimers timers(nullptr);
+    timers.addTimer("first", "");
+    timers.addTimer("second", "");
+    timers.addTimer("third", "");
+
+    TimerModel model(timers, nullptr);
+    TimerController controller(timers, model, nullptr);
+
+    QCOMPARE(QString::fromStdString(model.timerAt(0)->getName()), QString("first"));
+    QCOMPARE(QString::fromStdString(model.timerAt(1)->getName()), QString("second"));
+    QCOMPARE(QString::fromStdString(model.timerAt(2)->getName()), QString("third"));
+
+    // Move row 0 ("first") to land after row 2 ("third"): [second, third, first].
+    controller.move(0, 3);
+
+    QCOMPARE(QString::fromStdString(model.timerAt(0)->getName()), QString("second"));
+    QCOMPARE(QString::fromStdString(model.timerAt(1)->getName()), QString("third"));
+    QCOMPARE(QString::fromStdString(model.timerAt(2)->getName()), QString("first"));
+}
+
 namespace {
 // Fetches row 0's progress Rectangle (objectName "timerProgressRect") out of
 // TimerPanel.qml's ListView. findChild() from the root down doesn't see

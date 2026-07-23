@@ -60,3 +60,8 @@ void TimerController::clearExpired()
 {
     m_timers.clearExpired();
 }
+
+void TimerController::move(int from, int to)
+{
+    m_model.moveRow(from, to);
+}

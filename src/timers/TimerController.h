@@ -27,4 +27,5 @@ public:
     Q_INVOKABLE void stop(int row);
     Q_INVOKABLE void remove(int row);
     Q_INVOKABLE void clearExpired();
+    Q_INVOKABLE void move(int from, int to);
 };

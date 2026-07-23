@@ -24,6 +24,7 @@ private Q_SLOTS:
     void qmlDockWidgetMinimumFromImplicitSize();
     void loadTimerPanel();
     void timerModelTickUpdatesAllRoles();
+    void timerControllerMoveReorders();
     void timerPanelProgressColor();
     void loadAdventurePanel();
     void roomModelLongestTextInColumn();

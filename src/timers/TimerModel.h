@@ -50,6 +50,12 @@ public:
 
     NODISCARD const TTimer *timerAt(int row) const;
 
+    // Reorders the underlying CTimers storage and emits the matching
+    // beginMoveRows()/endMoveRows() pair so QML's ListView animates the
+    // move instead of the whole list being reset. Mirrors the sequence
+    // dropMimeData() uses for drag-and-drop from a QAbstractItemView.
+    void moveRow(int from, int to);
+
 private slots:
     void updateTimerList();
 

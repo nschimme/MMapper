@@ -28,8 +28,9 @@ PanelFrame {
     implicitWidth: root.timeW + 150
     implicitHeight: headerRow.height + Theme.rowHeight * 2
 
-    function openMenuFor(index) {
+    function openMenuFor(index, expired) {
         contextMenu.rowIndex = index;
+        contextMenu.rowExpired = expired;
         contextMenu.popup();
     }
 
@@ -37,6 +38,7 @@ PanelFrame {
         id: contextMenu
 
         property int rowIndex: -1
+        property bool rowExpired: false
 
         MenuItem {
             implicitHeight: Theme.controlHeight
@@ -46,6 +48,9 @@ PanelFrame {
         MenuItem {
             implicitHeight: Theme.controlHeight
             text: qsTr("Stop")
+            // Mirrors TimerWidget's actStop->setEnabled(!isExpired): an
+            // already-expired timer has nothing left to stop.
+            enabled: !contextMenu.rowExpired
             onTriggered: timerController.stop(contextMenu.rowIndex)
         }
         MenuItem {
@@ -94,6 +99,11 @@ PanelFrame {
             color: index % 2 === 0 ? root.panelPalette.base
                                     : root.panelPalette.alternateBase
 
+            // Row index (in timerModel) this delegate currently represents;
+            // read by DropArea.onDropped below to figure out which two rows
+            // to swap via timerController.move().
+            property int dragIndex: index
+
             Rectangle {
                 objectName: "timerProgressRect"
                 // Ports TimerDelegate::paint()'s progress-bar coloring
@@ -134,13 +144,36 @@ PanelFrame {
 
             TapHandler {
                 acceptedButtons: Qt.RightButton
-                onTapped: root.openMenuFor(index)
-                onLongPressed: root.openMenuFor(index)
+                onTapped: root.openMenuFor(index, model.expired)
+                onLongPressed: root.openMenuFor(index, model.expired)
             }
 
             TapHandler {
                 acceptedButtons: Qt.LeftButton
-                onLongPressed: root.openMenuFor(index)
+                onLongPressed: root.openMenuFor(index, model.expired)
+            }
+
+            // Drag-to-reorder. Deliberately restricted to the left mouse
+            // button (DragHandler's default) so it does not compete with
+            // the right-click/long-press context menu above. DragHandler
+            // handles both mouse and touch input.
+            DragHandler {
+                id: dragHandler
+                target: null
+                onActiveChanged: delegateRoot.z = active ? 10 : 0
+            }
+            Drag.active: dragHandler.active
+            Drag.source: delegateRoot
+            Drag.hotSpot.x: width / 2
+            Drag.hotSpot.y: height / 2
+
+            DropArea {
+                anchors.fill: parent
+                onDropped: function (drop) {
+                    if (drop.source && drop.source.dragIndex !== undefined) {
+                        timerController.move(drop.source.dragIndex, index);
+                    }
+                }
             }
         }
     }

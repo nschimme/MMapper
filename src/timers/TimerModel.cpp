@@ -213,6 +213,24 @@ bool TimerModel::dropMimeData(
     return true;
 }
 
+void TimerModel::moveRow(int from, int to)
+{
+    // Mirrors dropMimeData()'s validation and reorder call exactly, since
+    // this is the same "move row `from` so it lands at position `to`"
+    // operation, just reached from QML (TimerController::move()) instead of
+    // a QAbstractItemView's drag-and-drop. CTimers::moveTimer() emits
+    // sig_timersUpdated(), which updateTimerList() is already connected to,
+    // so the model resets and the QML ListView picks up the new order.
+    if (from < 0 || static_cast<size_t>(from) >= m_allTimers.size())
+        return;
+    if (to < 0 || to > static_cast<int>(m_allTimers.size()))
+        return;
+    if (from == to || from == to - 1)
+        return;
+
+    m_timers.moveTimer(from, to);
+}
+
 const TTimer *TimerModel::timerAt(int row) const
 {
     if (row < 0 || static_cast<size_t>(row) >= m_allTimers.size())

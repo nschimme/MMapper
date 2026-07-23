@@ -931,6 +931,14 @@ if(WITH_QML)
     # to this file (i.e. "qml/PanelFrame.qml"). Force each file's alias to be
     # rooted at the module (i.e. "PanelFrame.qml") so QML sources are loadable
     # as qrc:/qt/qml/MMapper/<File>.qml.
+    # Theme.qml is a `pragma Singleton` QML type (see its file comment); the
+    # QT_QML_SINGLETON_TYPE property below is what actually makes
+    # qt_add_qml_module emit the qmldir "singleton" keyword for it -- the
+    # `pragma Singleton` line in the QML source alone is not enough for this
+    # Qt version's qt_add_qml_module to pick it up automatically.
+    set_source_files_properties(qml/Theme.qml PROPERTIES
+        QT_RESOURCE_ALIAS "Theme.qml"
+        QT_QML_SINGLETON_TYPE TRUE)
     set_source_files_properties(qml/PanelFrame.qml PROPERTIES QT_RESOURCE_ALIAS "PanelFrame.qml")
     set_source_files_properties(qml/PanelHeaderRow.qml PROPERTIES QT_RESOURCE_ALIAS "PanelHeaderRow.qml")
     set_source_files_properties(qml/TimerPanel.qml PROPERTIES QT_RESOURCE_ALIAS "TimerPanel.qml")
@@ -991,6 +999,7 @@ if(WITH_QML)
         RESOURCE_PREFIX "/qt/qml"
         PLUGIN_TARGET mm_qmlplugin
         QML_FILES
+            qml/Theme.qml
             qml/PanelFrame.qml
             qml/PanelHeaderRow.qml
             qml/TimerPanel.qml

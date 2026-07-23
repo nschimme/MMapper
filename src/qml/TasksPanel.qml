@@ -27,6 +27,7 @@ PanelFrame {
         property int rowIndex: -1
 
         MenuItem {
+            implicitHeight: Theme.controlHeight
             // Mirrors TasksPanel::contextMenuClick() in TasksPanel.cpp: the
             // entry is always offered (not gated on cancelability here), and
             // cancelTask() itself is a no-op if the task doesn't allow it.
@@ -89,6 +90,7 @@ PanelFrame {
             }
 
             Button {
+                implicitHeight: Theme.controlHeight
                 text: qsTr("Cancel Task #%1").arg(model.taskId)
                 enabled: model.canCancel
                 onClicked: tasksModel.cancelTask(index)

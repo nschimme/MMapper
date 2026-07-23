@@ -76,7 +76,7 @@ PanelFrame {
             delegate: Rectangle {
                 id: cellDelegate
 
-                implicitHeight: 26
+                implicitHeight: Theme.rowHeight
                 color: model.rowBackground !== undefined && model.rowBackground
                        ? model.rowBackground : "transparent"
 

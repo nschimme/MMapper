@@ -21,7 +21,7 @@ PanelFrame {
     readonly property real statW: statMetrics.advanceWidth + 20
     readonly property real nameW: 140
     readonly property real stateW: 90
-    readonly property real rowH: 26
+    readonly property real rowH: Theme.rowHeight
     readonly property int statsVisibleCount: groupModel.anyMana ? 3 : 2
     readonly property real roomW: Math.max(40, width - nameW - stateW - statW * statsVisibleCount)
 
@@ -144,11 +144,13 @@ PanelFrame {
         property int rowIndex: -1
 
         MenuItem {
+            implicitHeight: Theme.controlHeight
             text: qsTr("&Center")
             enabled: contextMenu.rowIndex >= 0 && groupController.canCenter(contextMenu.rowIndex)
             onTriggered: groupController.centerOnCharacter(contextMenu.rowIndex)
         }
         MenuItem {
+            implicitHeight: Theme.controlHeight
             text: qsTr("&Recolor")
             enabled: contextMenu.rowIndex >= 0
             onTriggered: groupController.recolorCharacter(contextMenu.rowIndex)

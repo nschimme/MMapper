@@ -68,6 +68,7 @@ QQC2.Menu {
 
     // --- connection selected ---
     QQC2.MenuItem {
+        implicitHeight: Theme.controlHeight
         objectName: "ctxDeleteConnection"
         visible: root.hasConnectionSelection
         height: visible ? implicitHeight : 0
@@ -78,6 +79,7 @@ QQC2.Menu {
 
     // --- rooms: empty selection -> create ---
     QQC2.MenuItem {
+        implicitHeight: Theme.controlHeight
         objectName: "ctxCreateRoom"
         visible: root.showCreateRoom
         height: visible ? implicitHeight : 0
@@ -86,12 +88,14 @@ QQC2.Menu {
 
     // --- rooms: non-empty selection -> the full room operation set ---
     QQC2.MenuItem {
+        implicitHeight: Theme.controlHeight
         objectName: "ctxEditRoom"
         visible: root.showRoomOps
         height: visible ? implicitHeight : 0
         action: CommandAction { cmd: commands ? commands.command("room.edit-selected") : null }
     }
     QQC2.MenuItem {
+        implicitHeight: Theme.controlHeight
         objectName: "ctxMoveUpRoom"
         visible: root.showRoomOps
         height: visible ? implicitHeight : 0
@@ -100,6 +104,7 @@ QQC2.Menu {
         }
     }
     QQC2.MenuItem {
+        implicitHeight: Theme.controlHeight
         objectName: "ctxMoveDownRoom"
         visible: root.showRoomOps
         height: visible ? implicitHeight : 0
@@ -108,6 +113,7 @@ QQC2.Menu {
         }
     }
     QQC2.MenuItem {
+        implicitHeight: Theme.controlHeight
         objectName: "ctxMergeUpRoom"
         visible: root.showRoomOps
         height: visible ? implicitHeight : 0
@@ -116,6 +122,7 @@ QQC2.Menu {
         }
     }
     QQC2.MenuItem {
+        implicitHeight: Theme.controlHeight
         objectName: "ctxMergeDownRoom"
         visible: root.showRoomOps
         height: visible ? implicitHeight : 0
@@ -124,6 +131,7 @@ QQC2.Menu {
         }
     }
     QQC2.MenuItem {
+        implicitHeight: Theme.controlHeight
         objectName: "ctxDeleteRoom"
         visible: root.showRoomOps
         height: visible ? implicitHeight : 0
@@ -132,6 +140,7 @@ QQC2.Menu {
         }
     }
     QQC2.MenuItem {
+        implicitHeight: Theme.controlHeight
         objectName: "ctxConnectToNeighbours"
         visible: root.showRoomOps
         height: visible ? implicitHeight : 0
@@ -145,12 +154,14 @@ QQC2.Menu {
         height: visible ? implicitHeight : 0
     }
     QQC2.MenuItem {
+        implicitHeight: Theme.controlHeight
         objectName: "ctxGotoRoom"
         visible: root.showRoomOps
         height: visible ? implicitHeight : 0
         action: CommandAction { cmd: commands ? commands.command("room.goto-selected") : null }
     }
     QQC2.MenuItem {
+        implicitHeight: Theme.controlHeight
         objectName: "ctxForceUpdateRoom"
         visible: root.showRoomOps
         height: visible ? implicitHeight : 0
@@ -166,12 +177,14 @@ QQC2.Menu {
         height: visible ? implicitHeight : 0
     }
     QQC2.MenuItem {
+        implicitHeight: Theme.controlHeight
         objectName: "ctxEditInfomark"
         visible: root.showInfomarkOps
         height: visible ? implicitHeight : 0
         action: CommandAction { cmd: commands ? commands.command("infomark.edit-selected") : null }
     }
     QQC2.MenuItem {
+        implicitHeight: Theme.controlHeight
         objectName: "ctxDeleteInfomark"
         visible: root.showInfomarkOps
         height: visible ? implicitHeight : 0
@@ -190,44 +203,53 @@ QQC2.Menu {
         title: qsTr("Mouse Mode")
 
         QQC2.MenuItem {
+            implicitHeight: Theme.controlHeight
             action: CommandAction { cmd: commands ? commands.command("mouse-mode.move") : null }
         }
         QQC2.MenuItem {
+            implicitHeight: Theme.controlHeight
             action: CommandAction {
                 cmd: commands ? commands.command("mouse-mode.room-raypick") : null
             }
         }
         QQC2.MenuItem {
+            implicitHeight: Theme.controlHeight
             action: CommandAction {
                 cmd: commands ? commands.command("mouse-mode.room-select") : null
             }
         }
         QQC2.MenuItem {
+            implicitHeight: Theme.controlHeight
             action: CommandAction {
                 cmd: commands ? commands.command("mouse-mode.infomark-select") : null
             }
         }
         QQC2.MenuItem {
+            implicitHeight: Theme.controlHeight
             action: CommandAction {
                 cmd: commands ? commands.command("mouse-mode.connection-select") : null
             }
         }
         QQC2.MenuItem {
+            implicitHeight: Theme.controlHeight
             action: CommandAction {
                 cmd: commands ? commands.command("mouse-mode.create-infomark") : null
             }
         }
         QQC2.MenuItem {
+            implicitHeight: Theme.controlHeight
             action: CommandAction {
                 cmd: commands ? commands.command("mouse-mode.create-room") : null
             }
         }
         QQC2.MenuItem {
+            implicitHeight: Theme.controlHeight
             action: CommandAction {
                 cmd: commands ? commands.command("mouse-mode.create-connection") : null
             }
         }
         QQC2.MenuItem {
+            implicitHeight: Theme.controlHeight
             action: CommandAction {
                 cmd: commands ? commands.command("mouse-mode.create-oneway-connection") : null
             }

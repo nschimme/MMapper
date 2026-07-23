@@ -1,6 +1,8 @@
 import QtQuick
 import QtQuick.Controls
 
+import MMapper
+
 // Not a PanelFrame: the client display is a terminal surface, so it paints
 // full-bleed using the configured client background/foreground colors
 // instead of the ambient SystemPalette PanelFrame uses for docked panels.
@@ -102,6 +104,7 @@ Rectangle {
         id: contextMenu
 
         MenuItem {
+            implicitHeight: Theme.controlHeight
             text: qsTr("Copy All")
             onTriggered: clientLineModel.copyAll()
         }

@@ -217,45 +217,45 @@ Rectangle {
                     columns: 3
                     spacing: 2
 
-                    Item { width: 32; height: 32 }
+                    Item { width: Theme.rowHeight; height: Theme.rowHeight }
                     Button {
-                        width: 32; height: 32
+                        width: Theme.rowHeight; height: Theme.rowHeight
                         text: qsTr("N")
                         highlighted: roomEditController.selectedExitDir === 0
                         onClicked: root.selectExit(0)
                     }
                     Button {
-                        width: 32; height: 32
+                        width: Theme.rowHeight; height: Theme.rowHeight
                         text: qsTr("U")
                         highlighted: roomEditController.selectedExitDir === 4
                         onClicked: root.selectExit(4)
                     }
                     Button {
-                        width: 32; height: 32
+                        width: Theme.rowHeight; height: Theme.rowHeight
                         text: qsTr("W")
                         highlighted: roomEditController.selectedExitDir === 3
                         onClicked: root.selectExit(3)
                     }
-                    Item { width: 32; height: 32 }
+                    Item { width: Theme.rowHeight; height: Theme.rowHeight }
                     Button {
-                        width: 32; height: 32
+                        width: Theme.rowHeight; height: Theme.rowHeight
                         text: qsTr("E")
                         highlighted: roomEditController.selectedExitDir === 2
                         onClicked: root.selectExit(2)
                     }
                     Button {
-                        width: 32; height: 32
+                        width: Theme.rowHeight; height: Theme.rowHeight
                         text: qsTr("D")
                         highlighted: roomEditController.selectedExitDir === 5
                         onClicked: root.selectExit(5)
                     }
                     Button {
-                        width: 32; height: 32
+                        width: Theme.rowHeight; height: Theme.rowHeight
                         text: qsTr("S")
                         highlighted: roomEditController.selectedExitDir === 1
                         onClicked: root.selectExit(1)
                     }
-                    Item { width: 32; height: 32 }
+                    Item { width: Theme.rowHeight; height: Theme.rowHeight }
                 }
 
                 Label {

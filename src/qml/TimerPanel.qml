@@ -22,10 +22,11 @@ PanelFrame {
     // Modest "header + a couple of rows" minimum, mirroring the panel's
     // widget-era layout minimum (no single dedicated sizeHint() override
     // existed for the timer table, so this just keeps the dock from being
-    // squashed below something usable): the header row plus two 30px data
-    // rows, wide enough for the Time column plus a readable Name column.
+    // squashed below something usable): the header row plus two
+    // Theme.rowHeight-tall data rows, wide enough for the Time column plus a
+    // readable Name column.
     implicitWidth: root.timeW + 150
-    implicitHeight: headerRow.height + 60
+    implicitHeight: headerRow.height + Theme.rowHeight * 2
 
     function openMenuFor(index) {
         contextMenu.rowIndex = index;
@@ -38,18 +39,22 @@ PanelFrame {
         property int rowIndex: -1
 
         MenuItem {
+            implicitHeight: Theme.controlHeight
             text: qsTr("Reset")
             onTriggered: timerController.reset(contextMenu.rowIndex)
         }
         MenuItem {
+            implicitHeight: Theme.controlHeight
             text: qsTr("Stop")
             onTriggered: timerController.stop(contextMenu.rowIndex)
         }
         MenuItem {
+            implicitHeight: Theme.controlHeight
             text: qsTr("Delete")
             onTriggered: timerController.remove(contextMenu.rowIndex)
         }
         MenuItem {
+            implicitHeight: Theme.controlHeight
             text: qsTr("Clear Expired")
             onTriggered: timerController.clearExpired()
         }
@@ -85,7 +90,7 @@ PanelFrame {
         delegate: Rectangle {
             id: delegateRoot
             width: ListView.view.width
-            height: 30
+            height: Theme.rowHeight
             color: index % 2 === 0 ? root.panelPalette.base
                                     : root.panelPalette.alternateBase
 

@@ -24,20 +24,24 @@ PanelFrame {
         id: contextMenu
 
         MenuItem {
+            implicitHeight: Theme.controlHeight
             text: qsTr("Copy")
             enabled: textArea.selectedText.length > 0
             onTriggered: textArea.copy()
         }
         MenuItem {
+            implicitHeight: Theme.controlHeight
             text: qsTr("Select All")
             onTriggered: textArea.selectAll()
         }
         MenuItem {
+            implicitHeight: Theme.controlHeight
             text: qsTr("Copy All")
             onTriggered: logModel.copyAll()
         }
         MenuSeparator {}
         MenuItem {
+            implicitHeight: Theme.controlHeight
             text: qsTr("Clear")
             onTriggered: logModel.clear()
         }

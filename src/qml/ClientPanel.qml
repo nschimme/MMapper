@@ -200,6 +200,10 @@ FocusScope {
                 anchors.fill: parent
                 visible: clientController.echoVisible
                 wrapMode: TextEdit.NoWrap
+                // MUD command line: on a mobile/browser soft keyboard, don't
+                // auto-capitalize or predict/autocorrect -- commands are
+                // case- and spelling-sensitive.
+                inputMethodHints: Qt.ImhNoAutoUppercase | Qt.ImhNoPredictiveText
                 font.family: config.clientFontFamily
                 font.pointSize: config.clientFontPointSize > 0 ? config.clientFontPointSize : 10
                 color: config.clientFgColor
@@ -398,6 +402,10 @@ FocusScope {
                 anchors.fill: parent
                 visible: !clientController.echoVisible
                 echoMode: TextInput.Password
+                // In-band MUME password: mark as sensitive so soft keyboards
+                // don't cache/predict it, and don't auto-capitalize.
+                inputMethodHints: Qt.ImhSensitiveData | Qt.ImhNoAutoUppercase
+                                  | Qt.ImhNoPredictiveText | Qt.ImhHiddenText
                 font.family: config.clientFontFamily
                 font.pointSize: config.clientFontPointSize > 0 ? config.clientFontPointSize : 10
                 color: config.clientFgColor

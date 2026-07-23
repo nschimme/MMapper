@@ -66,6 +66,9 @@ Rectangle {
         anchors.right: viewButton.left
         anchors.margins: 8
         echoMode: viewButton.checked ? TextInput.Normal : TextInput.Password
+        // Account password: keep soft keyboards from caching/predicting it
+        // and from auto-capitalizing.
+        inputMethodHints: Qt.ImhSensitiveData | Qt.ImhNoAutoUppercase | Qt.ImhNoPredictiveText
         text: passwordDialogController.password
         onTextEdited: passwordDialogController.password = text
     }

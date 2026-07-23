@@ -4283,6 +4283,23 @@ void TestQml::loadMainShellDocks()
         QVERIFY2(g->isVisible(), "moved-into-empty-area Group not visible");
         QVERIFY2(g->width() > 0.0 && g->height() > 0.0, "moved-into-empty-area Group has zero size");
     }
+
+    // Entering compact hosts the client in compactClientOverlay instead of a
+    // docked panel, so reconcileDocks() (via reconcileIds()) must destroy the
+    // client dock -- otherwise a second, hidden ClientPanel bound to the same
+    // controller would live on in the now-invisible dock area. Other docked
+    // panels (Description, in the left column) are untouched, and leaving
+    // compact recreates the client dock.
+    object->setProperty("width", 400);
+    QCoreApplication::processEvents();
+    QCOMPARE(object->property("compact").toBool(), true);
+    QTRY_COMPARE(object->findChild<QObject *>(QStringLiteral("dockClient")), nullptr);
+    QVERIFY(object->findChild<QQuickItem *>(QStringLiteral("dockDescription")) != nullptr);
+
+    object->setProperty("width", 1280);
+    QCoreApplication::processEvents();
+    QCOMPARE(object->property("compact").toBool(), false);
+    QTRY_VERIFY(object->findChild<QQuickItem *>(QStringLiteral("dockClient")) != nullptr);
 }
 
 void TestQml::dockContainerCollapsesWhenEmpty()

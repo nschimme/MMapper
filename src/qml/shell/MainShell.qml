@@ -1493,6 +1493,19 @@ QQC2.ApplicationWindow {
         return inst;
     }
 
+    // The ids reconcileDocks() should place into the fixed dock areas. In
+    // compact mode the client lives in compactClientOverlay instead of a
+    // docked panel, so it's filtered out here -- otherwise reconcileDocks()
+    // would still create it (invisibly, since the area containers are hidden
+    // in compact) in parallel with the overlay: a wasteful second ClientPanel
+    // bound to the same controller. Toggling compact re-runs reconcileDocks()
+    // (see the Connections on window below), so the client dock is destroyed
+    // on entering compact and recreated on leaving it.
+    function reconcileIds(area) {
+        const ids = areaIds(area);
+        return window.compact ? ids.filter(id => id !== "client") : ids;
+    }
+
     function reconcileDocks() {
         if (!dockLayout)
             return;
@@ -1502,7 +1515,7 @@ QQC2.ApplicationWindow {
         // Which area (if any) each id should be docked-and-shown in now.
         var wantedArea = ({});
         for (a = 0; a < areas.length; ++a) {
-            const ids = areaIds(areas[a]);
+            const ids = window.reconcileIds(areas[a]);
             for (i = 0; i < ids.length; ++i)
                 wantedArea[ids[i]] = areas[a];
         }
@@ -1532,7 +1545,7 @@ QQC2.ApplicationWindow {
         // so by creating in index order the survivors already sit correctly.
         for (a = 0; a < areas.length; ++a) {
             const sv2 = areaSplitView(areas[a]);
-            const want = areaIds(areas[a]);
+            const want = window.reconcileIds(areas[a]);
             for (i = 0; i < want.length; ++i) {
                 const wantId = want[i];
                 const existing = window.dockInstances[wantId];
@@ -1557,6 +1570,16 @@ QQC2.ApplicationWindow {
             window.reconcileDocks();
         }
         function onRightDockIdsChanged() {
+            window.reconcileDocks();
+        }
+    }
+
+    // Entering/leaving compact changes whether the client is a docked panel
+    // (desktop) or the compactClientOverlay (compact), so re-reconcile to
+    // destroy/recreate the client dock accordingly (see reconcileIds()).
+    Connections {
+        target: window
+        function onCompactChanged() {
             window.reconcileDocks();
         }
     }

@@ -24,6 +24,14 @@ Rectangle {
     implicitHeight: 600
     color: sysPalette.window
 
+    // This dialog is its own top-level window (see QmlDialog), separate from
+    // the main shell, so it computes its own compact breakpoint from its own
+    // width rather than the shell's. Below this width the 180px side nav and
+    // its search column would steal too much space from an already-narrow
+    // screen, so the chrome (nav/search) reflows into a top header while the
+    // page column/scrollspy/search machinery stay exactly as they are.
+    readonly property bool compact: width < 600
+
     // The nine sections, in configdialog.cpp's addPage() order. Icons name
     // files under qrc:/icons/ (see resources/mmapper2.qrc).
     ListModel {
@@ -266,19 +274,47 @@ Rectangle {
         onTriggered: root.performSearch(searchField.text)
     }
 
+    // The single search field, shared by desktop and compact layouts: only
+    // its anchoring/width reacts to root.compact, so there is one field
+    // feeding searchTimer/performSearch either way (rather than a second
+    // duplicate field for the compact header).
     TextField {
         id: searchField
         objectName: "preferencesSearchField"
         anchors.top: parent.top
         anchors.left: parent.left
         anchors.margins: 8
-        width: navFrame.width
+        // Desktop: sized to match navFrame, as before. Compact: full width
+        // minus the section-jumper combo box that takes navFrame's place.
+        width: root.compact ? (root.width - 24 - sectionCombo.width) : navFrame.width
         placeholderText: qsTr("Search")
         onTextChanged: searchTimer.restart()
     }
 
+    // Compact-only section jumper, replacing the hidden side nav as the way
+    // to jump to a section. Kept in sync with the scrollspy via currentIndex;
+    // the binding is restored after each user pick (ComboBox breaks bindings
+    // on interactive selection) so scrolling keeps updating it afterwards.
+    ComboBox {
+        id: sectionCombo
+        objectName: "preferencesSectionCombo"
+        visible: root.compact
+        model: navModel
+        textRole: "label"
+        anchors.top: parent.top
+        anchors.right: parent.right
+        anchors.margins: 8
+        currentIndex: navList.currentIndex
+        onActivated: {
+            root.scrollToSection(currentIndex);
+            currentIndex = Qt.binding(function () { return navList.currentIndex; });
+        }
+    }
+
     Rectangle {
         id: navFrame
+        objectName: "preferencesNavFrame"
+        visible: !root.compact
         anchors.top: searchField.bottom
         anchors.left: parent.left
         anchors.bottom: footerRow.top
@@ -348,7 +384,11 @@ Rectangle {
         id: pagesFlickable
         objectName: "preferencesFlickable"
         anchors.top: parent.top
-        anchors.left: navFrame.right
+        // Compact: full width below the compact header (search field +
+        // section combo, whichever is taller). Desktop: unchanged, right of
+        // navFrame with no extra top offset.
+        anchors.topMargin: root.compact ? (16 + Math.max(searchField.height, sectionCombo.height)) : 8
+        anchors.left: root.compact ? parent.left : navFrame.right
         anchors.right: parent.right
         anchors.bottom: footerRow.top
         anchors.margins: 8

@@ -2870,6 +2870,28 @@ void TestQml::loadPreferencesDialog()
     flickable->setProperty("contentY", maxY);
     QCoreApplication::processEvents();
     QTRY_COMPARE(navList->property("currentIndex").toInt(), 8);
+
+    // Narrowing the dialog below the compact breakpoint hides the side nav
+    // (and its matching desktop search field width) in favor of a top
+    // section-jumper combo box; the page column/scrollspy machinery (already
+    // exercised above) is untouched by the reflow.
+    auto *const navFrame = rootItem->findChild<QQuickItem *>(QStringLiteral("preferencesNavFrame"));
+    QVERIFY(navFrame != nullptr);
+    auto *const sectionCombo = rootItem->findChild<QQuickItem *>(
+        QStringLiteral("preferencesSectionCombo"));
+    QVERIFY(sectionCombo != nullptr);
+
+    dialog.resize(400, 600);
+    QCoreApplication::processEvents();
+    QTRY_COMPARE(rootItem->property("compact").toBool(), true);
+    QVERIFY(!navFrame->isVisible());
+    QVERIFY(sectionCombo->isVisible());
+
+    dialog.resize(800, 600);
+    QCoreApplication::processEvents();
+    QTRY_COMPARE(rootItem->property("compact").toBool(), false);
+    QVERIFY(navFrame->isVisible());
+    QVERIFY(!sectionCombo->isVisible());
 }
 
 void TestQml::preferencesDialogSearch()

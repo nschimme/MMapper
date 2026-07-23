@@ -6,6 +6,7 @@
 #include "../configuration/configuration.h"
 #include "../global/ConfigConsts.h"
 
+#include <algorithm>
 #include <optional>
 
 #include <QDir>
@@ -293,6 +294,17 @@ void GeneralPageAdapter::setCheckForUpdate(const bool value)
 bool GeneralPageAdapter::getUpdaterAvailable()
 {
     return !NO_UPDATER;
+}
+
+double GeneralPageAdapter::getUiFontScale() const
+{
+    return getConfig().general.uiFontScale;
+}
+
+void GeneralPageAdapter::setUiFontScale(const double value)
+{
+    setConfig().general.uiFontScale = std::clamp(value, 0.5, 3.0);
+    emit sig_changed();
 }
 
 bool GeneralPageAdapter::getQmlShell() const

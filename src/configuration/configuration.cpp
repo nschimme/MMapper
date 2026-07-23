@@ -225,6 +225,7 @@ ConstString KEY_AUTO_RESIZE_TERMINAL = "Auto resize terminal";
 ConstString KEY_BACKGROUND_COLOR = "Background color";
 ConstString KEY_CHARACTER_ENCODING = "Character encoding";
 ConstString KEY_CHECK_FOR_UPDATE = "Check for update";
+ConstString KEY_UI_FONT_SCALE = "UI Font Scale";
 ConstString KEY_CLEAR_INPUT_ON_ENTER = "Clear input on enter";
 ConstString KEY_COLUMNS = "Columns";
 ConstString KEY_COMMAND_PREFIX_CHAR = "Command prefix character";
@@ -651,6 +652,7 @@ void Configuration::GeneralSettings::read(const QSettings &conf)
     mapMode = sanitizeMapMode(
         conf.value(KEY_MAP_MODE, static_cast<uint32_t>(MapModeEnum::PLAY)).toUInt());
     checkForUpdate = conf.value(KEY_CHECK_FOR_UPDATE, true).toBool();
+    uiFontScale = std::clamp(conf.value(KEY_UI_FONT_SCALE, 1.0).toDouble(), 0.5, 3.0);
     qmlShell = conf.value(KEY_QML_SHELL, false).toBool();
     characterEncoding = sanitizeCharacterEncoding(
         conf.value(KEY_CHARACTER_ENCODING, static_cast<uint32_t>(CharacterEncodingEnum::LATIN1))
@@ -938,6 +940,7 @@ void Configuration::GeneralSettings::write(QSettings &conf) const
     conf.setValue(KEY_SHOW_MENU_BAR, showMenuBar);
     conf.setValue(KEY_MAP_MODE, static_cast<uint32_t>(mapMode));
     conf.setValue(KEY_CHECK_FOR_UPDATE, checkForUpdate);
+    conf.setValue(KEY_UI_FONT_SCALE, uiFontScale);
     conf.setValue(KEY_QML_SHELL, qmlShell);
     conf.setValue(KEY_CHARACTER_ENCODING, static_cast<uint32_t>(characterEncoding));
     conf.setValue(KEY_THEME, static_cast<uint32_t>(m_theme));

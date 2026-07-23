@@ -348,6 +348,29 @@ void TestMainWindow::generalPageAdapterRoundTrip()
     QCOMPARE(getConfig().autoLoad.autoLoadMap, true);
 }
 
+void TestMainWindow::generalPageAdapterUiFontScaleClamp()
+{
+    setEnteredMain();
+
+    const double originalUiFontScale = getConfig().general.uiFontScale;
+    auto cleanup = qScopeGuard([=]() { setConfig().general.uiFontScale = originalUiFontScale; });
+
+    GeneralPageAdapter adapter(nullptr, nullptr);
+    QSignalSpy changedSpy(&adapter, &GeneralPageAdapter::sig_changed);
+
+    QVERIFY(adapter.setProperty("uiFontScale", 1.5));
+    QCOMPARE(getConfig().general.uiFontScale, 1.5);
+    QCOMPARE(adapter.property("uiFontScale").toDouble(), 1.5);
+    QCOMPARE(changedSpy.count(), 1);
+
+    // Out-of-range values are clamped to [0.5, 3.0].
+    QVERIFY(adapter.setProperty("uiFontScale", 10.0));
+    QCOMPARE(getConfig().general.uiFontScale, 3.0);
+
+    QVERIFY(adapter.setProperty("uiFontScale", 0.1));
+    QCOMPARE(getConfig().general.uiFontScale, 0.5);
+}
+
 void TestMainWindow::clientPageAdapterRoundTrip()
 {
     setEnteredMain();

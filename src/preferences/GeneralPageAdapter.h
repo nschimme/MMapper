@@ -88,6 +88,11 @@ public:
     Q_PROPERTY(bool checkForUpdate READ getCheckForUpdate WRITE setCheckForUpdate NOTIFY sig_changed)
     Q_PROPERTY(bool updaterAvailable READ getUpdaterAvailable CONSTANT)
 
+    // Global multiplier applied to the application's default font point
+    // size at startup (Configuration::general.uiFontScale); clamped to
+    // [0.5, 3.0]. See PrefsGeneralPage.qml's font scale slider.
+    Q_PROPERTY(double uiFontScale READ getUiFontScale WRITE setUiFontScale NOTIFY sig_changed)
+
     // Persisted "preferred shell" setting (Configuration::general.qmlShell);
     // peeked by main.cpp's determineShellType() on the next launch. See
     // PrefsGeneralPage.qml's "Use the QML shell" checkbox.
@@ -161,6 +166,9 @@ public:
     NODISCARD bool getCheckForUpdate() const;
     void setCheckForUpdate(bool value);
     NODISCARD static bool getUpdaterAvailable();
+
+    NODISCARD double getUiFontScale() const;
+    void setUiFontScale(double value);
 
     NODISCARD bool getQmlShell() const;
     void setQmlShell(bool value);

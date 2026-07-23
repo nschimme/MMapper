@@ -82,6 +82,9 @@ public:
         bool showMenuBar = true;
         MapModeEnum mapMode = MapModeEnum::PLAY;
         bool checkForUpdate = true;
+        // Global multiplier applied to the application's default font point
+        // size at startup; 1.0 = unchanged (byte-for-byte no-op).
+        double uiFontScale = 1.0;
         CharacterEncodingEnum characterEncoding = CharacterEncodingEnum::LATIN1;
         // Persisted "preferred shell" setting; see main.cpp's
         // determineShellType(), which peeks this key directly via a raw

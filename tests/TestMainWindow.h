@@ -25,6 +25,7 @@ private Q_SLOTS:
     void advancedGraphicsModelRoundTrip();
     void parserPageAdapterRoundTrip();
     void generalPageAdapterRoundTrip();
+    void generalPageAdapterUiFontScaleClamp();
     void clientPageAdapterRoundTrip();
     void commandRegistrySync();
     void uiCommandToolTip();

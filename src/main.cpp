@@ -21,6 +21,7 @@
 #include <type_traits>
 
 #include <QFile>
+#include <QFont>
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
 #include <QNetworkRequest>
@@ -326,6 +327,14 @@ int main(int argc, char **argv)
 #endif
 
     QApplication app(argc, argv);
+
+    const double uiScale = getConfig().general.uiFontScale;
+    if (uiScale > 0.0 && !qFuzzyCompare(uiScale, 1.0)) {
+        QFont f = QApplication::font();
+        f.setPointSizeF(f.pointSizeF() * uiScale);
+        QApplication::setFont(f);
+    }
+
     tryInitDrMingw();
     auto tryLoadingWinSock = std::make_unique<WinSock>();
     auto themeManager = std::make_unique<ThemeManager>(&app);

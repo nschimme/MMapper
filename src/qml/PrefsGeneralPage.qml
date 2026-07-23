@@ -109,6 +109,21 @@ Column {
         }
     }
 
+    Row {
+        spacing: 8
+        Label { text: qsTr("UI font scale:"); width: 160 }
+        Slider {
+            id: uiFontScaleSlider
+            from: 0.5
+            to: 3.0
+            stepSize: 0.05
+            value: root.general.uiFontScale
+            onMoved: root.general.uiFontScale = value
+        }
+        Label { text: (uiFontScaleSlider.value * 100).toFixed(0) + "%" }
+        Label { text: qsTr("(applies after restart)") }
+    }
+
     Label { text: qsTr("Mume Native"); font.bold: true }
 
     CheckBox {

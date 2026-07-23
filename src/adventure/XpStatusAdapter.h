@@ -46,6 +46,11 @@ public:
     Q_INVOKABLE void hoverEntered();
     Q_INVOKABLE void hoverExited();
     Q_INVOKABLE void clicked();
+    // The "Hourly rate: N XP M TP" string hoverEntered() pushes to the
+    // status bar, returned directly so touch UIs (which never get a hover)
+    // can surface it in a transient tooltip on long-press. Empty when there
+    // is no active session.
+    NODISCARD Q_INVOKABLE QString hourlyRateText() const;
 
 signals:
     void sig_changed();

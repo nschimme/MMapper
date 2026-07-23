@@ -50,14 +50,22 @@ void XpStatusAdapter::slot_updatedSession(const std::shared_ptr<AdventureSession
     updateContent();
 }
 
+QString XpStatusAdapter::hourlyRateText() const
+{
+    if (m_session == nullptr) {
+        return {};
+    }
+    auto xpHourly = m_session->calculateHourlyRateXP();
+    auto tpHourly = m_session->calculateHourlyRateTP();
+    auto xpf = AdventureSession::formatPoints(xpHourly);
+    auto tpf = AdventureSession::formatPoints(tpHourly);
+    return QString("Hourly rate: %1 XP %2 TP").arg(xpf, tpf);
+}
+
 void XpStatusAdapter::hoverEntered()
 {
-    if (m_session != nullptr) {
-        auto xpHourly = m_session->calculateHourlyRateXP();
-        auto tpHourly = m_session->calculateHourlyRateTP();
-        auto xpf = AdventureSession::formatPoints(xpHourly);
-        auto tpf = AdventureSession::formatPoints(tpHourly);
-        auto msg = QString("Hourly rate: %1 XP %2 TP").arg(xpf, tpf);
+    const auto msg = hourlyRateText();
+    if (!msg.isEmpty()) {
         emit sig_showStatusMessage(msg);
     }
 }

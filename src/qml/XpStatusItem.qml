@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Controls
 
 // QML-facing replacement for XPStatusWidget. Root is a bare Item (not
 // PanelFrame: this sits directly in the status bar, which already paints its
@@ -16,6 +17,16 @@ Item {
     visible: xpStatusAdapter.shown
     implicitWidth: xpStatusAdapter.shown ? label.implicitWidth + 8 : 0
     implicitHeight: xpStatusAdapter.shown ? label.implicitHeight : 0
+
+    // Surfaces the hourly rate in a transient tooltip. Defined on the root
+    // (an Item) so ToolTip.show() resolves against a real attached-property
+    // target; calling it from within a TapHandler's scope would not.
+    function showHourlyRate() {
+        const msg = xpStatusAdapter.hourlyRateText();
+        if (msg.length > 0) {
+            ToolTip.show(msg, 3000);
+        }
+    }
 
     SystemPalette {
         id: sysPalette
@@ -47,6 +58,14 @@ Item {
     }
 
     TapHandler {
+        // A quick tap toggles the Adventure dock (matching the flat
+        // QPushButton's clicked()); a long press instead surfaces the hourly
+        // rate in a transient tooltip. Touch never produces the HoverHandler
+        // events above, so long-press is the only way a touch user can see
+        // the rate the desktop shows on hover. onLongPressed and onTapped are
+        // mutually exclusive on the same handler (a press held past the
+        // long-press threshold never emits tapped), so tap keeps toggling.
         onTapped: xpStatusAdapter.clicked()
+        onLongPressed: root.showHourlyRate()
     }
 }

@@ -13,6 +13,7 @@
 #include <QQuickItem>
 #include <QQuickWidget>
 #include <QQuickWindow>
+#include <QScreen>
 #include <QVBoxLayout>
 
 namespace { // anonymous
@@ -81,10 +82,18 @@ void QmlDialog::setQmlSource(const QUrl &url)
         connect(m_quick, &QQuickWidget::statusChanged, this, [this](QQuickWidget::Status status) {
             if (status == QQuickWidget::Ready) {
                 if (QQuickItem *const root = m_quick->rootObject()) {
-                    const int width = std::max(MIN_DIALOG_WIDTH,
-                                               static_cast<int>(root->implicitWidth()));
-                    const int height = std::max(MIN_DIALOG_HEIGHT,
-                                                static_cast<int>(root->implicitHeight()));
+                    int width = std::max(MIN_DIALOG_WIDTH, static_cast<int>(root->implicitWidth()));
+                    int height = std::max(MIN_DIALOG_HEIGHT,
+                                          static_cast<int>(root->implicitHeight()));
+                    // Clamp to the available screen geometry so a dialog never
+                    // exceeds the screen (e.g. a phone/small-monitor session
+                    // where implicit content size is larger than the display).
+                    // Applied after the MIN clamp so the screen always wins.
+                    if (const QScreen *const scr = screen()) {
+                        const QRect avail = scr->availableGeometry();
+                        width = std::min(width, avail.width());
+                        height = std::min(height, avail.height());
+                    }
                     resize(width, height);
                 }
                 return;

@@ -817,7 +817,17 @@ QQC2.ApplicationWindow {
     // QToolBar, a QQC2.ToolBar can't float or be dragged to another edge;
     // that's out of scope for this shell (see DockLayoutController.h's file
     // comment for the same tradeoff on docks).
+    //
+    // Scope 13c: the whole toolbar header is hidden in compact/mobile mode
+    // (window.compact). These 9 rows would stack vertically and eat a phone
+    // screen, and every toolbar command is also reachable from the compact
+    // hamburger menu (appMenu above), so nothing is lost -- the header is
+    // pure power-user chrome. ApplicationWindow reclaims the header's space
+    // for the full-screen map when it's not visible. objectName lets
+    // TestQml assert the compact gate.
     header: Column {
+        objectName: "toolBarHeader"
+        visible: !window.compact
         QQC2.ToolBar {
             objectName: "fileToolBar"
             visible: toolbarLayout ? toolbarLayout.fileVisible : false

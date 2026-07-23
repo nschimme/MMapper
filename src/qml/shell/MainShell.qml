@@ -1864,6 +1864,16 @@ QQC2.ApplicationWindow {
         // dragged into view by accident.
         interactive: window.compact
 
+        // The client is the primary surface for (web/mobile) play, so opening
+        // the panels drawer lands on the Client tab when it's present -- the
+        // other panels are one tab away. Jumps only on open, so a user who
+        // tabs to another panel while the drawer is up isn't yanked back.
+        onOpened: {
+            const ci = window.compactDockIds.indexOf("client");
+            if (ci >= 0)
+                compactDockDrawer.selectedIndex = ci;
+        }
+
         // A drawer left open across a resize/rotate back to desktop width
         // must not stay open floating over the now-restored dock columns --
         // force it closed the instant compact goes false. (compact lives on

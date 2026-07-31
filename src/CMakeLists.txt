@@ -973,6 +973,7 @@ if(WITH_QML)
     set_source_files_properties(qml/PrefsClientPage.qml PROPERTIES QT_RESOURCE_ALIAS "PrefsClientPage.qml")
     set_source_files_properties(qml/MapView.qml PROPERTIES QT_RESOURCE_ALIAS "MapView.qml")
     set_source_files_properties(qml/CommandAction.qml PROPERTIES QT_RESOURCE_ALIAS "CommandAction.qml")
+    set_source_files_properties(qml/KeyboardInset.qml PROPERTIES QT_RESOURCE_ALIAS "KeyboardInset.qml")
     # qml/shell/MainShell.qml is aliased flat at the module root (not
     # "shell/MainShell.qml"): a qt_add_qml_module QML file that lives in a
     # subdirectory of the module root is treated by the QML engine as
@@ -1034,6 +1035,7 @@ if(WITH_QML)
             qml/PrefsClientPage.qml
             qml/MapView.qml
             qml/CommandAction.qml
+            qml/KeyboardInset.qml
             qml/shell/MainShell.qml
             qml/shell/DockPanel.qml
             qml/shell/DockColumn.qml

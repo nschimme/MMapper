@@ -2702,6 +2702,30 @@ void TestQml::loadInfomarkEditDialog()
     QCoreApplication::processEvents();
     QCOMPARE(modifyButton->property("enabled").toBool(), true);
     QCOMPARE(createButton->property("enabled").toBool(), false);
+
+    // Regression test for the mobile-layout bug where closeButton lived
+    // inside the scrolled ScrollView content and needed scrolling to reach:
+    // it must now be a footer sibling of the ScrollView, anchored to root's
+    // bottom, so squashing the dialog well below its implicit height never
+    // pushes it out of the visible area.
+    dialog.resize(320, 200);
+    dialog.show();
+    QCoreApplication::processEvents();
+    QCoreApplication::processEvents();
+
+    QQuickItem *const closeButton = root->findChild<QQuickItem *>("closeButton");
+    QVERIFY(closeButton != nullptr);
+    const QPointF closeTopLeft = closeButton->mapToItem(root, QPointF(0, 0));
+    QVERIFY2(closeTopLeft.y() >= 0,
+             "closeButton must not be scrolled above the dialog's visible area");
+    QVERIFY2(closeTopLeft.y() + closeButton->height() <= root->height(),
+             "closeButton must stay within the dialog's visible height without scrolling");
+
+    // The keyboard-occlusion inset is inert without a soft keyboard -- see
+    // loadPasswordDialog()'s identical assertion for the full explanation.
+    QObject *const keyboardInset = root->findChild<QObject *>("keyboardInset");
+    QVERIFY(keyboardInset != nullptr);
+    QCOMPARE(keyboardInset->property("inset").toReal(), 0.0);
 }
 
 void TestQml::loadRoomEditDialog()
@@ -2938,6 +2962,12 @@ void TestQml::loadPreferencesDialog()
     // already exercised every page adapter; confirm the section count.
     const auto sections = rootItem->findChildren<QQuickItem *>(QStringLiteral("preferencesSection"));
     QCOMPARE(sections.size(), 9);
+
+    // The keyboard-occlusion inset is inert without a soft keyboard -- see
+    // loadPasswordDialog()'s identical assertion for the full explanation.
+    QObject *const keyboardInset = rootItem->findChild<QObject *>("keyboardInset");
+    QVERIFY(keyboardInset != nullptr);
+    QCOMPARE(keyboardInset->property("inset").toReal(), 0.0);
 
     // Give the dialog real geometry so the flickable has a viewport to
     // scroll (the content column is far taller than 600px with all nine
@@ -3653,6 +3683,34 @@ void TestQml::loadPasswordDialog()
     controller.requestDelete();
     QCOMPARE(controller.getHasStoredPassword(), false);
     QCOMPARE(deleteButton->property("enabled").toBool(), false);
+
+    // Regression test for the mobile-layout bug where okButton lived inside
+    // the scrolled ScrollView content and needed scrolling to reach: it must
+    // now be a footer sibling of the ScrollView, anchored to root's bottom,
+    // so squashing the dialog well below its implicit height never pushes it
+    // out of the visible area. QmlDialog's own MIN_DIALOG_HEIGHT clamp is
+    // 200, so a resize below that (here 150) exercises actual squashing.
+    dialog.resize(320, 150);
+    dialog.show();
+    QCoreApplication::processEvents();
+    QCoreApplication::processEvents();
+
+    QQuickItem *const okButton = root->findChild<QQuickItem *>("okButton");
+    QVERIFY(okButton != nullptr);
+    const QPointF okTopLeft = okButton->mapToItem(root, QPointF(0, 0));
+    QVERIFY2(okTopLeft.y() >= 0, "okButton must not be scrolled above the dialog's visible area");
+    QVERIFY2(okTopLeft.y() + okButton->height() <= root->height(),
+             "okButton must stay within the dialog's visible height without scrolling");
+
+    // The keyboard-occlusion inset is inert without a soft keyboard: the
+    // offscreen platform has no input method reporting a rectangle, so the
+    // binding must evaluate to 0 (a no-op) rather than a stale/garbage
+    // value. This just proves the Qt.inputMethod binding compiles and
+    // defaults safe; the actual lift is verified on a real touch device
+    // (mirrors MainShell.qml's keyboardInset test in mainShellCompactBreakpoint()).
+    QObject *const keyboardInset = root->findChild<QObject *>("keyboardInset");
+    QVERIFY(keyboardInset != nullptr);
+    QCOMPARE(keyboardInset->property("inset").toReal(), 0.0);
 }
 
 void TestQml::loadMapView()

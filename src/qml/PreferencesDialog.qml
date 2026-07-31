@@ -86,6 +86,15 @@ Rectangle {
         colorGroup: SystemPalette.Disabled
     }
 
+    // Lifts footerRow (and, via its anchors.bottom: footerRow.top chain,
+    // navFrame/pagesFlickable's viewports too) above an on-screen keyboard.
+    // See KeyboardInset.qml; a pure no-op with no input method (desktop,
+    // headless offscreen).
+    KeyboardInset {
+        id: keyboardInset
+        objectName: "keyboardInset"
+    }
+
     // A bold header (pointSize+1) with a 1px rule filling the remaining
     // width, followed by the page body; mirrors makeSectionHeader() plus
     // addPage()'s header+page container.
@@ -509,6 +518,7 @@ Rectangle {
         anchors.bottom: parent.bottom
         anchors.right: parent.right
         anchors.margins: 8
+        anchors.bottomMargin: 8 + keyboardInset.inset
         spacing: 8
 
         Button {

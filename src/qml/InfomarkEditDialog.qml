@@ -17,11 +17,16 @@ import MMapper
 // sig_refreshed() fires (selection change, marker-combo change, or type
 // change), not bound to the controller continuously.
 //
-// The whole layout lives inside a ScrollView so that on a small/phone
-// screen -- where QmlDialog may squash this Rectangle below its
-// implicitWidth/implicitHeight -- the content scrolls instead of clipping.
-// The inner Item keeps the original implicit size so nothing about the
-// on-screen layout changes when there's enough room.
+// The fields live inside a ScrollView so that on a small/phone screen --
+// where QmlDialog may squash this Rectangle below its implicitWidth/
+// implicitHeight -- the content scrolls instead of clipping. The Close
+// button is a fixed footer OUTSIDE the ScrollView (anchored to root's
+// bottom, mirroring PreferencesDialog.qml's footerRow), so it never needs
+// scrolling to reach; the ScrollView's bottom anchors to the footer's top
+// so the scrollable content occupies exactly the remaining space.
+// KeyboardInset (see KeyboardInset.qml) lifts the footer above an
+// on-screen keyboard, which also shrinks the ScrollView's viewport by the
+// same amount, keeping the field being edited reachable via scroll.
 Rectangle {
     id: root
     implicitWidth: 400
@@ -97,16 +102,25 @@ Rectangle {
         }
     }
 
+    KeyboardInset {
+        id: keyboardInset
+        objectName: "keyboardInset"
+    }
+
     ScrollView {
         id: scrollView
-        anchors.fill: parent
+        anchors.top: parent.top
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.bottom: closeButton.top
+        anchors.bottomMargin: 8
         contentWidth: availableWidth
         contentHeight: content.height
 
         Item {
             id: content
             width: scrollView.availableWidth
-            height: root.implicitHeight
+            height: fieldsFrame.y + fieldsFrame.height + 8
 
             Label {
                 id: markerLabel
@@ -133,8 +147,12 @@ Rectangle {
                 anchors.top: markerCombo.bottom
                 anchors.left: parent.left
                 anchors.right: parent.right
-                anchors.bottom: closeButton.top
                 anchors.margins: 8
+                // No anchors.bottom: this frame's height is now derived
+                // from its own last child (actionsRow) below rather than
+                // stretched to the (now-external) Close button, since the
+                // button moved out of the ScrollView into a fixed footer.
+                height: actionsRow.y + actionsRow.height + 6
                 border.color: "gray"
                 border.width: 1
                 color: "transparent"
@@ -324,6 +342,7 @@ Rectangle {
                 }
 
                 Row {
+                    id: actionsRow
                     anchors.top: errorText.bottom
                     anchors.left: parent.left
                     anchors.margins: 6
@@ -371,15 +390,17 @@ Rectangle {
                     }
                 }
             }
-
-            Button {
-                id: closeButton
-                anchors.bottom: parent.bottom
-                anchors.right: parent.right
-                anchors.margins: 8
-                text: qsTr("Close")
-                onClicked: dialog.accept()
-            }
         }
+    }
+
+    Button {
+        id: closeButton
+        objectName: "closeButton"
+        anchors.bottom: parent.bottom
+        anchors.right: parent.right
+        anchors.margins: 8
+        anchors.bottomMargin: 8 + keyboardInset.inset
+        text: qsTr("Close")
+        onClicked: dialog.accept()
     }
 }

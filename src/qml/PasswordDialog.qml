@@ -18,11 +18,16 @@ import MMapper
 // title itself, "Manage Account" vs "Manage Password", is set by the
 // launcher in C++, not here).
 //
-// The whole layout lives inside a ScrollView so that on a small/phone
-// screen -- where QmlDialog may squash this Rectangle below its
-// implicitWidth/implicitHeight -- the content scrolls instead of clipping.
-// The inner Item keeps the original implicit size so nothing about the
-// on-screen layout changes when there's enough room.
+// The fields live inside a ScrollView so that on a small/phone screen --
+// where QmlDialog may squash this Rectangle below its implicitWidth/
+// implicitHeight -- the content scrolls instead of clipping. The OK button
+// is a fixed footer OUTSIDE the ScrollView (anchored to root's bottom,
+// mirroring PreferencesDialog.qml's footerRow), so it never needs scrolling
+// to reach; the ScrollView's bottom anchors to the footer's top so the
+// scrollable content occupies exactly the remaining space. KeyboardInset
+// (see KeyboardInset.qml) lifts the footer above an on-screen keyboard,
+// which also shrinks the ScrollView's viewport by the same amount, keeping
+// the field being edited reachable via scroll.
 Rectangle {
     id: root
     implicitWidth: 380
@@ -34,16 +39,25 @@ Rectangle {
         colorGroup: SystemPalette.Active
     }
 
+    KeyboardInset {
+        id: keyboardInset
+        objectName: "keyboardInset"
+    }
+
     ScrollView {
         id: scrollView
-        anchors.fill: parent
+        anchors.top: parent.top
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.bottom: okButton.top
+        anchors.bottomMargin: 8
         contentWidth: availableWidth
         contentHeight: content.height
 
         Item {
             id: content
             width: scrollView.availableWidth
-            height: root.implicitHeight
+            height: errorLabel.y + errorLabel.height + 8
 
             Label {
                 id: accountLabel
@@ -127,16 +141,17 @@ Rectangle {
                 visible: text.length > 0
                 text: passwordDialogController.errorText
             }
-
-            Button {
-                id: okButton
-                objectName: "okButton"
-                anchors.bottom: parent.bottom
-                anchors.right: parent.right
-                anchors.margins: 8
-                text: qsTr("OK")
-                onClicked: dialog.accept()
-            }
         }
+    }
+
+    Button {
+        id: okButton
+        objectName: "okButton"
+        anchors.bottom: parent.bottom
+        anchors.right: parent.right
+        anchors.margins: 8
+        anchors.bottomMargin: 8 + keyboardInset.inset
+        text: qsTr("OK")
+        onClicked: dialog.accept()
     }
 }

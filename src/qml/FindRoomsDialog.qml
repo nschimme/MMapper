@@ -22,6 +22,15 @@ Rectangle {
         colorGroup: SystemPalette.Active
     }
 
+    // Lifts bottomRow (and, via resultsFrame's anchors.bottom: bottomRow.top,
+    // the results list too) above an on-screen keyboard focusing queryField.
+    // See KeyboardInset.qml; a pure no-op with no input method (desktop,
+    // headless offscreen).
+    KeyboardInset {
+        id: keyboardInset
+        objectName: "keyboardInset"
+    }
+
     // Row indices (into findRoomsModel) currently selected, kept as an
     // object used like a set (row -> true) so toggling is O(1) and QML's
     // property-change binding fires whenever the set is replaced.
@@ -239,6 +248,7 @@ Rectangle {
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.margins: 8
+        anchors.bottomMargin: 8 + keyboardInset.inset
         spacing: 8
 
         Label {

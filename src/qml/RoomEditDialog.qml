@@ -35,6 +35,16 @@ Rectangle {
         colorGroup: SystemPalette.Active
     }
 
+    // Lifts closeButton (and, via errorText/tabContent's anchors.bottom
+    // chain down to closeButton.top, every tab's content too) above an
+    // on-screen keyboard focusing e.g. doorNameField or noteArea. See
+    // KeyboardInset.qml; a pure no-op with no input method (desktop,
+    // headless offscreen).
+    KeyboardInset {
+        id: keyboardInset
+        objectName: "keyboardInset"
+    }
+
     readonly property int noteTabIndex: 2
 
     readonly property var terrainNames: [
@@ -810,6 +820,7 @@ Rectangle {
         anchors.bottom: parent.bottom
         anchors.right: parent.right
         anchors.margins: 8
+        anchors.bottomMargin: 8 + keyboardInset.inset
         text: qsTr("Close")
         enabled: !roomEditController.noteDirty
         onClicked: dialog.accept()

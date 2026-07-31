@@ -1380,6 +1380,88 @@ void TestQml::loadGroupPanel()
     QVERIFY(quick->rootObject() != nullptr);
 }
 
+void TestQml::groupPanelNarrowWidthScrollsHorizontally()
+{
+    // Regression test for the mobile-layout bug where GroupPanel's
+    // fixed-width Name/HP/Mana/Moves/State/Room columns summed to well over
+    // a 360px phone width with nothing to make the overflow reachable (see
+    // scratchpad audit finding "[CRITICAL] GroupPanel's fixed-width row
+    // layout overflows 360px"). GroupPanel.qml now wraps its header+list in
+    // a Flickable (objectName "groupHFlick") whose contentWidth grows past
+    // the panel's own width once the fixed columns no longer fit, making
+    // the Room Name column reachable by swiping instead of clipped past the
+    // right edge.
+    GroupModel model;
+    GroupProxyModel proxy;
+    proxy.setSourceModel(&model);
+    GroupControllerStub controller(nullptr);
+
+    SharedGroupChar character = CGroupChar::alloc();
+    character->setId(GroupId{1});
+    character->setColor(QColor(Qt::black));
+    character->setPosition(CharacterPositionEnum::STANDING);
+    character->setScore(/*hp=*/20,
+                        /*maxhp=*/100,
+                        /*mana=*/0,
+                        /*maxmana=*/0,
+                        /*moves=*/10,
+                        /*maxmoves=*/100);
+    model.insertCharacter(character);
+
+    QmlConfig config;
+
+    QmlDockWidget dock("t", "TestDockGroupNarrow", nullptr);
+    dock.setContextProperty("groupModel", &model);
+    dock.setContextProperty("groupProxyModel", &proxy);
+    dock.setContextProperty("groupController", &controller);
+    dock.setContextProperty("config", &config);
+    dock.setQmlSource(QUrl(u"qrc:/qt/qml/MMapper/GroupPanel.qml"_qs));
+
+    QQuickWidget *const quick = dock.quickWidget();
+    QVERIFY(quick != nullptr);
+
+    while (quick->status() == QQuickWidget::Loading) {
+        QCoreApplication::processEvents();
+    }
+    QCoreApplication::processEvents();
+
+    QCOMPARE(quick->status(), QQuickWidget::Ready);
+    QVERIFY(quick->rootObject() != nullptr);
+
+    QObject *const hFlick = quick->rootObject()->findChild<QObject *>(QStringLiteral("groupHFlick"));
+    QVERIFY(hFlick != nullptr);
+
+    // Phone-width case: the fixed columns (name+state+stats+room-min) sum to
+    // more than 360px, so contentWidth must exceed width -- the overflow is
+    // reachable by horizontal flicking rather than clipped off-screen.
+    dock.resize(360, 240);
+    dock.show();
+    QCoreApplication::processEvents();
+    QCoreApplication::processEvents();
+
+    const qreal narrowWidth = hFlick->property("width").toReal();
+    const qreal narrowContentWidth = hFlick->property("contentWidth").toReal();
+    QVERIFY2(narrowContentWidth > narrowWidth,
+             qPrintable(QStringLiteral("expected contentWidth (%1) > width (%2) at 360px")
+                            .arg(narrowContentWidth)
+                            .arg(narrowWidth)));
+
+    // Desktop-width case: the panel is wide enough that roomW absorbs all
+    // the slack (see GroupPanel.qml's roomW/contentW comments), so there is
+    // nothing to scroll and contentWidth must not exceed width -- the
+    // layout renders exactly as it did before this fix.
+    dock.resize(900, 240);
+    QCoreApplication::processEvents();
+    QCoreApplication::processEvents();
+
+    const qreal wideWidth = hFlick->property("width").toReal();
+    const qreal wideContentWidth = hFlick->property("contentWidth").toReal();
+    QVERIFY2(wideContentWidth <= wideWidth + 1,
+             qPrintable(QStringLiteral("expected contentWidth (%1) <= width (%2) at 900px")
+                            .arg(wideContentWidth)
+                            .arg(wideWidth)));
+}
+
 void TestQml::loadDescriptionPanel()
 {
     MediaLibrary library;

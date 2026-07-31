@@ -33,6 +33,7 @@ private Q_SLOTS:
     void logModelCap();
     void qmlConfigRoundTrip();
     void loadGroupPanel();
+    void groupPanelNarrowWidthScrollsHorizontally();
     void loadDescriptionPanel();
     void descriptionPanelBlurVisible();
     void descriptionAdapterRealResolution();

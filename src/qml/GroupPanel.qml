@@ -23,7 +23,30 @@ PanelFrame {
     readonly property real stateW: 90
     readonly property real rowH: Theme.rowHeight
     readonly property int statsVisibleCount: groupModel.anyMana ? 3 : 2
-    readonly property real roomW: Math.max(40, width - nameW - stateW - statW * statsVisibleCount)
+    // 120px keeps the Room Name column wide enough to show a handful of
+    // characters (this is the single most useful field for "who's where");
+    // below that it stops shrinking and the row simply becomes wider than
+    // the viewport instead of collapsing to an unreadable sliver. On a wide
+    // (desktop) panel this still behaves exactly like before: the Math.max
+    // is never hit, roomW absorbs all the slack, and contentW below equals
+    // hFlick's own width.
+    //
+    // Uses hFlick.width (the actual viewport the columns render into, i.e.
+    // PanelFrame's contentItem width) rather than root.width, since
+    // PanelFrame subtracts its own 4px anchors.margins on every side
+    // (PanelFrame.qml) -- using root.width here would overstate the
+    // available room by 8px and make contentW spuriously exceed hFlick's
+    // width even when the panel is otherwise wide enough to fit everything.
+    readonly property real roomW: Math.max(120, hFlick.width - nameW - stateW - statW * statsVisibleCount)
+
+    // Total width of one row (header or data). On desktop-width panels this
+    // equals hFlick.width (roomW absorbed the slack above), so hFlick's
+    // contentWidth below equals its own width and nothing scrolls -- pixel
+    // identical to the previous fixed-Row layout. On a narrow (phone-width)
+    // panel roomW floors out at 120 and contentW exceeds hFlick.width,
+    // which is exactly what makes the overflow reachable via hFlick instead
+    // of clipped/cut off past the right edge.
+    readonly property real contentW: nameW + stateW + statW * statsVisibleCount + roomW
 
     // Mirrors GroupWidget::sizeHint() (groupwidget.cpp): header height plus
     // one data row, width the sum of the (minimum) column widths, so the
@@ -157,161 +180,182 @@ PanelFrame {
         }
     }
 
-    Column {
-        id: layout
+    // Wraps the header + list so the fixed-width columns become
+    // horizontally swipeable instead of clipped/overflowing off the right
+    // edge when the panel is narrower than contentW (e.g. the compact
+    // mobile drawer). Mirrors RoomPanel's existing degrade-to-scroll
+    // pattern (there via TableView's built-in horizontal ScrollBar; here via
+    // an explicit Flickable since this panel's body is a ListView, not a
+    // TableView). At desktop widths contentWidth == width, so hFlick has
+    // nothing to scroll and the layout renders identically to before this
+    // fix.
+    Flickable {
+        id: hFlick
+        objectName: "groupHFlick"
         anchors.fill: parent
-        spacing: 0
+        contentWidth: Math.max(width, root.contentW)
+        contentHeight: height
+        flickableDirection: Flickable.HorizontalFlick
+        clip: true
+        ScrollBar.horizontal: ScrollBar {}
 
-        PanelHeaderRow {
-            id: headerRow
-            width: parent.width
-            columns: root.headerColumns
-        }
+        Column {
+            id: layout
+            width: hFlick.contentWidth
+            height: hFlick.height
+            spacing: 0
 
-        ListView {
-            id: listView
-            width: parent.width
-            height: Math.max(0, parent.height - headerRow.height)
-            clip: true
-            model: groupProxyModel
+            PanelHeaderRow {
+                id: headerRow
+                width: parent.width
+                columns: root.headerColumns
+            }
 
-            ScrollBar.vertical: ScrollBar {}
+            ListView {
+                id: listView
+                width: parent.width
+                height: Math.max(0, parent.height - headerRow.height)
+                clip: true
+                model: groupProxyModel
 
-            delegate: Rectangle {
-                id: delegateRoot
-                width: ListView.view.width
-                height: rowH
-                color: model.charColor
+                ScrollBar.vertical: ScrollBar {}
 
-                // Row index (in groupProxyModel) this delegate currently
-                // represents; read by DropArea.onDropped below to figure out
-                // which two rows to swap via groupController.moveCharacter().
-                property int dragIndex: index
+                delegate: Rectangle {
+                    id: delegateRoot
+                    width: ListView.view.width
+                    height: rowH
+                    color: model.charColor
 
-                // Captured here (rather than read as `model.stateTip` inside
-                // the state-icon Repeater below) because a Repeater delegate
-                // has its own `model` context (the stateIcons array item),
-                // which would shadow this row's `model.stateTip`.
-                property string rowStateTip: model.stateTip ? model.stateTip : ""
+                    // Row index (in groupProxyModel) this delegate currently
+                    // represents; read by DropArea.onDropped below to figure out
+                    // which two rows to swap via groupController.moveCharacter().
+                    property int dragIndex: index
 
-                Row {
-                    anchors.fill: parent
+                    // Captured here (rather than read as `model.stateTip` inside
+                    // the state-icon Repeater below) because a Repeater delegate
+                    // has its own `model` context (the stateIcons array item),
+                    // which would shadow this row's `model.stateTip`.
+                    property string rowStateTip: model.stateTip ? model.stateTip : ""
 
-                    Text {
-                        width: nameW
-                        height: rowH
-                        leftPadding: 4
-                        verticalAlignment: Text.AlignVCenter
-                        elide: Text.ElideRight
-                        text: model.name
-                        color: model.textColor
-                    }
-                    StatBar {
-                        width: statW
-                        height: rowH
-                        ratio: model.hpRatio
-                        label: model.hpText
-                        low: model.hpLow
-                        fillColor: model.hpLow ? "#FF5555" : "#50FA7B"
-                        toolTip: model.hpTip ? model.hpTip : ""
-                    }
-                    Item {
-                        width: statW
-                        height: rowH
-                        visible: groupModel.anyMana
-
-                        StatBar {
-                            anchors.fill: parent
-                            visible: !model.manaHidden
-                            ratio: model.manaRatio
-                            label: model.manaText
-                            fillColor: "#8BE9FD"
-                            toolTip: model.manaTip ? model.manaTip : ""
-                        }
-                        Text {
-                            anchors.centerIn: parent
-                            visible: model.manaHidden
-                            text: "--"
-                            color: root.panelPalette.text
-                        }
-                    }
-                    StatBar {
-                        width: statW
-                        height: rowH
-                        ratio: model.movesRatio
-                        label: model.movesText
-                        low: model.movesLow
-                        fillColor: "#FFB86C"
-                        toolTip: model.movesTip ? model.movesTip : ""
-                    }
                     Row {
-                        width: stateW
-                        height: rowH
+                        anchors.fill: parent
 
-                        Repeater {
-                            model: model.stateIcons
+                        Text {
+                            width: nameW
+                            height: rowH
+                            leftPadding: 4
+                            verticalAlignment: Text.AlignVCenter
+                            elide: Text.ElideRight
+                            text: model.name
+                            color: model.textColor
+                        }
+                        StatBar {
+                            width: statW
+                            height: rowH
+                            ratio: model.hpRatio
+                            label: model.hpText
+                            low: model.hpLow
+                            fillColor: model.hpLow ? "#FF5555" : "#50FA7B"
+                            toolTip: model.hpTip ? model.hpTip : ""
+                        }
+                        Item {
+                            width: statW
+                            height: rowH
+                            visible: groupModel.anyMana
 
-                            Image {
-                                id: stateIcon
-                                source: modelData
-                                width: 18
-                                height: 18
-                                fillMode: Image.PreserveAspectFit
-
-                                HoverHandler {
-                                    id: stateIconHover
-                                }
-                                ToolTip.text: delegateRoot.rowStateTip
-                                ToolTip.visible: stateIcon.ToolTip.text.length > 0 && stateIconHover.hovered
+                            StatBar {
+                                anchors.fill: parent
+                                visible: !model.manaHidden
+                                ratio: model.manaRatio
+                                label: model.manaText
+                                fillColor: "#8BE9FD"
+                                toolTip: model.manaTip ? model.manaTip : ""
+                            }
+                            Text {
+                                anchors.centerIn: parent
+                                visible: model.manaHidden
+                                text: "--"
+                                color: root.panelPalette.text
                             }
                         }
-                    }
-                    Text {
-                        id: roomNameText
-                        width: Math.max(0, delegateRoot.width - nameW - statW * root.statsVisibleCount - stateW)
-                        height: rowH
-                        leftPadding: 4
-                        verticalAlignment: Text.AlignVCenter
-                        elide: Text.ElideRight
-                        text: model.roomName
-                        color: model.textColor
-
-                        HoverHandler {
-                            id: roomNameHover
+                        StatBar {
+                            width: statW
+                            height: rowH
+                            ratio: model.movesRatio
+                            label: model.movesText
+                            low: model.movesLow
+                            fillColor: "#FFB86C"
+                            toolTip: model.movesTip ? model.movesTip : ""
                         }
-                        // Mirrors the widget's STATE-column tooltip (same
-                        // Qt::ToolTipRole source) shown here on the room-name
-                        // cell as well since GroupWidget's QTableView applies
-                        // the row's tooltip role across the whole row.
-                        ToolTip.text: model.stateTip ? model.stateTip : ""
-                        ToolTip.visible: roomNameText.ToolTip.text.length > 0 && roomNameHover.hovered
+                        Row {
+                            width: stateW
+                            height: rowH
+
+                            Repeater {
+                                model: model.stateIcons
+
+                                Image {
+                                    id: stateIcon
+                                    source: modelData
+                                    width: 18
+                                    height: 18
+                                    fillMode: Image.PreserveAspectFit
+
+                                    HoverHandler {
+                                        id: stateIconHover
+                                    }
+                                    ToolTip.text: delegateRoot.rowStateTip
+                                    ToolTip.visible: stateIcon.ToolTip.text.length > 0 && stateIconHover.hovered
+                                }
+                            }
+                        }
+                        Text {
+                            id: roomNameText
+                            width: Math.max(0, delegateRoot.width - nameW - statW * root.statsVisibleCount - stateW)
+                            height: rowH
+                            leftPadding: 4
+                            verticalAlignment: Text.AlignVCenter
+                            elide: Text.ElideRight
+                            text: model.roomName
+                            color: model.textColor
+
+                            HoverHandler {
+                                id: roomNameHover
+                            }
+                            // Mirrors the widget's STATE-column tooltip (same
+                            // Qt::ToolTipRole source) shown here on the room-name
+                            // cell as well since GroupWidget's QTableView applies
+                            // the row's tooltip role across the whole row.
+                            ToolTip.text: model.stateTip ? model.stateTip : ""
+                            ToolTip.visible: roomNameText.ToolTip.text.length > 0 && roomNameHover.hovered
+                        }
                     }
-                }
 
-                TapHandler {
-                    acceptedButtons: Qt.RightButton
-                    onTapped: root.openMenuFor(index)
-                    onLongPressed: root.openMenuFor(index)
-                }
+                    TapHandler {
+                        acceptedButtons: Qt.RightButton
+                        onTapped: root.openMenuFor(index)
+                        onLongPressed: root.openMenuFor(index)
+                    }
 
-                // Drag-to-reorder. Deliberately restricted to the left mouse
-                // button (DragHandler's default) so it does not compete with
-                // the right-click/long-press context menu above.
-                DragHandler {
-                    id: dragHandler
-                    target: null
-                    onActiveChanged: delegateRoot.z = active ? 10 : 0
-                }
-                Drag.active: dragHandler.active
-                Drag.source: delegateRoot
-                Drag.hotSpot.x: width / 2
-                Drag.hotSpot.y: height / 2
+                    // Drag-to-reorder. Deliberately restricted to the left mouse
+                    // button (DragHandler's default) so it does not compete with
+                    // the right-click/long-press context menu above.
+                    DragHandler {
+                        id: dragHandler
+                        target: null
+                        onActiveChanged: delegateRoot.z = active ? 10 : 0
+                    }
+                    Drag.active: dragHandler.active
+                    Drag.source: delegateRoot
+                    Drag.hotSpot.x: width / 2
+                    Drag.hotSpot.y: height / 2
 
-                DropArea {
-                    anchors.fill: parent
-                    onDropped: function (drop) {
-                        if (drop.source && drop.source.dragIndex !== undefined) {
-                            groupController.moveCharacter(drop.source.dragIndex, index);
+                    DropArea {
+                        anchors.fill: parent
+                        onDropped: function (drop) {
+                            if (drop.source && drop.source.dragIndex !== undefined) {
+                                groupController.moveCharacter(drop.source.dragIndex, index);
+                            }
                         }
                     }
                 }

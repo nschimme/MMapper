@@ -141,10 +141,42 @@ QQC2.ApplicationWindow {
     // is mostly visible while still leaving the command line reachable.
     property bool clientCollapsed: false
 
+    // "Map pass-through" mode for the compact client overlay (below): true
+    // makes the loaded ClientPanel/ClientDisplay non-interactive (Loader
+    // disabled) so drags/long-presses/pinches that land within the
+    // overlay's rect fall through to MapView underneath instead of always
+    // being captured by the client -- see the CRITICAL finding in the
+    // mobile input audit this fixes: the translucent overlay unconditionally
+    // won every touch over its rect even though the map was visibly showing
+    // through it. The overlay Item itself, and its collapse/pass-through
+    // controls, stay enabled the whole time so the user can always toggle
+    // back; only the client's own content stops accepting input.
+    property bool clientPassThrough: false
+
     // Tunable translucency for the compact client overlay's terminal
     // surface -- low enough that the map underlay reads through, high
     // enough that scrollback text stays legible.
     readonly property real clientOverlayOpacity: 0.82
+
+    // Extra multiplier applied on top of clientOverlayOpacity while
+    // clientPassThrough is active, so the client visibly "ghosts" out (on
+    // top of QQC2's own disabled-state dimming from the Loader's `enabled:
+    // false`) as a clear signal that taps now go to the map, not the
+    // terminal.
+    readonly property real clientPassThroughOpacity: 0.5
+
+    // Space to reserve above the on-screen keyboard for the expanded
+    // compact client overlay so its top edge never goes negative (see Task
+    // B in the mobile input audit: the old height*0.55 term was only ever
+    // *shifted* by keyboardInset via anchors.bottomMargin, never shrunk, so
+    // a keyboard tall enough could push the overlay's top above y=0 and
+    // clip 10-25% of the scrollback off the top of the screen). 48px is a
+    // small fixed strip left visible above the overlay (map/chrome peek),
+    // deliberately NOT auto-collapsing the overlay -- while typing, seeing
+    // recent game OUTPUT matters more than seeing the map, same as any chat
+    // app's input area shrinking the message list rather than hiding it.
+    readonly property real clientMaxHeight:
+        Math.max(Theme.controlHeight + 16, window.height - window.keyboardInset - 48)
 
     // Per-dock title/source, keyed by the same 8 ids DockLayoutController
     // (../DockLayoutController.h) uses for its xVisible/xFloating
@@ -1896,6 +1928,23 @@ QQC2.ApplicationWindow {
     // inside outerSplit), so it slides in over the full-screen map rather
     // than fighting it for SplitView space. compactDockButton below is its
     // only opener; it never auto-opens.
+    //
+    // MODALITY (deliberate, documented here because it's easy to miss): this
+    // Drawer has no explicit `parent:`, so QQC2.Drawer reparents itself into
+    // the ApplicationWindow's Overlay.overlay layer -- a stacking context
+    // that paints above the ENTIRE window content, including
+    // compactClientOverlay (below, z: 8500). That z value is irrelevant here:
+    // Overlay.overlay isn't part of the same item tree the z-ordering
+    // competes within, so nothing short of also being reparented into
+    // Overlay.overlay could let the client show through. Combined with the
+    // default `modal: true` (not overridden), the client overlay is both
+    // visually hidden AND its input blocked for as long as this Drawer is
+    // open -- a player cannot see or type into the MUD client while browsing
+    // panels here. This is intended sheet-style behavior (a focused,
+    // full-attention panel view), not a bug: closing the drawer (swipe,
+    // scrim tap, or the compact-exit Connections below) immediately returns
+    // the client overlay to full visibility and interactivity, since neither
+    // side's state is touched by the other opening/closing.
     QQC2.Drawer {
         id: compactDockDrawer
         objectName: "compactDockDrawer"
@@ -2045,10 +2094,19 @@ QQC2.ApplicationWindow {
         // Keep the overlay (and its input line) above an on-screen keyboard,
         // same rationale as compactDockDrawer's content Rectangle above.
         anchors.bottomMargin: window.keyboardInset
+        // Expanded height is clamped to window.clientMaxHeight so the
+        // overlay's top never goes negative once the keyboard inset is
+        // subtracted (Task B in the mobile input audit). The collapsed
+        // strip is unaffected by the keyboard -- it's already tiny and
+        // anchored above it via anchors.bottomMargin.
         height: window.clientCollapsed
                 ? Theme.controlHeight + 16
-                : Math.round(window.height * 0.55)
+                : Math.min(Math.round(window.height * 0.55), window.clientMaxHeight)
         clip: true
+        // Ghost the whole overlay a bit further while pass-through is
+        // active, on top of the loader's own dimming below, so the change
+        // reads at a glance even before a finger lands on it.
+        opacity: window.clientPassThrough ? 0.9 : 1.0
 
         // The client surface. clip: true on this Item and bottom-anchoring
         // the Loader taller than the collapsed viewport means only its
@@ -2057,10 +2115,24 @@ QQC2.ApplicationWindow {
         // ClientPanel to find its input area's geometry. active: is gated
         // on window.compact so the client is never instantiated twice
         // (desktop keeps its own docked/floating ClientPanel instance).
+        //
+        // enabled: false while clientPassThrough is on makes this Loader
+        // (and everything it loads) stop accepting pointer input; Qt Quick
+        // does not hit-test disabled items, so drags/long-presses/pinches
+        // that land in the overlay's rect fall through to whatever is
+        // beneath in the window's normal item stack -- i.e. MapView, the
+        // overlay's z-8500 sibling (verified structurally: an Item with
+        // enabled:false is skipped during pointer delivery per Qt Quick's
+        // own item-enabled check, the same mechanism disabled buttons rely
+        // on to become click-through visually AND functionally). The
+        // collapse chevron and the pass-through toggle below live outside
+        // this Loader, so they -- and only they -- stay reachable while
+        // pass-through is on, letting the user always toggle back.
         Loader {
             id: compactClientLoader
             objectName: "compactClientLoader"
             active: window.compact
+            enabled: !window.clientPassThrough
             anchors.left: parent.left
             anchors.right: parent.right
             anchors.bottom: parent.bottom
@@ -2070,25 +2142,73 @@ QQC2.ApplicationWindow {
             // Theme.controlHeight + 16 px of it is visible through the
             // overlay's own clip -- which is exactly the input strip,
             // since ClientPanel's SplitView stacks display-then-input.
+            // Uses the same clamped height as the overlay itself when
+            // collapsed so the visible input strip matches exactly what
+            // Task B clamps the container to.
             height: window.clientCollapsed
-                    ? Math.round(window.height * 0.55)
+                    ? Math.min(Math.round(window.height * 0.55), window.clientMaxHeight)
                     : compactClientOverlay.height
             source: "qrc:/qt/qml/MMapper/ClientPanel.qml"
-            onLoaded: item.backgroundOpacity = window.clientOverlayOpacity
+            // Live binding (via Qt.binding, since this only runs once on
+            // load) so the extra ghosting while clientPassThrough is
+            // active tracks the property afterwards, not just at load time.
+            onLoaded: item.backgroundOpacity = Qt.binding(function () {
+                return window.clientOverlayOpacity
+                       * (window.clientPassThrough ? window.clientPassThroughOpacity : 1.0);
+            })
         }
 
-        // Collapse/expand handle, pinned to the overlay's top edge so it's
-        // reachable in both states (collapsed shrinks the overlay upward
-        // toward this handle, never past it).
-        QQC2.ToolButton {
-            id: compactClientCollapse
-            objectName: "compactClientCollapse"
+        // Collapse/expand handle and the pass-through toggle, pinned to the
+        // overlay's top edge so both stay reachable in every state
+        // (collapsed shrinks the overlay upward toward this handle, never
+        // past it; pass-through disables only compactClientLoader above,
+        // never this Row).
+        Row {
             anchors.top: parent.top
             anchors.horizontalCenter: parent.horizontalCenter
-            text: window.clientCollapsed ? "▴" : "▾"
-            QQC2.ToolTip.text: window.clientCollapsed ? qsTr("Expand client") : qsTr("Collapse client")
-            QQC2.ToolTip.visible: hovered
-            onClicked: window.clientCollapsed = !window.clientCollapsed
+            spacing: 4
+
+            QQC2.ToolButton {
+                id: compactClientPassThrough
+                objectName: "compactClientPassThrough"
+                checkable: true
+                checked: window.clientPassThrough
+                text: qsTr("Map")
+                implicitHeight: Theme.controlHeight
+                QQC2.ToolTip.text: window.clientPassThrough
+                                    ? qsTr("Return to the client")
+                                    : qsTr("Tap the map through the client")
+                QQC2.ToolTip.visible: hovered
+                // Write the just-toggled `checked` forward to the window
+                // property (matching the checkable-MenuItem pattern used
+                // elsewhere in this file, e.g. the dock-visibility menu
+                // items above) rather than negating window.clientPassThrough
+                // directly -- toggling a checkable button already flips its
+                // own `checked` locally, so re-deriving from that avoids a
+                // double-toggle. The Connections below resyncs `checked` if
+                // clientPassThrough is ever changed from elsewhere.
+                onToggled: window.clientPassThrough = checked
+                Connections {
+                    target: window
+                    function onClientPassThroughChanged() {
+                        compactClientPassThrough.checked = window.clientPassThrough;
+                    }
+                }
+            }
+
+            QQC2.ToolButton {
+                id: compactClientCollapse
+                objectName: "compactClientCollapse"
+                text: window.clientCollapsed ? "▴" : "▾"
+                // Same touch-target floor as its neighbour and the corner
+                // RoundButtons; a bare glyph ToolButton is ~24-32px in
+                // Fusion, under the ~44px guideline.
+                implicitWidth: Theme.controlHeight
+                implicitHeight: Theme.controlHeight
+                QQC2.ToolTip.text: window.clientCollapsed ? qsTr("Expand client") : qsTr("Collapse client")
+                QQC2.ToolTip.visible: hovered
+                onClicked: window.clientCollapsed = !window.clientCollapsed
+            }
         }
     }
 
@@ -2201,6 +2321,9 @@ QQC2.ApplicationWindow {
                 objectName: "keyboardTipDismiss"
                 anchors.verticalCenter: parent.verticalCenter
                 text: "✕"
+                // Touch-target floor, as on the overlay's handle buttons.
+                implicitWidth: Theme.controlHeight
+                implicitHeight: Theme.controlHeight
                 QQC2.ToolTip.text: qsTr("Dismiss")
                 QQC2.ToolTip.visible: hovered
                 onClicked: window.keyboardTipDismissed = true

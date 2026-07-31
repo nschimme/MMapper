@@ -217,6 +217,13 @@ PanelFrame {
                 height: Math.max(0, parent.height - headerRow.height)
                 clip: true
                 model: groupProxyModel
+                // Only claim VERTICAL drags. A ListView defaults to
+                // AutoFlickDirection and, sitting inside hFlick, would grab
+                // horizontal drags too (consuming them without moving, since
+                // its own contentWidth equals its width), so the horizontal
+                // Flickable wrapping it never saw them and the overflowing
+                // columns could not be scrolled to by touch.
+                flickableDirection: Flickable.VerticalFlick
 
                 ScrollBar.vertical: ScrollBar {}
 
@@ -236,6 +243,16 @@ PanelFrame {
                     // has its own `model` context (the stateIcons array item),
                     // which would shadow this row's `model.stateTip`.
                     property string rowStateTip: model.stateTip ? model.stateTip : ""
+
+                    // Same hazard, one step earlier: `Repeater { model:
+                    // model.stateIcons }` is self-referential, because a
+                    // Repeater's OWN `model` property shadows the delegate's
+                    // model context in that binding's scope -- so it read
+                    // .stateIcons off the Repeater's (still undefined) model
+                    // and threw "Cannot read property 'stateIcons' of
+                    // undefined", leaving the state column empty. Capture the
+                    // list here and reference it qualified below.
+                    property var rowStateIcons: model.stateIcons
 
                     Row {
                         anchors.fill: parent
@@ -292,7 +309,7 @@ PanelFrame {
                             height: rowH
 
                             Repeater {
-                                model: model.stateIcons
+                                model: delegateRoot.rowStateIcons
 
                                 Image {
                                     id: stateIcon

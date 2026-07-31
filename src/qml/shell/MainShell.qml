@@ -144,7 +144,7 @@ QQC2.ApplicationWindow {
     // redundant " Panel" suffix ("Group Panel" -> "Group") keeps each combo
     // entry short enough to read at a glance in a narrow phone-width
     // ComboBox popup.
-    readonly property var compactDockLabels: window.compactDockIds.map(id => {
+    readonly property var compactDockLabels: (window.compactDockIds || []).map(id => {
         const meta = window.dockMeta[id];
         const title = meta ? meta.title : id;
         return title.replace(/ Panel$/, "");
@@ -2009,7 +2009,7 @@ QQC2.ApplicationWindow {
         // other panels are one tab away. Jumps only on open, so a user who
         // tabs to another panel while the drawer is up isn't yanked back.
         onOpened: {
-            const ci = window.compactDockIds.indexOf("client");
+            const ci = (window.compactDockIds || []).indexOf("client");
             if (ci >= 0)
                 compactDockDrawer.selectedIndex = ci;
         }
@@ -2033,7 +2033,7 @@ QQC2.ApplicationWindow {
         // end -- and never goes negative when the list becomes empty.
         property int selectedIndex: 0
         function clampSelectedIndex() {
-            const n = window.compactDockIds.length;
+            const n = (window.compactDockIds || []).length;
             if (n === 0) {
                 compactDockDrawer.selectedIndex = 0;
             } else if (compactDockDrawer.selectedIndex >= n) {
@@ -2096,7 +2096,7 @@ QQC2.ApplicationWindow {
                     id: compactDockTabBar
                     objectName: "compactDockTabBar"
                     width: parent.width
-                    visible: window.compactDockIds.length > 0
+                    visible: (window.compactDockIds || []).length > 0
                     model: window.compactDockLabels
                     currentIndex: compactDockDrawer.selectedIndex
                     onActivated: {
@@ -2110,8 +2110,8 @@ QQC2.ApplicationWindow {
                 QQC2.Label {
                     objectName: "compactDockEmptyLabel"
                     width: parent.width
-                    height: window.compactDockIds.length === 0 ? parent.height : 0
-                    visible: window.compactDockIds.length === 0
+                    height: (window.compactDockIds || []).length === 0 ? parent.height : 0
+                    visible: (window.compactDockIds || []).length === 0
                     horizontalAlignment: Text.AlignHCenter
                     verticalAlignment: Text.AlignVCenter
                     text: qsTr("No panels open")
@@ -2121,14 +2121,14 @@ QQC2.ApplicationWindow {
                     id: compactDockFrame
                     width: parent.width
                     height: parent.height - compactDockTabBar.height
-                    visible: window.compactDockIds.length > 0
+                    visible: (window.compactDockIds || []).length > 0
 
                     Loader {
                         id: compactDockLoader
                         objectName: "compactDockLoader"
                         anchors.fill: parent
                         source: {
-                            const ids = window.compactDockIds;
+                            const ids = window.compactDockIds || [];
                             const idx = compactDockDrawer.selectedIndex;
                             if (idx < 0 || idx >= ids.length)
                                 return "";

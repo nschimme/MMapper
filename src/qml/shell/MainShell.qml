@@ -83,13 +83,20 @@ QQC2.ApplicationWindow {
     property bool statusBarPeek: false
 
     // Scope 13a: reactive compact/mobile breakpoint. This is a plain live
-    // binding on `width`, so a window resize or a phone/tablet rotation
-    // re-evaluates it (and everything bound to it below) instantly -- no
-    // reload, no explicit orientation handling needed. Desktop behavior is
-    // exactly `compact === false`; every compact-only bit of markup below is
-    // additive and gated on this flag, so the desktop code path is
-    // unchanged when it's false.
-    readonly property bool compact: width < 720
+    // binding on `width`/`height`, so a window resize or a phone/tablet
+    // rotation re-evaluates it (and everything bound to it below) instantly
+    // -- no reload, no explicit orientation handling needed. Desktop
+    // behavior is exactly `compact === false`; every compact-only bit of
+    // markup below is additive and gated on this flag, so the desktop code
+    // path is unchanged when it's false.
+    //
+    // The height term matters as much as the width one: a phone in LANDSCAPE
+    // is ~844x390, which clears the 720px width test, so a width-only rule
+    // handed it the full desktop chrome -- the default docks (Group top 220,
+    // Description right 320, Client left 320) plus the menu bar and footer
+    // left the map about 204x113px, under 8% of the screen. 480 is below any
+    // plausible desktop window height but above a landscape phone's ~390.
+    readonly property bool compact: width < 720 || height < 480
 
     // Scope 16: on-screen-keyboard occlusion inset. When a soft keyboard is
     // shown (phone/tablet/wasm), the platform reports its rectangle via

@@ -3866,7 +3866,10 @@ void TestQml::mainShellCompactBreakpoint()
 
     // Wide: desktop path, compact == false, the drawer's opener is hidden,
     // the hamburger is hidden, and the real MenuBar and toolbar header show.
+    // Height is set explicitly (not left at the QML default) because compact
+    // now tests height as well as width -- see the landscape case below.
     object->setProperty("width", 1280);
+    object->setProperty("height", 800);
     QCoreApplication::processEvents();
     QCOMPARE(object->property("compact").toBool(), false);
     QVERIFY(outerSplit->isVisible());
@@ -3897,6 +3900,27 @@ void TestQml::mainShellCompactBreakpoint()
     // This just proves the Qt.inputMethod binding compiles and defaults safe;
     // the actual lift is verified on a real touch device.
     QCOMPARE(object->property("keyboardInset").toReal(), 0.0);
+
+    // LANDSCAPE PHONE (~844x390): wide enough to clear the 720px width test,
+    // so a width-only breakpoint handed this the full desktop chrome and left
+    // the map ~204x113px. The height term must catch it.
+    object->setProperty("width", 844);
+    object->setProperty("height", 390);
+    QCoreApplication::processEvents();
+    QCOMPARE(object->property("compact").toBool(), true);
+    QCOMPARE(menuBar->property("visible").toBool(), false);
+    QCOMPARE(toolBarHeader->property("visible").toBool(), false);
+    QCOMPARE(compactClientOverlay->property("visible").toBool(), true);
+
+    // A short-but-wide DESKTOP window (e.g. a tiled half-screen) is the same
+    // shape as a landscape phone, so it deliberately gets the compact layout
+    // too -- the desktop chrome genuinely does not fit in 390px of height.
+    // Restoring a normal desktop height returns the full layout.
+    object->setProperty("height", 800);
+    QCoreApplication::processEvents();
+    QCOMPARE(object->property("compact").toBool(), false);
+    QCOMPARE(menuBar->property("visible").toBool(), true);
+    QCOMPARE(toolBarHeader->property("visible").toBool(), true);
 }
 
 void TestQml::pathMachineStatusFunnel()

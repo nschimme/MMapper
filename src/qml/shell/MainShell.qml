@@ -136,6 +136,20 @@ QQC2.ApplicationWindow {
               .filter(id => id !== "client")
         : []
 
+    // Mobile audit item 22a: shortened panel-selector labels for
+    // compactDockTabBar below, derived locally rather than editing dockMeta
+    // itself (dockMeta's full "X Panel" titles are also used verbatim as
+    // FloatingDock/DockPanel window titles elsewhere, so shortening them
+    // there would be a visible regression on desktop). Dropping the
+    // redundant " Panel" suffix ("Group Panel" -> "Group") keeps each combo
+    // entry short enough to read at a glance in a narrow phone-width
+    // ComboBox popup.
+    readonly property var compactDockLabels: window.compactDockIds.map(id => {
+        const meta = window.dockMeta[id];
+        const title = meta ? meta.title : id;
+        return title.replace(/ Panel$/, "");
+    })
+
     // Collapsed state of the compact-mode client overlay (below): true hides
     // the scrollback and shows only the input strip, so the map underneath
     // is mostly visible while still leaving the command line reachable.
@@ -1670,9 +1684,29 @@ QQC2.ApplicationWindow {
             Window {
                 id: floatWindow
                 flags: Qt.Tool
+
+                // Mobile audit item 22c: a dock floated on a desktop session
+                // persists xFloatGeometry (below) across sessions/platforms,
+                // so re-opening the same profile on a phone must not spawn a
+                // top-level Window sized for a desktop screen -- on a
+                // 360px-wide phone a fixed 360x480 Window would consume the
+                // entire viewport with no way to see the map or client
+                // behind it. Clamp against the main ApplicationWindow's own
+                // width/height (a live binding, so it re-evaluates on
+                // rotation/resize exactly like `compact` above) rather than
+                // Screen.width/height: the latter reports the physical
+                // display, not the app's actual available viewport (letterboxed
+                // browser canvas on wasm, a resized-but-not-maximized desktop
+                // window, ...), and window.width/height is already the
+                // source of truth `compact` itself uses. The 240px floor
+                // keeps the window usable rather than degenerating toward
+                // zero on a pathologically small viewport.
+                readonly property real maxFloatWidth: Math.max(240, window.width - 32)
+                readonly property real maxFloatHeight: Math.max(240, window.height - 32)
+
                 title: floatLoader.dockTitle
-                width: 360
-                height: 480
+                width: Math.min(360, maxFloatWidth)
+                height: Math.min(480, maxFloatHeight)
                 x: 100
                 y: 100
                 visible: true
@@ -1695,8 +1729,12 @@ QQC2.ApplicationWindow {
                     if (g && g.width > 0 && g.height > 0) {
                         x = g.x;
                         y = g.y;
-                        width = g.width;
-                        height = g.height;
+                        // Same viewport clamp as the initial width/height
+                        // above -- a geometry saved on a wide desktop window
+                        // must not reopen wider/taller than the current
+                        // (possibly much smaller) viewport.
+                        width = Math.min(g.width, maxFloatWidth);
+                        height = Math.min(g.height, maxFloatHeight);
                     }
                 }
 
@@ -1888,11 +1926,21 @@ QQC2.ApplicationWindow {
         // (when cancelable) the Cancel button below.
         closePolicy: QQC2.Popup.NoAutoClose
         visible: typeof ioTask !== "undefined" && ioTask ? ioTask.active : false
-        width: 360
+        // Mobile audit item 22c: at exactly 360px this used to fill a
+        // 360px-wide viewport edge-to-edge with zero margin, and overflow
+        // both edges on anything narrower (e.g. 320px Android-Go-class
+        // phones, still shipped). Clamp to the window width minus a small
+        // margin so there's always breathing room either side, same pattern
+        // as the FloatingDock clamp above.
+        width: Math.min(360, window.width - 32)
 
         contentItem: Column {
             spacing: 8
-            width: 340
+            // Follows the popup's own clamped width (availableWidth already
+            // subtracts the Popup's left/right padding) instead of a
+            // hard-coded 340, so the content never overflows the popup's
+            // own (now possibly narrower) rect.
+            width: ioProgressPopup.availableWidth
 
             QQC2.Label {
                 id: ioProgressLabel
@@ -2021,21 +2069,41 @@ QQC2.ApplicationWindow {
             Column {
                 anchors.fill: parent
 
-                QQC2.TabBar {
+                // Mobile audit item 22a: a QQC2.TabBar here used to carry the
+                // 7 non-client panels as TabButtons, but their full "X
+                // Panel" titles sum to ~900-1000px of tab content at a
+                // 360px drawer width -- Qt Quick Controls' TabBar is
+                // internally a flickable ListView, so nothing visually
+                // broke, but there was no arrows/fade/peek cue that more
+                // tabs existed off-screen, so most players would never
+                // discover Timers/Tasks/etc. by swiping a tab strip that
+                // looks fully populated with ~2.5 visible tabs. A ComboBox
+                // is the audit's recommended fix: one always-visible
+                // control that lists every panel with no swipe-to-discover
+                // step, at the cost of an extra tap to open the popup
+                // (an acceptable trade given the discoverability problem
+                // it solves). Bound the same way PreferencesDialog.qml's
+                // preferencesSectionCombo binds to navList.currentIndex:
+                // currentIndex normally mirrors compactDockDrawer's own
+                // selectedIndex (kept in sync elsewhere, e.g. onOpened's
+                // jump-to-client and clampSelectedIndex()), and onActivated
+                // writes the user's pick back to selectedIndex then
+                // re-establishes the live binding -- ComboBox breaks
+                // currentIndex's binding on interactive selection, so it
+                // has to be redone after every pick or the combo would
+                // freeze on whatever the user last chose.
+                QQC2.ComboBox {
                     id: compactDockTabBar
                     objectName: "compactDockTabBar"
                     width: parent.width
                     visible: window.compactDockIds.length > 0
+                    model: window.compactDockLabels
                     currentIndex: compactDockDrawer.selectedIndex
-                    onCurrentIndexChanged: compactDockDrawer.selectedIndex = currentIndex
-
-                    Repeater {
-                        model: window.compactDockIds
-                        delegate: QQC2.TabButton {
-                            required property string modelData
-                            text: window.dockMeta[modelData]
-                                  ? window.dockMeta[modelData].title : modelData
-                        }
+                    onActivated: {
+                        compactDockDrawer.selectedIndex = currentIndex;
+                        currentIndex = Qt.binding(function () {
+                            return compactDockDrawer.selectedIndex;
+                        });
                     }
                 }
 
@@ -2152,10 +2220,37 @@ QQC2.ApplicationWindow {
             // Live binding (via Qt.binding, since this only runs once on
             // load) so the extra ghosting while clientPassThrough is
             // active tracks the property afterwards, not just at load time.
-            onLoaded: item.backgroundOpacity = Qt.binding(function () {
-                return window.clientOverlayOpacity
-                       * (window.clientPassThrough ? window.clientPassThroughOpacity : 1.0);
-            })
+            onLoaded: {
+                item.backgroundOpacity = Qt.binding(function () {
+                    return window.clientOverlayOpacity
+                           * (window.clientPassThrough ? window.clientPassThroughOpacity : 1.0);
+                });
+                // Mobile audit item 22b: compact-only mitigations for the
+                // ~48-52-of-80-column shortfall on a phone-width overlay --
+                // both strictly additive to ClientPanel.qml's existing
+                // desktop-unchanged defaults (0/unset there means "use
+                // config"), so the docked/floating desktop ClientPanel this
+                // same .qml backs is never touched by either knob.
+                //
+                // (1) Trim the overlay's own font by 1pt (floored at 6pt so
+                // an unusually small configured font never goes illegible).
+                // A smaller glyph advance buys back a handful of columns of
+                // MUME's 80-column formatted output without touching the
+                // persisted config.clientFontPointSize players tuned for
+                // their desktop/dock use.
+                item.fontPointSizeOverride = Qt.binding(function () {
+                    const base = config && config.clientFontPointSize > 0
+                        ? config.clientFontPointSize : 10;
+                    return Math.max(6, base - 1);
+                });
+                // (2) Shrink the scrolled-up-backlog preview strip from the
+                // configured default (7 lines) to 3: previewFrame covers
+                // roughly half the already-short compact overlay whenever
+                // the user has scrolled up, which is disproportionate on a
+                // phone. 3 lines is enough to orient ("where did I scroll
+                // to") without eating the whole view.
+                item.previewLinesOverride = 3;
+            }
         }
 
         // Collapse/expand handle and the pass-through toggle, pinned to the

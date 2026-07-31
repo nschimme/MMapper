@@ -34,6 +34,34 @@ FocusScope {
     // normal/desktop rendering is unchanged.
     property real backgroundOpacity: 1.0
 
+    // Mobile audit item 22b (client column shortfall): a phone-width compact
+    // overlay only fits ~48-52 of MUME's 80 formatted columns. Shrinking the
+    // client font by a point buys back a handful of columns at a modest,
+    // still-legible size cost -- worth it specifically for the small
+    // overlay, NOT for the persisted config used everywhere else (docked/
+    // floating desktop panels, and the compact overlay's own "restore
+    // defaults" expectations must stay untouched). 0/unset (the default)
+    // means "use config.clientFontPointSize unchanged," so nothing here
+    // affects desktop or the docked/floating panel this same .qml backs.
+    // MainShell.qml's compactClientLoader sets this only for the compact
+    // overlay instance.
+    property real fontPointSizeOverride: 0
+    readonly property real effectiveFontPointSize: root.fontPointSizeOverride > 0
+        ? root.fontPointSizeOverride
+        : (config.clientFontPointSize > 0 ? config.clientFontPointSize : 10)
+
+    // Mobile audit item 22b (client column shortfall): previewFrame (the
+    // scrolled-up-backlog tail preview) defaults to config.clientPreviewLines
+    // (7) lines, which eats a disproportionate share of the already-short
+    // compact overlay. 0/unset (the default) means "use config's line
+    // count unchanged" -- desktop/docked rendering is untouched; only
+    // MainShell.qml's compact overlay instance sets this to a smaller
+    // count.
+    property int previewLinesOverride: 0
+    readonly property int effectivePreviewLines: root.previewLinesOverride > 0
+        ? root.previewLinesOverride
+        : config.clientPreviewLines
+
     Rectangle {
         anchors.fill: parent
         color: Qt.rgba(config.clientBgColor.r, config.clientBgColor.g, config.clientBgColor.b, root.backgroundOpacity)
@@ -45,7 +73,7 @@ FocusScope {
     FontMetrics {
         id: clientFm
         font.family: config.clientFontFamily
-        font.pointSize: config.clientFontPointSize > 0 ? config.clientFontPointSize : 10
+        font.pointSize: root.effectiveFontPointSize
     }
 
     // WELCOME page: mirrors ClientWidget.ui's welcomePage (playLabel/
@@ -121,6 +149,7 @@ FocusScope {
             id: display
             SplitView.fillHeight: true
             bgOpacity: root.backgroundOpacity
+            fontPointSizeOverride: root.fontPointSizeOverride
 
             // Exposed for future NAWS (telnet window-size negotiation)
             // wiring; see ClientController::reportWindowSize().
@@ -144,7 +173,7 @@ FocusScope {
                 anchors.left: parent.left
                 anchors.right: parent.right
                 anchors.bottom: parent.bottom
-                height: config.clientPreviewLines * clientFm.lineSpacing
+                height: root.effectivePreviewLines * clientFm.lineSpacing
                 color: config.clientBgColor
 
                 Rectangle {
@@ -185,7 +214,7 @@ FocusScope {
                         text: model.html
                         wrapMode: Text.Wrap
                         font.family: config.clientFontFamily
-                        font.pointSize: config.clientFontPointSize > 0 ? config.clientFontPointSize : 10
+                        font.pointSize: root.effectiveFontPointSize
                         color: config.clientFgColor
                     }
                 }
@@ -211,7 +240,7 @@ FocusScope {
                 // case- and spelling-sensitive.
                 inputMethodHints: Qt.ImhNoAutoUppercase | Qt.ImhNoPredictiveText
                 font.family: config.clientFontFamily
-                font.pointSize: config.clientFontPointSize > 0 ? config.clientFontPointSize : 10
+                font.pointSize: root.effectiveFontPointSize
                 color: config.clientFgColor
 
                 background: Rectangle {
@@ -413,7 +442,7 @@ FocusScope {
                 inputMethodHints: Qt.ImhSensitiveData | Qt.ImhNoAutoUppercase
                                   | Qt.ImhNoPredictiveText | Qt.ImhHiddenText
                 font.family: config.clientFontFamily
-                font.pointSize: config.clientFontPointSize > 0 ? config.clientFontPointSize : 10
+                font.pointSize: root.effectiveFontPointSize
                 color: config.clientFgColor
 
                 onAccepted: {

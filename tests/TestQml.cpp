@@ -4608,6 +4608,60 @@ void TestQml::loadMainShellDocks()
     QTRY_COMPARE(object->findChild<QObject *>(QStringLiteral("dockClient")), nullptr);
     QVERIFY(object->findChild<QQuickItem *>(QStringLiteral("dockDescription")) != nullptr);
 
+    // Mobile audit item 22a: compactDockTabBar is now a QQC2.ComboBox (was a
+    // QQC2.TabBar) so all panels stay listed in one always-visible control
+    // instead of a horizontally-flickable tab strip with no overflow cue.
+    // At this point in the test, "description" (moved to the left column
+    // earlier) and "group" (moved to bottom earlier) are the only
+    // docked+visible, non-client panels; areaIds() walks left/top/bottom/
+    // right in that order, so window.compactDockIds ==
+    // ["description", "group"] -- covers both the "selector exists and is
+    // visible in compact" ask and the shortened-label derivation (dockMeta's
+    // "Group Panel"/"Description Panel" titles with the redundant " Panel"
+    // suffix dropped).
+    auto *const compactDockDrawer = object->findChild<QObject *>(
+        QStringLiteral("compactDockDrawer"));
+    QVERIFY(compactDockDrawer != nullptr);
+    // compactDockDrawer (a QQC2.Drawer/Popup) is closed by default, and
+    // Qt Quick Controls' Popup implementation forces its whole content tree
+    // -- including compactDockTabBar -- to report visible:false while
+    // closed regardless of each item's own visible: binding. Open it so the
+    // assertions below reflect what a player actually sees, exactly like
+    // the pre-existing "Drawer force-closes on compact exit" coverage
+    // elsewhere in this file already opens/closes it.
+    QMetaObject::invokeMethod(compactDockDrawer, "open");
+    QCoreApplication::processEvents();
+
+    auto *const compactDockCombo = object->findChild<QQuickItem *>(
+        QStringLiteral("compactDockTabBar"));
+    QVERIFY(compactDockCombo != nullptr);
+    QVERIFY(compactDockCombo->property("visible").toBool());
+    QCOMPARE(compactDockCombo->property("count").toInt(), 2);
+    QCOMPARE(object->property("compactDockLabels").toStringList(),
+             (QStringList{"Description", "Group"}));
+
+    // The combo's currentIndex must stay in sync with compactDockDrawer's
+    // own selectedIndex (the same value compactDockLoader below uses to pick
+    // which panel .qml to load) -- exercised here via selectedIndex rather
+    // than a synthetic user click, since driving a real ComboBox popup
+    // selection isn't practical headlessly; the important, testable
+    // invariant is that the two stay bound together, not the click itself.
+    auto *const compactDockLoader = object->findChild<QQuickItem *>(
+        QStringLiteral("compactDockLoader"));
+    QVERIFY(compactDockLoader != nullptr);
+
+    compactDockDrawer->setProperty("selectedIndex", 0);
+    QCoreApplication::processEvents();
+    QCOMPARE(compactDockCombo->property("currentIndex").toInt(), 0);
+    QVERIFY(compactDockLoader->property("source").toUrl().toString().endsWith(
+        QStringLiteral("DescriptionPanel.qml")));
+
+    compactDockDrawer->setProperty("selectedIndex", 1);
+    QCoreApplication::processEvents();
+    QCOMPARE(compactDockCombo->property("currentIndex").toInt(), 1);
+    QVERIFY(compactDockLoader->property("source").toUrl().toString().endsWith(
+        QStringLiteral("GroupPanel.qml")));
+
     object->setProperty("width", 1280);
     QCoreApplication::processEvents();
     QCOMPARE(object->property("compact").toBool(), false);
@@ -4877,6 +4931,32 @@ void TestQml::dockFloatingWindowLifecycle()
     QVERIFY(floatWindow != nullptr);
     QCOMPARE(floatWindow->title(), QStringLiteral("Description Panel"));
 
+    // Mobile audit item 22c: at the default desktop-sized main window
+    // (1280x800, well above the 360/480 defaults + the 32px margin), the
+    // clamp is a no-op -- confirms desktop floating-dock sizing is
+    // unchanged by the guard added below.
+    QCOMPARE(floatWindow->width(), 360);
+    QCOMPARE(floatWindow->height(), 480);
+
+    // Shrinking the main ApplicationWindow to a phone-sized viewport and
+    // re-floating the dock (off then on, so FloatingDock's Loader tears
+    // down and recreates the Window against the new clamp) must produce a
+    // Window sized to fit the now-small viewport instead of reopening at a
+    // fixed 360x480 that would consume the entire screen on a phone.
+    // Expected: min(360, max(240, 320-32))=288, min(480, max(240, 400-32))=368.
+    object->setProperty("width", 320);
+    object->setProperty("height", 400);
+    QCoreApplication::processEvents();
+    dockLayout.setProperty("descriptionFloating", false);
+    QCoreApplication::processEvents();
+    dockLayout.setProperty("descriptionFloating", true);
+    QTRY_VERIFY(floatDescription->property("item").value<QObject *>() != nullptr);
+    auto *const smallFloatWindowObj = floatDescription->property("item").value<QObject *>();
+    auto *const smallFloatWindow = qobject_cast<QQuickWindow *>(smallFloatWindowObj);
+    QVERIFY(smallFloatWindow != nullptr);
+    QCOMPARE(smallFloatWindow->width(), 288);
+    QCOMPARE(smallFloatWindow->height(), 368);
+
     // Closing the floating window (its native close affordance, not
     // DockPanel's own close button inside it) must flip descriptionVisible
     // back to false, same as clicking DockPanel's close button would --
@@ -4885,7 +4965,7 @@ void TestQml::dockFloatingWindowLifecycle()
     // through QWindow::closeEvent()/the "closing" signal the way a real
     // platform window's close (titlebar X, Alt+F4, ...) does.
     QCloseEvent closeEvent;
-    QCoreApplication::sendEvent(floatWindow, &closeEvent);
+    QCoreApplication::sendEvent(smallFloatWindow, &closeEvent);
     QCoreApplication::processEvents();
 
     QCOMPARE(dockLayout.property("descriptionVisible").toBool(), false);

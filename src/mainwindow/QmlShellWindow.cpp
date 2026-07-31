@@ -2167,10 +2167,17 @@ void QmlShellWindow::wireFileCommands()
         // Mirrors MainWindow::slot_open()'s non-Wasm branch: same
         // maybeSave() guard, name filter, and lastMapDirectory config key
         // as the widget shell (see mainwindow.cpp), so both shells remember
-        // the same "last opened" directory. This shell is desktop-only
-        // (never constructed under Q_OS_WASM -- see QmlShellWindow.h's file
-        // comment), so there is no QFileDialog::getOpenFileContent() branch
-        // to mirror.
+        // the same "last opened" directory.
+        //
+        // NOTE: this shell is NOT desktop-only -- main.cpp's Q_OS_WASM branch
+        // makes Shell B the default under wasm and constructs a real
+        // QmlShellWindow, so this handler is reachable in the browser. It
+        // nonetheless only mirrors the non-wasm branch:
+        // QFileDialog::getOpenFileName() blocks for a synchronous return
+        // value, which Emscripten does not support, and the async
+        // QFileDialog::getOpenFileContent() branch the widget shell uses on
+        // wasm has no equivalent here yet. Opening a map from the browser is
+        // therefore still a known gap in this shell.
         if (!maybeSave()) {
             return;
         }

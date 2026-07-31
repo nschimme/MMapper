@@ -27,6 +27,19 @@ Rectangle {
     // normal/desktop rendering is unchanged.
     property real bgOpacity: 1.0
 
+    // Font-size knob for the same compact overlay (mobile audit item 22b):
+    // 0/unset means "use config.clientFontPointSize (or the 10pt fallback)
+    // unchanged," so desktop/docked rendering is untouched. MainShell.qml's
+    // compactClientLoader sets this to a slightly smaller point size only
+    // for the compact overlay instance, buying back a few more terminal
+    // columns on a narrow phone at a small legibility cost -- see
+    // ClientPanel.qml's matching property/comment for the actual tradeoff
+    // note and chosen value.
+    property real fontPointSizeOverride: 0
+    readonly property real effectiveFontPointSize: fontPointSizeOverride > 0
+        ? fontPointSizeOverride
+        : (config.clientFontPointSize > 0 ? config.clientFontPointSize : 10)
+
     color: {
         const c = flashing ? flashColor : config.clientBgColor;
         return Qt.rgba(c.r, c.g, c.b, bgOpacity);
@@ -90,7 +103,7 @@ Rectangle {
     FontMetrics {
         id: fm
         font.family: config.clientFontFamily
-        font.pointSize: config.clientFontPointSize > 0 ? config.clientFontPointSize : 10
+        font.pointSize: root.effectiveFontPointSize
     }
 
     // Exposed for future NAWS (telnet window-size negotiation) wiring.
@@ -196,7 +209,7 @@ Rectangle {
             text: model.html
             wrapMode: Text.Wrap
             font.family: config.clientFontFamily
-            font.pointSize: config.clientFontPointSize > 0 ? config.clientFontPointSize : 10
+            font.pointSize: root.effectiveFontPointSize
             color: config.clientFgColor
             linkColor: "cyan"
             onLinkActivated: Qt.openUrlExternally(link)

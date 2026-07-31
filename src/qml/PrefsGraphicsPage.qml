@@ -118,7 +118,8 @@ Column {
 
     Label { text: qsTr("Weather and Atmosphere"); font.bold: true }
 
-    Row {
+    Flow {
+        width: parent.width
         spacing: 8
         Label { text: qsTr("Atmosphere Intensity:"); width: 160 }
         Slider {
@@ -129,7 +130,8 @@ Column {
             onMoved: root.graphics.weatherAtmosphereIntensity = value
         }
     }
-    Row {
+    Flow {
+        width: parent.width
         spacing: 8
         Label { text: qsTr("Precipitation Intensity:"); width: 160 }
         Slider {
@@ -140,7 +142,8 @@ Column {
             onMoved: root.graphics.weatherPrecipitationIntensity = value
         }
     }
-    Row {
+    Flow {
+        width: parent.width
         spacing: 8
         Label { text: qsTr("Time of Day Intensity:"); width: 160 }
         Slider {
@@ -179,7 +182,8 @@ Column {
             spacing: 2
             enabled: model.is3DOnly ? use3dCheckBox.checked : true
             Label { text: model.name }
-            Row {
+            Flow {
+                width: parent.width
                 spacing: 8
                 Slider {
                     id: advSlider
@@ -193,7 +197,9 @@ Column {
                 TextField {
                     id: advField
                     width: 80
-                    anchors.verticalCenter: advSlider.verticalCenter
+                    // Flow rejects anchors on its direct children, so match
+                    // the slider's height explicitly rather than centering.
+                    height: Theme.controlHeight
                     text: model.displayValue.toFixed(model.digits)
                     validator: DoubleValidator {
                         bottom: model.min / Math.pow(10, model.digits)

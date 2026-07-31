@@ -28,7 +28,8 @@ Column {
         onToggled: root.autoLog.autoLog = checked
     }
 
-    Row {
+    Flow {
+        width: parent.width
         spacing: 8
         enabled: autoLogCheckBox.checked
 

@@ -33,7 +33,8 @@ Column {
 
     Label { text: qsTr("Connection"); font.bold: true }
 
-    Row {
+    Flow {
+        width: parent.width
         spacing: 8
         Label { text: qsTr("Remote host:"); width: 160 }
         TextField {
@@ -109,7 +110,8 @@ Column {
         }
     }
 
-    Row {
+    Flow {
+        width: parent.width
         spacing: 8
         Label { text: qsTr("UI font scale:"); width: 160 }
         Slider {
@@ -150,7 +152,8 @@ Column {
 
     Label { text: qsTr("Startup"); font.bold: true }
 
-    Row {
+    Flow {
+        width: parent.width
         spacing: 8
         CheckBox {
             id: autoLoadCheckBox
@@ -162,11 +165,14 @@ Column {
             width: 260
             enabled: autoLoadCheckBox.checked
             placeholderText: qsTr("Default Map")
+            // Flow rejects anchors on its direct children, so match the
+            // Browse button's height explicitly rather than centering.
+            height: Theme.controlHeight
             text: root.general.autoLoadFileName
             onEditingFinished: root.general.autoLoadFileName = text
-            anchors.verticalCenter: parent.verticalCenter
         }
         Button {
+            objectName: "autoLoadBrowseButton"
             enabled: autoLoadCheckBox.checked && !root.general.isWasm
             text: qsTr("Browse")
             onClicked: root.general.selectWorldFile()
@@ -185,16 +191,18 @@ Column {
 
     Label { text: qsTr("Resources"); font.bold: true }
 
-    Row {
+    Flow {
+        width: parent.width
         spacing: 8
         Label { text: qsTr("Resources directory:"); width: 160 }
         TextField {
             width: 220
             enabled: !root.general.isWasm
             placeholderText: qsTr("Path to resources")
+            // Match the Browse button's height -- see the Auto-load row.
+            height: Theme.controlHeight
             text: root.general.resourcesDirectory
             onEditingFinished: root.general.resourcesDirectory = text
-            anchors.verticalCenter: parent.verticalCenter
         }
         Button {
             enabled: !root.general.isWasm

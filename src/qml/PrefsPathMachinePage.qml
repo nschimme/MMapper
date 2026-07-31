@@ -30,8 +30,9 @@ Column {
     // touch, which the bare TextField+DoubleValidator lacked) plus direct
     // typing. Step 1.0 matches the widget's QDoubleSpinBox default; the
     // steppers and typing both clamp to [0,100] via commit().
-    component DoubleField: Row {
+    component DoubleField: Flow {
         id: df
+        width: parent.width
         spacing: 8
         property string label
         property real value
@@ -46,7 +47,11 @@ Column {
         Label {
             text: df.label
             width: 180
-            anchors.verticalCenter: parent.verticalCenter
+            // Flow rejects anchors on its direct children, so give the label
+            // the row's full height and center its text instead, keeping it
+            // aligned with the −/+ buttons and the value field.
+            height: Theme.controlHeight
+            verticalAlignment: Text.AlignVCenter
         }
         Button {
             text: "−"

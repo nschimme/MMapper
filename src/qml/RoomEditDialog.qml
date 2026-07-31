@@ -197,352 +197,380 @@ Rectangle {
             anchors.fill: parent
             visible: tabBar.currentIndex === 0
 
-            Rectangle {
-                id: exitsFrame
-                objectName: "exitsFrame"
-                anchors.top: parent.top
-                anchors.left: parent.left
-                anchors.right: parent.right
-                height: 150
-                border.color: "gray"
-                border.width: 1
-                color: "transparent"
-                enabled: roomEditController.hasSelectedRoom
+            // Unlike the Terrain/Note/Room Stat/Room Diff tabs (which each
+            // wrap a single TextArea in a ScrollView), this tab's content is
+            // several fixed-height widgets (exitsFrame/flagsRow/radioRow)
+            // stacked via anchors, needing ~590-640px of vertical space --
+            // more than a phone-squashed dialog has. Same ScrollView
+            // pattern as those siblings, just wrapping a plain Item
+            // (attributesContent) sized to its children's combined height
+            // instead of a single auto-sizing TextArea.
+            ScrollView {
+                id: attributesScroll
+                objectName: "attributesScroll"
+                anchors.fill: parent
+                clip: true
+                // Unlike a TextArea (which exposes implicitWidth/
+                // implicitHeight that ScrollView binds contentWidth/
+                // contentHeight to automatically), attributesContent is a
+                // plain Item, so those bindings must be explicit here or
+                // ScrollView has no way to know the content is taller than
+                // the viewport.
+                contentWidth: attributesContent.width
+                contentHeight: attributesContent.height
 
-                Grid {
-                    id: exitGrid
+                Item {
+                    id: attributesContent
+                    width: attributesScroll.availableWidth
+                    height: radioRow.y + radioRow.height
+
+                Rectangle {
+                    id: exitsFrame
+                    objectName: "exitsFrame"
                     anchors.top: parent.top
                     anchors.left: parent.left
-                    anchors.margins: 8
-                    columns: 3
-                    spacing: 2
-
-                    Item { width: Theme.rowHeight; height: Theme.rowHeight }
-                    Button {
-                        width: Theme.rowHeight; height: Theme.rowHeight
-                        text: qsTr("N")
-                        highlighted: roomEditController.selectedExitDir === 0
-                        onClicked: root.selectExit(0)
-                    }
-                    Button {
-                        width: Theme.rowHeight; height: Theme.rowHeight
-                        text: qsTr("U")
-                        highlighted: roomEditController.selectedExitDir === 4
-                        onClicked: root.selectExit(4)
-                    }
-                    Button {
-                        width: Theme.rowHeight; height: Theme.rowHeight
-                        text: qsTr("W")
-                        highlighted: roomEditController.selectedExitDir === 3
-                        onClicked: root.selectExit(3)
-                    }
-                    Item { width: Theme.rowHeight; height: Theme.rowHeight }
-                    Button {
-                        width: Theme.rowHeight; height: Theme.rowHeight
-                        text: qsTr("E")
-                        highlighted: roomEditController.selectedExitDir === 2
-                        onClicked: root.selectExit(2)
-                    }
-                    Button {
-                        width: Theme.rowHeight; height: Theme.rowHeight
-                        text: qsTr("D")
-                        highlighted: roomEditController.selectedExitDir === 5
-                        onClicked: root.selectExit(5)
-                    }
-                    Button {
-                        width: Theme.rowHeight; height: Theme.rowHeight
-                        text: qsTr("S")
-                        highlighted: roomEditController.selectedExitDir === 1
-                        onClicked: root.selectExit(1)
-                    }
-                    Item { width: Theme.rowHeight; height: Theme.rowHeight }
-                }
-
-                Label {
-                    id: doorNameLabel
-                    anchors.top: parent.top
-                    anchors.left: exitGrid.right
-                    anchors.margins: 8
-                    text: qsTr("Door name:")
-                }
-                TextField {
-                    id: doorNameField
-                    objectName: "doorNameField"
-                    anchors.top: doorNameLabel.bottom
-                    anchors.left: exitGrid.right
                     anchors.right: parent.right
-                    anchors.margins: 8
-                    anchors.topMargin: 2
-                    enabled: roomEditController.doorFieldsEnabled
-                    onEditingFinished: roomEditController.doorName = text
-                }
+                    height: 150
+                    border.color: "gray"
+                    border.width: 1
+                    color: "transparent"
+                    enabled: roomEditController.hasSelectedRoom
 
-                Label {
-                    id: exitFlagsLabel
-                    anchors.top: doorNameField.bottom
-                    anchors.left: exitGrid.right
-                    anchors.margins: 8
-                    anchors.topMargin: 6
-                    text: qsTr("Exit flags:")
-                }
-                ListView {
-                    id: exitFlagsListView
-                    objectName: "exitFlagsListView"
-                    anchors.top: exitFlagsLabel.bottom
-                    anchors.left: exitGrid.right
-                    anchors.right: doorFlagsListView.left
-                    anchors.bottom: parent.bottom
-                    anchors.margins: 8
-                    anchors.topMargin: 2
-                    clip: true
-                    model: roomEditController.exitFlagsModel
-                    delegate: Item {
-                        width: ListView.view.width
-                        height: Theme.rowHeight
-                        CheckBox {
-                            id: exitCb
-                            anchors.verticalCenter: parent.verticalCenter
-                            text: model.name
-                            tristate: true
-                            checkState: model.checkState
-                            enabled: model.checkable
+                    Grid {
+                        id: exitGrid
+                        anchors.top: parent.top
+                        anchors.left: parent.left
+                        anchors.margins: 8
+                        columns: 3
+                        spacing: 2
+
+                        Item { width: Theme.rowHeight; height: Theme.rowHeight }
+                        Button {
+                            width: Theme.rowHeight; height: Theme.rowHeight
+                            text: qsTr("N")
+                            highlighted: roomEditController.selectedExitDir === 0
+                            onClicked: root.selectExit(0)
                         }
-                        MouseArea {
-                            anchors.fill: exitCb
-                            enabled: model.checkable
-                            onClicked: roomEditController.toggleExitFlag(index)
+                        Button {
+                            width: Theme.rowHeight; height: Theme.rowHeight
+                            text: qsTr("U")
+                            highlighted: roomEditController.selectedExitDir === 4
+                            onClicked: root.selectExit(4)
                         }
+                        Button {
+                            width: Theme.rowHeight; height: Theme.rowHeight
+                            text: qsTr("W")
+                            highlighted: roomEditController.selectedExitDir === 3
+                            onClicked: root.selectExit(3)
+                        }
+                        Item { width: Theme.rowHeight; height: Theme.rowHeight }
+                        Button {
+                            width: Theme.rowHeight; height: Theme.rowHeight
+                            text: qsTr("E")
+                            highlighted: roomEditController.selectedExitDir === 2
+                            onClicked: root.selectExit(2)
+                        }
+                        Button {
+                            width: Theme.rowHeight; height: Theme.rowHeight
+                            text: qsTr("D")
+                            highlighted: roomEditController.selectedExitDir === 5
+                            onClicked: root.selectExit(5)
+                        }
+                        Button {
+                            width: Theme.rowHeight; height: Theme.rowHeight
+                            text: qsTr("S")
+                            highlighted: roomEditController.selectedExitDir === 1
+                            onClicked: root.selectExit(1)
+                        }
+                        Item { width: Theme.rowHeight; height: Theme.rowHeight }
                     }
-                }
 
-                ListView {
-                    id: doorFlagsListView
-                    objectName: "doorFlagsListView"
-                    anchors.top: exitFlagsLabel.bottom
-                    anchors.right: parent.right
-                    width: parent.width / 2 - 16
-                    anchors.bottom: parent.bottom
-                    anchors.margins: 8
-                    anchors.topMargin: 2
-                    clip: true
-                    enabled: roomEditController.doorFieldsEnabled
-                    model: roomEditController.doorFlagsModel
-                    delegate: Item {
-                        width: ListView.view.width
-                        height: Theme.rowHeight
-                        CheckBox {
-                            id: doorCb
-                            anchors.verticalCenter: parent.verticalCenter
-                            text: model.name
-                            tristate: true
-                            checkState: model.checkState
-                            enabled: model.checkable && roomEditController.doorFieldsEnabled
-                        }
-                        MouseArea {
-                            anchors.fill: doorCb
-                            enabled: model.checkable && roomEditController.doorFieldsEnabled
-                            onClicked: roomEditController.toggleDoorFlag(index)
-                        }
+                    Label {
+                        id: doorNameLabel
+                        anchors.top: parent.top
+                        anchors.left: exitGrid.right
+                        anchors.margins: 8
+                        text: qsTr("Door name:")
                     }
-                }
-            }
+                    TextField {
+                        id: doorNameField
+                        objectName: "doorNameField"
+                        anchors.top: doorNameLabel.bottom
+                        anchors.left: exitGrid.right
+                        anchors.right: parent.right
+                        anchors.margins: 8
+                        anchors.topMargin: 2
+                        enabled: roomEditController.doorFieldsEnabled
+                        onEditingFinished: roomEditController.doorName = text
+                    }
 
-            Row {
-                id: flagsRow
-                anchors.top: exitsFrame.bottom
-                anchors.left: parent.left
-                anchors.right: parent.right
-                anchors.topMargin: 8
-                height: 140
-                spacing: 8
-
-                Column {
-                    width: (flagsRow.width - 8) / 2
-                    height: parent.height
-                    Label { text: qsTr("Load flags") }
+                    Label {
+                        id: exitFlagsLabel
+                        anchors.top: doorNameField.bottom
+                        anchors.left: exitGrid.right
+                        anchors.margins: 8
+                        anchors.topMargin: 6
+                        text: qsTr("Exit flags:")
+                    }
                     ListView {
-                        id: loadFlagsListView
-                        objectName: "loadFlagsListView"
-                        width: parent.width
-                        height: parent.height - 20
+                        id: exitFlagsListView
+                        objectName: "exitFlagsListView"
+                        anchors.top: exitFlagsLabel.bottom
+                        anchors.left: exitGrid.right
+                        anchors.right: doorFlagsListView.left
+                        anchors.bottom: parent.bottom
+                        anchors.margins: 8
+                        anchors.topMargin: 2
                         clip: true
-                        model: roomEditController.loadFlagsModel
+                        model: roomEditController.exitFlagsModel
                         delegate: Item {
                             width: ListView.view.width
                             height: Theme.rowHeight
-                            Row {
-                                anchors.fill: parent
-                                spacing: 4
-                                Image {
-                                    source: model.iconSource
-                                    width: 16; height: 16
-                                    anchors.verticalCenter: parent.verticalCenter
-                                }
-                                CheckBox {
-                                    id: loadCb
-                                    text: model.name
-                                    tristate: true
-                                    checkState: model.checkState
-                                    enabled: model.checkable
-                                }
+                            CheckBox {
+                                id: exitCb
+                                anchors.verticalCenter: parent.verticalCenter
+                                text: model.name
+                                tristate: true
+                                checkState: model.checkState
+                                enabled: model.checkable
                             }
                             MouseArea {
-                                anchors.fill: parent
+                                anchors.fill: exitCb
                                 enabled: model.checkable
-                                onClicked: roomEditController.toggleLoadFlag(index)
+                                onClicked: roomEditController.toggleExitFlag(index)
                             }
                         }
                     }
-                }
 
-                Column {
-                    width: (flagsRow.width - 8) / 2
-                    height: parent.height
-                    Label { text: qsTr("Mob flags") }
                     ListView {
-                        id: mobFlagsListView
-                        objectName: "mobFlagsListView"
-                        width: parent.width
-                        height: parent.height - 20
+                        id: doorFlagsListView
+                        objectName: "doorFlagsListView"
+                        anchors.top: exitFlagsLabel.bottom
+                        anchors.right: parent.right
+                        width: parent.width / 2 - 16
+                        anchors.bottom: parent.bottom
+                        anchors.margins: 8
+                        anchors.topMargin: 2
                         clip: true
-                        model: roomEditController.mobFlagsModel
+                        enabled: roomEditController.doorFieldsEnabled
+                        model: roomEditController.doorFlagsModel
                         delegate: Item {
                             width: ListView.view.width
                             height: Theme.rowHeight
-                            Row {
-                                anchors.fill: parent
-                                spacing: 4
-                                Image {
-                                    source: model.iconSource
-                                    width: 16; height: 16
-                                    anchors.verticalCenter: parent.verticalCenter
+                            CheckBox {
+                                id: doorCb
+                                anchors.verticalCenter: parent.verticalCenter
+                                text: model.name
+                                tristate: true
+                                checkState: model.checkState
+                                enabled: model.checkable && roomEditController.doorFieldsEnabled
+                            }
+                            MouseArea {
+                                anchors.fill: doorCb
+                                enabled: model.checkable && roomEditController.doorFieldsEnabled
+                                onClicked: roomEditController.toggleDoorFlag(index)
+                            }
+                        }
+                    }
+                }
+
+                Row {
+                    id: flagsRow
+                    anchors.top: exitsFrame.bottom
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.topMargin: 8
+                    height: 140
+                    spacing: 8
+
+                    Column {
+                        width: (flagsRow.width - 8) / 2
+                        height: parent.height
+                        Label { text: qsTr("Load flags") }
+                        ListView {
+                            id: loadFlagsListView
+                            objectName: "loadFlagsListView"
+                            width: parent.width
+                            height: parent.height - 20
+                            clip: true
+                            model: roomEditController.loadFlagsModel
+                            delegate: Item {
+                                width: ListView.view.width
+                                height: Theme.rowHeight
+                                Row {
+                                    anchors.fill: parent
+                                    spacing: 4
+                                    Image {
+                                        source: model.iconSource
+                                        width: 16; height: 16
+                                        anchors.verticalCenter: parent.verticalCenter
+                                    }
+                                    CheckBox {
+                                        id: loadCb
+                                        text: model.name
+                                        tristate: true
+                                        checkState: model.checkState
+                                        enabled: model.checkable
+                                    }
                                 }
-                                CheckBox {
-                                    id: mobCb
-                                    text: model.name
-                                    tristate: true
-                                    checkState: model.checkState
+                                MouseArea {
+                                    anchors.fill: parent
                                     enabled: model.checkable
+                                    onClicked: roomEditController.toggleLoadFlag(index)
                                 }
                             }
-                            MouseArea {
-                                anchors.fill: parent
-                                enabled: model.checkable
-                                onClicked: roomEditController.toggleMobFlag(index)
-                            }
                         }
                     }
-                }
-            }
 
-            Row {
-                id: radioRow
-                anchors.top: flagsRow.bottom
-                anchors.left: parent.left
-                anchors.right: parent.right
-                anchors.bottom: parent.bottom
-                anchors.topMargin: 8
-                spacing: 4
+                    Column {
+                        width: (flagsRow.width - 8) / 2
+                        height: parent.height
+                        Label { text: qsTr("Mob flags") }
+                        ListView {
+                            id: mobFlagsListView
+                            objectName: "mobFlagsListView"
+                            width: parent.width
+                            height: parent.height - 20
+                            clip: true
+                            model: roomEditController.mobFlagsModel
+                            delegate: Item {
+                                width: ListView.view.width
+                                height: Theme.rowHeight
+                                Row {
+                                    anchors.fill: parent
+                                    spacing: 4
+                                    Image {
+                                        source: model.iconSource
+                                        width: 16; height: 16
+                                        anchors.verticalCenter: parent.verticalCenter
+                                    }
+                                    CheckBox {
+                                        id: mobCb
+                                        text: model.name
+                                        tristate: true
+                                        checkState: model.checkState
+                                        enabled: model.checkable
+                                    }
+                                }
+                                MouseArea {
+                                    anchors.fill: parent
+                                    enabled: model.checkable
+                                    onClicked: roomEditController.toggleMobFlag(index)
+                                }
+                            }
+                        }
+                    }
+                }
 
-                Column {
-                    width: radioRow.width / 5
-                    Label { text: qsTr("Align"); font.bold: true }
-                    Repeater {
-                        model: alignModel
-                        delegate: Item {
-                            width: parent.width
-                            height: rb.implicitHeight
-                            RadioButton {
-                                id: rb
-                                text: model.text
-                                checked: roomEditController.align === model.value
+                Row {
+                    id: radioRow
+                    anchors.top: flagsRow.bottom
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.topMargin: 8
+                    spacing: 4
+
+                    Column {
+                        width: radioRow.width / 5
+                        Label { text: qsTr("Align"); font.bold: true }
+                        Repeater {
+                            model: alignModel
+                            delegate: Item {
+                                width: parent.width
+                                height: rb.implicitHeight
+                                RadioButton {
+                                    id: rb
+                                    text: model.text
+                                    checked: roomEditController.align === model.value
+                                }
+                                MouseArea {
+                                    anchors.fill: rb
+                                    onClicked: roomEditController.align = model.value
+                                }
                             }
-                            MouseArea {
-                                anchors.fill: rb
-                                onClicked: roomEditController.align = model.value
+                        }
+                    }
+                    Column {
+                        width: radioRow.width / 5
+                        Label { text: qsTr("Teleport"); font.bold: true }
+                        Repeater {
+                            model: portableModel
+                            delegate: Item {
+                                width: parent.width
+                                height: rb.implicitHeight
+                                RadioButton {
+                                    id: rb
+                                    text: model.text
+                                    checked: roomEditController.portable === model.value
+                                }
+                                MouseArea {
+                                    anchors.fill: rb
+                                    onClicked: roomEditController.portable = model.value
+                                }
+                            }
+                        }
+                    }
+                    Column {
+                        width: radioRow.width / 5
+                        Label { text: qsTr("Ridable"); font.bold: true }
+                        Repeater {
+                            model: rideableModel
+                            delegate: Item {
+                                width: parent.width
+                                height: rb.implicitHeight
+                                RadioButton {
+                                    id: rb
+                                    text: model.text
+                                    checked: roomEditController.rideable === model.value
+                                }
+                                MouseArea {
+                                    anchors.fill: rb
+                                    onClicked: roomEditController.rideable = model.value
+                                }
+                            }
+                        }
+                    }
+                    Column {
+                        width: radioRow.width / 5
+                        Label { text: qsTr("Light"); font.bold: true }
+                        Repeater {
+                            model: lightModel
+                            delegate: Item {
+                                width: parent.width
+                                height: rb.implicitHeight
+                                RadioButton {
+                                    id: rb
+                                    text: model.text
+                                    checked: roomEditController.light === model.value
+                                }
+                                MouseArea {
+                                    anchors.fill: rb
+                                    onClicked: roomEditController.light = model.value
+                                }
+                            }
+                        }
+                    }
+                    Column {
+                        width: radioRow.width / 5
+                        Label { text: qsTr("Sundeath"); font.bold: true }
+                        Repeater {
+                            model: sundeathModel
+                            delegate: Item {
+                                width: parent.width
+                                height: rb.implicitHeight
+                                RadioButton {
+                                    id: rb
+                                    text: model.text
+                                    checked: roomEditController.sundeath === model.value
+                                }
+                                MouseArea {
+                                    anchors.fill: rb
+                                    onClicked: roomEditController.sundeath = model.value
+                                }
                             }
                         }
                     }
                 }
-                Column {
-                    width: radioRow.width / 5
-                    Label { text: qsTr("Teleport"); font.bold: true }
-                    Repeater {
-                        model: portableModel
-                        delegate: Item {
-                            width: parent.width
-                            height: rb.implicitHeight
-                            RadioButton {
-                                id: rb
-                                text: model.text
-                                checked: roomEditController.portable === model.value
-                            }
-                            MouseArea {
-                                anchors.fill: rb
-                                onClicked: roomEditController.portable = model.value
-                            }
-                        }
-                    }
-                }
-                Column {
-                    width: radioRow.width / 5
-                    Label { text: qsTr("Ridable"); font.bold: true }
-                    Repeater {
-                        model: rideableModel
-                        delegate: Item {
-                            width: parent.width
-                            height: rb.implicitHeight
-                            RadioButton {
-                                id: rb
-                                text: model.text
-                                checked: roomEditController.rideable === model.value
-                            }
-                            MouseArea {
-                                anchors.fill: rb
-                                onClicked: roomEditController.rideable = model.value
-                            }
-                        }
-                    }
-                }
-                Column {
-                    width: radioRow.width / 5
-                    Label { text: qsTr("Light"); font.bold: true }
-                    Repeater {
-                        model: lightModel
-                        delegate: Item {
-                            width: parent.width
-                            height: rb.implicitHeight
-                            RadioButton {
-                                id: rb
-                                text: model.text
-                                checked: roomEditController.light === model.value
-                            }
-                            MouseArea {
-                                anchors.fill: rb
-                                onClicked: roomEditController.light = model.value
-                            }
-                        }
-                    }
-                }
-                Column {
-                    width: radioRow.width / 5
-                    Label { text: qsTr("Sundeath"); font.bold: true }
-                    Repeater {
-                        model: sundeathModel
-                        delegate: Item {
-                            width: parent.width
-                            height: rb.implicitHeight
-                            RadioButton {
-                                id: rb
-                                text: model.text
-                                checked: roomEditController.sundeath === model.value
-                            }
-                            MouseArea {
-                                anchors.fill: rb
-                                onClicked: roomEditController.sundeath = model.value
-                            }
-                        }
-                    }
                 }
             }
         }

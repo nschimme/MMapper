@@ -20,7 +20,8 @@ Column {
 
     Label { text: qsTr("Font and Colors"); font.bold: true }
 
-    Row {
+    Flow {
+        width: parent.width
         spacing: 8
         Label { text: qsTr("Font:"); width: 120 }
         Button {
@@ -29,16 +30,26 @@ Column {
         }
     }
 
-    Row {
+    Flow {
+        width: parent.width
         spacing: 8
         Label { text: qsTr("Foreground:"); width: 120 }
-        Rectangle {
+        // Flow positions its direct children itself and rejects anchors on
+        // them, so the swatch is centered against the taller Select button
+        // via this full-height spacer instead (anchors on a grandchild are
+        // fine). Without it the 16px swatch top-aligns against the ~40px
+        // button.
+        Item {
             width: 24
-            height: 16
-            border.color: "black"
-            border.width: 1
-            color: root.client.foregroundColor
-            anchors.verticalCenter: parent.verticalCenter
+            height: Theme.controlHeight
+            Rectangle {
+                anchors.centerIn: parent
+                width: 24
+                height: 16
+                border.color: "black"
+                border.width: 1
+                color: root.client.foregroundColor
+            }
         }
         Button {
             text: qsTr("Select")
@@ -46,16 +57,23 @@ Column {
         }
     }
 
-    Row {
+    Flow {
+        width: parent.width
         spacing: 8
         Label { text: qsTr("Background:"); width: 120 }
-        Rectangle {
+        // Full-height spacer so the swatch centers against the Select
+        // button -- see the Foreground row above.
+        Item {
             width: 24
-            height: 16
-            border.color: "black"
-            border.width: 1
-            color: root.client.backgroundColor
-            anchors.verticalCenter: parent.verticalCenter
+            height: Theme.controlHeight
+            Rectangle {
+                anchors.centerIn: parent
+                width: 24
+                height: 16
+                border.color: "black"
+                border.width: 1
+                color: root.client.backgroundColor
+            }
         }
         Button {
             text: qsTr("Select")

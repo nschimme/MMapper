@@ -36,7 +36,8 @@ Column {
         ButtonGroup.group: editorGroup
     }
 
-    Row {
+    Flow {
+        width: parent.width
         spacing: 8
         enabled: !root.mumeProtocol.internalRemoteEditor
 

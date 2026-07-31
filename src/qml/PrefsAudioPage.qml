@@ -18,7 +18,8 @@ Column {
 
     readonly property var audio: preferencesController.audio
 
-    Row {
+    Flow {
+        width: parent.width
         spacing: 8
         Label { text: qsTr("Output device:"); width: 120 }
         ComboBox {
@@ -30,7 +31,8 @@ Column {
         }
     }
 
-    Row {
+    Flow {
+        width: parent.width
         spacing: 8
         Label { text: qsTr("Music volume:"); width: 120 }
         Slider {
@@ -43,7 +45,8 @@ Column {
         }
     }
 
-    Row {
+    Flow {
+        width: parent.width
         spacing: 8
         Label { text: qsTr("Sound volume:"); width: 120 }
         Slider {

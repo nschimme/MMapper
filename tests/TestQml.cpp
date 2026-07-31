@@ -2780,6 +2780,24 @@ void TestQml::loadRoomEditDialog()
     QMetaObject::invokeMethod(southButton, "clicked");
     QCoreApplication::processEvents();
     QTRY_COMPARE(controller.getSelectedExitDir(), 1); // SOUTH
+
+    // Regression test for the mobile-layout bug where the Attributes tab
+    // (unlike its four sibling tabs) had no scroll container: at a
+    // phone-squashed dialog height, the tab's ~600px of content (exit
+    // grid/flags/radio columns) must be reachable via
+    // attributesScroll.contentHeight exceeding the viewport height, rather
+    // than being silently clipped with no way to scroll to it.
+    QQuickItem *const attributesScroll = root->findChild<QQuickItem *>("attributesScroll");
+    QVERIFY(attributesScroll != nullptr);
+
+    dialog.resize(560, 390);
+    dialog.show();
+    QCoreApplication::processEvents();
+    QCoreApplication::processEvents();
+
+    QTRY_VERIFY(attributesScroll->height() > 0);
+
+    QTRY_VERIFY(attributesScroll->property("contentHeight").toReal() > attributesScroll->height());
 }
 
 void TestQml::qmlDialogBackgroundThemed()
@@ -2968,6 +2986,28 @@ void TestQml::loadPreferencesDialog()
     QTRY_COMPARE(rootItem->property("compact").toBool(), true);
     QVERIFY(!navFrame->isVisible());
     QVERIFY(sectionCombo->isVisible());
+
+    // Regression test for the mobile-layout bug where several Prefs pages'
+    // fixed-width label+control Rows overflowed the compact content column
+    // (328px wide at a 360px dialog width) and were clipped by
+    // pagesFlickable's clip:true -- worst case PrefsGeneralPage's "Auto-load
+    // map" row, whose Browse button was entirely outside the clip rect and
+    // untappable. Those rows are now Flow-based so the Browse button must
+    // stay inside pagesFlickable's content width.
+    dialog.resize(360, 600);
+    dialog.show();
+    QCoreApplication::processEvents();
+    QCoreApplication::processEvents();
+    QTRY_COMPARE(rootItem->property("compact").toBool(), true);
+
+    auto *const browseButton = rootItem->findChild<QQuickItem *>(
+        QStringLiteral("autoLoadBrowseButton"));
+    QVERIFY(browseButton != nullptr);
+    const QPointF browseButtonPos = browseButton->mapToItem(flickable, QPointF(0, 0));
+    QVERIFY2(browseButtonPos.x() + browseButton->width()
+                 <= flickable->property("contentWidth").toReal(),
+             "Auto-load map's Browse button must stay inside pagesFlickable's "
+             "clip rect at a 360px-wide dialog");
 
     dialog.resize(800, 600);
     QCoreApplication::processEvents();

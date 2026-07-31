@@ -97,6 +97,14 @@ class NODISCARD_QOBJECT MapCanvasCore : public QObject,
 {
     Q_OBJECT
 
+    // Touch has no keyboard modifiers, so there is no way to Ctrl+tap for
+    // additive room selection (see handleMousePress()'s hasCtrl branch in
+    // SELECT_ROOMS mode). This sticky flag lets a compact-mode QML toggle
+    // button (see MainShell.qml's compactMapActions) substitute for holding
+    // Ctrl: while set, presses behave as if Ctrl were held, exactly like the
+    // real modifier would, until the user turns it back off themselves.
+    Q_PROPERTY(bool stickyCtrl READ getStickyCtrl WRITE setStickyCtrl NOTIFY sig_stickyCtrlChanged)
+
 public:
     static constexpr const int SCROLL_SCALE = 64;
 
@@ -197,6 +205,9 @@ private:
     bool m_pendingForceUpdateMeshes = false;
     bool m_pendingUpdateTextures = false;
     std::optional<float> m_pendingDpr;
+
+    // See the stickyCtrl Q_PROPERTY doc comment above.
+    bool m_stickyCtrl = false;
 
 public:
     explicit MapCanvasCore(MapData &mapData,
@@ -362,6 +373,11 @@ public:
     // positions.
     Q_INVOKABLE void requestContextMenuAt(const QPointF &pos);
 
+public:
+    // See the stickyCtrl Q_PROPERTY doc comment above.
+    NODISCARD bool getStickyCtrl() const { return m_stickyCtrl; }
+    void setStickyCtrl(bool sticky);
+
 private:
     void log(const QString &msg) { emit sig_log("MapCanvas", msg); }
 
@@ -370,6 +386,7 @@ signals:
     void sig_mapMove(int dx, int dy);
     void sig_setScrollBars(Coordinate min, Coordinate max);
     void sig_continuousScroll(int, int);
+    void sig_stickyCtrlChanged(bool sticky);
 
     void sig_log(const QString &, const QString &);
 

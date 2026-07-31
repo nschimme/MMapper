@@ -2212,6 +2212,146 @@ QQC2.ApplicationWindow {
         }
     }
 
+    // Compact-only vertical action bar giving touch direct access to the
+    // operations the mobile input audit found unreachable without a
+    // keyboard/modifier/wheel: layer up/down (otherwise 3 taps deep via
+    // ☰ -> View -> Layer), cancel/Escape for an in-progress connection or
+    // room selection, zoom in/out (also reachable via pinch, but a button
+    // helps one-handed use), and a sticky-Ctrl toggle standing in for
+    // Ctrl+click additive room selection (see MapCanvasCore.h's stickyCtrl
+    // Q_PROPERTY doc comment -- touch has no modifier keys).
+    //
+    // Right-edge, thumb-reachable placement. Anchored on BOTH edges rather
+    // than just growing up from compactClientOverlay.top (the simplest
+    // option): anchors.top: compactDockButton.bottom keeps it clear of the
+    // top-right ▤ button by construction, and anchors.bottom:
+    // compactClientOverlay.top keeps it clear of the client overlay in both
+    // its collapsed and expanded states, whatever height each currently is.
+    // That leaves very little vertical room on a short landscape phone (e.g.
+    // 844x390 -- only ~120px between the two anchors with the client
+    // expanded), too little for 6 full Theme.controlHeight buttons stacked
+    // with spacing, so the Column lives inside a Flickable that only
+    // becomes interactive (scrolls) when its content doesn't fit -- the bar
+    // itself never grows outside its two anchors, so it can never overlap
+    // either neighbour, only need scrolling to reach every button on very
+    // short screens.
+    Item {
+        id: compactMapActions
+        objectName: "compactMapActions"
+        visible: window.compact
+        z: 9000
+        anchors.right: parent.right
+        anchors.rightMargin: 16
+        anchors.top: compactDockButton.bottom
+        anchors.topMargin: 8
+        anchors.bottom: compactClientOverlay.top
+        anchors.bottomMargin: 8
+        width: Theme.controlHeight
+        clip: true
+
+        Flickable {
+            id: compactMapActionsFlick
+            objectName: "compactMapActionsFlick"
+            anchors.fill: parent
+            contentWidth: width
+            contentHeight: actionColumn.height
+            boundsBehavior: Flickable.StopAtBounds
+            interactive: contentHeight > height
+
+            Column {
+                id: actionColumn
+                width: parent.width
+                spacing: 4
+
+                QQC2.ToolButton {
+                    objectName: "compactLayerUp"
+                    implicitWidth: Theme.controlHeight
+                    implicitHeight: Theme.controlHeight
+                    text: "▲"
+                    action: CommandAction { cmd: commands ? commands.command("layer.up") : null }
+                    QQC2.ToolTip.text: qsTr("Layer up")
+                    QQC2.ToolTip.visible: hovered
+                }
+
+                QQC2.ToolButton {
+                    objectName: "compactLayerDown"
+                    implicitWidth: Theme.controlHeight
+                    implicitHeight: Theme.controlHeight
+                    text: "▼"
+                    action: CommandAction { cmd: commands ? commands.command("layer.down") : null }
+                    QQC2.ToolTip.text: qsTr("Layer down")
+                    QQC2.ToolTip.visible: hovered
+                }
+
+                QQC2.ToolButton {
+                    objectName: "compactZoomIn"
+                    implicitWidth: Theme.controlHeight
+                    implicitHeight: Theme.controlHeight
+                    text: "+"
+                    action: CommandAction { cmd: commands ? commands.command("view.zoom-in") : null }
+                    QQC2.ToolTip.text: qsTr("Zoom in")
+                    QQC2.ToolTip.visible: hovered
+                }
+
+                QQC2.ToolButton {
+                    objectName: "compactZoomOut"
+                    implicitWidth: Theme.controlHeight
+                    implicitHeight: Theme.controlHeight
+                    text: "−"
+                    action: CommandAction { cmd: commands ? commands.command("view.zoom-out") : null }
+                    QQC2.ToolTip.text: qsTr("Zoom out")
+                    QQC2.ToolTip.visible: hovered
+                }
+
+                QQC2.ToolButton {
+                    objectName: "compactCancelSelection"
+                    implicitWidth: Theme.controlHeight
+                    implicitHeight: Theme.controlHeight
+                    text: "✕"
+                    // No CommandAction registered for this -- it mirrors the
+                    // Shortcut{sequence: "Escape"} above, giving touch the
+                    // same universal cancel path a physical Escape key gives
+                    // desktop/keyboard users (see MapCanvasCore::
+                    // userPressedEscape()'s doc comment).
+                    enabled: mapCore != null
+                    onClicked: if (mapCore) {
+                        mapCore.userPressedEscape(true);
+                    }
+                    QQC2.ToolTip.text: qsTr("Cancel selection")
+                    QQC2.ToolTip.visible: hovered
+                }
+
+                QQC2.ToolButton {
+                    id: compactAdditiveSelect
+                    objectName: "compactAdditiveSelect"
+                    implicitWidth: Theme.controlHeight
+                    implicitHeight: Theme.controlHeight
+                    text: "Ctrl"
+                    checkable: true
+                    enabled: mapCore != null
+                    checked: mapCore ? mapCore.stickyCtrl : false
+                    // Same checkable pattern as compactClientPassThrough
+                    // above: write the button's own just-toggled `checked`
+                    // forward to mapCore.stickyCtrl rather than negating it
+                    // directly, avoiding a double-toggle; the Connections
+                    // below resyncs `checked` if stickyCtrl is ever changed
+                    // from elsewhere (e.g. cleared programmatically).
+                    onToggled: if (mapCore) {
+                        mapCore.stickyCtrl = checked;
+                    }
+                    Connections {
+                        target: mapCore
+                        function onSig_stickyCtrlChanged(sticky) {
+                            compactAdditiveSelect.checked = sticky;
+                        }
+                    }
+                    QQC2.ToolTip.text: qsTr("Additive select (stand-in for Ctrl+click)")
+                    QQC2.ToolTip.visible: hovered
+                }
+            }
+        }
+    }
+
     // Compact-only floating affordance that opens compactDockDrawer -- the
     // drawer has no other opener (its edge-swipe gesture is easy to miss on
     // a full-screen map that also wants drag gestures for panning). Sits

@@ -3986,6 +3986,17 @@ void TestQml::mainShellCompactBreakpoint()
         QStringLiteral("compactClientOverlay"));
     QVERIFY(compactClientOverlay != nullptr);
 
+    // Task B (mobile input audit): the compact-only vertical map action bar
+    // (layer up/down, zoom in/out, cancel/Escape, additive-select toggle).
+    // mapCore is a null QObject* in this fixture (see the context-property
+    // setup above), so simply loading + laying out this component with the
+    // window shown in compact mode -- which the assertions below force by
+    // resizing -- must not crash even though every mapCore-dependent button
+    // (compactCancelSelection, compactAdditiveSelect) binds against null.
+    auto *const compactMapActions = object->findChild<QQuickItem *>(
+        QStringLiteral("compactMapActions"));
+    QVERIFY(compactMapActions != nullptr);
+
     // Wide: desktop path, compact == false, the drawer's opener is hidden,
     // the hamburger is hidden, and the real MenuBar and toolbar header show.
     // Height is set explicitly (not left at the QML default) because compact
@@ -4001,6 +4012,7 @@ void TestQml::mainShellCompactBreakpoint()
     QCOMPARE(menuBar->property("visible").toBool(), true);
     QCOMPARE(toolBarHeader->property("visible").toBool(), true);
     QCOMPARE(compactClientOverlay->property("visible").toBool(), false);
+    QCOMPARE(compactMapActions->property("visible").toBool(), false);
 
     // Narrow: live re-layout without a reload -- compact flips true, the
     // dock-drawer opener and hamburger both appear, and the MenuBar and the
@@ -4015,6 +4027,7 @@ void TestQml::mainShellCompactBreakpoint()
     QCOMPARE(menuBar->property("visible").toBool(), false);
     QCOMPARE(toolBarHeader->property("visible").toBool(), false);
     QCOMPARE(compactClientOverlay->property("visible").toBool(), true);
+    QCOMPARE(compactMapActions->property("visible").toBool(), true);
 
     // The keyboard-occlusion inset is inert without a soft keyboard: the
     // offscreen platform has no input method reporting a rectangle, so the
@@ -4033,6 +4046,23 @@ void TestQml::mainShellCompactBreakpoint()
     QCOMPARE(menuBar->property("visible").toBool(), false);
     QCOMPARE(toolBarHeader->property("visible").toBool(), false);
     QCOMPARE(compactClientOverlay->property("visible").toBool(), true);
+    QVERIFY(compactMapActions->isVisible());
+
+    // The map action bar's anchors.top: compactDockButton.bottom (see
+    // MainShell.qml's comment on compactMapActions) must keep it clear of
+    // the ▤ button by construction, even on this short landscape window
+    // where the client overlay eats most of the remaining height. Verify by
+    // comparing mapped bounding rects in a common (window content item)
+    // coordinate space, per the task's exact overlap check; the simpler
+    // top-below-bottom comparison is asserted too as the documented fallback.
+    auto *const contentItem = window->contentItem();
+    QVERIFY(contentItem != nullptr);
+    const QRectF dockButtonRect
+        = compactDockButton->mapRectToItem(contentItem, compactDockButton->boundingRect());
+    const QRectF mapActionsRect
+        = compactMapActions->mapRectToItem(contentItem, compactMapActions->boundingRect());
+    QVERIFY(!dockButtonRect.intersects(mapActionsRect));
+    QVERIFY(mapActionsRect.top() >= dockButtonRect.bottom());
 
     // --- Mobile "client over map" touch model: pass-through + keyboard
     // height clamp. 360x640 portrait matches the audit's worst-case worked

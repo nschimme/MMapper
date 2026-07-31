@@ -463,7 +463,11 @@ void MapCanvasCore::handleMousePress(QMouseEvent *const event)
 
     const bool hasLeftButton = (event->buttons() & Qt::LeftButton) != 0u;
     const bool hasRightButton = (event->buttons() & Qt::RightButton) != 0u;
-    const bool hasCtrl = (event->modifiers() & Qt::CTRL) != 0u;
+    // OR in the sticky-Ctrl flag (see the stickyCtrl Q_PROPERTY doc comment
+    // in MapCanvasCore.h) so a touch tap with the compact-mode toggle on
+    // behaves exactly like a real Ctrl+click for additive room selection
+    // below -- there is no modifier key to synthesize from touch otherwise.
+    const bool hasCtrl = (event->modifiers() & Qt::CTRL) != 0u || m_stickyCtrl;
     MAYBE_UNUSED const bool hasAlt = (event->modifiers() & Qt::ALT) != 0u;
 
     if (hasLeftButton && hasAlt) {
@@ -1332,4 +1336,13 @@ void MapCanvasCore::userPressedEscape(bool /*pressed*/)
         slot_clearInfomarkSelection(); // calls selectionChanged();
         break;
     }
+}
+
+void MapCanvasCore::setStickyCtrl(bool sticky)
+{
+    if (m_stickyCtrl == sticky) {
+        return;
+    }
+    m_stickyCtrl = sticky;
+    emit sig_stickyCtrlChanged(m_stickyCtrl);
 }

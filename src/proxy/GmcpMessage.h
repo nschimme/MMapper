@@ -31,6 +31,10 @@ class ParseEvent;
     X(EVENT_MOVED, EventMoved, "event.moved", "Event.Moved") \
     X(EVENT_MOON, EventMoon, "event.moon", "Event.Moon") \
     X(EVENT_SUN, EventSun, "event.sun", "Event.Sun") \
+    X(EXTERNAL_DISCORD_GET, \
+      ExternalDiscordGet, \
+      "external.discord.get", \
+      "External.Discord.Get") \
     X(EXTERNAL_DISCORD_HELLO, \
       ExternalDiscordHello, \
       "external.discord.hello", \
@@ -66,7 +70,7 @@ enum class NODISCARD GmcpMessageTypeEnum {
 #define X_COUNT(...) +1
 static constexpr const size_t NUM_GMCP_MESSAGES = XFOREACH_GMCP_MESSAGE_TYPE(X_COUNT);
 #undef X_COUNT
-static_assert(NUM_GMCP_MESSAGES == 30);
+static_assert(NUM_GMCP_MESSAGES == 31);
 DEFINE_ENUM_COUNT(GmcpMessageTypeEnum, NUM_GMCP_MESSAGES)
 
 namespace tags {

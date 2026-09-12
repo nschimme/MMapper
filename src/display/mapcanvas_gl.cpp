@@ -333,7 +333,7 @@ void MapCanvas::initializeGL()
     // because the logger purposely calls std::abort() when it receives an error.
     initLogger();
 
-    gl.initializeRenderer(static_cast<float>(QPaintDevice::devicePixelRatioF()));
+    gl.initializeRenderer(computeEffectiveDpi());
 
     gl.getUboManager()
         .registerRebuildFunction(Legacy::SharedVboEnum::NamedColorsBlock,
@@ -399,6 +399,8 @@ void MapCanvas::initializeGL()
         this->updateTextures();
         m_frameManager.requestUpdate();
     });
+
+    setConfig().canvas.renderScale.registerChangeCallback(m_lifetime, [this]() { screenChanged(); });
 
     // Clean up GL resources while the context is still current.
     // The destructor is too late — Qt destroys the context before ~MapCanvas() runs.

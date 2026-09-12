@@ -55,6 +55,7 @@
 
 #ifdef Q_OS_WASM
 #include <emscripten.h>
+
 #include <emscripten/heap.h>
 #endif
 

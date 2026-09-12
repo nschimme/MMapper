@@ -664,11 +664,8 @@ void Configuration::CanvasSettings::read(const QSettings &conf)
     roomDarkColor = lookupColor(KEY_ROOM_DARK_COLOR, DEFAULT_DARK_COLOR);
     roomDarkLitColor = lookupColor(KEY_ROOM_DARK_LIT_COLOR, DEFAULT_NO_SUNDEATH_COLOR);
     antialiasingSamples.set(conf.value(KEY_NUMBER_OF_ANTI_ALIASING_SAMPLES, 0).toInt());
-#ifdef Q_OS_WASM
-    renderScale.set(conf.value(KEY_RENDER_SCALE, 50).toInt());
-#else
-    renderScale.set(conf.value(KEY_RENDER_SCALE, 100).toInt());
-#endif
+    const int defaultRenderScale = (CURRENT_PLATFORM == PlatformEnum::Wasm) ? 50 : 100;
+    renderScale.set(conf.value(KEY_RENDER_SCALE, defaultRenderScale).toInt());
     trilinearFiltering.set(conf.value(KEY_USE_TRILINEAR_FILTERING, true).toBool());
     advanced.use3D.set(conf.value(KEY_3D_CANVAS, false).toBool());
     advanced.autoTilt.set(conf.value(KEY_3D_AUTO_TILT, true).toBool());

@@ -221,7 +221,7 @@ void MapCanvas::reportGLVersion()
 
     const auto rawDpi = static_cast<float>(QPaintDevice::devicePixelRatioF());
 #ifdef Q_OS_WASM
-    const auto activeDpi = std::min(rawDpi, 1.5f);
+    const auto activeDpi = std::min(rawDpi, 1.0f);
 #else
     const auto activeDpi = rawDpi;
 #endif
@@ -354,7 +354,7 @@ void MapCanvas::initializeGL()
 
     const auto rawDpi = static_cast<float>(QPaintDevice::devicePixelRatioF());
 #ifdef Q_OS_WASM
-    const auto activeDpi = std::min(rawDpi, 1.5f);
+    const auto activeDpi = std::min(rawDpi, 1.0f);
 #else
     const auto activeDpi = rawDpi;
 #endif

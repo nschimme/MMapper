@@ -1214,7 +1214,12 @@ void MapCanvas::screenChanged()
         return;
     }
 
-    const auto newDpi = static_cast<float>(QPaintDevice::devicePixelRatioF());
+    const auto rawDpi = static_cast<float>(QPaintDevice::devicePixelRatioF());
+#ifdef Q_OS_WASM
+    const auto newDpi = std::min(rawDpi, 1.0f);
+#else
+    const auto newDpi = rawDpi;
+#endif
     const auto oldDpi = gl.getDevicePixelRatio();
 
     if (!utils::isSameFloat(newDpi, oldDpi)) {

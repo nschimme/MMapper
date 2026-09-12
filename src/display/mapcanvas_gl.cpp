@@ -53,12 +53,6 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
-#ifdef Q_OS_WASM
-#include <emscripten.h>
-
-#include <emscripten/heap.h>
-#endif
-
 #include <QApplication>
 #include <QMessageBox>
 #include <QMessageLogContext>
@@ -219,20 +213,6 @@ void MapCanvas::reportGLVersion()
     logString("OpenGL Vendor:", GL_VENDOR);
     logString("OpenGL GLSL:", GL_SHADING_LANGUAGE_VERSION);
 
-    const float rawDpi = static_cast<float>(QPaintDevice::devicePixelRatioF());
-    const float activeDpi = computeEffectiveDpi();
-    logMsg("Display:", QString("Effective %1 DPI (Raw %2 DPI)").arg(activeDpi).arg(rawDpi).toUtf8());
-
-#ifdef Q_OS_WASM
-    const auto heapSize = emscripten_get_heap_size();
-    const auto heapMax = emscripten_get_heap_max();
-    logMsg("WASM Heap:",
-           QString("Current: %1 MB, Max: %2 MB")
-               .arg(heapSize / (1024 * 1024))
-               .arg(heapMax / (1024 * 1024))
-               .toUtf8());
-#endif
-
 #ifndef Q_OS_WASM
     {
         GLint profileMask = gl.glGetInteger(GL_CONTEXT_PROFILE_MASK);
@@ -294,6 +274,14 @@ void MapCanvas::reportGLVersion()
     if constexpr (!NO_GLES) {
         logMsg("Highest GLES:", mmqt::toQByteArrayUtf8(OpenGLConfig::getESVersionString()));
     }
+
+    const float rawDpi = static_cast<float>(QPaintDevice::devicePixelRatioF());
+    const float activeDpi = computeEffectiveDpi();
+    logMsg("Display:",
+           QString("Effective %1 DPI (Raw %2 DPI)")
+               .arg(static_cast<double>(activeDpi))
+               .arg(static_cast<double>(rawDpi))
+               .toUtf8());
 }
 
 bool MapCanvas::isBlacklistedDriver()
@@ -345,7 +333,7 @@ void MapCanvas::initializeGL()
     // because the logger purposely calls std::abort() when it receives an error.
     initLogger();
 
-    gl.initializeRenderer(computeEffectiveDpi());
+    gl.initializeRenderer(static_cast<float>(QPaintDevice::devicePixelRatioF()));
 
     gl.getUboManager()
         .registerRebuildFunction(Legacy::SharedVboEnum::NamedColorsBlock,
@@ -411,8 +399,6 @@ void MapCanvas::initializeGL()
         this->updateTextures();
         m_frameManager.requestUpdate();
     });
-
-    setConfig().canvas.renderScale.registerChangeCallback(m_lifetime, [this]() { screenChanged(); });
 
     // Clean up GL resources while the context is still current.
     // The destructor is too late — Qt destroys the context before ~MapCanvas() runs.
@@ -959,27 +945,6 @@ void MapCanvas::paintGL()
     longestBatchMs = std::max(batchTime, longestBatchMs);
     print(QString::asprintf("Worst updateBatches: %.1f ms", longestBatchMs));
 
-#ifdef Q_OS_WASM
-    const auto heapSize = emscripten_get_heap_size();
-    const auto heapMax = emscripten_get_heap_max();
-    const size_t roomCount = m_data.getCurrentMap().getRoomsCount();
-    const size_t markCount = m_data.getCurrentMap().getMarksCount();
-    const auto viewportSize = getViewport().size;
-    const float currentDpi = getOpenGL().getDevicePixelRatio();
-    const double estFboMemMB = (double(viewportSize.x) * double(viewportSize.y) * 4.0 * 2.0)
-                               / (1024.0 * 1024.0);
-
-    print(QString::asprintf("WASM Heap: %zu MB / %zu MB",
-                            heapSize / (1024 * 1024),
-                            heapMax / (1024 * 1024)));
-    print(QString::asprintf("Map stats: %zu rooms, %zu marks", roomCount, markCount));
-    print(QString::asprintf("FBO Target: %dx%d @ %.1fx DPI (~%.1f MB)",
-                            viewportSize.x,
-                            viewportSize.y,
-                            static_cast<double>(currentDpi),
-                            estFboMemMB));
-#endif
-
     const auto &advanced = getConfig().canvas.advanced;
     const float zoom = getTotalScaleFactor();
     const bool is3d = advanced.use3D.get();
@@ -1076,10 +1041,7 @@ void MapCanvas::paintSelectionArea()
 
 void MapCanvas::updateMultisampling()
 {
-    const int renderScale = getConfig().canvas.renderScale.get();
-    const int wantMultisampling = (renderScale < 100)
-                                      ? 0
-                                      : getConfig().canvas.antialiasingSamples.get();
+    const int wantMultisampling = getConfig().canvas.antialiasingSamples.get();
     getOpenGL().configureFbo(wantMultisampling);
 }
 

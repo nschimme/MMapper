@@ -192,7 +192,6 @@ private:
 private:
     void reportGLVersion();
     NODISCARD bool isBlacklistedDriver();
-    NODISCARD float computeEffectiveDpi() const;
 
 protected:
     void onViewProjDirty() const override;

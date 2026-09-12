@@ -101,14 +101,6 @@ MapCanvas *MapCanvas::getPrimary()
     return primaryMapCanvas();
 }
 
-float MapCanvas::computeEffectiveDpi() const
-{
-    const float rawDpi = static_cast<float>(QPaintDevice::devicePixelRatioF());
-    const float renderScaleFactor = static_cast<float>(getConfig().canvas.renderScale.get())
-                                    / 100.0f;
-    return std::max(0.25f, rawDpi * renderScaleFactor);
-}
-
 void MapCanvas::slot_layerUp()
 {
     setCurrentLayer(getCurrentLayer() + 1);
@@ -1222,10 +1214,7 @@ void MapCanvas::screenChanged()
         return;
     }
 
-    const float rawDpi = static_cast<float>(QPaintDevice::devicePixelRatioF());
-    const float renderScaleFactor = static_cast<float>(getConfig().canvas.renderScale.get())
-                                    / 100.0f;
-    const float newDpi = std::max(0.25f, rawDpi * renderScaleFactor);
+    const auto newDpi = static_cast<float>(QPaintDevice::devicePixelRatioF());
     const auto oldDpi = gl.getDevicePixelRatio();
 
     if (!utils::isSameFloat(newDpi, oldDpi)) {

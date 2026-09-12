@@ -763,9 +763,6 @@ if(EMSCRIPTEN)
         -sMIN_WEBGL_VERSION=2
 	#-sASSERTIONS
         -sASYNCIFY
-        -sINITIAL_MEMORY=268435456
-        -sMAXIMUM_MEMORY=536870912
-        -sALLOW_MEMORY_GROWTH=1
         -Os
     )
     target_link_libraries(mmapper PUBLIC z)

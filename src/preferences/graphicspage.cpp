@@ -59,31 +59,6 @@ GraphicsPage::GraphicsPage(QWidget *parent)
                     graphicsSettingsChanged();
                 }
             });
-    connect(ui->renderScaleComboBox,
-            &QComboBox::currentTextChanged,
-            this,
-            [this](const QString & /*text*/) {
-                if (ui->renderScaleComboBox->isEnabled()) {
-                    const int scale = ui->renderScaleComboBox
-                                          ->itemData(ui->renderScaleComboBox->currentIndex())
-                                          .toInt();
-                    if (scale > 0) {
-                        setConfig().canvas.renderScale.set(scale);
-                        if (scale < 100) {
-                            ui->antialiasingSamplesComboBox->setCurrentIndex(
-                                ui->antialiasingSamplesComboBox->findData(QVariant(0),
-                                                                          Qt::UserRole));
-                            ui->antialiasingSamplesComboBox->setEnabled(false);
-                            ui->antialiasingSamplesComboBox->setToolTip(
-                                "Anti-aliasing (MSAA) is disabled when Render Scale is below 100%.");
-                        } else {
-                            ui->antialiasingSamplesComboBox->setEnabled(true);
-                            ui->antialiasingSamplesComboBox->setToolTip("");
-                        }
-                        graphicsSettingsChanged();
-                    }
-                }
-            });
     connect(ui->trilinearFilteringCheckBox, &QCheckBox::stateChanged, this, [this](int /*unused*/) {
         setConfig().canvas.trilinearFiltering.set(ui->trilinearFilteringCheckBox->isChecked());
         graphicsSettingsChanged();
@@ -145,24 +120,6 @@ void GraphicsPage::slot_loadConfig()
     setIconColor(ui->connectionNormalPushButton, settings.connectionNormalColor);
 
     {
-        ui->renderScaleComboBox->setEnabled(false);
-        ui->renderScaleComboBox->clear();
-        static constexpr std::array<int, 3> scales{50, 75, 100};
-        for (const int s : scales) {
-            QString label = QString("%1%").arg(s);
-            if (s == 100) {
-                label += " (Native)";
-            }
-            ui->renderScaleComboBox->addItem(label, s);
-        }
-        const int currentScale = settings.renderScale.get();
-        const int index = utils::clampNonNegative(
-            ui->renderScaleComboBox->findData(QVariant(currentScale), Qt::UserRole));
-        ui->renderScaleComboBox->setCurrentIndex(index);
-        ui->renderScaleComboBox->setEnabled(true);
-    }
-
-    {
         ui->antialiasingSamplesComboBox->setEnabled(false);
         ui->antialiasingSamplesComboBox->clear();
         const int maxSamples = OpenGLConfig::getMaxSamples();
@@ -172,22 +129,12 @@ void GraphicsPage::slot_loadConfig()
                 i = 1;
             }
         }
-        const int currentScale = settings.renderScale.get();
-        const int effectiveSamples = (currentScale < 100) ? 0 : settings.antialiasingSamples.get();
-        const auto samples = std::min(effectiveSamples, maxSamples);
+        const auto samples = std::min(settings.antialiasingSamples.get(), maxSamples);
         const int index = utils::clampNonNegative(
             ui->antialiasingSamplesComboBox->findData(QVariant(samples), Qt::UserRole));
         ui->antialiasingSamplesComboBox->setCurrentIndex(index);
-        if (currentScale < 100) {
-            ui->antialiasingSamplesComboBox->setEnabled(false);
-            ui->antialiasingSamplesComboBox->setToolTip(
-                "Anti-aliasing (MSAA) is disabled when Render Scale is below 100%.");
-        } else {
-            ui->antialiasingSamplesComboBox->setEnabled(true);
-            ui->antialiasingSamplesComboBox->setToolTip("");
-        }
+        ui->antialiasingSamplesComboBox->setEnabled(true);
     }
-
     ui->trilinearFilteringCheckBox->setChecked(settings.trilinearFiltering.get());
 
     ui->drawUnsavedChanges->setChecked(settings.showUnsavedChanges.get());

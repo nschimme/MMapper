@@ -166,6 +166,11 @@ public:
     struct NODISCARD CanvasSettings final : public CanvasNamedColorOptions
     {
         NamedConfig<int> antialiasingSamples{"ANTIALIASING_SAMPLES", 0};
+#ifdef Q_OS_WASM
+        NamedConfig<int> renderScale{"RENDER_SCALE", 50};
+#else
+        NamedConfig<int> renderScale{"RENDER_SCALE", 100};
+#endif
         NamedConfig<bool> trilinearFiltering{"TRILINEAR_FILTERING", true};
         NamedConfig<bool> showMissingMapId{"SHOW_MISSING_MAPID", false};
         NamedConfig<bool> showUnsavedChanges{"SHOW_UNSAVED_CHANGES", false};

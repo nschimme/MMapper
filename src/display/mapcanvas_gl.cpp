@@ -219,12 +219,10 @@ void MapCanvas::reportGLVersion()
     logString("OpenGL Vendor:", GL_VENDOR);
     logString("OpenGL GLSL:", GL_SHADING_LANGUAGE_VERSION);
 
-    const auto rawDpi = static_cast<float>(QPaintDevice::devicePixelRatioF());
-#ifdef Q_OS_WASM
-    const auto activeDpi = std::min(rawDpi, 1.0f);
-#else
-    const auto activeDpi = rawDpi;
-#endif
+    const float rawDpi = static_cast<float>(QPaintDevice::devicePixelRatioF());
+    const float renderScaleFactor = static_cast<float>(getConfig().canvas.renderScale.get())
+                                    / 100.0f;
+    const float activeDpi = std::max(0.25f, rawDpi * renderScaleFactor);
 
     logMsg("Display:", QString("%1 DPI").arg(activeDpi).toUtf8());
 
@@ -352,12 +350,10 @@ void MapCanvas::initializeGL()
     // because the logger purposely calls std::abort() when it receives an error.
     initLogger();
 
-    const auto rawDpi = static_cast<float>(QPaintDevice::devicePixelRatioF());
-#ifdef Q_OS_WASM
-    const auto activeDpi = std::min(rawDpi, 1.0f);
-#else
-    const auto activeDpi = rawDpi;
-#endif
+    const float rawDpi = static_cast<float>(QPaintDevice::devicePixelRatioF());
+    const float renderScaleFactor = static_cast<float>(getConfig().canvas.renderScale.get())
+                                    / 100.0f;
+    const float activeDpi = std::max(0.25f, rawDpi * renderScaleFactor);
 
     gl.initializeRenderer(activeDpi);
 
@@ -425,6 +421,8 @@ void MapCanvas::initializeGL()
         this->updateTextures();
         m_frameManager.requestUpdate();
     });
+
+    setConfig().canvas.renderScale.registerChangeCallback(m_lifetime, [this]() { screenChanged(); });
 
     // Clean up GL resources while the context is still current.
     // The destructor is too late — Qt destroys the context before ~MapCanvas() runs.

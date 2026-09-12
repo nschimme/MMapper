@@ -59,6 +59,20 @@ GraphicsPage::GraphicsPage(QWidget *parent)
                     graphicsSettingsChanged();
                 }
             });
+    connect(ui->renderScaleComboBox,
+            &QComboBox::currentTextChanged,
+            this,
+            [this](const QString & /*text*/) {
+                if (ui->renderScaleComboBox->isEnabled()) {
+                    const int scale = ui->renderScaleComboBox
+                                          ->itemData(ui->renderScaleComboBox->currentIndex())
+                                          .toInt();
+                    if (scale > 0) {
+                        setConfig().canvas.renderScale.set(scale);
+                        graphicsSettingsChanged();
+                    }
+                }
+            });
     connect(ui->trilinearFilteringCheckBox, &QCheckBox::stateChanged, this, [this](int /*unused*/) {
         setConfig().canvas.trilinearFiltering.set(ui->trilinearFilteringCheckBox->isChecked());
         graphicsSettingsChanged();
@@ -135,6 +149,25 @@ void GraphicsPage::slot_loadConfig()
         ui->antialiasingSamplesComboBox->setCurrentIndex(index);
         ui->antialiasingSamplesComboBox->setEnabled(true);
     }
+
+    {
+        ui->renderScaleComboBox->setEnabled(false);
+        ui->renderScaleComboBox->clear();
+        static constexpr std::array<int, 6> scales{25, 50, 75, 100, 150, 200};
+        for (const int s : scales) {
+            QString label = QString("%1%").arg(s);
+            if (s == 100) {
+                label += " (Native)";
+            }
+            ui->renderScaleComboBox->addItem(label, s);
+        }
+        const int currentScale = settings.renderScale.get();
+        const int index = utils::clampNonNegative(
+            ui->renderScaleComboBox->findData(QVariant(currentScale), Qt::UserRole));
+        ui->renderScaleComboBox->setCurrentIndex(index);
+        ui->renderScaleComboBox->setEnabled(true);
+    }
+
     ui->trilinearFilteringCheckBox->setChecked(settings.trilinearFiltering.get());
 
     ui->drawUnsavedChanges->setChecked(settings.showUnsavedChanges.get());

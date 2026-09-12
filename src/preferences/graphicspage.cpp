@@ -47,6 +47,29 @@ GraphicsPage::GraphicsPage(QWidget *parent)
         changeColorClicked(setConfig().canvas.connectionNormalColor, ui->connectionNormalPushButton);
         graphicsSettingsChanged();
     });
+    connect(ui->renderScaleComboBox,
+            &QComboBox::currentTextChanged,
+            this,
+            [this](const QString & /*text*/) {
+                if (ui->renderScaleComboBox->isEnabled()) {
+                    const int scale = ui->renderScaleComboBox
+                                          ->itemData(ui->renderScaleComboBox->currentIndex())
+                                          .toInt();
+                    setConfig().canvas.renderScale.set(scale);
+
+                    if (scale < 100) {
+                        setConfig().canvas.antialiasingSamples.set(0);
+                        ui->antialiasingSamplesComboBox->setEnabled(false);
+                    } else {
+                        ui->antialiasingSamplesComboBox->setEnabled(true);
+                        setConfig().canvas.antialiasingSamples.set(
+                            ui->antialiasingSamplesComboBox
+                                ->itemData(ui->antialiasingSamplesComboBox->currentIndex())
+                                .toInt());
+                    }
+                    graphicsSettingsChanged();
+                }
+            });
     connect(ui->antialiasingSamplesComboBox,
             &QComboBox::currentTextChanged,
             this,
@@ -120,6 +143,19 @@ void GraphicsPage::slot_loadConfig()
     setIconColor(ui->connectionNormalPushButton, settings.connectionNormalColor);
 
     {
+        ui->renderScaleComboBox->setEnabled(false);
+        ui->renderScaleComboBox->clear();
+        ui->renderScaleComboBox->addItem("50% (Performance)", 50);
+        ui->renderScaleComboBox->addItem("75% (Balanced)", 75);
+        ui->renderScaleComboBox->addItem("100% (Native)", 100);
+        const int scale = settings.renderScale.get();
+        const int scaleIndex = utils::clampNonNegative(
+            ui->renderScaleComboBox->findData(QVariant(scale), Qt::UserRole));
+        ui->renderScaleComboBox->setCurrentIndex(scaleIndex);
+        ui->renderScaleComboBox->setEnabled(true);
+    }
+
+    {
         ui->antialiasingSamplesComboBox->setEnabled(false);
         ui->antialiasingSamplesComboBox->clear();
         const int maxSamples = OpenGLConfig::getMaxSamples();
@@ -133,7 +169,9 @@ void GraphicsPage::slot_loadConfig()
         const int index = utils::clampNonNegative(
             ui->antialiasingSamplesComboBox->findData(QVariant(samples), Qt::UserRole));
         ui->antialiasingSamplesComboBox->setCurrentIndex(index);
-        ui->antialiasingSamplesComboBox->setEnabled(true);
+        if (settings.renderScale.get() >= 100) {
+            ui->antialiasingSamplesComboBox->setEnabled(true);
+        }
     }
     ui->trilinearFilteringCheckBox->setChecked(settings.trilinearFiltering.get());
 

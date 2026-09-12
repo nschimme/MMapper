@@ -275,6 +275,7 @@ ConstString KEY_MAXIMUM_NUMBER_OF_PATHS = "maximum number of paths";
 ConstString KEY_MULTIPLE_CONNECTIONS_PENALTY = "multiple connections penalty";
 ConstString KEY_MUME_START_EPOCH = "Mume start epoch";
 ConstString KEY_NUMBER_OF_ANTI_ALIASING_SAMPLES = "Number of anti-aliasing samples";
+ConstString KEY_RENDER_SCALE = "Render scale";
 ConstString KEY_PROXY_CONNECTION_STATUS = "Proxy connection status";
 ConstString KEY_PROXY_LISTENS_ON_ANY_INTERFACE = "Proxy listens on any interface";
 ConstString KEY_RELATIVE_PATH_ACCEPTANCE = "relative path acceptance";
@@ -663,6 +664,8 @@ void Configuration::CanvasSettings::read(const QSettings &conf)
     roomDarkColor = lookupColor(KEY_ROOM_DARK_COLOR, DEFAULT_DARK_COLOR);
     roomDarkLitColor = lookupColor(KEY_ROOM_DARK_LIT_COLOR, DEFAULT_NO_SUNDEATH_COLOR);
     antialiasingSamples.set(conf.value(KEY_NUMBER_OF_ANTI_ALIASING_SAMPLES, 0).toInt());
+    renderScale.set(conf.value(KEY_RENDER_SCALE, (CURRENT_PLATFORM == PlatformEnum::Wasm) ? 50 : 100).toInt());
+    renderScale.clamp(25, 100);
     trilinearFiltering.set(conf.value(KEY_USE_TRILINEAR_FILTERING, true).toBool());
     advanced.use3D.set(conf.value(KEY_3D_CANVAS, false).toBool());
     advanced.autoTilt.set(conf.value(KEY_3D_AUTO_TILT, true).toBool());
@@ -870,6 +873,7 @@ void Configuration::CanvasSettings::write(QSettings &conf) const
     conf.setValue(KEY_ROOM_DARK_LIT_COLOR, getQColorName(roomDarkLitColor));
     conf.setValue(KEY_CONNECTION_NORMAL_COLOR, getQColorName(connectionNormalColor));
     conf.setValue(KEY_NUMBER_OF_ANTI_ALIASING_SAMPLES, antialiasingSamples.get());
+    conf.setValue(KEY_RENDER_SCALE, renderScale.get());
     conf.setValue(KEY_USE_TRILINEAR_FILTERING, trilinearFiltering.get());
     conf.setValue(KEY_3D_CANVAS, advanced.use3D.get());
     conf.setValue(KEY_3D_AUTO_TILT, advanced.autoTilt.get());

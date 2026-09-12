@@ -101,6 +101,14 @@ MapCanvas *MapCanvas::getPrimary()
     return primaryMapCanvas();
 }
 
+float MapCanvas::computeEffectiveDpi() const
+{
+    const float rawDpi = static_cast<float>(QPaintDevice::devicePixelRatioF());
+    const float renderScaleFactor = static_cast<float>(getConfig().canvas.renderScale.get())
+                                    / 100.0f;
+    return std::max(0.25f, rawDpi * renderScaleFactor);
+}
+
 void MapCanvas::slot_layerUp()
 {
     setCurrentLayer(getCurrentLayer() + 1);

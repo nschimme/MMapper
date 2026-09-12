@@ -220,11 +220,8 @@ void MapCanvas::reportGLVersion()
     logString("OpenGL GLSL:", GL_SHADING_LANGUAGE_VERSION);
 
     const float rawDpi = static_cast<float>(QPaintDevice::devicePixelRatioF());
-    const float renderScaleFactor = static_cast<float>(getConfig().canvas.renderScale.get())
-                                    / 100.0f;
-    const float activeDpi = std::max(0.25f, rawDpi * renderScaleFactor);
-
-    logMsg("Display:", QString("%1 DPI").arg(activeDpi).toUtf8());
+    const float activeDpi = computeEffectiveDpi();
+    logMsg("Display:", QString("Effective %1 DPI (Raw %2 DPI)").arg(activeDpi).arg(rawDpi).toUtf8());
 
 #ifdef Q_OS_WASM
     const auto heapSize = emscripten_get_heap_size();
@@ -297,8 +294,6 @@ void MapCanvas::reportGLVersion()
     if constexpr (!NO_GLES) {
         logMsg("Highest GLES:", mmqt::toQByteArrayUtf8(OpenGLConfig::getESVersionString()));
     }
-
-    logMsg("Display:", QString("%1 DPI").arg(QPaintDevice::devicePixelRatioF()).toUtf8());
 }
 
 bool MapCanvas::isBlacklistedDriver()
@@ -350,12 +345,7 @@ void MapCanvas::initializeGL()
     // because the logger purposely calls std::abort() when it receives an error.
     initLogger();
 
-    const float rawDpi = static_cast<float>(QPaintDevice::devicePixelRatioF());
-    const float renderScaleFactor = static_cast<float>(getConfig().canvas.renderScale.get())
-                                    / 100.0f;
-    const float activeDpi = std::max(0.25f, rawDpi * renderScaleFactor);
-
-    gl.initializeRenderer(activeDpi);
+    gl.initializeRenderer(computeEffectiveDpi());
 
     gl.getUboManager()
         .registerRebuildFunction(Legacy::SharedVboEnum::NamedColorsBlock,

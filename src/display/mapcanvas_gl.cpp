@@ -1086,7 +1086,10 @@ void MapCanvas::paintSelectionArea()
 
 void MapCanvas::updateMultisampling()
 {
-    const int wantMultisampling = getConfig().canvas.antialiasingSamples.get();
+    const int renderScale = getConfig().canvas.renderScale.get();
+    const int wantMultisampling = (renderScale < 100)
+                                      ? 0
+                                      : getConfig().canvas.antialiasingSamples.get();
     getOpenGL().configureFbo(wantMultisampling);
 }
 

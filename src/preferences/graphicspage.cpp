@@ -69,6 +69,17 @@ GraphicsPage::GraphicsPage(QWidget *parent)
                                           .toInt();
                     if (scale > 0) {
                         setConfig().canvas.renderScale.set(scale);
+                        if (scale < 100) {
+                            ui->antialiasingSamplesComboBox->setCurrentIndex(
+                                ui->antialiasingSamplesComboBox->findData(QVariant(0),
+                                                                          Qt::UserRole));
+                            ui->antialiasingSamplesComboBox->setEnabled(false);
+                            ui->antialiasingSamplesComboBox->setToolTip(
+                                "Anti-aliasing (MSAA) is disabled when Render Scale is below 100%.");
+                        } else {
+                            ui->antialiasingSamplesComboBox->setEnabled(true);
+                            ui->antialiasingSamplesComboBox->setToolTip("");
+                        }
                         graphicsSettingsChanged();
                     }
                 }
@@ -134,26 +145,9 @@ void GraphicsPage::slot_loadConfig()
     setIconColor(ui->connectionNormalPushButton, settings.connectionNormalColor);
 
     {
-        ui->antialiasingSamplesComboBox->setEnabled(false);
-        ui->antialiasingSamplesComboBox->clear();
-        const int maxSamples = OpenGLConfig::getMaxSamples();
-        for (int i = 0; i <= maxSamples; i *= 2) {
-            ui->antialiasingSamplesComboBox->addItem(i != 0 ? QString("%1x").arg(i) : "Off", i);
-            if (i == 0) {
-                i = 1;
-            }
-        }
-        const auto samples = std::min(settings.antialiasingSamples.get(), maxSamples);
-        const int index = utils::clampNonNegative(
-            ui->antialiasingSamplesComboBox->findData(QVariant(samples), Qt::UserRole));
-        ui->antialiasingSamplesComboBox->setCurrentIndex(index);
-        ui->antialiasingSamplesComboBox->setEnabled(true);
-    }
-
-    {
         ui->renderScaleComboBox->setEnabled(false);
         ui->renderScaleComboBox->clear();
-        static constexpr std::array<int, 6> scales{25, 50, 75, 100, 150, 200};
+        static constexpr std::array<int, 3> scales{50, 75, 100};
         for (const int s : scales) {
             QString label = QString("%1%").arg(s);
             if (s == 100) {
@@ -166,6 +160,32 @@ void GraphicsPage::slot_loadConfig()
             ui->renderScaleComboBox->findData(QVariant(currentScale), Qt::UserRole));
         ui->renderScaleComboBox->setCurrentIndex(index);
         ui->renderScaleComboBox->setEnabled(true);
+    }
+
+    {
+        ui->antialiasingSamplesComboBox->setEnabled(false);
+        ui->antialiasingSamplesComboBox->clear();
+        const int maxSamples = OpenGLConfig::getMaxSamples();
+        for (int i = 0; i <= maxSamples; i *= 2) {
+            ui->antialiasingSamplesComboBox->addItem(i != 0 ? QString("%1x").arg(i) : "Off", i);
+            if (i == 0) {
+                i = 1;
+            }
+        }
+        const int currentScale = settings.renderScale.get();
+        const int effectiveSamples = (currentScale < 100) ? 0 : settings.antialiasingSamples.get();
+        const auto samples = std::min(effectiveSamples, maxSamples);
+        const int index = utils::clampNonNegative(
+            ui->antialiasingSamplesComboBox->findData(QVariant(samples), Qt::UserRole));
+        ui->antialiasingSamplesComboBox->setCurrentIndex(index);
+        if (currentScale < 100) {
+            ui->antialiasingSamplesComboBox->setEnabled(false);
+            ui->antialiasingSamplesComboBox->setToolTip(
+                "Anti-aliasing (MSAA) is disabled when Render Scale is below 100%.");
+        } else {
+            ui->antialiasingSamplesComboBox->setEnabled(true);
+            ui->antialiasingSamplesComboBox->setToolTip("");
+        }
     }
 
     ui->trilinearFilteringCheckBox->setChecked(settings.trilinearFiltering.get());

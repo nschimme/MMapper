@@ -53,6 +53,11 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
+#ifdef Q_OS_WASM
+#include <emscripten.h>
+#include <emscripten/heap.h>
+#endif
+
 #include <QApplication>
 #include <QMessageBox>
 #include <QMessageLogContext>
@@ -213,6 +218,25 @@ void MapCanvas::reportGLVersion()
     logString("OpenGL Vendor:", GL_VENDOR);
     logString("OpenGL GLSL:", GL_SHADING_LANGUAGE_VERSION);
 
+    const auto rawDpi = static_cast<float>(QPaintDevice::devicePixelRatioF());
+#ifdef Q_OS_WASM
+    const auto activeDpi = std::min(rawDpi, 1.5f);
+#else
+    const auto activeDpi = rawDpi;
+#endif
+
+    logMsg("Display:", QString("%1 DPI").arg(activeDpi).toUtf8());
+
+#ifdef Q_OS_WASM
+    const auto heapSize = emscripten_get_heap_size();
+    const auto heapMax = emscripten_get_heap_max();
+    logMsg("WASM Heap:",
+           QString("Current: %1 MB, Max: %2 MB")
+               .arg(heapSize / (1024 * 1024))
+               .arg(heapMax / (1024 * 1024))
+               .toUtf8());
+#endif
+
 #ifndef Q_OS_WASM
     {
         GLint profileMask = gl.glGetInteger(GL_CONTEXT_PROFILE_MASK);
@@ -327,7 +351,14 @@ void MapCanvas::initializeGL()
     // because the logger purposely calls std::abort() when it receives an error.
     initLogger();
 
-    gl.initializeRenderer(static_cast<float>(QPaintDevice::devicePixelRatioF()));
+    const auto rawDpi = static_cast<float>(QPaintDevice::devicePixelRatioF());
+#ifdef Q_OS_WASM
+    const auto activeDpi = std::min(rawDpi, 1.5f);
+#else
+    const auto activeDpi = rawDpi;
+#endif
+
+    gl.initializeRenderer(activeDpi);
 
     gl.getUboManager()
         .registerRebuildFunction(Legacy::SharedVboEnum::NamedColorsBlock,
@@ -938,6 +969,14 @@ void MapCanvas::paintGL()
 
     longestBatchMs = std::max(batchTime, longestBatchMs);
     print(QString::asprintf("Worst updateBatches: %.1f ms", longestBatchMs));
+
+#ifdef Q_OS_WASM
+    const auto heapSize = emscripten_get_heap_size();
+    const auto heapMax = emscripten_get_heap_max();
+    print(QString::asprintf("WASM Heap: %zu MB / %zu MB",
+                            heapSize / (1024 * 1024),
+                            heapMax / (1024 * 1024)));
+#endif
 
     const auto &advanced = getConfig().canvas.advanced;
     const float zoom = getTotalScaleFactor();

@@ -974,9 +974,22 @@ void MapCanvas::paintGL()
 #ifdef Q_OS_WASM
     const auto heapSize = emscripten_get_heap_size();
     const auto heapMax = emscripten_get_heap_max();
+    const size_t roomCount = m_data.getCurrentMap().getRoomsCount();
+    const size_t markCount = m_data.getCurrentMap().getMarksCount();
+    const auto viewportSize = getViewport().size;
+    const float currentDpi = getOpenGL().getDevicePixelRatio();
+    const double estFboMemMB = (double(viewportSize.x) * double(viewportSize.y) * 4.0 * 2.0)
+                               / (1024.0 * 1024.0);
+
     print(QString::asprintf("WASM Heap: %zu MB / %zu MB",
                             heapSize / (1024 * 1024),
                             heapMax / (1024 * 1024)));
+    print(QString::asprintf("Map stats: %zu rooms, %zu marks", roomCount, markCount));
+    print(QString::asprintf("FBO Target: %dx%d @ %.1fx DPI (~%.1f MB)",
+                            viewportSize.x,
+                            viewportSize.y,
+                            static_cast<double>(currentDpi),
+                            estFboMemMB));
 #endif
 
     const auto &advanced = getConfig().canvas.advanced;

@@ -8,6 +8,7 @@
 
 #include "../global/utils.h"
 
+#include <algorithm>
 #include <cassert>
 #include <mutex>
 #include <optional>
@@ -304,6 +305,8 @@ ConstString KEY_USE_INTERNAL_EDITOR = "Use internal editor";
 ConstString KEY_USE_TRILINEAR_FILTERING = "Use trilinear filtering";
 ConstString KEY_WEATHER_ATMOSPHERE_INTENSITY = "weather.atmosphereIntensity";
 ConstString KEY_WEATHER_PRECIPITATION_INTENSITY = "weather.precipitationIntensity";
+ConstString KEY_MAP_FONT_FAMILY = "Map font family";
+ConstString KEY_MAP_FONT_SIZE = "Map font size";
 ConstString KEY_WEATHER_TIME_OF_DAY_INTENSITY = "weather.todIntensity";
 ConstString KEY_WINDOW_GEOMETRY = "Window Geometry";
 ConstString KEY_WINDOW_STATE = "Window State";
@@ -686,6 +689,10 @@ void Configuration::CanvasSettings::read(const QSettings &conf)
                                         .append(DEFAULT_MMAPPER_SUBDIR)
                                         .append(DEFAULT_RESOURCES_SUBDIR))
                              .toString();
+    mapFontFamily = conf.value(KEY_MAP_FONT_FAMILY, "Cantarell").toString();
+    // Clamped once here so every consumer can trust the value instead of
+    // re-guarding against an unset/corrupt/out-of-range setting.
+    mapFontSize = std::clamp(conf.value(KEY_MAP_FONT_SIZE, 18).toInt(), 6, 72);
     showMissingMapId.set(conf.value(KEY_SHOW_MISSING_MAP_ID, true).toBool());
     showUnsavedChanges.set(conf.value(KEY_SHOW_UNSAVED_CHANGES, true).toBool());
     showUnmappedExits.set(conf.value(KEY_DRAW_NOT_MAPPED_EXITS, true).toBool());
@@ -897,6 +904,8 @@ NODISCARD static auto getQColorName(const XNamedColor &color)
 void Configuration::CanvasSettings::write(QSettings &conf) const
 {
     conf.setValue(KEY_RESOURCES_DIRECTORY, resourcesDirectory);
+    conf.setValue(KEY_MAP_FONT_FAMILY, mapFontFamily);
+    conf.setValue(KEY_MAP_FONT_SIZE, mapFontSize);
     conf.setValue(KEY_SHOW_MISSING_MAP_ID, showMissingMapId.get());
     conf.setValue(KEY_SHOW_UNSAVED_CHANGES, showUnsavedChanges.get());
     conf.setValue(KEY_DRAW_NOT_MAPPED_EXITS, showUnmappedExits.get());

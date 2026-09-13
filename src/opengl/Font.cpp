@@ -12,11 +12,13 @@
 #include "../global/ConfigConsts.h"
 #include "../global/hash.h"
 #include "../global/utils.h"
+#include "../font/FontGenerator.h"
 #include "FontFormatFlags.h"
 #include "OpenGL.h"
 
 #include <cassert>
 #include <cctype>
+#include <cmath>
 #include <cstdlib>
 #include <memory>
 #include <optional>
@@ -84,6 +86,7 @@ struct NODISCARD FontMetrics final
         int xoffset = 0;
         int yoffset = 0;
         int xadvance = 0;
+        bool isColor = false;
 
         Glyph() = default;
         ~Glyph() = default;
@@ -97,7 +100,8 @@ struct NODISCARD FontMetrics final
                        const int height_,
                        const int xoffset_,
                        const int yoffset_,
-                       const int xadvance_)
+                       const int xadvance_,
+                       const bool isColor_ = false)
             : id{id_}
             , x{x_}
             , y{y_}
@@ -106,6 +110,7 @@ struct NODISCARD FontMetrics final
             , xoffset{xoffset_}
             , yoffset{yoffset_}
             , xadvance{xadvance_}
+            , isColor{isColor_}
         {}
 
         // used for underline
@@ -177,6 +182,10 @@ struct NODISCARD FontMetrics final
         int scaleH = 0;
         int marginX = 0;
         int marginY = 0;
+        // Per-glyph SDF spread border baked into every glyph's quad; must be
+        // subtracted back out of accumulated text bounds (background box,
+        // centering) so they reflect ink extent, not the invisible SDF margin.
+        int glyphPadding = 0;
     };
 
     std::optional<Glyph> background;
@@ -192,7 +201,7 @@ struct NODISCARD FontMetrics final
     std::unordered_map<int, const Glyph *> glyphs;
     std::unordered_map<IntPair, const Kerning *> kernings;
 
-    NODISCARD QString init(const QString &);
+    NODISCARD QImage initFromAtlas(const font_gen::FontAtlasData &atlasData);
 
     NODISCARD const Glyph *lookupGlyph(const int i) const
     {
@@ -298,13 +307,39 @@ struct NODISCARD FontMetrics final
     void foreach_glyph(const std::string_view msg, EmitGlyph &&emitGlyph) const
     {
         const Glyph *prev = nullptr;
-        for (const char &c : msg) {
-            const Glyph *const current = lookupGlyph(c);
+        size_t i = 0;
+        while (i < msg.size()) {
+            char32_t codepoint = 0;
+            const unsigned char c = static_cast<unsigned char>(msg[i]);
+            if (c < 0x80) {
+                codepoint = c;
+                i += 1;
+            } else if ((c & 0xE0) == 0xC0 && i + 1 < msg.size()) {
+                codepoint = static_cast<char32_t>(
+                    ((c & 0x1F) << 6) | (static_cast<unsigned char>(msg[i + 1]) & 0x3F));
+                i += 2;
+            } else if ((c & 0xF0) == 0xE0 && i + 2 < msg.size()) {
+                codepoint = static_cast<char32_t>(
+                    ((c & 0x0F) << 12) | ((static_cast<unsigned char>(msg[i + 1]) & 0x3F) << 6)
+                    | (static_cast<unsigned char>(msg[i + 2]) & 0x3F));
+                i += 3;
+            } else if ((c & 0xF8) == 0xF0 && i + 3 < msg.size()) {
+                codepoint = static_cast<char32_t>(
+                    ((c & 0x07) << 18) | ((static_cast<unsigned char>(msg[i + 1]) & 0x3F) << 12)
+                    | ((static_cast<unsigned char>(msg[i + 2]) & 0x3F) << 6)
+                    | (static_cast<unsigned char>(msg[i + 3]) & 0x3F));
+                i += 4;
+            } else {
+                codepoint = c;
+                i += 1;
+            }
+
+            const Glyph *const current = lookupGlyph(static_cast<int>(codepoint));
             if (current != nullptr) {
                 emitGlyph(current, lookupKerning(prev, current));
                 prev = current;
             } else if (auto oops = lookupGlyph(char_consts::C_QUESTION_MARK)) {
-                qWarning() << "Unable to lookup glyph" << QString(QChar(c));
+                qWarning() << "Unable to lookup glyph" << QString::fromStdU32String(std::u32string(1, codepoint));
                 emitGlyph(oops, lookupKerning(prev, oops));
                 prev = oops;
             } else {
@@ -353,132 +388,66 @@ QDebug operator<<(QDebug os, PrintedChar c)
     return os;
 }
 
-QString FontMetrics::init(const QString &fontFilename)
+QImage FontMetrics::initFromAtlas(const font_gen::FontAtlasData &atlasData)
 {
-    qInfo() << "Loading font from " << fontFilename;
+    raw_glyphs.clear();
+    glyphs.clear();
+    raw_kernings.clear();
+    kernings.clear();
 
-    QFile f(fontFilename);
-    if (!f.open(QIODevice::ReadOnly | QIODevice::Text)) {
-        qCritical() << "Unable to load font";
-        abort();
+    // Reserve space for atlas glyphs plus 2 synthetic glyphs (background & underline)
+    raw_glyphs.reserve(atlasData.glyphs.size() + 2);
+    // Reserved upfront: raw_kernings must not reallocate once `kernings` starts
+    // storing pointers into it below.
+    raw_kernings.reserve(atlasData.kernings.size());
+    common.lineHeight = atlasData.lineHeight;
+    common.base = atlasData.base;
+    common.scaleW = atlasData.scaleW;
+    common.scaleH = atlasData.scaleH;
+    common.marginX = 2;
+    common.marginY = 1;
+    common.glyphPadding = atlasData.glyphPadding;
+
+    for (const auto &[id, gm] : atlasData.glyphs) {
+        const int y2 = common.scaleH - (gm.y + gm.height);
+        const int yoffset2 = common.base - (gm.yoffset + gm.height);
+        raw_glyphs.emplace_back(gm.id,
+                                gm.x,
+                                y2,
+                                gm.width,
+                                gm.height,
+                                gm.xoffset,
+                                yoffset2,
+                                gm.xadvance,
+                                gm.isColor);
     }
 
-    raw_glyphs.reserve(256);
-    raw_kernings.reserve(1024);
+    QImage result = (!atlasData.texturePages.empty())
+                        ? atlasData.texturePages[0]
+                        : QImage(common.scaleW, common.scaleH, QImage::Format_ARGB32);
 
-    QFileInfo info(fontFilename);
-    QString imageFilename;
-
-    bool hasCommon = false;
-
-    QXmlStreamReader xml(&f);
-    while (!xml.atEnd() && !xml.hasError()) {
-        if (xml.readNextStartElement()) {
-            const auto &attr = xml.attributes();
-            if (xml.name() == QStringLiteral("common")) {
-                if (hasCommon) {
-                    assert(false);
-                    continue;
-                }
-                hasCommon = true;
-                // <common lineHeight="16" base="13" scaleW="256" scaleH="256" pages="1" packed="0" alphaChnl="1" redChnl="0" greenChnl="0" blueChnl="0"/>
-                const int lineHeight = attr.value("lineHeight").toInt();
-                const int base = attr.value("base").toInt();
-                const int scaleW = attr.value("scaleW").toInt();
-                const int scaleH = attr.value("scaleH").toInt();
-                const int marginX = 2;
-                const int marginY = 1;
-                if (VERBOSE_FONT_DEBUG) {
-                    qDebug() << "Common" << lineHeight << base << scaleW << scaleH << marginX
-                             << marginY;
-                }
-                common = Common{lineHeight, base, scaleW, scaleH, marginX, marginY};
-
-            } else if (xml.name() == QStringLiteral("char")) {
-                if (!hasCommon) {
-                    assert(false);
-                    continue;
-                }
-
-                if (attr.value("page").toInt() != 0 || attr.value("chnl").toInt() != 15) {
-                    assert(false);
-                    continue;
-                }
-
-                // <char id="32" x="197" y="70" width="3" height="1" xoffset="-1" yoffset="15" xadvance="4" page="0" chnl="15" />
-                const int id = attr.value("id").toInt();
-
-                const int x = attr.value("x").toInt();
-                const int y = attr.value("y").toInt();
-                const int width = attr.value("width").toInt();
-                const int height = attr.value("height").toInt();
-                const int xoffset = attr.value("xoffset").toInt();
-                const int yoffset = attr.value("yoffset").toInt();
-                const int xadvance = attr.value("xadvance").toInt();
-
-                // REVISIT: should these be offset by -1?
-                const int y2 = common.scaleH - (y + height);
-                const int yoffset2 = common.base - (yoffset + height);
-
-                if (VERBOSE_FONT_DEBUG) {
-                    qDebug() << "Glyph" << PrintedChar{id} << x << y << width << height << xoffset
-                             << yoffset << xadvance << "--->" << y2 << yoffset2;
-                }
-
-                raw_glyphs.emplace_back(id, x, y2, width, height, xoffset, yoffset2, xadvance);
-
-            } else if (xml.name() == QStringLiteral("kerning")) {
-                if (!hasCommon) {
-                    assert(false);
-                    continue;
-                }
-
-                //   <kerning first="255" second="58" amount="-1" />
-                const int first = attr.value("first").toInt();
-                const int second = attr.value("second").toInt();
-                const int amount = attr.value("amount").toInt();
-                if (VERBOSE_FONT_DEBUG) {
-                    qDebug() << "Kerning" << PrintedChar{first} << PrintedChar{second} << amount;
-                }
-                raw_kernings.emplace_back(first, second, amount);
-            } else if (xml.name() == QStringLiteral("page")) {
-                const int id = attr.value("id").toInt();
-                if (id != 0) {
-                    continue;
-                }
-                const auto &file = attr.value("file").toString();
-                const auto &path = info.dir().canonicalPath() + "/" + file;
-
-                const bool exists = QFile{path}.exists();
-                if (exists) {
-                    imageFilename = path;
-                }
-
-                if (VERBOSE_FONT_DEBUG) {
-                    QDebug &&os = qDebug();
-                    os << "page" << id << file;
-                    os.nospace();
-                    os << "(aka " << path << ")";
-                    os.space();
-                    os << (!exists ? "Does not exist." : "Exists.");
-                }
-            }
-        }
-    }
-
-    qInfo() << "Loaded" << raw_glyphs.size() << "glyphs and" << raw_kernings.size() << "kernings";
+    tryAddSyntheticGlyphs(result);
 
     for (const Glyph &glyph : raw_glyphs) {
-        assert(isClamped(glyph.id, 0, 255));
         glyphs[glyph.id] = &glyph;
     }
 
-    for (const Kerning &kerning : raw_kernings) {
-        kernings[IntPair{kerning.first, kerning.second}] = &kerning;
+    for (const font_gen::KerningPair &kp : atlasData.kernings) {
+        raw_kernings.emplace_back(static_cast<int>(kp.first), static_cast<int>(kp.second), kp.amount);
+        const Kerning &k = raw_kernings.back();
+        kernings[IntPair{k.first, k.second}] = &k;
     }
 
-    return imageFilename;
+    if (background) {
+        glyphs[BACKGROUND_ID] = &background.value();
+    }
+    if (underline) {
+        glyphs[UNDERLINE_ID] = &underline.value();
+    }
+
+    return result;
 }
+
 
 class NODISCARD FontBatchBuilder final
 {
@@ -578,10 +547,11 @@ public:
     void emitGlyphQuad(const bool isEmpty,
                        const glm::ivec2 iVertex00,
                        const glm::ivec2 iTexCoord00,
-                       const glm::ivec2 iglyphSize)
+                       const glm::ivec2 iglyphSize,
+                       const bool isColor = false)
     {
         const auto emitWithOffset =
-            [this, isEmpty, &iVertex00, &iTexCoord00](const glm::ivec2 pixelOffset) -> void {
+            [this, isEmpty, isColor, &iVertex00, &iTexCoord00](const glm::ivec2 pixelOffset) -> void {
             const glm::ivec2 relativeVertPos = iVertex00 + pixelOffset;
             if (!isEmpty) {
                 // side-effect: updates bounds; this must come before return
@@ -594,7 +564,7 @@ public:
 
             const glm::vec2 tc = getTexCoord(iTexCoord00 + pixelOffset);
             const glm::vec2 vert = transformVert(relativeVertPos);
-            m_verts3d.emplace_back(m_opts.pos, m_opts.fgColor, tc, vert);
+            m_verts3d.emplace_back(m_opts.pos, m_opts.fgColor, tc, vert, isColor ? 1.f : 0.f);
         };
 
         const auto &x = iglyphSize.x;
@@ -610,7 +580,6 @@ public:
 
     void emitGlyph(const FontMetrics::Glyph *const g, const FontMetrics::Kerning *const k)
     {
-        assert(isClamped(g->id, 0, 255));
         const auto glyphSize = glm::ivec2(g->width, g->height);
         const auto iTexCoord00 = glm::ivec2(g->x, g->y);
         if (k != nullptr) {
@@ -619,7 +588,10 @@ public:
         }
         const auto iVertex00 = glm::ivec2(m_xlinepos + g->xoffset, g->yoffset);
         m_xlinepos += g->xadvance;
-        emitGlyphQuad(std::isspace(g->id), iVertex00, iTexCoord00, glyphSize);
+        // std::isspace() is only defined for unsigned char values and EOF;
+        // glyph ids can be full Unicode codepoints (e.g. emoji), so compare directly.
+        const bool isEmpty = (g->id >= 0 && g->id <= 0xFF) && std::isspace(g->id) != 0;
+        emitGlyphQuad(isEmpty, iVertex00, iTexCoord00, glyphSize, g->isColor);
     }
 
     void call_foreach_glyph(const int wordOffset, const bool output)
@@ -677,8 +649,13 @@ public:
 
             if (m_opts.optBgColor) {
                 if (const FontMetrics::Glyph *const background = m_fm.getBackground()) {
+                    // lo/hi were accumulated from padded glyph quads (see
+                    // Common::glyphPadding); shrink back to ink extent so the
+                    // background box hugs the text instead of the invisible
+                    // SDF spread margin baked into each glyph's quad.
+                    const glm::ivec2 glyphPadding{m_fm.common.glyphPadding, m_fm.common.glyphPadding};
                     quad(m_opts.optBgColor.value(),
-                         Rect{lo - margin, hi + margin},
+                         Rect{lo + glyphPadding - margin, hi - glyphPadding + margin},
                          background->getRect());
                 }
             }
@@ -706,67 +683,66 @@ GLFont::GLFont(OpenGL &gl)
 
 GLFont::~GLFont() = default;
 
-NODISCARD static QString getFontFilename(const float devicePixelRatio)
-{
-    const char *const FONT_KEY = "MMAPPER_FONT";
-    const char *const font = "Cantarell";
-    const char *const size = std::invoke([devicePixelRatio]() -> const char * {
-        if (devicePixelRatio > 1.75f) {
-            return "36";
-        }
-        if (devicePixelRatio > 1.25f) {
-            return "27";
-        }
-        return "18";
-    });
-    const QString fontFilename = QString(":/fonts/%1%2.fnt").arg(font).arg(size);
-    if (qEnvironmentVariableIsSet(FONT_KEY)) {
-        const QString tmp = qgetenv(FONT_KEY);
-        if (QFile{tmp}.exists()) {
-            qInfo() << "Using value from" << FONT_KEY << "to override font from" << fontFilename
-                    << "to" << tmp;
-            return tmp;
-        } else {
-            qInfo() << "Path in" << FONT_KEY << "is invalid.";
-        }
-    } else if (IS_DEBUG_BUILD) {
-        qInfo() << "Note: You can override the font with" << FONT_KEY;
-    }
-
-    if (!QFile{fontFilename}.exists()) {
-        qWarning() << fontFilename << "does not exist.";
-    }
-
-    return fontFilename;
-}
 
 void GLFont::init()
 {
     assert(m_gl.isRendererInitialized());
+
+    static const int cantarellId = std::invoke([]() -> int {
+        const int id = QFontDatabase::addApplicationFont(QStringLiteral(":/fonts/Cantarell-Regular.ttf"));
+        if (id != -1) {
+            qInfo() << "Loaded embedded Cantarell font from resource database.";
+        } else {
+            qWarning() << "Failed to load embedded Cantarell font resource.";
+        }
+        return id;
+    });
+    std::ignore = cantarellId;
+
     auto pfm = std::make_shared<FontMetrics>();
     m_fontMetrics = pfm;
-    const auto fontFilename = getFontFilename(m_gl.getDevicePixelRatio());
-
     auto &fm = *pfm;
-    const QString imageFilename = fm.init(fontFilename);
 
-    if (!QFile{imageFilename}.exists()) {
-        qWarning() << "invalid font filename" << imageFilename;
-    }
+    const auto &canvas = getConfig().canvas;
+
+    QString fontFamily = !canvas.mapFontFamily.isEmpty()
+                             ? canvas.mapFontFamily
+                             : QStringLiteral("Cantarell");
+    // With SDF rendering, a single master font size scales crisp and pixel-perfect
+    // across all zoom levels; FontGenerator supersamples internally (see sdfScale)
+    // for a crisp distance field regardless of this base size.
+    //
+    // Glyph metrics from the atlas are used directly as physical (device) pixel
+    // offsets (see FontVert3d's aVert / uPhysViewport in font/vert.glsl), so the
+    // base size must be scaled by the device pixel ratio to keep the on-screen
+    // physical size of the text matching mapFontSize on high-DPI (e.g. Retina)
+    // displays, the same way the old bitmap-font path picked a larger pre-baked
+    // font for higher device pixel ratios.
+    const int baseSize = std::max(1,
+                                  static_cast<int>(std::lround(
+                                      static_cast<float>(canvas.mapFontSize)
+                                      * m_gl.getDevicePixelRatio())));
+
+    // Self-generate in-memory font atlas directly without reading disk files
+    font_gen::FontAtlasData atlasData = font_gen::FontGenerator::generateAtlas(fontFamily, baseSize);
+    QImage fontImg = fm.initFromAtlas(atlasData);
 
     if (m_texture) {
         m_texture->clearId();
     }
 
-    // REVISIT: can this avoid switching to a different MMTexture object?
     m_texture = MMTexture::alloc(
         QOpenGLTexture::Target::Target2D,
-        [&fm, &imageFilename](QOpenGLTexture &tex) -> void {
-            QImage img{imageFilename};
-            fm.tryAddSyntheticGlyphs(img);
-            img = img.mirrored();
+        [fontImg](QOpenGLTexture &tex) mutable -> void {
+            fontImg = fontImg.mirrored();
 
-            const QImage converted = img.convertToFormat(QImage::Format_RGBA8888);
+            // Format_RGBA8888 (not premultiplied) guarantees R,G,B,A byte order
+            // regardless of host endianness, and matches the straight-alpha
+            // TRANSPARENCY blend mode (SRC_ALPHA, ONE_MINUS_SRC_ALPHA) used to
+            // render text. Monochrome glyphs carry their SDF value in the alpha
+            // channel (RGB is opaque white); color glyphs (e.g. emoji) carry
+            // their actual RGBA color.
+            const QImage converted = fontImg.convertToFormat(QImage::Format_RGBA8888);
             tex.setFormat(QOpenGLTexture::TextureFormat::RGBA8_UNorm);
             tex.setMinMagFilters(QOpenGLTexture::Filter::Linear, QOpenGLTexture::Filter::Linear);
             tex.setAutoMipMapGenerationEnabled(false);
@@ -779,8 +755,6 @@ void GLFont::init()
                         converted.constBits());
         },
         true);
-
-    // Each new MMTexture gets assigned the same old ID.
 
     m_texture->setId(m_id);
     m_gl.setTextureLookup(m_id, m_texture);
@@ -821,7 +795,11 @@ void FontMetrics::getFontBatchRawData(const GLText *const text,
     const auto before = output.size();
     const auto end = text + count;
 
-    const size_t expectedVerts = std::invoke([text, end]() -> size_t {
+    // Upper bound on emitted verts: a string's byte length is always >= its
+    // decoded glyph count (UTF-8 multi-byte codepoints, e.g. emoji, only
+    // shrink that count), so this is safe to use as a reserve() hint, but it
+    // is no longer an exact glyph count now that non-Latin1 text is emitted.
+    const size_t maxExpectedVerts = std::invoke([text, end]() -> size_t {
         int numGlyphs = 0;
         for (const GLText *it = text; it != end; ++it) {
             numGlyphs += static_cast<int>(it->text.size()) + (it->bgcolor.has_value() ? 1 : 0)
@@ -830,14 +808,14 @@ void FontMetrics::getFontBatchRawData(const GLText *const text,
         return 4 * static_cast<size_t>(numGlyphs);
     });
 
-    output.reserve(before + expectedVerts);
+    output.reserve(before + maxExpectedVerts);
 
     auto &fm = *this;
     FontBatchBuilder fontBatchBuilder{fm, output};
     for (const GLText *it = text; it != end; ++it) {
         fontBatchBuilder.addString(*it);
     }
-    assert(output.size() == before + expectedVerts);
+    assert(output.size() <= before + maxExpectedVerts);
 }
 
 void GLFont::render2dTextImmediate(const View<GLText> text)

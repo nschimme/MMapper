@@ -8,9 +8,11 @@ layout(location = 0) in vec3 aBase; // address in world space
 layout(location = 1) in vec4 aColor;
 layout(location = 2) in vec2 aTexCoord;
 layout(location = 3) in vec2 aVert; // offset in raw pixels
+layout(location = 4) in float aIsColor;
 
 out vec4 vColor;
 out vec2 vTexCoord;
+flat out float vIsColor;
 
 // [0, 1]^2 to pixels
 vec2 convertScreen01toPhysPixels(vec2 pos)
@@ -88,5 +90,6 @@ void main()
 {
     vColor = aColor;
     vTexCoord = aTexCoord;
+    vIsColor = aIsColor;
     gl_Position = computePosition();
 }

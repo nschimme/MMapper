@@ -2,6 +2,8 @@ set(mmapper_SRCS
     main.cpp
     adventure/AdventureLogModel.cpp
     adventure/AdventureLogModel.h
+    font/FontGenerator.cpp
+    font/FontGenerator.h
     adventure/adventuresession.cpp
     adventure/adventuresession.h
     adventure/adventuretracker.cpp

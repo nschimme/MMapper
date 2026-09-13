@@ -5,6 +5,8 @@
 
 #include "utils.h"
 
+#include <QMessageBox>
+#include <QScreen>
 #include <QString>
 #include <QWidget>
 
@@ -40,4 +42,46 @@ void mmqt::setWindowTitle2(QWidget &widget, const QString &program, const QStrin
         // "View text... - MMapper Viewer"
         widget.setWindowTitle(QString("%1 - %2").arg(title, program));
     }
+}
+
+void mmqt::showFittedToScreen(QWidget &widget)
+{
+    const QScreen *const screen = widget.screen();
+    if (screen != nullptr) {
+        const QSize available = screen->availableGeometry().size();
+        const QSize wanted = widget.sizeHint();
+        if (wanted.width() > available.width() || wanted.height() > available.height()) {
+            widget.showMaximized();
+            return;
+        }
+    }
+    widget.show();
+}
+
+namespace {
+QMessageBox &showMessageBox(QWidget *const parent,
+                            const QMessageBox::Icon icon,
+                            const QString &title,
+                            const QString &text)
+{
+    auto *const box = new QMessageBox(icon, title, text, QMessageBox::Ok, parent);
+    box->setAttribute(Qt::WA_DeleteOnClose);
+    box->open();
+    return *box;
+}
+} // namespace
+
+QMessageBox &mmqt::showInformation(QWidget *const parent, const QString &title, const QString &text)
+{
+    return showMessageBox(parent, QMessageBox::Information, title, text);
+}
+
+QMessageBox &mmqt::showWarning(QWidget *const parent, const QString &title, const QString &text)
+{
+    return showMessageBox(parent, QMessageBox::Warning, title, text);
+}
+
+QMessageBox &mmqt::showCritical(QWidget *const parent, const QString &title, const QString &text)
+{
+    return showMessageBox(parent, QMessageBox::Critical, title, text);
 }

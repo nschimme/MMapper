@@ -9,12 +9,13 @@
 #include "../client/displaywidget.h"
 #include "../configuration/configuration.h"
 #include "../display/Filenames.h"
-#include "../display/mapcanvas.h"
+#include "../display/MapCanvasWindow.h"
 #include "../global/AnsiOstream.h"
 #include "../global/Consts.h"
 #include "../global/PrintUtils.h"
 #include "../global/SignalBlocker.h"
 #include "../global/utils.h"
+#include "../global/window_utils.h"
 #include "../map/Changes.h"
 #include "../map/Diff.h"
 #include "../map/ExitFieldVariant.h"
@@ -558,7 +559,7 @@ void RoomEditAttrDlg::roomListCurrentIndexChanged(int /*unused*/)
 
 void RoomEditAttrDlg::setRoomSelection(const SharedRoomSelection &rs,
                                        MapData *const md,
-                                       MapCanvas *const mc)
+                                       MapCanvasWindow *const mc)
 {
     m_roomSelection = rs;
     m_mapData = md;
@@ -600,7 +601,10 @@ void RoomEditAttrDlg::setRoomSelection(const SharedRoomSelection &rs,
         updateDialog(RoomHandle{});
     }
 
-    connect(this, &RoomEditAttrDlg::sig_requestUpdate, m_mapCanvas, &MapCanvas::slot_requestUpdate);
+    connect(this,
+            &RoomEditAttrDlg::sig_requestUpdate,
+            m_mapCanvas,
+            &MapCanvasWindow::slot_requestUpdate);
 }
 
 void RoomEditAttrDlg::updateDialog(const RoomHandle &r)
@@ -1282,14 +1286,14 @@ void RoomEditAttrDlg::onRevertDiffClicked()
     setAnsiText(roomDiffTextEdit, oss.str());
 
     if (!pResult) {
-        QMessageBox::warning(this, "Revert Room Failed", "Failed to build revert plan");
+        mmqt::showWarning(this, "Revert Room Failed", "Failed to build revert plan");
         return;
     }
 
     const room_revert::RevertPlan &plan = deref(pResult);
     const ChangeList &changes = plan.changes;
     if (changes.empty() || !md.applyChanges(changes)) {
-        QMessageBox::warning(this, "Revert Room Failed", "Failed to apply revert changes");
+        mmqt::showWarning(this, "Revert Room Failed", "Failed to apply revert changes");
         return;
     }
 

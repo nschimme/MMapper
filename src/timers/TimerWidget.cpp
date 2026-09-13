@@ -49,7 +49,9 @@ TimerWidget::TimerWidget(CTimers &timers, QWidget *parent)
 
 void TimerWidget::showContextMenu(const QPoint &pos)
 {
-    QMenu menu(this);
+    // popup() rather than exec(): a nested event loop is unavailable on wasm.
+    auto *const menu = new QMenu(this);
+    menu->setAttribute(Qt::WA_DeleteOnClose);
 
     QModelIndex index = m_view->indexAt(pos);
     if (index.isValid()) {
@@ -58,7 +60,7 @@ void TimerWidget::showContextMenu(const QPoint &pos)
             std::string name = timer->getName();
             bool isCountdown = timer->isCountdown();
 
-            auto *actReset = menu.addAction(tr("Reset"));
+            auto *actReset = menu->addAction(tr("Reset"));
             connect(actReset, &QAction::triggered, this, [this, name, isCountdown]() {
                 if (isCountdown)
                     m_timers.resetCountdown(name);
@@ -66,7 +68,7 @@ void TimerWidget::showContextMenu(const QPoint &pos)
                     m_timers.resetTimer(name);
             });
 
-            auto *actStop = menu.addAction(tr("Stop"));
+            auto *actStop = menu->addAction(tr("Stop"));
             actStop->setEnabled(!timer->isExpired());
             connect(actStop, &QAction::triggered, this, [this, name, isCountdown]() {
                 if (isCountdown)
@@ -75,9 +77,9 @@ void TimerWidget::showContextMenu(const QPoint &pos)
                     m_timers.stopTimer(name);
             });
 
-            menu.addSeparator();
+            menu->addSeparator();
 
-            auto *actDelete = menu.addAction(tr("Delete"));
+            auto *actDelete = menu->addAction(tr("Delete"));
             connect(actDelete, &QAction::triggered, this, [this, name, isCountdown]() {
                 if (isCountdown)
                     std::ignore = m_timers.removeCountdown(name);
@@ -85,14 +87,14 @@ void TimerWidget::showContextMenu(const QPoint &pos)
                     std::ignore = m_timers.removeTimer(name);
             });
 
-            menu.addSeparator();
+            menu->addSeparator();
         }
     }
 
-    auto *actClearExpired = menu.addAction(tr("Clear Expired"));
+    auto *actClearExpired = menu->addAction(tr("Clear Expired"));
     connect(actClearExpired, &QAction::triggered, this, &TimerWidget::clearExpired);
 
-    menu.exec(m_view->viewport()->mapToGlobal(pos));
+    menu->popup(m_view->viewport()->mapToGlobal(pos));
 }
 
 void TimerWidget::clearExpired()

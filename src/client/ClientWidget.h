@@ -56,6 +56,7 @@ private:
     };
 
     Pipeline m_pipeline;
+    QWidget *m_touchInputStrip = nullptr;
     ConnectionListener &m_listener;
     HotkeyManager &m_hotkeyManager;
 
@@ -68,6 +69,14 @@ public:
 private:
     void initPipeline();
     void initStackedInputWidget();
+    void initTouchInputStrip();
+
+public:
+    // The Up/Down/Tab buttons beside the input, for on-screen keyboards;
+    // MainWindow shows them in its compact layout.
+    void setTouchInputStripVisible(bool visible);
+
+private:
     void initDisplayWidget();
     void initClientTelnet();
 
@@ -91,7 +100,7 @@ private:
     void relayMessage(const QString &msg) { emit sig_relayMessage(msg); }
 
 protected:
-    NODISCARD QSize minimumSizeHint() const override;
+    NODISCARD QSize sizeHint() const override;
     NODISCARD bool focusNextPrevChild(bool next) override;
 
 signals:

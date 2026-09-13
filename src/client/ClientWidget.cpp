@@ -12,16 +12,21 @@
 #include "HotkeyManager.h"
 #include "PreviewWidget.h"
 #include "displaywidget.h"
+#include "inputwidget.h"
 #include "stackedinputwidget.h"
 #include "ui_ClientWidget.h"
 
+#include <algorithm>
 #include <memory>
 
 #include <QDateTime>
 #include <QFileDialog>
+#include <QHBoxLayout>
 #include <QScrollBar>
+#include <QSplitter>
 #include <QString>
 #include <QTimer>
+#include <QToolButton>
 
 ClientWidget::ClientWidget(ConnectionListener &listener,
                            HotkeyManager &hotkeyManager,
@@ -61,8 +66,10 @@ ClientWidget::Pipeline::~Pipeline()
     objs.ui.reset();
 }
 
-QSize ClientWidget::minimumSizeHint() const
+QSize ClientWidget::sizeHint() const
 {
+    // Preferred size is the configured terminal columns/rows; the minimum is
+    // left to the layout so the dock can shrink on small screens.
     return m_pipeline.objs.ui->display->sizeHint();
 }
 
@@ -72,6 +79,7 @@ void ClientWidget::initPipeline()
     getUi().setupUi(this); // creates stacked input and display
 
     initStackedInputWidget();
+    initTouchInputStrip();
     initDisplayWidget();
 
     initClientTelnet();
@@ -138,6 +146,60 @@ void ClientWidget::initStackedInputWidget()
     auto &out = m_pipeline.outputs.stackedInputWidgetOutputs;
     out = std::make_unique<LocalStackedInputWidgetOutputs>(*this);
     getInput().init(deref(out));
+}
+
+void ClientWidget::initTouchInputStrip()
+{
+    // On-screen keyboards have no Up/Down/Tab, so the compact layout shows a
+    // row of buttons beside the input that drives command history and
+    // completion (see setTouchInputStripVisible()). The input keeps its
+    // place in the client page's splitter; this wraps it in a row.
+    auto &ui = getUi();
+    QSplitter &splitter = deref(ui.clientPage);
+    const int inputIndex = splitter.indexOf(ui.input);
+
+    auto *const row = new QWidget(this);
+    auto *const layout = new QHBoxLayout(row);
+    layout->setContentsMargins(0, 0, 0, 0);
+    layout->setSpacing(0);
+    layout->addWidget(ui.input, 1);
+
+    auto *const strip = new QWidget(row);
+    auto *const stripLayout = new QHBoxLayout(strip);
+    stripLayout->setContentsMargins(0, 0, 0, 0);
+    stripLayout->setSpacing(0);
+
+    InputWidget &inputWidget = getInput().getInputWidget();
+    static constexpr int TOUCH_BUTTON_SIZE = 44; // logical px; the usual finger target
+    const auto addButton = [&](const QString &text, const QString &toolTip, auto &&onClicked) {
+        auto *const button = new QToolButton(strip);
+        button->setText(text);
+        button->setToolTip(toolTip);
+        button->setAutoRaise(true);
+        button->setFocusPolicy(Qt::NoFocus); // never take focus from the input
+        button->setFixedSize(TOUCH_BUTTON_SIZE, TOUCH_BUTTON_SIZE);
+        connect(button,
+                &QToolButton::clicked,
+                &inputWidget,
+                std::forward<decltype(onClicked)>(onClicked));
+        stripLayout->addWidget(button);
+    };
+    addButton(QStringLiteral("\u2191"), tr("Previous command"), &InputWidget::backwardHistory);
+    addButton(QStringLiteral("\u2193"), tr("Next command"), &InputWidget::forwardHistory);
+    addButton(QStringLiteral("\u21e5"), tr("Complete word"), &InputWidget::tabComplete);
+    strip->hide();
+    layout->addWidget(strip, 0, Qt::AlignBottom);
+
+    splitter.insertWidget(inputIndex, row);
+    splitter.setCollapsible(splitter.indexOf(row), false);
+    m_touchInputStrip = strip;
+}
+
+void ClientWidget::setTouchInputStripVisible(const bool visible)
+{
+    if (m_touchInputStrip != nullptr) {
+        m_touchInputStrip->setVisible(visible);
+    }
 }
 
 void ClientWidget::initDisplayWidget()

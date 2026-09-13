@@ -183,6 +183,11 @@ void ConfigDialog::showEvent(QShowEvent *const event)
     event->accept();
 }
 
+void ConfigDialog::setCompactLayout(const bool compact)
+{
+    ui->mainSplitter->setOrientation(compact ? Qt::Vertical : Qt::Horizontal);
+}
+
 void ConfigDialog::scrollToWidget(QWidget *target, bool focus)
 {
     const int targetY = target->mapTo(ui->scrollAreaWidgetContents, QPoint(0, 0)).y();

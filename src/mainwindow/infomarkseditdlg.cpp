@@ -7,7 +7,8 @@
 
 #include "../configuration/configuration.h"
 #include "../display/InfomarkSelection.h"
-#include "../display/mapcanvas.h"
+#include "../display/MapCanvasWindow.h"
+#include "../global/window_utils.h"
 #include "../map/coordinate.h"
 #include "../map/infomark.h"
 #include "../mapdata/mapdata.h"
@@ -29,7 +30,7 @@ InfomarksEditDlg::InfomarksEditDlg(QWidget *const parent)
 
 void InfomarksEditDlg::setInfomarkSelection(const std::shared_ptr<InfomarkSelection> &is,
                                             MapData *const md,
-                                            MapCanvas *const mc)
+                                            MapCanvasWindow *const mc)
 {
     // NOTE: the selection is allowed to be null.
     assert(md != nullptr);
@@ -107,7 +108,7 @@ void InfomarksEditDlg::slot_createClicked()
         updateMarkers();
         updateDialog();
     } else {
-        QMessageBox::warning(this, "Error", "Failed to create infomark.");
+        mmqt::showWarning(this, "Error", "Failed to create infomark.");
     }
 }
 
@@ -156,7 +157,7 @@ void InfomarksEditDlg::slot_modifyClicked()
 
     if (!m_mapData->applySingleChange(
             Change{infomark_change_types::UpdateInfomark{current.getId(), mark}})) {
-        QMessageBox::warning(this, "Error", "Failed to modify infomark.");
+        mmqt::showWarning(this, "Error", "Failed to modify infomark.");
     }
 }
 

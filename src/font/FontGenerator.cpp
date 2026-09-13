@@ -99,7 +99,7 @@ struct PackGlyph final
     int y = 0;
 };
 
-// Compute Signed Distance Field (SDF) image from high-resolution rendered glyph
+// Compute Signed Distance Field (SDF) image from high-resolution rendered glyph using fast boundary distance search
 static QImage generateSdfGlyph(const QImage &highResImg, int scaleFactor, int spread)
 {
     const int targetW = highResImg.width() / scaleFactor;
@@ -111,43 +111,87 @@ static QImage generateSdfGlyph(const QImage &highResImg, int scaleFactor, int sp
     const int srcW = highResImg.width();
     const int srcH = highResImg.height();
 
+    // 1. Extract binary grid of inside/outside
+    std::vector<uint8_t> grid(static_cast<size_t>(srcW * srcH), 0);
+    for (int y = 0; y < srcH; ++y) {
+        const QRgb *line = reinterpret_cast<const QRgb *>(highResImg.constScanLine(y));
+        const size_t rowOffset = static_cast<size_t>(y * srcW);
+        for (int x = 0; x < srcW; ++x) {
+            grid[rowOffset + static_cast<size_t>(x)] = (qAlpha(line[x]) > 127) ? 1 : 0;
+        }
+    }
+
+    // 2. Collect boundary points for inside and outside regions
+    struct Point final
+    {
+        int x = 0;
+        int y = 0;
+    };
+    std::vector<Point> insideBoundary;
+    std::vector<Point> outsideBoundary;
+    insideBoundary.reserve(200);
+    outsideBoundary.reserve(200);
+
+    static constexpr int dxs[4] = {-1, 1, 0, 0};
+    static constexpr int dys[4] = {0, 0, -1, 1};
+
+    for (int y = 0; y < srcH; ++y) {
+        const size_t rowOffset = static_cast<size_t>(y * srcW);
+        for (int x = 0; x < srcW; ++x) {
+            const bool isIn = (grid[rowOffset + static_cast<size_t>(x)] != 0);
+            bool hasDiffNeighbor = false;
+            for (int i = 0; i < 4; ++i) {
+                const int nx = x + dxs[i];
+                const int ny = y + dys[i];
+                if (nx >= 0 && nx < srcW && ny >= 0 && ny < srcH) {
+                    const bool neighborIn = (grid[static_cast<size_t>(ny * srcW + nx)] != 0);
+                    if (neighborIn != isIn) {
+                        hasDiffNeighbor = true;
+                        break;
+                    }
+                } else if (isIn) {
+                    hasDiffNeighbor = true;
+                    break;
+                }
+            }
+            if (hasDiffNeighbor) {
+                if (isIn) {
+                    insideBoundary.push_back({x, y});
+                } else {
+                    outsideBoundary.push_back({x, y});
+                }
+            }
+        }
+    }
+
     const float scaleFactorF = static_cast<float>(scaleFactor);
     const float spreadSrc = static_cast<float>(spread) * scaleFactorF;
-    const int searchRadius = std::max(1, static_cast<int>(std::ceil(spreadSrc)));
 
     for (int ty = 0; ty < targetH; ++ty) {
         QRgb *dstLine = reinterpret_cast<QRgb *>(sdfImg.scanLine(ty));
         const int cy = std::clamp(static_cast<int>((static_cast<float>(ty) + 0.5f) * scaleFactorF),
                                   0,
                                   srcH - 1);
-        const QRgb *srcCenterLine = reinterpret_cast<const QRgb *>(highResImg.constScanLine(cy));
+        const size_t cyOffset = static_cast<size_t>(cy * srcW);
 
         for (int tx = 0; tx < targetW; ++tx) {
             const int cx = std::clamp(static_cast<int>((static_cast<float>(tx) + 0.5f)
                                                        * scaleFactorF),
                                       0,
                                       srcW - 1);
-            const bool isInside = (qAlpha(srcCenterLine[cx]) > 127);
+            const bool isInside = (grid[cyOffset + static_cast<size_t>(cx)] != 0);
+            const auto &targets = isInside ? outsideBoundary : insideBoundary;
 
             float minSqDist = spreadSrc * spreadSrc;
+            const float fcx = static_cast<float>(cx);
+            const float fcy = static_cast<float>(cy);
 
-            const int minY = std::max(0, cy - searchRadius);
-            const int maxY = std::min(srcH - 1, cy + searchRadius);
-            const int minX = std::max(0, cx - searchRadius);
-            const int maxX = std::min(srcW - 1, cx + searchRadius);
-
-            for (int sy = minY; sy <= maxY; ++sy) {
-                const QRgb *srcRow = reinterpret_cast<const QRgb *>(highResImg.constScanLine(sy));
-                const float dy = static_cast<float>(sy - cy);
-                for (int sx = minX; sx <= maxX; ++sx) {
-                    const bool sampleInside = (qAlpha(srcRow[sx]) > 127);
-                    if (sampleInside != isInside) {
-                        const float dx = static_cast<float>(sx - cx);
-                        const float sqDist = dx * dx + dy * dy;
-                        if (sqDist < minSqDist) {
-                            minSqDist = sqDist;
-                        }
-                    }
+            for (const auto &b : targets) {
+                const float dx = static_cast<float>(b.x) - fcx;
+                const float dy = static_cast<float>(b.y) - fcy;
+                const float sqDist = dx * dx + dy * dy;
+                if (sqDist < minSqDist) {
+                    minSqDist = sqDist;
                 }
             }
 
@@ -199,24 +243,19 @@ FontAtlasData FontGenerator::generateAtlas(const QFont &font,
         const QRect bbox = fm.boundingRect(str);
         const int advance = fm.horizontalAdvance(str);
 
-        int w = bbox.width();
-        int h = bbox.height();
-
-        if (w <= 0) {
-            w = std::max(1, advance);
-        }
-        if (h <= 0) {
-            h = std::max(1, fontHeight);
-        }
-
-        const int renderW = w + padding * 2;
-        const int renderH = h + padding * 2;
-
         QFont highResFont = renderFont;
         const int basePtSize = renderFont.pointSize() > 0 ? renderFont.pointSize() : 18;
         highResFont.setPointSize(basePtSize * sdfScale);
         QFontMetrics highResFm(highResFont);
         const QRect highResBbox = highResFm.boundingRect(str);
+
+        const int highResAscent = highResFm.ascent();
+        const int highResDescent = highResFm.descent();
+        const int highResHeight = highResAscent + highResDescent;
+
+        const int renderW = std::max(1, (highResBbox.width() + sdfScale - 1) / sdfScale)
+                            + padding * 2;
+        const int renderH = (highResHeight + sdfScale - 1) / sdfScale + padding * 2;
 
         const int highResPadding = padding * sdfScale;
         const int highResW = renderW * sdfScale;
@@ -232,7 +271,7 @@ FontAtlasData FontGenerator::generateAtlas(const QFont &font,
         painter.setPen(Qt::white);
 
         const int drawX = highResPadding - highResBbox.left();
-        const int drawY = highResPadding - highResBbox.top();
+        const int drawY = highResPadding + highResAscent;
         painter.drawText(drawX, drawY, str);
         painter.end();
 
@@ -242,8 +281,8 @@ FontAtlasData FontGenerator::generateAtlas(const QFont &font,
         g.id = c;
         g.width = renderW;
         g.height = renderH;
-        g.xoffset = bbox.left() - padding;
-        g.yoffset = ascent + bbox.top() - padding;
+        g.xoffset = (highResBbox.left() / sdfScale) - padding;
+        g.yoffset = ascent - (highResAscent / sdfScale) - padding;
         g.xadvance = advance;
         g.image = glyphImg;
 

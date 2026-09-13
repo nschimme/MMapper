@@ -127,9 +127,9 @@ void MainWindow::maybeSave(std::function<void()> onProceed)
     connect(dlg,
             &QMessageBox::finished,
             this,
-            [this, onProceed = std::move(onProceed)](const int result) {
+            [this, proceed = std::move(onProceed)](const int result) {
                 if (handleMaybeSaveResult(result)) {
-                    onProceed();
+                    proceed();
                 }
             });
     dlg->open();

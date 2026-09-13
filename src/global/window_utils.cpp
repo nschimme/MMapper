@@ -5,9 +5,7 @@
 
 #include "utils.h"
 
-#include <QMenu>
 #include <QMessageBox>
-#include <QPoint>
 #include <QScreen>
 #include <QString>
 #include <QWidget>
@@ -86,11 +84,4 @@ QMessageBox &mmqt::showWarning(QWidget *const parent, const QString &title, cons
 QMessageBox &mmqt::showCritical(QWidget *const parent, const QString &title, const QString &text)
 {
     return showMessageBox(parent, QMessageBox::Critical, title, text);
-}
-
-void mmqt::popupMenu(std::unique_ptr<QMenu> menu, const QPoint &globalPos)
-{
-    QMenu *const raw = menu.release();
-    raw->setAttribute(Qt::WA_DeleteOnClose);
-    raw->popup(globalPos);
 }

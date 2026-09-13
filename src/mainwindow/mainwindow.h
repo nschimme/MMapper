@@ -50,7 +50,6 @@ class QAction;
 class QActionGroup;
 class QCloseEvent;
 class QFileDialog;
-class QLabel;
 class QMenu;
 class QObject;
 class QPoint;
@@ -140,14 +139,11 @@ private:
     QToolBar *connectionToolBar = nullptr;
     QToolBar *settingsToolBar = nullptr;
     QToolBar *audioToolBar = nullptr;
-    // Compact-layout only (see setCompactLayout()): a row of buttons in the
-    // status bar for the map operations touch has no wheel or keyboard
-    // for (layers, centering). Not a QToolBar, so it stays out of
+    // Compact-layout only (see updateCompactLayout()): a row of large
+    // buttons in the status bar for the menu and the map operations touch
+    // has no wheel or keyboard for. Not a QToolBar, so it stays out of
     // saveState() and does not cost a row of its own.
     QWidget *m_compactActionBar = nullptr;
-    // "\u2630" in the status bar while compact: m_appMenu.
-    QToolButton *m_menuButton = nullptr;
-    QLabel *m_pathMachineStatus = nullptr;
 
     QMenu *fileMenu = nullptr;
     QMenu *editMenu = nullptr;
@@ -155,32 +151,21 @@ private:
     QMenu *roomMenu = nullptr;
     QMenu *connectionMenu = nullptr;
     QMenu *viewMenu = nullptr;
-    QMenu *windowMenu = nullptr;
     QMenu *settingsMenu = nullptr;
     QMenu *helpMenu = nullptr;
-    // The top-level menus above as submenus of one menu: the "\u2630" button
-    // while compact, and an entry of the map's context menu whenever neither
-    // the menu bar nor that button is on screen, so that a touch user (no
-    // hover to "peek" a hidden menu bar with) can always reach them by a
-    // long-press on the map. A QAction can sit in several widgets at once,
-    // so the menus stay in the menu bar as well.
-    QMenu *m_appMenu = nullptr;
     QMenu *mumeMenu = nullptr;
     QMenu *onlineTutorialsMenu = nullptr;
-    // Compact layout for small windows; see setCompactLayout(). While
+    // Compact layout for small windows; see updateCompactLayout(). While
     // compact, the menu bar is hidden and the top-level menus above are
-    // reached through m_menuButton, every dock
+    // reached through the "\u2630" button of m_compactActionBar, every dock
     // is tabified into one group, and the toolbars are hidden.
     // The two layouts each keep their own saveState(): m_expandedState /
     // m_compactState hold the one not currently applied, and both are
     // persisted (Configuration::general.windowState / windowStateCompact).
-    // m_layoutRestored gates the switch until the first show has realized
-    // the layout readSettings() restored, so nothing earlier can capture
-    // or clobber a layout.
+    // m_layoutRestored gates the switch until readSettings() has run, so a
+    // resize during construction cannot capture or clobber a layout.
     QByteArray m_expandedState;
     QByteArray m_compactState;
-    // The constructor's arrangement, for "Reset Window Layout".
-    QByteArray m_defaultExpandedState;
     bool m_compact = false;
     bool m_layoutRestored = false;
 
@@ -205,7 +190,6 @@ private:
     QAction *mumeForumAct = nullptr;
     QAction *mumeWikiAct = nullptr;
     QAction *settingUpMmapperAct = nullptr;
-    QAction *newcomerGuideAct = nullptr;
     QAction *newbieAct = nullptr;
     QAction *actionReportIssue = nullptr;
     QAction *aboutAct = nullptr;
@@ -215,8 +199,6 @@ private:
     QAction *zoomResetAct = nullptr;
     QAction *alwaysOnTopAct = nullptr;
     QAction *showStatusBarAct = nullptr;
-    QAction *compactLayoutAct = nullptr;
-    QAction *resetWindowLayoutAct = nullptr;
     QAction *showScrollBarsAct = nullptr;
     QAction *showMenuBarAct = nullptr;
     QAction *preferencesAct = nullptr;
@@ -321,16 +303,13 @@ protected:
     void keyPressEvent(QKeyEvent *event) override;
     void keyReleaseEvent(QKeyEvent *event) override;
     void showEvent(QShowEvent *event) override;
+    void resizeEvent(QResizeEvent *event) override;
     NODISCARD bool eventFilter(QObject *obj, QEvent *event) override;
 
 private:
-    void setCompactLayout(bool compact);
-    void buildDefaultCompactLayout();
-    void fitClientDockToTerminal();
-    void slot_resetWindowLayout();
+    void updateCompactLayout();
     void applyCompactMenuBar(bool compact);
     NODISCARD QWidget *createCompactActionBar();
-    NODISCARD QToolButton *createMenuButton();
     void applyCompactChrome(bool compact);
     void applyPanelScrollGesture(bool compact);
     NODISCARD QSize compactLayoutProbeSize() const;
@@ -352,7 +331,6 @@ private:
 
     void createActions();
     void setupMenuBar();
-    NODISCARD static QList<QAction *> collectActions(const QMenu &menu);
     void setupToolBars();
     void setupStatusBar();
 
@@ -414,7 +392,6 @@ public slots:
     NODISCARD bool slot_exportWebMap();
     NODISCARD bool slot_exportMmpMap();
     void slot_about();
-    void slot_aboutQt();
 
     NODISCARD bool slot_generateBaseMap();
 

@@ -6,56 +6,10 @@
 #include <algorithm>
 #include <cmath>
 
-#include <QtCore/QDebug>
 #include <QtGui/QFontMetrics>
 #include <QtGui/QPainter>
 
 namespace font_gen {
-
-// Common MUD Emojis / Map Indicators. These are rendered as full-color glyphs
-// rather than being flattened into the monochrome signed distance field.
-static const std::set<char32_t> &getEmojiCharSet()
-{
-    static const std::set<char32_t> emojis = {
-        // Moon phases & Weather
-        0x1F311, 0x1F312, 0x1F313, 0x1F314, 0x1F315, 0x1F316, 0x1F317, 0x1F318,
-        0x2600,  0x2601,  0x1F324, 0x1F325, 0x1F326, 0x1F327, 0x1F328, 0x26A1, 0x1F32B, 0x1F301,
-        // Indicators
-        0x26A0,  0x1F44D, 0x1F4AF, 0x1F170, 0x1F480, 0x2764,
-        // Wizard, Magic, Scrolls
-        0x1F9D9, 0x2728,  0x1F52E, 0x1F4DC,
-        // Troll, Ogre, Goblin, Combat
-        0x1F9CC, 0x1F479, 0x1F47A, 0x1F5E1, 0x2694,  0x1F3F9, 0x1F6E1,
-        // Food, Drink
-        0x1F35E, 0x1F356, 0x1F37A, 0x1F377,
-        // Boat, Travel, Mount
-        0x26F5,  0x1F6A3, 0x1F6A2, 0x1F40E,
-        // Places & Loot
-        0x1F3F0, 0x26FA,  0x1F511, 0x1F4B0, 0x1F3F3
-    };
-    return emojis;
-}
-
-// General Punctuation (U+2000-U+206F) characters that show up regularly in
-// English prose: dashes, curly quotes, ellipsis, bullet, dagger, etc. These
-// stay monochrome text glyphs (tinted by the caller's color), not color emoji.
-static const std::set<char32_t> &getExtendedPunctuationCharSet()
-{
-    static const std::set<char32_t> punctuation = {
-        0x2010, 0x2011, 0x2012, 0x2013, 0x2014, // hyphen, non-breaking hyphen, figure/en/em dash
-        0x2018, 0x2019, 0x201A, 0x201C, 0x201D, 0x201E, // single/double curly quotes
-        0x2020, 0x2021, // dagger, double dagger
-        0x2022,         // bullet
-        0x2026,         // horizontal ellipsis
-        0x2030,         // per mille
-        0x2032, 0x2033, // prime, double prime
-        0x2039, 0x203A, // single guillemets
-        0x2044,         // fraction slash
-        0x20AC,         // euro sign
-        0x2122,         // trademark
-    };
-    return punctuation;
-}
 
 std::set<char32_t> FontGenerator::getDefaultCharSet()
 {
@@ -68,8 +22,65 @@ std::set<char32_t> FontGenerator::getDefaultCharSet()
     for (char32_t c = 160; c <= 255; ++c) {
         chars.insert(c);
     }
-    chars.insert(getExtendedPunctuationCharSet().begin(), getExtendedPunctuationCharSet().end());
-    chars.insert(getEmojiCharSet().begin(), getEmojiCharSet().end());
+    // Common MUD Emojis / Map Indicators
+    const std::vector<char32_t> extraEmojis = {// Moon phases & Weather
+                                               0x1F311,
+                                               0x1F312,
+                                               0x1F313,
+                                               0x1F314,
+                                               0x1F315,
+                                               0x1F316,
+                                               0x1F317,
+                                               0x1F318,
+                                               0x2600,
+                                               0x2601,
+                                               0x1F324,
+                                               0x1F325,
+                                               0x1F326,
+                                               0x1F327,
+                                               0x1F328,
+                                               0x26A1,
+                                               0x1F32B,
+                                               0x1F301,
+                                               // Indicators
+                                               0x26A0,
+                                               0x1F44D,
+                                               0x1F4AF,
+                                               0x1F170,
+                                               0x1F480,
+                                               0x2764,
+                                               // Wizard, Magic, Scrolls
+                                               0x1F9D9,
+                                               0x2728,
+                                               0x1F52E,
+                                               0x1F4DC,
+                                               // Troll, Ogre, Goblin, Combat
+                                               0x1F9CC,
+                                               0x1F479,
+                                               0x1F47A,
+                                               0x1F5E1,
+                                               0x2694,
+                                               0x1F3F9,
+                                               0x1F6E1,
+                                               // Food, Drink
+                                               0x1F35E,
+                                               0x1F356,
+                                               0x1F37A,
+                                               0x1F377,
+                                               // Boat, Travel, Mount
+                                               0x26F5,
+                                               0x1F6A3,
+                                               0x1F6A2,
+                                               0x1F40E,
+                                               // Places & Loot
+                                               0x1F3F0,
+                                               0x26FA,
+                                               0x1F511,
+                                               0x1F4B0,
+                                               0x1F3F3};
+    for (char32_t c : extraEmojis) {
+        chars.insert(c);
+    }
     return chars;
 }
 
@@ -82,25 +93,13 @@ struct PackGlyph final
     int yoffset = 0;
     int xadvance = 0;
     QImage image;
-    bool isColor = false;
 
     int page = 0;
     int x = 0;
     int y = 0;
 };
 
-// Only the hand-picked MUD emoji/indicators (see getEmojiCharSet()) are
-// rendered as full-color glyphs; everything else -- including extended
-// punctuation like em-dash or curly quotes -- stays a monochrome distance
-// field glyph tinted by the caller's text color.
-static bool isColorGlyph(char32_t c)
-{
-    return getEmojiCharSet().contains(c);
-}
-
-// Compute Signed Distance Field (SDF) image from high-resolution rendered glyph.
-// The SDF value is stored in the alpha channel (RGB is left at opaque white);
-// callers that want a plain color glyph should not route through here.
+// Compute Signed Distance Field (SDF) image from high-resolution rendered glyph
 static QImage generateSdfGlyph(const QImage &highResImg, int scaleFactor, int spread)
 {
     const int targetW = highResImg.width() / scaleFactor;
@@ -111,22 +110,17 @@ static QImage generateSdfGlyph(const QImage &highResImg, int scaleFactor, int sp
 
     const int srcW = highResImg.width();
     const int srcH = highResImg.height();
-    const float scaleFactorF = static_cast<float>(scaleFactor);
 
-    const float spreadSrc = static_cast<float>(spread) * scaleFactorF;
+    const float spreadSrc = static_cast<float>(spread * scaleFactor);
     const int searchRadius = std::max(1, static_cast<int>(std::ceil(spreadSrc)));
 
     for (int ty = 0; ty < targetH; ++ty) {
         QRgb *dstLine = reinterpret_cast<QRgb *>(sdfImg.scanLine(ty));
-        const int cy = std::clamp(static_cast<int>((static_cast<float>(ty) + 0.5f) * scaleFactorF),
-                                  0,
-                                  srcH - 1);
+        const int cy = std::clamp(static_cast<int>((ty + 0.5f) * scaleFactor), 0, srcH - 1);
         const QRgb *srcCenterLine = reinterpret_cast<const QRgb *>(highResImg.constScanLine(cy));
 
         for (int tx = 0; tx < targetW; ++tx) {
-            const int cx = std::clamp(static_cast<int>((static_cast<float>(tx) + 0.5f) * scaleFactorF),
-                                      0,
-                                      srcW - 1);
+            const int cx = std::clamp(static_cast<int>((tx + 0.5f) * scaleFactor), 0, srcW - 1);
             const bool isInside = (qAlpha(srcCenterLine[cx]) > 127);
 
             float minSqDist = spreadSrc * spreadSrc;
@@ -138,11 +132,11 @@ static QImage generateSdfGlyph(const QImage &highResImg, int scaleFactor, int sp
 
             for (int sy = minY; sy <= maxY; ++sy) {
                 const QRgb *srcRow = reinterpret_cast<const QRgb *>(highResImg.constScanLine(sy));
-                const float dy = static_cast<float>(sy - cy);
+                const float dy = sy - cy;
                 for (int sx = minX; sx <= maxX; ++sx) {
                     const bool sampleInside = (qAlpha(srcRow[sx]) > 127);
                     if (sampleInside != isInside) {
-                        const float dx = static_cast<float>(sx - cx);
+                        const float dx = sx - cx;
                         const float sqDist = dx * dx + dy * dy;
                         if (sqDist < minSqDist) {
                             minSqDist = sqDist;
@@ -165,22 +159,8 @@ static QImage generateSdfGlyph(const QImage &highResImg, int scaleFactor, int sp
     return sdfImg;
 }
 
-// Downscale a high-resolution color glyph (e.g. an emoji) directly to the
-// target size, preserving its actual RGBA color instead of collapsing it to
-// a monochrome distance field.
-static QImage generateColorGlyph(const QImage &highResImg, int scaleFactor)
-{
-    const int targetW = std::max(1, highResImg.width() / scaleFactor);
-    const int targetH = std::max(1, highResImg.height() / scaleFactor);
-    return highResImg.scaled(targetW,
-                             targetH,
-                             Qt::IgnoreAspectRatio,
-                             Qt::SmoothTransformation)
-        .convertToFormat(QImage::Format_ARGB32);
-}
-
 FontAtlasData FontGenerator::generateAtlas(const QFont &font,
-                                            const std::set<char32_t> &selectedChars)
+                                           const std::set<char32_t> &selectedChars)
 {
     FontAtlasData atlas;
     std::set<char32_t> chars = selectedChars;
@@ -206,18 +186,9 @@ FontAtlasData FontGenerator::generateAtlas(const QFont &font,
     constexpr int padding = 4;
     constexpr int sdfScale = 4;
     constexpr int sdfSpread = 4;
-    atlas.glyphPadding = padding;
 
     for (char32_t c : chars) {
-        const bool colorGlyph = isColorGlyph(c);
-        // Many of our color glyphs (e.g. U+26A1 lightning bolt, U+26A0 warning
-        // sign) default to a plain black-and-white *text* presentation glyph;
-        // appending U+FE0F (VARIATION SELECTOR-16) forces the full-color emoji
-        // presentation. It's a no-op for codepoints that are already
-        // emoji-presentation by default.
-        const std::u32string codepoints = colorGlyph ? std::u32string{c, char32_t{0xFE0F}}
-                                                      : std::u32string{c};
-        const QString str = QString::fromStdU32String(codepoints);
+        const QString str = QString::fromStdU32String(std::u32string(1, c));
 
         const QRect bbox = fm.boundingRect(str);
         const int advance = fm.horizontalAdvance(str);
@@ -236,13 +207,8 @@ FontAtlasData FontGenerator::generateAtlas(const QFont &font,
         const int renderH = h + padding * 2;
 
         QFont highResFont = renderFont;
-        // A font built with setPixelSize() reports pointSize() == -1; guard against
-        // scaling a negative/invalid point size.
-        if (renderFont.pointSize() > 0) {
-            highResFont.setPointSize(renderFont.pointSize() * sdfScale);
-        } else {
-            highResFont.setPixelSize(std::max(1, renderFont.pixelSize()) * sdfScale);
-        }
+        const int basePtSize = renderFont.pointSize() > 0 ? renderFont.pointSize() : 18;
+        highResFont.setPointSize(basePtSize * sdfScale);
         QFontMetrics highResFm(highResFont);
         const QRect highResBbox = highResFm.boundingRect(str);
 
@@ -257,17 +223,14 @@ FontAtlasData FontGenerator::generateAtlas(const QFont &font,
         painter.setFont(highResFont);
         painter.setRenderHint(QPainter::Antialiasing, true);
         painter.setRenderHint(QPainter::TextAntialiasing, true);
-        // Color glyphs (e.g. emoji) ignore the pen and paint their own colors;
-        // monochrome glyphs are painted white so only their SDF alpha matters.
-        painter.setPen(colorGlyph ? Qt::black : Qt::white);
+        painter.setPen(Qt::white);
 
         const int drawX = highResPadding - highResBbox.left();
         const int drawY = highResPadding - highResBbox.top();
         painter.drawText(drawX, drawY, str);
         painter.end();
 
-        QImage glyphImg = colorGlyph ? generateColorGlyph(highResImg, sdfScale)
-                                      : generateSdfGlyph(highResImg, sdfScale, sdfSpread);
+        QImage glyphImg = generateSdfGlyph(highResImg, sdfScale, sdfSpread);
 
         PackGlyph g;
         g.id = c;
@@ -277,7 +240,6 @@ FontAtlasData FontGenerator::generateAtlas(const QFont &font,
         g.yoffset = ascent + bbox.top() - padding;
         g.xadvance = advance;
         g.image = glyphImg;
-        g.isColor = colorGlyph;
 
         glyphs.push_back(g);
     }
@@ -314,12 +276,6 @@ FontAtlasData FontGenerator::generateAtlas(const QFont &font,
         texH *= 2;
     }
 
-    if (!calculatePacking(texW, texH)) {
-        qWarning() << "Font atlas packing failed to fit" << glyphs.size()
-                   << "glyphs even at the maximum" << texW << "x" << texH
-                   << "texture size; some glyphs will be dropped";
-    }
-
     atlas.scaleW = texW;
     atlas.scaleH = texH;
 
@@ -331,81 +287,35 @@ FontAtlasData FontGenerator::generateAtlas(const QFont &font,
     pages.emplace_back(texW, texH, QImage::Format_ARGB32);
     pages.back().fill(Qt::transparent);
 
-    for (PackGlyph &g : glyphs) {
-        if (currentX + g.width + spacing > texW) {
-            currentY += currentShelfH + spacing;
-            currentX = 0;
-            currentShelfH = 0;
-        }
-
-        if (currentY + g.height + spacing > texH) {
-            qWarning() << "Dropping glyph" << static_cast<uint32_t>(g.id)
-                       << "because the font atlas is full";
-            continue;
-        }
-
-        g.page = 0;
-        g.x = currentX;
-        g.y = currentY;
-
-        QPainter pagePainter(&pages[0]);
-        pagePainter.drawImage(g.x, g.y, g.image);
-        pagePainter.end();
-
-        currentX += g.width + spacing;
-        currentShelfH = std::max(currentShelfH, g.height);
-
-        GlyphMetrics gm;
-        gm.id = g.id;
-        gm.x = g.x;
-        gm.y = g.y;
-        gm.width = g.width;
-        gm.height = g.height;
-        gm.xoffset = g.xoffset;
-        gm.yoffset = g.yoffset;
-        gm.xadvance = g.xadvance;
-        gm.page = 0;
-        gm.isColor = g.isColor;
-        atlas.glyphs[g.id] = gm;
-    }
-
-    // Compute kerning pairs for text glyphs (color/emoji glyphs never need kerning).
-    // The old build-time BMFont pipeline baked kerning pairs from FreeType; the
-    // live QFont path doesn't expose them directly, so derive each pair's
-    // adjustment the same way AngelCode's tool effectively does: the difference
-    // between the shaped pair's advance and the sum of the two glyphs' own advances.
     {
-        std::vector<char32_t> textChars;
-        textChars.reserve(atlas.glyphs.size());
-        for (const auto &[id, gm] : atlas.glyphs) {
-            if (!gm.isColor) {
-                textChars.push_back(id);
+        QPainter pagePainter(&pages[0]);
+        for (PackGlyph &g : glyphs) {
+            if (currentX + g.width + spacing > texW) {
+                currentY += currentShelfH + spacing;
+                currentX = 0;
+                currentShelfH = 0;
             }
-        }
 
-        for (const char32_t first : textChars) {
-            const auto firstIt = atlas.glyphs.find(first);
-            if (firstIt == atlas.glyphs.end()) {
-                continue;
-            }
-            const int firstAdvance = firstIt->second.xadvance;
-            const QString firstStr = QString::fromStdU32String(std::u32string(1, first));
+            g.page = 0;
+            g.x = currentX;
+            g.y = currentY;
 
-            for (const char32_t second : textChars) {
-                const auto secondIt = atlas.glyphs.find(second);
-                if (secondIt == atlas.glyphs.end()) {
-                    continue;
-                }
-                const int secondAdvance = secondIt->second.xadvance;
-                const QString pairStr = firstStr
-                                        + QString::fromStdU32String(std::u32string(1, second));
+            pagePainter.drawImage(g.x, g.y, g.image);
 
-                const int pairAdvance = fm.horizontalAdvance(pairStr);
-                const int amount = pairAdvance - (firstAdvance + secondAdvance);
-                if (amount != 0) {
-                    atlas.kernings.push_back(KerningPair{first, second, amount});
-                }
-            }
+            currentX += g.width + spacing;
+            currentShelfH = std::max(currentShelfH, g.height);
+
+            GlyphMetrics gm;
+            gm.id = g.id;
+            gm.x = g.x;
+            gm.y = g.y;
+            gm.width = g.width;
+            gm.height = g.height;
+            gm.xoffset = g.xoffset;
+            gm.yoffset = g.yoffset;
+            gm.xadvance = g.xadvance;
+            gm.page = 0;
+            atlas.glyphs[g.id] = gm;
         }
     }
 
@@ -415,57 +325,10 @@ FontAtlasData FontGenerator::generateAtlas(const QFont &font,
 }
 
 FontAtlasData FontGenerator::generateAtlas(const QString &fontFamily,
-                                            int pixelSize,
-                                            const std::set<char32_t> &chars)
+                                           int pointSize,
+                                           const std::set<char32_t> &chars)
 {
-    // pixelSize is meant as a physical-pixel *cell height* (matching BMFont's
-    // <info size="N"/> convention, where master's baked fonts always had
-    // common.lineHeight == info.size), not a point size and not the pixel
-    // size to hand straight to QFont::setPixelSize(): Qt's fontmetrics height
-    // for a given pixel size depends on the font's own ascent+descent, which
-    // for Cantarell comes out ~1.4x the requested pixel size, not 1x. Probe
-    // once and rescale so the resulting QFontMetrics::height() lands on the
-    // requested cell height, matching master's convention (and avoiding the
-    // ~33-40% oversized glyphs that came from treating pixelSize as if it
-    // already equalled the desired line height).
-    const int wantHeight = std::max(1, pixelSize);
-    const auto heightAt = [&fontFamily](int px) -> int {
-        QFont probe(fontFamily);
-        probe.setPixelSize(std::max(1, px));
-        return std::max(1, QFontMetrics(probe).height());
-    };
-
-    const int probeHeight = heightAt(wantHeight);
-    const int firstGuess = std::max(1,
-                                     static_cast<int>(std::lround(
-                                         static_cast<double>(wantHeight) * wantHeight
-                                         / probeHeight)));
-
-    // The proportional guess above assumes height scales linearly with pixel
-    // size, but QFontMetrics rounds ascent/descent to whole pixels at every
-    // size, so it can land 1px off the target. Refine with a tiny local
-    // search rather than accepting that rounding slop, so the requested size
-    // (matching master's BMFont convention: lineHeight == requested size)
-    // is hit as exactly as an integer pixel size allows.
-    int bestPixelSize = firstGuess;
-    int bestError = std::abs(heightAt(firstGuess) - wantHeight);
-    for (int delta = -2; delta <= 2; ++delta) {
-        if (delta == 0) {
-            continue;
-        }
-        const int candidate = firstGuess + delta;
-        if (candidate < 1) {
-            continue;
-        }
-        const int error = std::abs(heightAt(candidate) - wantHeight);
-        if (error < bestError) {
-            bestError = error;
-            bestPixelSize = candidate;
-        }
-    }
-
-    QFont font(fontFamily);
-    font.setPixelSize(bestPixelSize);
+    QFont font(fontFamily, pointSize);
     return generateAtlas(font, chars);
 }
 

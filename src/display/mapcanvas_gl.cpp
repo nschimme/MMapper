@@ -418,7 +418,7 @@ void MapCanvas::slot_onMessageLoggedDirect(const QOpenGLDebugMessage &message)
     // The core stays QtWidgets-free, so it can't show the blocking message
     // box itself; the host facade does that (and calls std::abort()) in
     // response to this signal, using a direct connection so the abort still
-    // happens synchronously from here.
+    // happens synchronously from here, exactly as before.
     emit sig_glFatalError(message.message());
 }
 
@@ -948,10 +948,7 @@ void MapCanvas::hostPaintGL()
     auto y = lineHeight;
     const auto print = [lineHeight, rightMargin, &text, &y](const QString &msg) {
         text.emplace_back(glm::vec3(rightMargin, y, 0),
-                          // UTF-8 (not Latin1): the perf overlay uses a couple of
-                          // color emoji glyphs (see FontGenerator's emoji set) as
-                          // quick-glance status icons.
-                          mmqt::toStdStringUtf8(msg),
+                          mmqt::toStdStringLatin1(msg), // GL font is latin1
                           Colors::white,
                           Colors::black.withAlpha(0.4f),
                           FontFormatFlags{FontFormatFlagEnum::HALIGN_RIGHT});
@@ -962,13 +959,8 @@ void MapCanvas::hostPaintGL()
     const auto batchTime = ms(afterBatches - afterTextures);
 
     const auto total = ms(end - start);
-    // 60fps needs a total frame budget of ~16.7ms; flag anything slower.
-    const bool isSlowFrame = total > 16.7;
     print(QString::asprintf(
-        "%s %.1f (updateTextures) + %.1f (updateBatches) + %.1f (paintGL) + %.1f (glFinish%s) = %.1f ms",
-        // U+26A1 lightning bolt / U+26A0 warning sign: both render as color
-        // emoji glyphs, giving an at-a-glance status indicator next to the text.
-        isSlowFrame ? "⚠" : "⚡",
+        "%.1f (updateTextures) + %.1f (updateBatches) + %.1f (paintGL) + %.1f (glFinish%s) = %.1f ms",
         texturesTime,
         batchTime,
         ms(afterPaint - afterBatches),

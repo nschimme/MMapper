@@ -32,9 +32,10 @@ MapCanvasWindow::MapCanvasWindow(MapData &mapData,
     : QOpenGLWindow{NoPartialUpdate, parent}
     , m_core{mapData, observer, prespammedPath, groupManager, static_cast<MapCanvasHost &>(*this)}
 {
-    // Forward the core's public signal surface as our own, so that callers
-    // (MainWindow, MapWindow, ...) can connect to `MapCanvasWindow::sig_*`
-    // without knowing MapCanvas exists.
+    // Forward the core's public signal surface as our own, so that existing
+    // callers (MainWindow, MapWindow, ...) can keep connecting to
+    // `MapCanvasWindow::sig_*` exactly as before, without knowing MapCanvas
+    // exists.
     connect(&m_core, &MapCanvas::sig_onCenter, this, &MapCanvasWindow::sig_onCenter);
     connect(&m_core, &MapCanvas::sig_mapMove, this, &MapCanvasWindow::sig_mapMove);
     connect(&m_core, &MapCanvas::sig_setScrollBars, this, &MapCanvasWindow::sig_setScrollBars);
@@ -63,7 +64,8 @@ MapCanvasWindow::MapCanvasWindow(MapData &mapData,
             &MapCanvasWindow::sig_dismissContextMenu);
 
     // The core stays QtWidgets-free; these two connections are where the
-    // widget-specific UX (message boxes, hiding the window, aborting) lives.
+    // widget-specific UX (message boxes, hiding the window, aborting) lives,
+    // preserving the exact behavior MapCanvasWindow had before this split.
     connect(&m_core,
             &MapCanvas::sig_glInitFailed,
             this,

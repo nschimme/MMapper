@@ -8,7 +8,6 @@
 
 #include "../global/utils.h"
 
-#include <algorithm>
 #include <cassert>
 #include <mutex>
 #include <optional>
@@ -269,7 +268,6 @@ ConstString KEY_LINES_OF_PEEK_PREVIEW = "Lines of peek preview";
 ConstString KEY_LINES_OF_SCROLLBACK = "Lines of scrollback";
 ConstString KEY_PROXY_LOCAL_PORT = "Local port number";
 ConstString KEY_MAP_MODE = "Map Mode";
-ConstString KEY_GAME_CLIENT = "Game Client";
 ConstString KEY_MUSIC_VOLUME = "Music volume";
 ConstString KEY_SOUND_VOLUME = "Sound volume";
 ConstString KEY_AUDIO_OUTPUT_DEVICE = "Audio output device";
@@ -427,28 +425,6 @@ NODISCARD static MapModeEnum sanitizeMapMode(const uint32_t input)
 
     qWarning() << "invalid MapMode:" << input;
     return MapModeEnum::PLAY;
-}
-
-NODISCARD static bool isValidGameClient(const GameClientEnum client)
-{
-    switch (client) {
-    case GameClientEnum::ASK:
-    case GameClientEnum::BUILT_IN:
-    case GameClientEnum::EXTERNAL:
-        return true;
-    }
-    return false;
-}
-
-NODISCARD static GameClientEnum sanitizeGameClient(const uint32_t input)
-{
-    const auto client = static_cast<GameClientEnum>(input);
-    if (isValidGameClient(client)) {
-        return client;
-    }
-
-    qWarning() << "invalid GameClient:" << input;
-    return GameClientEnum::ASK;
 }
 
 NODISCARD static ThemeEnum sanitizeTheme(const uint32_t input)
@@ -632,11 +608,6 @@ void Configuration::GeneralSettings::read(const QSettings &conf)
     showMenuBar = conf.value(KEY_SHOW_MENU_BAR, true).toBool();
     mapMode = sanitizeMapMode(
         conf.value(KEY_MAP_MODE, static_cast<uint32_t>(MapModeEnum::PLAY)).toUInt());
-    gameClient = (CURRENT_PLATFORM == PlatformEnum::Wasm)
-                     ? GameClientEnum::BUILT_IN
-                     : sanitizeGameClient(
-                           conf.value(KEY_GAME_CLIENT, static_cast<uint32_t>(GameClientEnum::ASK))
-                               .toUInt());
     checkForUpdate = conf.value(KEY_CHECK_FOR_UPDATE, true).toBool();
     uiFontScale = std::clamp(conf.value(KEY_UI_FONT_SCALE, 1.0).toDouble(), 0.5, 3.0);
     characterEncoding = sanitizeCharacterEncoding(
@@ -690,9 +661,7 @@ void Configuration::CanvasSettings::read(const QSettings &conf)
                                         .append(DEFAULT_RESOURCES_SUBDIR))
                              .toString();
     mapFontFamily = conf.value(KEY_MAP_FONT_FAMILY, "Cantarell").toString();
-    // Clamped once here so every consumer can trust the value instead of
-    // re-guarding against an unset/corrupt/out-of-range setting.
-    mapFontSize = std::clamp(conf.value(KEY_MAP_FONT_SIZE, 18).toInt(), 6, 72);
+    mapFontSize = conf.value(KEY_MAP_FONT_SIZE, 18).toInt();
     showMissingMapId.set(conf.value(KEY_SHOW_MISSING_MAP_ID, true).toBool());
     showUnsavedChanges.set(conf.value(KEY_SHOW_UNSAVED_CHANGES, true).toBool());
     showUnmappedExits.set(conf.value(KEY_DRAW_NOT_MAPPED_EXITS, true).toBool());
@@ -823,8 +792,8 @@ void Configuration::AudioSettings::read(const QSettings &conf)
     m_unlocked = (CURRENT_PLATFORM == PlatformEnum::Wasm)
                      ? false
                      : conf.value(KEY_AUDIO_UNLOCKED, false).toBool();
-    m_musicVolume = std::clamp(conf.value(KEY_MUSIC_VOLUME, 0).toInt(), 0, 100);
-    m_soundVolume = std::clamp(conf.value(KEY_SOUND_VOLUME, 0).toInt(), 0, 100);
+    m_musicVolume = std::clamp(conf.value(KEY_MUSIC_VOLUME, 50).toInt(), 0, 100);
+    m_soundVolume = std::clamp(conf.value(KEY_SOUND_VOLUME, 50).toInt(), 0, 100);
     m_outputDeviceId = conf.value(KEY_AUDIO_OUTPUT_DEVICE).toByteArray();
 }
 
@@ -879,7 +848,6 @@ void Configuration::GeneralSettings::write(QSettings &conf) const
     conf.setValue(KEY_SHOW_SCROLL_BARS, showScrollBars);
     conf.setValue(KEY_SHOW_MENU_BAR, showMenuBar);
     conf.setValue(KEY_MAP_MODE, static_cast<uint32_t>(mapMode));
-    conf.setValue(KEY_GAME_CLIENT, static_cast<uint32_t>(gameClient));
     conf.setValue(KEY_CHECK_FOR_UPDATE, checkForUpdate);
     conf.setValue(KEY_UI_FONT_SCALE, uiFontScale);
     conf.setValue(KEY_CHARACTER_ENCODING, static_cast<uint32_t>(characterEncoding));

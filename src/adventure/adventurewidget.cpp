@@ -6,7 +6,6 @@
 
 #include "../configuration/configuration.h"
 #include "../global/Consts.h"
-#include "../global/window_utils.h"
 
 #include <memory>
 
@@ -94,6 +93,7 @@ void AdventureWidget::appendRows(const int first, const int last)
         cursor.insertText(QString(char_consts::C_NEWLINE));
     }
 
+    // force scroll to bottom upon new message
     auto *const scrollBar = m_textEdit->verticalScrollBar();
     scrollBar->setValue(scrollBar->maximum());
 }
@@ -112,8 +112,10 @@ void AdventureWidget::removeRows(const int first, const int last)
 
 void AdventureWidget::slot_contextMenuRequested(const QPoint &pos)
 {
-    std::unique_ptr<QMenu> contextMenu{m_textEdit->createStandardContextMenu()};
+    // popup() rather than exec(): a nested event loop is unavailable on wasm.
+    QMenu *const contextMenu = m_textEdit->createStandardContextMenu();
+    contextMenu->setAttribute(Qt::WA_DeleteOnClose);
     contextMenu->addSeparator();
     contextMenu->addAction(m_clearContentAction);
-    mmqt::popupMenu(std::move(contextMenu), m_textEdit->mapToGlobal(pos));
+    contextMenu->popup(m_textEdit->mapToGlobal(pos));
 }

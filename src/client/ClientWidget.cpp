@@ -40,77 +40,22 @@ ClientWidget::ClientWidget(ConnectionListener &listener,
     initPipeline();
 
     auto &ui = getUi();
-    initWelcomePage();
+
+    // Port
+    ui.port->setText(QString("%1").arg(getConfig().connection.localPort));
+
+    ui.playButton->setFocus();
+    QObject::connect(ui.playButton, &QAbstractButton::clicked, this, [this]() {
+        getUi().parent->setCurrentIndex(1);
+        getTelnet().connectToHost(m_listener);
+    });
 
     ui.input->installEventFilter(this);
     ui.display->setFocusPolicy(Qt::TabFocus);
 
-    // The card asks how to play; the preference can answer instead, and
-    // the web build has only the built-in client.
-    switch (getConfig().general.gameClient) {
-    case GameClientEnum::BUILT_IN:
-        play();
-        break;
-    case GameClientEnum::EXTERNAL:
-        ui.parent->setCurrentWidget(ui.externalPage);
-        break;
-    case GameClientEnum::ASK:
-        ui.parent->setCurrentWidget(ui.welcomePage);
-        ui.playButton->setFocus();
-        break;
+    if constexpr (CURRENT_PLATFORM == PlatformEnum::Wasm) {
+        ui.playButton->click();
     }
-}
-
-void ClientWidget::initWelcomePage()
-{
-    auto &ui = getUi();
-    const auto &audio = getConfig().audio;
-    const QString port = QString::number(getConfig().connection.localPort);
-    ui.portLabel->setText(tr("Point it at localhost, port %1").arg(port));
-    ui.waitingLabel->setText(tr("Waiting for your MUD client on localhost, port %1").arg(port));
-    ui.soundCheckBox->setChecked(audio.getMusicVolume() > 0 || audio.getSoundVolume() > 0);
-
-    // What the card decided: sound, and (if asked not to ask again) how to
-    // play from now on. Either remembered choice is undone in Preferences.
-    const auto applyChoices = [this](const GameClientEnum client) {
-        auto &ui2 = getUi();
-        // The box is a coarse switch over both channels (the sliders in
-        // Preferences > Audio set levels): on brings a channel at 0 up to
-        // the default level and unlocks; off is both at 0.
-        auto &settings = setConfig().audio;
-        using AudioSettings = Configuration::AudioSettings;
-        if (ui2.soundCheckBox->isChecked()) {
-            if (settings.getMusicVolume() == 0) {
-                settings.setMusicVolume(AudioSettings::DEFAULT_VOLUME);
-            }
-            if (settings.getSoundVolume() == 0) {
-                settings.setSoundVolume(AudioSettings::DEFAULT_VOLUME);
-            }
-            settings.setUnlocked();
-        } else {
-            settings.setMusicVolume(0);
-            settings.setSoundVolume(0);
-        }
-        if (ui2.dontAskCheckBox->isChecked()) {
-            setConfig().general.gameClient = client;
-        }
-    };
-    connect(ui.playButton, &QAbstractButton::clicked, this, [this, applyChoices]() {
-        applyChoices(GameClientEnum::BUILT_IN);
-        play();
-    });
-    connect(ui.externalButton, &QAbstractButton::clicked, this, [this, applyChoices]() {
-        applyChoices(GameClientEnum::EXTERNAL);
-        getUi().parent->setCurrentWidget(getUi().externalPage);
-    });
-    connect(ui.playInsteadButton, &QAbstractButton::clicked, this, [this]() { play(); });
-}
-
-void ClientWidget::play()
-{
-    auto &ui = getUi();
-    ui.parent->setCurrentWidget(ui.clientPage);
-    getTelnet().connectToHost(m_listener);
 }
 
 ClientWidget::~ClientWidget() = default;
@@ -207,7 +152,7 @@ void ClientWidget::initTouchInputStrip()
 {
     // On-screen keyboards have no Up/Down/Tab, so the compact layout shows a
     // row of buttons beside the input that drives command history and
-    // completion (see setCompactLayout()). The input keeps its
+    // completion (see setTouchInputStripVisible()). The input keeps its
     // place in the client page's splitter; this wraps it in a row.
     auto &ui = getUi();
     QSplitter &splitter = deref(ui.clientPage);
@@ -250,14 +195,10 @@ void ClientWidget::initTouchInputStrip()
     m_touchInputStrip = strip;
 }
 
-void ClientWidget::setCompactLayout(const bool compact)
+void ClientWidget::setTouchInputStripVisible(const bool visible)
 {
     if (m_touchInputStrip != nullptr) {
-        m_touchInputStrip->setVisible(compact);
-    }
-    m_previewEnabled = !compact;
-    if (!m_previewEnabled) {
-        getPreview().hide();
+        m_touchInputStrip->setVisible(visible);
     }
 }
 
@@ -287,10 +228,7 @@ void ClientWidget::initDisplayWidget()
             getTelnet().onWindowSizeChanged(width, height);
         }
         void virt_returnFocusToInput() final { getSelf().getInput().setFocus(); }
-        void virt_showPreview(bool visible) final
-        {
-            getSelf().getPreview().setVisible(visible && getSelf().m_previewEnabled);
-        }
+        void virt_showPreview(bool visible) final { getSelf().getPreview().setVisible(visible); }
     };
     auto &out = m_pipeline.outputs.displayWidgetOutputs;
     out = std::make_unique<LocalDisplayWidgetOutputs>(*this);
@@ -396,8 +334,7 @@ void ClientWidget::slot_onVisibilityChanged(const bool /*visible*/)
 
 bool ClientWidget::isUsingClient() const
 {
-    const auto &ui = getUi();
-    return ui.parent->currentWidget() == ui.clientPage;
+    return getUi().parent->currentIndex() != 0;
 }
 
 void ClientWidget::displayReconnectHint()

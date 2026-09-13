@@ -84,7 +84,9 @@ static_assert(GROUP_COLUMN_COUNT == static_cast<int>(ColumnTypeEnum::ROOM_NAME) 
 // <std|inv> selects the standard or inverted (white-icon) variant, mirroring
 // GroupImageCache's invert condition: mmqt::textColor(charColor) == Qt::white.
 // <lowercase-enum-name> is the same "lower_case" token used by
-// Filenames.cpp's getFilenameSuffix() (e.g. "standing", "sanctuary").
+// Filenames.cpp's getFilenameSuffix() (e.g. "standing", "sanctuary"). A Qt
+// Quick image provider registered under the "groupicons" id would resolve
+// these URLs back to icon files via getIconFilename().
 class NODISCARD_QOBJECT GroupModel final : public QAbstractTableModel
 {
     Q_OBJECT

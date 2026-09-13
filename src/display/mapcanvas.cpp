@@ -460,8 +460,9 @@ void MapCanvas::requestContextMenuAt(const QPointF &pos)
     // getMouseCoords() derives its glm coordinate from a QMouseEvent as
     // {x, height()-y} (see MapCanvasData.cpp); a touch long-press reaches
     // here with no QMouseEvent, so reproduce that transform directly. This is
-    // the same selection + emit that the right-mouse-button branch of
-    // handleMousePress() performs.
+    // the same selection + emit the right-mouse-button branch of
+    // handleMousePress() runs (which now calls this), so mouse behavior is
+    // unchanged.
     const glm::vec2 xy{static_cast<float>(pos.x()), static_cast<float>(height() - pos.y())};
     if (m_canvasMouseMode == CanvasMouseModeEnum::MOVE) {
         const auto worldPos = unproject_clamped(xy);
@@ -509,6 +510,18 @@ void MapCanvas::onLongPress()
     }
 
     requestContextMenuAt(pos);
+}
+
+void MapCanvas::handleMouseDoubleClick(QMouseEvent *const event)
+{
+    if (event->button() != Qt::LeftButton) {
+        return;
+    }
+    cancelLongPress();
+    if (const auto xy = getMouseCoords(event)) {
+        zoomAt(ScaleFactor::ZOOM_STEP, *xy);
+    }
+    event->accept();
 }
 
 void MapCanvas::recordScrollSample(const qint64 msecs)
@@ -1460,6 +1473,10 @@ void MapCanvas::graphicsSettingsChanged()
 {
     m_opengl.resetNamedColorsBuffer();
     syncViewportConfig();
+    if (m_opengl.isRendererInitialized()) {
+        m_glFont.cleanup();
+        m_glFont.init();
+    }
     m_frameManager.requestUpdate();
 }
 

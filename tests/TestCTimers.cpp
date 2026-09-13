@@ -304,12 +304,15 @@ void TestCTimers::testModelCustomRoleData()
 
 void TestCTimers::timerModelTickUpdatesAllRoles()
 {
-    // Regression test: consumers bind to the custom TimeRole/NameRole/ExpiredRole
-    // (see TimerModel::roleNames()), not Qt::DisplayRole, so TimerModel's periodic
-    // refresh lambda must emit dataChanged() with an *empty* roles vector (meaning
-    // "all roles changed"); a non-empty {Qt::DisplayRole, ProgressRole} list would
-    // leave those bindings stale, making a running count-up timer's on-screen time
-    // look frozen even though the underlying data keeps updating.
+    // Regression test: TimerModel's periodic refresh lambda used to emit
+    // dataChanged() with {Qt::DisplayRole, ProgressRole} as the changed
+    // roles, but consumers bind to the custom TimeRole/NameRole/ExpiredRole
+    // (see TimerModel::roleNames()), not Qt::DisplayRole. Those bindings
+    // never re-evaluated, so a running count-up timer's on-screen time
+    // looked frozen even though the underlying data (and the widget-based
+    // TimerWidget, which repaints regardless of roles) kept updating. See
+    // TimerModel.cpp's refresh lambda: it must emit an *empty* roles vector
+    // (meaning "all roles changed").
     CTimers timers(nullptr);
     timers.addTimer("count-up", "");
 

@@ -77,9 +77,9 @@ NODISCARD std::optional<T> extract(std::future<std::optional<T>> &future, MainWi
 
 namespace background {
 
-// The map-loading/merging logic lives in maploadhelper::loadMapData()/
+// load_map_data()/merge_map_data() moved to maploadhelper::loadMapData()/
 // maploadhelper::mergeMapData() (see mapstorage/MapLoadHelper.h) so other
-// hosts can share it without depending on MainWindow.
+// hosts can share them without depending on MainWindow.
 
 NODISCARD std::optional<Map> merge_map_data(AbstractMapStorage &storage, const MapData &mapData)
 {

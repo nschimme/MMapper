@@ -9,16 +9,15 @@
 #include "../display/Filenames.h"
 #include "../display/MapCanvasData.h"
 #include "../display/Textures.h"
+#include "../font/FontGenerator.h"
 #include "../global/ConfigConsts.h"
 #include "../global/hash.h"
 #include "../global/utils.h"
-#include "../font/FontGenerator.h"
 #include "FontFormatFlags.h"
 #include "OpenGL.h"
 
 #include <cassert>
 #include <cctype>
-#include <cmath>
 #include <cstdlib>
 #include <memory>
 #include <optional>
@@ -31,6 +30,7 @@
 #include <glm/gtc/matrix_transform.hpp>
 
 #include <QtCore>
+#include <QtGui/QFontDatabase>
 #include <QtGui>
 
 static const bool VERBOSE_FONT_DEBUG = std::invoke([]() -> bool {
@@ -86,7 +86,6 @@ struct NODISCARD FontMetrics final
         int xoffset = 0;
         int yoffset = 0;
         int xadvance = 0;
-        bool isColor = false;
 
         Glyph() = default;
         ~Glyph() = default;
@@ -100,8 +99,7 @@ struct NODISCARD FontMetrics final
                        const int height_,
                        const int xoffset_,
                        const int yoffset_,
-                       const int xadvance_,
-                       const bool isColor_ = false)
+                       const int xadvance_)
             : id{id_}
             , x{x_}
             , y{y_}
@@ -110,7 +108,6 @@ struct NODISCARD FontMetrics final
             , xoffset{xoffset_}
             , yoffset{yoffset_}
             , xadvance{xadvance_}
-            , isColor{isColor_}
         {}
 
         // used for underline
@@ -182,10 +179,6 @@ struct NODISCARD FontMetrics final
         int scaleH = 0;
         int marginX = 0;
         int marginY = 0;
-        // Per-glyph SDF spread border baked into every glyph's quad; must be
-        // subtracted back out of accumulated text bounds (background box,
-        // centering) so they reflect ink extent, not the invisible SDF margin.
-        int glyphPadding = 0;
     };
 
     std::optional<Glyph> background;
@@ -315,19 +308,18 @@ struct NODISCARD FontMetrics final
                 codepoint = c;
                 i += 1;
             } else if ((c & 0xE0) == 0xC0 && i + 1 < msg.size()) {
-                codepoint = static_cast<char32_t>(
-                    ((c & 0x1F) << 6) | (static_cast<unsigned char>(msg[i + 1]) & 0x3F));
+                codepoint = ((c & 0x1F) << 6) | (static_cast<unsigned char>(msg[i + 1]) & 0x3F);
                 i += 2;
             } else if ((c & 0xF0) == 0xE0 && i + 2 < msg.size()) {
-                codepoint = static_cast<char32_t>(
-                    ((c & 0x0F) << 12) | ((static_cast<unsigned char>(msg[i + 1]) & 0x3F) << 6)
-                    | (static_cast<unsigned char>(msg[i + 2]) & 0x3F));
+                codepoint = ((c & 0x0F) << 12)
+                            | ((static_cast<unsigned char>(msg[i + 1]) & 0x3F) << 6)
+                            | (static_cast<unsigned char>(msg[i + 2]) & 0x3F);
                 i += 3;
             } else if ((c & 0xF8) == 0xF0 && i + 3 < msg.size()) {
-                codepoint = static_cast<char32_t>(
-                    ((c & 0x07) << 18) | ((static_cast<unsigned char>(msg[i + 1]) & 0x3F) << 12)
-                    | ((static_cast<unsigned char>(msg[i + 2]) & 0x3F) << 6)
-                    | (static_cast<unsigned char>(msg[i + 3]) & 0x3F));
+                codepoint = ((c & 0x07) << 18)
+                            | ((static_cast<unsigned char>(msg[i + 1]) & 0x3F) << 12)
+                            | ((static_cast<unsigned char>(msg[i + 2]) & 0x3F) << 6)
+                            | (static_cast<unsigned char>(msg[i + 3]) & 0x3F);
                 i += 4;
             } else {
                 codepoint = c;
@@ -339,7 +331,8 @@ struct NODISCARD FontMetrics final
                 emitGlyph(current, lookupKerning(prev, current));
                 prev = current;
             } else if (auto oops = lookupGlyph(char_consts::C_QUESTION_MARK)) {
-                qWarning() << "Unable to lookup glyph" << QString::fromStdU32String(std::u32string(1, codepoint));
+                qWarning() << "Unable to lookup glyph"
+                           << QString::fromStdU32String(std::u32string(1, codepoint));
                 emitGlyph(oops, lookupKerning(prev, oops));
                 prev = oops;
             } else {
@@ -392,34 +385,22 @@ QImage FontMetrics::initFromAtlas(const font_gen::FontAtlasData &atlasData)
 {
     raw_glyphs.clear();
     glyphs.clear();
-    raw_kernings.clear();
     kernings.clear();
 
     // Reserve space for atlas glyphs plus 2 synthetic glyphs (background & underline)
     raw_glyphs.reserve(atlasData.glyphs.size() + 2);
-    // Reserved upfront: raw_kernings must not reallocate once `kernings` starts
-    // storing pointers into it below.
-    raw_kernings.reserve(atlasData.kernings.size());
     common.lineHeight = atlasData.lineHeight;
     common.base = atlasData.base;
     common.scaleW = atlasData.scaleW;
     common.scaleH = atlasData.scaleH;
     common.marginX = 2;
     common.marginY = 1;
-    common.glyphPadding = atlasData.glyphPadding;
 
     for (const auto &[id, gm] : atlasData.glyphs) {
         const int y2 = common.scaleH - (gm.y + gm.height);
         const int yoffset2 = common.base - (gm.yoffset + gm.height);
-        raw_glyphs.emplace_back(gm.id,
-                                gm.x,
-                                y2,
-                                gm.width,
-                                gm.height,
-                                gm.xoffset,
-                                yoffset2,
-                                gm.xadvance,
-                                gm.isColor);
+        raw_glyphs
+            .emplace_back(gm.id, gm.x, y2, gm.width, gm.height, gm.xoffset, yoffset2, gm.xadvance);
     }
 
     QImage result = (!atlasData.texturePages.empty())
@@ -432,12 +413,6 @@ QImage FontMetrics::initFromAtlas(const font_gen::FontAtlasData &atlasData)
         glyphs[glyph.id] = &glyph;
     }
 
-    for (const font_gen::KerningPair &kp : atlasData.kernings) {
-        raw_kernings.emplace_back(static_cast<int>(kp.first), static_cast<int>(kp.second), kp.amount);
-        const Kerning &k = raw_kernings.back();
-        kernings[IntPair{k.first, k.second}] = &k;
-    }
-
     if (background) {
         glyphs[BACKGROUND_ID] = &background.value();
     }
@@ -447,7 +422,6 @@ QImage FontMetrics::initFromAtlas(const font_gen::FontAtlasData &atlasData)
 
     return result;
 }
-
 
 class NODISCARD FontBatchBuilder final
 {
@@ -547,11 +521,10 @@ public:
     void emitGlyphQuad(const bool isEmpty,
                        const glm::ivec2 iVertex00,
                        const glm::ivec2 iTexCoord00,
-                       const glm::ivec2 iglyphSize,
-                       const bool isColor = false)
+                       const glm::ivec2 iglyphSize)
     {
         const auto emitWithOffset =
-            [this, isEmpty, isColor, &iVertex00, &iTexCoord00](const glm::ivec2 pixelOffset) -> void {
+            [this, isEmpty, &iVertex00, &iTexCoord00](const glm::ivec2 pixelOffset) -> void {
             const glm::ivec2 relativeVertPos = iVertex00 + pixelOffset;
             if (!isEmpty) {
                 // side-effect: updates bounds; this must come before return
@@ -564,7 +537,7 @@ public:
 
             const glm::vec2 tc = getTexCoord(iTexCoord00 + pixelOffset);
             const glm::vec2 vert = transformVert(relativeVertPos);
-            m_verts3d.emplace_back(m_opts.pos, m_opts.fgColor, tc, vert, isColor ? 1.f : 0.f);
+            m_verts3d.emplace_back(m_opts.pos, m_opts.fgColor, tc, vert);
         };
 
         const auto &x = iglyphSize.x;
@@ -580,6 +553,7 @@ public:
 
     void emitGlyph(const FontMetrics::Glyph *const g, const FontMetrics::Kerning *const k)
     {
+        assert(isClamped(g->id, 0, 255));
         const auto glyphSize = glm::ivec2(g->width, g->height);
         const auto iTexCoord00 = glm::ivec2(g->x, g->y);
         if (k != nullptr) {
@@ -588,10 +562,7 @@ public:
         }
         const auto iVertex00 = glm::ivec2(m_xlinepos + g->xoffset, g->yoffset);
         m_xlinepos += g->xadvance;
-        // std::isspace() is only defined for unsigned char values and EOF;
-        // glyph ids can be full Unicode codepoints (e.g. emoji), so compare directly.
-        const bool isEmpty = (g->id >= 0 && g->id <= 0xFF) && std::isspace(g->id) != 0;
-        emitGlyphQuad(isEmpty, iVertex00, iTexCoord00, glyphSize, g->isColor);
+        emitGlyphQuad(std::isspace(g->id), iVertex00, iTexCoord00, glyphSize);
     }
 
     void call_foreach_glyph(const int wordOffset, const bool output)
@@ -649,13 +620,8 @@ public:
 
             if (m_opts.optBgColor) {
                 if (const FontMetrics::Glyph *const background = m_fm.getBackground()) {
-                    // lo/hi were accumulated from padded glyph quads (see
-                    // Common::glyphPadding); shrink back to ink extent so the
-                    // background box hugs the text instead of the invisible
-                    // SDF spread margin baked into each glyph's quad.
-                    const glm::ivec2 glyphPadding{m_fm.common.glyphPadding, m_fm.common.glyphPadding};
                     quad(m_opts.optBgColor.value(),
-                         Rect{lo + glyphPadding - margin, hi - glyphPadding + margin},
+                         Rect{lo - margin, hi + margin},
                          background->getRect());
                 }
             }
@@ -683,13 +649,13 @@ GLFont::GLFont(OpenGL &gl)
 
 GLFont::~GLFont() = default;
 
-
 void GLFont::init()
 {
     assert(m_gl.isRendererInitialized());
 
     static const int cantarellId = std::invoke([]() -> int {
-        const int id = QFontDatabase::addApplicationFont(QStringLiteral(":/fonts/Cantarell-Regular.ttf"));
+        const int id = QFontDatabase::addApplicationFont(
+            QStringLiteral(":/fonts/Cantarell-Regular.ttf"));
         if (id != -1) {
             qInfo() << "Loaded embedded Cantarell font from resource database.";
         } else {
@@ -705,23 +671,10 @@ void GLFont::init()
 
     const auto &canvas = getConfig().canvas;
 
-    QString fontFamily = !canvas.mapFontFamily.isEmpty()
-                             ? canvas.mapFontFamily
-                             : QStringLiteral("Cantarell");
-    // With SDF rendering, a single master font size scales crisp and pixel-perfect
-    // across all zoom levels; FontGenerator supersamples internally (see sdfScale)
-    // for a crisp distance field regardless of this base size.
-    //
-    // Glyph metrics from the atlas are used directly as physical (device) pixel
-    // offsets (see FontVert3d's aVert / uPhysViewport in font/vert.glsl), so the
-    // base size must be scaled by the device pixel ratio to keep the on-screen
-    // physical size of the text matching mapFontSize on high-DPI (e.g. Retina)
-    // displays, the same way the old bitmap-font path picked a larger pre-baked
-    // font for higher device pixel ratios.
-    const int baseSize = std::max(1,
-                                  static_cast<int>(std::lround(
-                                      static_cast<float>(canvas.mapFontSize)
-                                      * m_gl.getDevicePixelRatio())));
+    QString fontFamily = !canvas.mapFontFamily.isEmpty() ? canvas.mapFontFamily
+                                                         : QStringLiteral("Cantarell");
+    // With SDF rendering, a single master font size (32pt) scales crisp and pixel-perfect across all zoom levels and DPI ratios.
+    constexpr int baseSize = 32;
 
     // Self-generate in-memory font atlas directly without reading disk files
     font_gen::FontAtlasData atlasData = font_gen::FontGenerator::generateAtlas(fontFamily, baseSize);
@@ -736,21 +689,15 @@ void GLFont::init()
         [fontImg](QOpenGLTexture &tex) mutable -> void {
             fontImg = fontImg.mirrored();
 
-            // Format_RGBA8888 (not premultiplied) guarantees R,G,B,A byte order
-            // regardless of host endianness, and matches the straight-alpha
-            // TRANSPARENCY blend mode (SRC_ALPHA, ONE_MINUS_SRC_ALPHA) used to
-            // render text. Monochrome glyphs carry their SDF value in the alpha
-            // channel (RGB is opaque white); color glyphs (e.g. emoji) carry
-            // their actual RGBA color.
-            const QImage converted = fontImg.convertToFormat(QImage::Format_RGBA8888);
-            tex.setFormat(QOpenGLTexture::TextureFormat::RGBA8_UNorm);
+            const QImage converted = fontImg.convertToFormat(QImage::Format_Alpha8);
+            tex.setFormat(QOpenGLTexture::TextureFormat::R8_UNorm);
             tex.setMinMagFilters(QOpenGLTexture::Filter::Linear, QOpenGLTexture::Filter::Linear);
             tex.setAutoMipMapGenerationEnabled(false);
             tex.setMipLevels(0);
             tex.setSize(converted.width(), converted.height());
             tex.allocateStorage();
             tex.setData(0,
-                        QOpenGLTexture::PixelFormat::RGBA,
+                        QOpenGLTexture::PixelFormat::Red,
                         QOpenGLTexture::PixelType::UInt8,
                         converted.constBits());
         },
@@ -795,11 +742,7 @@ void FontMetrics::getFontBatchRawData(const GLText *const text,
     const auto before = output.size();
     const auto end = text + count;
 
-    // Upper bound on emitted verts: a string's byte length is always >= its
-    // decoded glyph count (UTF-8 multi-byte codepoints, e.g. emoji, only
-    // shrink that count), so this is safe to use as a reserve() hint, but it
-    // is no longer an exact glyph count now that non-Latin1 text is emitted.
-    const size_t maxExpectedVerts = std::invoke([text, end]() -> size_t {
+    const size_t expectedVerts = std::invoke([text, end]() -> size_t {
         int numGlyphs = 0;
         for (const GLText *it = text; it != end; ++it) {
             numGlyphs += static_cast<int>(it->text.size()) + (it->bgcolor.has_value() ? 1 : 0)
@@ -808,14 +751,14 @@ void FontMetrics::getFontBatchRawData(const GLText *const text,
         return 4 * static_cast<size_t>(numGlyphs);
     });
 
-    output.reserve(before + maxExpectedVerts);
+    output.reserve(before + expectedVerts);
 
     auto &fm = *this;
     FontBatchBuilder fontBatchBuilder{fm, output};
     for (const GLText *it = text; it != end; ++it) {
         fontBatchBuilder.addString(*it);
     }
-    assert(output.size() <= before + maxExpectedVerts);
+    assert(output.size() == before + expectedVerts);
 }
 
 void GLFont::render2dTextImmediate(const View<GLText> text)

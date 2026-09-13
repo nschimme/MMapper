@@ -25,16 +25,6 @@ struct GlyphMetrics final
     int yoffset = 0;
     int xadvance = 0;
     int page = 0;
-    // true if the glyph is stored as full RGBA color (e.g. an emoji),
-    // false if it's a monochrome signed-distance-field glyph.
-    bool isColor = false;
-};
-
-struct KerningPair final
-{
-    char32_t first = 0;
-    char32_t second = 0;
-    int amount = 0;
 };
 
 struct FontAtlasData final
@@ -45,15 +35,8 @@ struct FontAtlasData final
     int base = 0;
     int scaleW = 0;
     int scaleH = 0;
-    // Per-glyph border baked into every glyph's width/xoffset/height/yoffset to
-    // give the SDF distance field room for its spread (see FontGenerator's
-    // sdfSpread); callers doing text-bounds/layout math (not just drawing the
-    // glyph quad) should subtract this back out to get the glyph's ink extent.
-    int glyphPadding = 0;
     std::unordered_map<char32_t, GlyphMetrics> glyphs;
     std::vector<QImage> texturePages;
-    // Only non-zero-adjustment pairs are included.
-    std::vector<KerningPair> kernings;
 };
 
 class FontGenerator final
@@ -67,11 +50,11 @@ public:
 
     // Generate in-memory FontAtlasData directly
     static FontAtlasData generateAtlas(const QFont &font,
-                                        const std::set<char32_t> &chars = getDefaultCharSet());
+                                       const std::set<char32_t> &chars = getDefaultCharSet());
 
     static FontAtlasData generateAtlas(const QString &fontFamily,
-                                        int pointSize,
-                                        const std::set<char32_t> &chars = getDefaultCharSet());
+                                       int pointSize,
+                                       const std::set<char32_t> &chars = getDefaultCharSet());
 };
 
 } // namespace font_gen

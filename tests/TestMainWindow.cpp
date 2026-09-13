@@ -157,15 +157,6 @@ void TestMainWindow::compactLayoutPolicy()
 
     QCOMPARE(clientHeight(QSize(400, 1000)), 550);
     QCOMPARE(clientHeight(QSize(400, 0)), 0);
-
-    // A window the expanded layout's minimum size has pushed past a phone's
-    // screen is judged by the screen, so the compact layout still engages.
-    QCOMPARE(probeSize(QSize(1080, 900), QSize(390, 664)), QSize(390, 664));
-    QVERIFY(isCompact(probeSize(QSize(1080, 900), QSize(390, 664))));
-    // A window smaller than its screen is judged by itself.
-    QCOMPARE(probeSize(QSize(600, 420), QSize(1920, 1080)), QSize(600, 420));
-    // No screen: the window size stands.
-    QCOMPARE(probeSize(QSize(1080, 900), QSize()), QSize(1080, 900));
 }
 
 QTEST_MAIN(TestMainWindow)

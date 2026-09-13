@@ -295,6 +295,8 @@ public:
     void handleMousePress(QMouseEvent *event);
     void handleMouseRelease(QMouseEvent *event);
     void handleMouseMove(QMouseEvent *event);
+    // A left double-click (or double-tap) zooms in one step at the pointer.
+    void handleMouseDoubleClick(QMouseEvent *event);
     void handlePointerMove(glm::vec2 pos, Qt::KeyboardModifiers modifiers, Qt::MouseButtons buttons);
     void handleWheel(QWheelEvent *event);
     void handleTouch(QTouchEvent *event);

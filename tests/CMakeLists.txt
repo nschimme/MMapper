@@ -23,30 +23,6 @@ if(MMAPPER_IS_DEBUG)
     endif()
 endif()
 
-# Font Generator
-set(font_SRCS
-    ../src/font/FontGenerator.cpp
-    ../src/font/FontGenerator.h
-)
-set(TestFont_SRCS TestFont.cpp)
-add_executable(TestFont ${TestFont_SRCS} ${font_SRCS})
-add_dependencies(TestFont mm_test mm_global)
-target_link_libraries(TestFont
-        mm_test
-        mm_global
-        Qt6::Gui
-        Qt6::Test
-        Qt6::Widgets
-        coverage_config)
-set_target_properties(
-  TestFont PROPERTIES
-  CXX_STANDARD 20
-  CXX_STANDARD_REQUIRED ON
-  CXX_EXTENSIONS OFF
-  COMPILE_FLAGS "${WARNING_FLAGS}"
-)
-add_test(NAME TestFont COMMAND TestFont)
-
 # Common test library
 add_library(mm_test STATIC
     ../src/configuration/configuration.cpp
@@ -305,24 +281,6 @@ set_target_properties(
 )
 add_test(NAME TestAdventure COMMAND TestAdventure)
 
-# AutoLogger
-set(autologger_test
-        ../src/logger/LogCleanup.cpp
-        ../src/logger/LogCleanup.h
-)
-set(TestAutoLogger TestAutoLogger.cpp TestAutoLogger.h)
-add_executable(TestAutoLogger ${autologger_test} ${TestAutoLogger})
-add_dependencies(TestAutoLogger mm_global)
-target_link_libraries(TestAutoLogger mm_global Qt6::Test coverage_config)
-set_target_properties(
-        TestAutoLogger PROPERTIES
-        CXX_STANDARD 20
-        CXX_STANDARD_REQUIRED ON
-        CXX_EXTENSIONS OFF
-        COMPILE_FLAGS "${WARNING_FLAGS}"
-)
-add_test(NAME TestAutoLogger COMMAND TestAutoLogger)
-
 # Timer
 set(timer_test
         ../src/timers/CTimers.cpp
@@ -464,3 +422,28 @@ set_target_properties(
         COMPILE_FLAGS "${WARNING_FLAGS}"
 )
 add_test(NAME TestClient COMMAND TestClient)
+
+# Font Generator
+set(font_SRCS
+    ../src/font/FontGenerator.cpp
+    ../src/font/FontGenerator.h
+)
+set(TestFontGenerator_SRCS TestFontGenerator.cpp)
+add_executable(TestFontGenerator ${TestFontGenerator_SRCS} ${font_SRCS})
+add_dependencies(TestFontGenerator mm_test mm_global)
+target_link_libraries(TestFontGenerator
+        mm_test
+        mm_global
+        Qt6::Gui
+        Qt6::Test
+        Qt6::Widgets
+        coverage_config)
+set_target_properties(
+  TestFontGenerator PROPERTIES
+  CXX_STANDARD 20
+  CXX_STANDARD_REQUIRED ON
+  CXX_EXTENSIONS OFF
+  COMPILE_FLAGS "${WARNING_FLAGS}"
+)
+add_test(NAME TestFontGenerator COMMAND TestFontGenerator)
+set_tests_properties(TestFontGenerator PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")

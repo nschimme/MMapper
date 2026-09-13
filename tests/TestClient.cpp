@@ -89,8 +89,9 @@ void TestClient::inputHistoryDedupVsBackOnly()
     InputHistory history2;
     history2.addInputLine("a");
     history2.addInputLine("b");
-    // Exercises adding "a" again: back() ("a", the oldest entry) equals the
-    // new string, so it does NOT get re-added.
+    // back() is "a" (oldest), which != "b", so "b" is NOT deduped against
+    // the front-most "b"... rather this exercises adding "a" again, whose
+    // back() ("a") equals the new string, so it does NOT get re-added.
     history2.addInputLine("a");
     HistoryNav nav2(history2);
     nav2.up();

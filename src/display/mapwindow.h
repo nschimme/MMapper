@@ -19,6 +19,7 @@
 #include <QtCore>
 #include <QtGlobal>
 
+class AudioHintWidget;
 class GameObserver;
 class MapCanvasWindow;
 class MapData;
@@ -42,6 +43,7 @@ protected:
     QPointer<MapCanvasWindow> m_canvas;
     QPointer<QWidget> m_canvasContainer;
     QPointer<QWidget> m_splashWidget;
+    QPointer<AudioHintWidget> m_audioHint;
 
 private:
     // Scroll math (world<->scroll-unit conversion) and the continuous-scroll

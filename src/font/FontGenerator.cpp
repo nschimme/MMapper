@@ -111,16 +111,22 @@ static QImage generateSdfGlyph(const QImage &highResImg, int scaleFactor, int sp
     const int srcW = highResImg.width();
     const int srcH = highResImg.height();
 
-    const float spreadSrc = static_cast<float>(spread * scaleFactor);
+    const float scaleFactorF = static_cast<float>(scaleFactor);
+    const float spreadSrc = static_cast<float>(spread) * scaleFactorF;
     const int searchRadius = std::max(1, static_cast<int>(std::ceil(spreadSrc)));
 
     for (int ty = 0; ty < targetH; ++ty) {
         QRgb *dstLine = reinterpret_cast<QRgb *>(sdfImg.scanLine(ty));
-        const int cy = std::clamp(static_cast<int>((ty + 0.5f) * scaleFactor), 0, srcH - 1);
+        const int cy = std::clamp(static_cast<int>((static_cast<float>(ty) + 0.5f) * scaleFactorF),
+                                  0,
+                                  srcH - 1);
         const QRgb *srcCenterLine = reinterpret_cast<const QRgb *>(highResImg.constScanLine(cy));
 
         for (int tx = 0; tx < targetW; ++tx) {
-            const int cx = std::clamp(static_cast<int>((tx + 0.5f) * scaleFactor), 0, srcW - 1);
+            const int cx = std::clamp(static_cast<int>((static_cast<float>(tx) + 0.5f)
+                                                       * scaleFactorF),
+                                      0,
+                                      srcW - 1);
             const bool isInside = (qAlpha(srcCenterLine[cx]) > 127);
 
             float minSqDist = spreadSrc * spreadSrc;
@@ -132,11 +138,11 @@ static QImage generateSdfGlyph(const QImage &highResImg, int scaleFactor, int sp
 
             for (int sy = minY; sy <= maxY; ++sy) {
                 const QRgb *srcRow = reinterpret_cast<const QRgb *>(highResImg.constScanLine(sy));
-                const float dy = sy - cy;
+                const float dy = static_cast<float>(sy - cy);
                 for (int sx = minX; sx <= maxX; ++sx) {
                     const bool sampleInside = (qAlpha(srcRow[sx]) > 127);
                     if (sampleInside != isInside) {
-                        const float dx = sx - cx;
+                        const float dx = static_cast<float>(sx - cx);
                         const float sqDist = dx * dx + dy * dy;
                         if (sqDist < minSqDist) {
                             minSqDist = sqDist;

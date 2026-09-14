@@ -30,11 +30,17 @@ MMapper Web allows you to run MMapper directly in your web browser with no insta
   </ol>
 </div>
 
+<div class="notice-box" id="keyboard-notice">
+  <strong style="color: #fdc571;">Physical Keyboard Recommended for Touch & Mobile Devices:</strong><br>
+  MMapper is a full graphical MUD client and map display, so an on-screen virtual keyboard takes up vital screen space needed for playing.<br>
+  If you are playing on an <strong>iPad, iPhone, Android tablet, or smartphone</strong>, we strongly recommend connecting an external <strong>Bluetooth keyboard</strong> or keyboard cover to keep the entire screen visible.
+</div>
+
 <details class="beta-downloads-details">
   <summary>Looking for Beta or Development Builds?</summary>
   <div class="beta-notice">
     <p>These are pre-release builds and may be unstable. They are intended for testing and advanced users. Use at your own risk.</p>
-    <p><a href="{{ '/demo/beta/' | relative_url }}" class="download-link">Launch MMapper Web Beta</a></p>
+    <p><a href="{{ '/beta/' | relative_url }}" class="download-link">Launch MMapper Web Beta</a></p>
   </div>
 </details>
 

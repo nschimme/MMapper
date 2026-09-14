@@ -64,4 +64,11 @@ document.addEventListener('DOMContentLoaded', function() {
             addRecommendation(link);
         }
     });
+
+    // --- Touch / Mobile Device Detection for Keyboard Notice ---
+    const isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0) || (navigator.msMaxTouchPoints > 0);
+    const keyboardNotice = document.getElementById('keyboard-notice');
+    if (keyboardNotice && isTouchDevice) {
+        keyboardNotice.style.border = '2px solid #cc9933';
+    }
 });

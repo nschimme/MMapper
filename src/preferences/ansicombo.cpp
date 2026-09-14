@@ -48,9 +48,10 @@ void AnsiCombo::setAnsiCode(const AnsiColor16 ansiCode)
 NODISCARD static AnsiCombo::AnsiItem initAnsiItem(const AnsiColorTables::Entry &tableEntry,
                                                   const AnsiColor16LocationEnum mode)
 {
-    // The "no color" swatch's fill has no genuine ANSI color to draw, so it
-    // falls back to black for foreground and white for background, just to
-    // visually distinguish the two combos' "none" rows.
+    // The "no color" swatch's fill has no genuine ANSI color to draw, so (as
+    // before the AnsiColorTables extraction) it falls back to black for
+    // foreground and white for background, just to visually distinguish the
+    // two combos' "none" rows.
     const auto defColor = mode == AnsiColor16LocationEnum::Foreground ? AnsiColor16Enum::black
                                                                       : AnsiColor16Enum::white;
     auto make_pix = [&tableEntry, defColor]() {

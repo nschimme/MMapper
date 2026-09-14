@@ -57,7 +57,6 @@ private:
 
     Pipeline m_pipeline;
     QWidget *m_touchInputStrip = nullptr;
-    bool m_previewEnabled = true;
     ConnectionListener &m_listener;
     HotkeyManager &m_hotkeyManager;
 
@@ -69,17 +68,13 @@ public:
 
 private:
     void initPipeline();
-    void initWelcomePage();
     void initStackedInputWidget();
     void initTouchInputStrip();
 
 public:
     // The Up/Down/Tab buttons beside the input, for on-screen keyboards;
     // MainWindow shows them in its compact layout.
-    // Compact layout: the touch input strip shows and the peek preview
-    // pane (a second copy of the newest lines while scrolled back) is not
-    // used, since it would take a phone's whole terminal.
-    void setCompactLayout(bool compact);
+    void setTouchInputStripVisible(bool visible);
 
 private:
     void initDisplayWidget();
@@ -99,8 +94,6 @@ private:
 public:
     NODISCARD HotkeyManager &getHotkeys();
     NODISCARD bool isUsingClient() const;
-    // Connects the built-in client (the Play button; also Tools > Play MUME).
-    void play();
     void displayReconnectHint();
 
 private:

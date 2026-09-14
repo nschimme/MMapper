@@ -157,7 +157,7 @@ void remoteEditRemoveTrailingWhitespace(QTextCursor cur);
 void remoteEditRemoveDuplicateSpaces(QTextCursor cur);
 
 /// Normalizes ANSI codes in the whole document; returns std::nullopt if the text
-/// contains no ANSI codes at all (a no-op).
+/// contains no ANSI codes at all (matching the original no-op behavior).
 NODISCARD std::optional<QString> remoteEditNormalizeAnsi(const QString &text);
 
 // --- Find / replace ---

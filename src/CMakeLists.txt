@@ -2,6 +2,8 @@ set(mmapper_SRCS
     main.cpp
     adventure/AdventureLogModel.cpp
     adventure/AdventureLogModel.h
+    font/FontGenerator.cpp
+    font/FontGenerator.h
     adventure/adventuresession.cpp
     adventure/adventuresession.h
     adventure/adventuretracker.cpp
@@ -12,6 +14,8 @@ set(mmapper_SRCS
     adventure/lineparsers.h
     adventure/xpstatuswidget.cpp
     adventure/xpstatuswidget.h
+    display/AudioHintWidget.cpp
+    display/AudioHintWidget.h
     media/AudioManager.cpp
     media/AudioManager.h
     media/DescriptionWidget.cpp
@@ -260,8 +264,6 @@ set(mmapper_SRCS
     group/mmapper2character.h
     group/mmapper2group.cpp
     group/mmapper2group.h
-    logger/LogCleanup.cpp
-    logger/LogCleanup.h
     logger/autologger.cpp
     logger/autologger.h
     mainwindow/aboutdialog.cpp
@@ -288,7 +290,6 @@ set(mmapper_SRCS
     mainwindow/roomeditattrdlg.h
     mainwindow/mainwindow-async.cpp
     mainwindow/mainwindow-async.h
-    mainwindow/mainwindow-compact.cpp
     mainwindow/mainwindow-saveslots.cpp
     mainwindow/mainwindow.cpp
     mainwindow/mainwindow.h
@@ -794,7 +795,9 @@ if(EMSCRIPTEN)
         -sFULL_ES3=1
         -sMAX_WEBGL_VERSION=2
         -sMIN_WEBGL_VERSION=2
-	#-sASSERTIONS
+        #-sASSERTIONS
+        # No -sASYNCIFY: it roughly doubles the compiled code size, and nothing
+        # reachable on wasm blocks the main thread (see mmqt::showWarning etc.).
         -Os
     )
     target_link_libraries(mmapper PUBLIC z)

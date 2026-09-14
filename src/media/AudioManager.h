@@ -31,11 +31,6 @@ public:
     void onAreaChanged(const RoomArea &area);
     void playSound(const QString &soundName);
 
-protected:
-    // wasm: the browser lets audio start only from a user gesture, so the
-    // first key press or tap anywhere in the application unlocks it.
-    NODISCARD bool eventFilter(QObject *obj, QEvent *event) override;
-
 private:
     void updateVolumes();
     void updateOutputDevices();

@@ -38,6 +38,9 @@ jobs:
 
     - name: Install Build Dependencies
       run: |
+        # No qtkeychain-qt6-dev: Ubuntu 22.04's is built against the distro's
+        # Qt 6.2, so external/qtkeychain/CMakeLists.txt builds it from source
+        # against the Qt installed above; libsecret-1-dev is its Linux backend.
         sudo apt update -qq
         sudo apt install -y \
           libgl1-mesa-dev libsecret-1-dev libxcb-cursor-dev libxkbcommon-dev \

@@ -77,7 +77,7 @@ public:
         QByteArray windowGeometry;
         QByteArray windowState;
         // Dock/toolbar state used while the window is in the compact layout
-        // (see MainWindow::setCompactLayout()); kept apart from
+        // (see MainWindow::updateCompactLayout()); kept apart from
         // windowState so the two layouts never overwrite each other.
         QByteArray windowStateCompact;
         bool alwaysOnTop = false;
@@ -85,7 +85,6 @@ public:
         bool showScrollBars = true;
         bool showMenuBar = true;
         MapModeEnum mapMode = MapModeEnum::PLAY;
-        GameClientEnum gameClient = GameClientEnum::ASK;
         bool checkForUpdate = true;
         // Global multiplier applied to the application's default font point
         // size at startup; 1.0 = unchanged (byte-for-byte no-op).
@@ -182,6 +181,8 @@ public:
         NamedConfig<bool> showMissingMapId{"SHOW_MISSING_MAPID", false};
         NamedConfig<bool> showUnsavedChanges{"SHOW_UNSAVED_CHANGES", false};
         NamedConfig<bool> showUnmappedExits{"SHOW_UNMAPPED_EXITS", false};
+        QString mapFontFamily;
+        int mapFontSize = 18;
         bool drawUpperLayersTextured = false;
         bool drawDoorNames = false;
         bool softwareOpenGL = false;
@@ -363,14 +364,10 @@ public:
 
     struct NODISCARD AudioSettings final
     {
-    public:
-        // The level a channel gets when it is turned on from 0.
-        static constexpr int DEFAULT_VOLUME = 50;
-
     private:
         ChangeMonitor m_changeMonitor;
-        int m_musicVolume = 0;
-        int m_soundVolume = 0;
+        int m_musicVolume = 50;
+        int m_soundVolume = 50;
         QByteArray m_outputDeviceId;
         bool m_unlocked = false;
 

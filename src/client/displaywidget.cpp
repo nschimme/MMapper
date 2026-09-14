@@ -6,15 +6,11 @@
 
 #include "../configuration/configuration.h"
 #include "../global/AnsiTextUtils.h"
-#include "../global/window_utils.h"
-
-#include <memory>
 
 #include <QApplication>
 #include <QMessageLogContext>
 #include <QRegularExpression>
 #include <QScrollBar>
-#include <QScroller>
 #include <QString>
 #include <QStyle>
 #include <QTextCursor>
@@ -97,8 +93,9 @@ DisplayWidget::DisplayWidget(QWidget *const parent)
         }
         const QPoint pos = *m_longPressPos;
         m_longPressPos.reset();
-        mmqt::popupMenu(std::unique_ptr<QMenu>{createStandardContextMenu(pos)},
-                        viewport()->mapToGlobal(pos));
+        QMenu *const menu = createStandardContextMenu(pos);
+        menu->setAttribute(Qt::WA_DeleteOnClose);
+        menu->popup(viewport()->mapToGlobal(pos));
     });
 
     setDocumentTitle("MMapper Mud Client");
@@ -157,46 +154,24 @@ QSize DisplayWidget::sizeHint() const
 
 void DisplayWidget::mousePressEvent(QMouseEvent *const event)
 {
+    // A held single-finger press (delivered as a synthesized left press)
+    // opens the context menu; touch never synthesizes a right-click.
     m_longPressTimer.stop();
     m_longPressPos.reset();
-    m_touchPressPos.reset();
-    m_touchScrolling = false;
-
-    // A single finger (delivered as a synthesized left press) scrolls the
-    // output rather than selecting text, and a held finger opens the
-    // context menu, since touch never synthesizes a right-click. The press
-    // is not passed on, so no selection starts; the mouse is unaffected.
     if (event->button() == Qt::LeftButton && event->source() != Qt::MouseEventNotSynthesized) {
-        const QPoint pos = event->position().toPoint();
-        m_longPressPos = pos;
+        m_longPressPos = event->position().toPoint();
         m_longPressTimer.start();
-        m_touchPressPos = pos;
-        QScroller::scroller(viewport())
-            ->handleInput(QScroller::InputPress,
-                          event->position(),
-                          static_cast<qint64>(event->timestamp()));
-        event->accept();
-        return;
     }
     QTextBrowser::mousePressEvent(event);
 }
 
 void DisplayWidget::mouseMoveEvent(QMouseEvent *const event)
 {
-    if (m_touchPressPos) {
-        if (!m_touchScrolling
-            && (event->position().toPoint() - *m_touchPressPos).manhattanLength()
-                   > QApplication::startDragDistance()) {
-            m_touchScrolling = true;
-            m_longPressTimer.stop();
-            m_longPressPos.reset();
-        }
-        QScroller::scroller(viewport())
-            ->handleInput(QScroller::InputMove,
-                          event->position(),
-                          static_cast<qint64>(event->timestamp()));
-        event->accept();
-        return;
+    if (m_longPressPos
+        && (event->position().toPoint() - *m_longPressPos).manhattanLength()
+               > QApplication::startDragDistance()) {
+        m_longPressTimer.stop();
+        m_longPressPos.reset();
     }
     QTextBrowser::mouseMoveEvent(event);
 }
@@ -205,16 +180,6 @@ void DisplayWidget::mouseReleaseEvent(QMouseEvent *const event)
 {
     m_longPressTimer.stop();
     m_longPressPos.reset();
-    if (m_touchPressPos) {
-        m_touchPressPos.reset();
-        m_touchScrolling = false;
-        QScroller::scroller(viewport())
-            ->handleInput(QScroller::InputRelease,
-                          event->position(),
-                          static_cast<qint64>(event->timestamp()));
-        event->accept();
-        return;
-    }
     QTextBrowser::mouseReleaseEvent(event);
 }
 

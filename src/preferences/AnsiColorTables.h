@@ -19,7 +19,7 @@ namespace AnsiColorTables {
 // One entry in the 17-row fg/bg swatch list: index 0 is always the
 // "default" (no color) entry, followed by one row per XFOREACH_ANSI_COLOR_0_7
 // color in low-then-high order (black, BLACK, red, RED, ...), matching
-// AnsiCombo::initColours()'s UI ordering.
+// AnsiCombo::initColours()'s historical UI ordering.
 struct NODISCARD Entry final
 {
     AnsiColor16 color;

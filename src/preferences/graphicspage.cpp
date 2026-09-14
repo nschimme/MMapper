@@ -14,6 +14,7 @@
 
 #include <QString>
 #include <QtGui>
+#include <QtWidgets/QFontDialog>
 #include <QtWidgets>
 
 static void setIconColor(QPushButton *const button, const XNamedColor &namedColor)
@@ -100,6 +101,25 @@ GraphicsPage::GraphicsPage(QWidget *parent)
             this,
             &GraphicsPage::slot_drawUpperLayersTexturedStateChanged);
 
+    connect(ui->mapFontPushButton, &QAbstractButton::clicked, this, [this]() {
+        bool ok = false;
+        const auto &canvas = getConfig().canvas;
+        QFont currentFont(canvas.mapFontFamily.isEmpty() ? QStringLiteral("Cantarell")
+                                                         : canvas.mapFontFamily,
+                          canvas.mapFontSize > 0 ? canvas.mapFontSize : 18);
+        const QFont newFont = QFontDialog::getFont(&ok,
+                                                   currentFont,
+                                                   this,
+                                                   QStringLiteral("Select Map Font"));
+        if (ok) {
+            setConfig().canvas.mapFontFamily = newFont.family();
+            setConfig().canvas.mapFontSize = newFont.pointSize();
+            ui->mapFontPushButton->setText(
+                QString("%1 %2pt").arg(newFont.family()).arg(newFont.pointSize()));
+            graphicsSettingsChanged();
+        }
+    });
+
     connect(ui->weatherAtmosphereSlider, &QSlider::valueChanged, this, [this](const int value) {
         setConfig().canvas.weatherAtmosphereIntensity.set(value);
         graphicsSettingsChanged();
@@ -171,6 +191,10 @@ void GraphicsPage::slot_loadConfig()
     ui->drawNeedsUpdate->setChecked(settings.showMissingMapId.get());
     ui->drawNotMappedExits->setChecked(settings.showUnmappedExits.get());
     ui->drawDoorNames->setChecked(settings.drawDoorNames);
+
+    const QString fontFamily = settings.mapFontFamily.isEmpty() ? QStringLiteral("Cantarell")
+                                                                : settings.mapFontFamily;
+    ui->mapFontPushButton->setText(QString("%1 %2pt").arg(fontFamily).arg(settings.mapFontSize));
 
     ui->weatherAtmosphereSlider->setValue(settings.weatherAtmosphereIntensity.get());
     ui->weatherPrecipitationSlider->setValue(settings.weatherPrecipitationIntensity.get());

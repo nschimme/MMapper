@@ -13,21 +13,25 @@ MMapper Web allows you to run MMapper directly in your web browser with no insta
   <strong style="color: #fdc571;">Installing MMapper as a Web App (PWA):</strong><br>
   You can install MMapper on your mobile device or tablet for quick home screen access and a full-screen experience.
 
-  <h4 style="margin-top: 0.8em; margin-bottom: 0.3em; color: #fdddb3;">iOS (iPhone & iPad - Safari)</h4>
-  <ol>
-    <li>Open MMapper Web in <strong>Safari</strong>.</li>
-    <li>Tap the <strong>Share</strong> button (the square icon with an upward arrow) in the browser toolbar.</li>
-    <li>Scroll down the menu and tap <strong>Add to Home Screen</strong>.</li>
-    <li>Tap <strong>Add</strong> in the top-right corner to confirm.</li>
-  </ol>
+  <div id="pwa-ios" class="pwa-platform-instructions">
+    <h4 style="margin-top: 0.8em; margin-bottom: 0.3em; color: #fdddb3;">iOS (iPhone & iPad - Safari)</h4>
+    <ol>
+      <li>Open MMapper Web in <strong>Safari</strong>.</li>
+      <li>Tap the <strong>Share</strong> button (the square icon with an upward arrow) in the browser toolbar.</li>
+      <li>Scroll down the menu and tap <strong>Add to Home Screen</strong>.</li>
+      <li>Tap <strong>Add</strong> in the top-right corner to confirm.</li>
+    </ol>
+  </div>
 
-  <h4 style="margin-top: 0.8em; margin-bottom: 0.3em; color: #fdddb3;">Android (Chrome)</h4>
-  <ol>
-    <li>Open MMapper Web in <strong>Chrome</strong>.</li>
-    <li>Tap the <strong>Menu</strong> icon (three dots) in the top-right corner.</li>
-    <li>Tap <strong>Install app</strong> or <strong>Add to Home screen</strong>.</li>
-    <li>Follow the on-screen prompts to complete the installation.</li>
-  </ol>
+  <div id="pwa-android" class="pwa-platform-instructions">
+    <h4 style="margin-top: 0.8em; margin-bottom: 0.3em; color: #fdddb3;">Android (Chrome)</h4>
+    <ol>
+      <li>Open MMapper Web in <strong>Chrome</strong>.</li>
+      <li>Tap the <strong>Menu</strong> icon (three dots) in the top-right corner.</li>
+      <li>Tap <strong>Install app</strong> or <strong>Add to Home screen</strong>.</li>
+      <li>Follow the on-screen prompts to complete the installation.</li>
+    </ol>
+  </div>
 </div>
 
 <div class="notice-box" id="keyboard-notice">

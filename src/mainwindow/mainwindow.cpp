@@ -748,17 +748,10 @@ void MainWindow::createActions()
                 this,
                 &MainWindow::slot_onCheckForUpdate);
     }
-    mumeWebsiteAct = new QAction(tr("&Website"), this);
-    connect(mumeWebsiteAct, &QAction::triggered, this, &MainWindow::slot_openMumeWebsite);
     voteAct = new QAction(QIcon::fromTheme("applications-games"), tr("V&ote for Mume"), this);
     voteAct->setStatusTip(tr("Please vote for MUME on \"The Mud Connector\""));
     connect(voteAct, &QAction::triggered, this, &MainWindow::slot_voteForMUME);
-    mumeWebsiteAct = new QAction(tr("&Website"), this);
-    connect(mumeWebsiteAct, &QAction::triggered, this, &MainWindow::slot_openMumeWebsite);
-    mumeForumAct = new QAction(tr("&Forum"), this);
-    connect(mumeForumAct, &QAction::triggered, this, &MainWindow::slot_openMumeForum);
-    mumeWikiAct = new QAction(tr("W&iki"), this);
-    connect(mumeWikiAct, &QAction::triggered, this, &MainWindow::slot_openMumeWiki);
+
     settingUpMmapperAct = new QAction(QIcon::fromTheme("help-faq"), tr("Get &Help"), this);
     connect(settingUpMmapperAct, &QAction::triggered, this, &MainWindow::slot_openSettingUpMmapper);
 
@@ -773,10 +766,6 @@ void MainWindow::createActions()
                                     this);
     actionReportIssue->setStatusTip(tr("Open the MMapper issue tracker in your browser"));
     connect(actionReportIssue, &QAction::triggered, this, &MainWindow::onReportIssueTriggered);
-
-    newbieAct = new QAction(tr("&Information for Newcomers"), this);
-    newbieAct->setStatusTip("Newbie help on the MUME website");
-    connect(newbieAct, &QAction::triggered, this, &MainWindow::slot_openNewbieHelp);
     aboutAct = new QAction(QIcon::fromTheme("help-about"), tr("About &MMapper"), this);
     aboutAct->setStatusTip(tr("Show the application's About box"));
     aboutAct->setMenuRole(QAction::AboutRole);
@@ -1400,16 +1389,10 @@ void MainWindow::setupMenuBar()
     helpMenu->addAction(newcomerGuideAct);
     helpMenu->addAction(settingUpMmapperAct);
     helpMenu->addAction(actionReportIssue);
+    helpMenu->addAction(voteAct);
     if constexpr (!NO_UPDATER) {
         helpMenu->addAction(mmapperCheckForUpdateAct);
     }
-    helpMenu->addSeparator();
-    mumeMenu = helpMenu->addMenu(QIcon::fromTheme("help-contents"), tr("M&UME"));
-    mumeMenu->addAction(voteAct);
-    mumeMenu->addAction(newbieAct);
-    mumeMenu->addAction(mumeWebsiteAct);
-    mumeMenu->addAction(mumeForumAct);
-    mumeMenu->addAction(mumeWikiAct);
     helpMenu->addSeparator();
     helpMenu->addAction(aboutAct);
     helpMenu->addAction(aboutQtAct);
@@ -2327,34 +2310,14 @@ void MainWindow::slot_voteForMUME()
         "https://www.mudconnect.com/cgi-bin/search.cgi?mode=mud_listing&mud=MUME+-+Multi+Users+In+Middle+Earth"));
 }
 
-void MainWindow::slot_openMumeWebsite()
-{
-    QDesktopServices::openUrl(QUrl("https://mume.org/"));
-}
-
-void MainWindow::slot_openMumeForum()
-{
-    QDesktopServices::openUrl(QUrl("https://mume.org/forum/"));
-}
-
-void MainWindow::slot_openMumeWiki()
-{
-    QDesktopServices::openUrl(QUrl("https://mume.org/wiki/"));
-}
-
 void MainWindow::slot_openSettingUpMmapper()
 {
-    QDesktopServices::openUrl(QUrl("https://github.com/MUME/MMapper/wiki/Troubleshooting"));
+    QDesktopServices::openUrl(QUrl("https://docs.mume.org/community/discord"));
 }
 
 void MainWindow::onReportIssueTriggered()
 {
     QDesktopServices::openUrl(QUrl("https://github.com/MUME/MMapper/issues"));
-}
-
-void MainWindow::slot_openNewbieHelp()
-{
-    QDesktopServices::openUrl(QUrl("https://mume.org/newbie.php"));
 }
 
 void MainWindow::keyPressEvent(QKeyEvent *event)

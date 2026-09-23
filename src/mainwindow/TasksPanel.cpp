@@ -8,11 +8,9 @@
 #include "../global/PrintUtils.h"
 #include "../global/SendToUser.h"
 #include "../global/thread_utils.h"
-#include "../global/window_utils.h"
 #include "AsyncTypes.h"
 #include "mainwindow.h"
 
-#include <memory>
 #include <utility>
 
 #include <QTimer>
@@ -228,8 +226,10 @@ void TasksPanel::contextMenuClick(const QPoint &pos)
     QWidget *const parent = use_this_as_parent ? static_cast<QWidget *>(this)
                                                : static_cast<QWidget *>(&m_mainWindow);
 
-    auto contextMenu = std::make_unique<QMenu>(parent);
-    auto add_entry = [this, &contextMenu, task_id](const auto &name, auto callback) {
+    // popup() rather than exec(): a nested event loop is unavailable on wasm.
+    auto *const contextMenu = new QMenu(parent);
+    contextMenu->setAttribute(Qt::WA_DeleteOnClose);
+    auto add_entry = [this, contextMenu, task_id](const auto &name, auto callback) {
         contextMenu->addAction(name,
                                this,
                                // note: QPointer becomes null if we're deleted
@@ -243,7 +243,7 @@ void TasksPanel::contextMenuClick(const QPoint &pos)
     };
 
     add_entry(QString("Cancel task %1").arg(task_id), &TasksPanel::try_cancel_by_key);
-    mmqt::popupMenu(std::move(contextMenu), getScrollArea().viewport()->mapToGlobal(pos));
+    contextMenu->popup(getScrollArea().viewport()->mapToGlobal(pos));
 }
 
 TasksPanel::ListItem *TasksPanel::lookup_by_key(const size_t task_id) const

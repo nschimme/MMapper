@@ -3,12 +3,9 @@
 
 #include "TimerWidget.h"
 
-#include "../global/window_utils.h"
 #include "CTimers.h"
 #include "TimerDelegate.h"
 #include "TimerModel.h"
-
-#include <memory>
 
 #include <QHeaderView>
 #include <QMenu>
@@ -52,7 +49,9 @@ TimerWidget::TimerWidget(CTimers &timers, QWidget *parent)
 
 void TimerWidget::showContextMenu(const QPoint &pos)
 {
-    auto menu = std::make_unique<QMenu>(this);
+    // popup() rather than exec(): a nested event loop is unavailable on wasm.
+    auto *const menu = new QMenu(this);
+    menu->setAttribute(Qt::WA_DeleteOnClose);
 
     QModelIndex index = m_view->indexAt(pos);
     if (index.isValid()) {
@@ -95,7 +94,7 @@ void TimerWidget::showContextMenu(const QPoint &pos)
     auto *actClearExpired = menu->addAction(tr("Clear Expired"));
     connect(actClearExpired, &QAction::triggered, this, &TimerWidget::clearExpired);
 
-    mmqt::popupMenu(std::move(menu), m_view->viewport()->mapToGlobal(pos));
+    menu->popup(m_view->viewport()->mapToGlobal(pos));
 }
 
 void TimerWidget::clearExpired()

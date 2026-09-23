@@ -12,6 +12,7 @@
 #include "../global/SignalBlocker.h"
 #include "../global/Version.h"
 #include "../global/utils.h"
+#include "AudioHintWidget.h"
 #include "MapCanvasWindow.h"
 
 #include <QGridLayout>
@@ -136,6 +137,9 @@ MapWindow::MapWindow(MapData &mapData,
     assert(m_canvasContainer->parent() == this);
 
     m_gridLayout->addWidget(m_canvasContainer, 0, 0, 1, 1);
+
+    m_audioHint = new AudioHintWidget(this);
+    m_gridLayout->addWidget(m_audioHint, 2, 0, 1, 2);
 
     setMinimumSize(m_canvas->minimumSize());
 

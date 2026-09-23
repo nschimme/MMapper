@@ -418,7 +418,7 @@ void MapCanvas::slot_onMessageLoggedDirect(const QOpenGLDebugMessage &message)
     // The core stays QtWidgets-free, so it can't show the blocking message
     // box itself; the host facade does that (and calls std::abort()) in
     // response to this signal, using a direct connection so the abort still
-    // happens synchronously from here.
+    // happens synchronously from here, exactly as before.
     emit sig_glFatalError(message.message());
 }
 

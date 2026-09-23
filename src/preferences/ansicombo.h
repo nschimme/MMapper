@@ -101,9 +101,10 @@ public:
     NODISCARD AnsiColor16 getAnsiCode() const;
     void setAnsiCode(AnsiColor16);
 
-    // Alias (rather than a separate struct with the same fields) so callers
-    // can keep using AnsiCombo::AnsiColor's members directly; the definition
-    // and colorFromString() logic live in the widget-free AnsiColorTables.h.
+    // Kept as an alias (rather than a fresh copy of the same fields) so
+    // existing callers of AnsiCombo::AnsiColor's members keep working
+    // unchanged; the real definition and colorFromString() logic now live in
+    // the widget-free AnsiColorTables.h.
     using AnsiColor = AnsiColorTables::ParsedColor;
 
     /// \return true if string is valid ANSI color code

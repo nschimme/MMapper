@@ -106,11 +106,6 @@ private:
     // which touch cannot otherwise reach; see mousePressEvent().
     QTimer m_longPressTimer;
     std::optional<QPoint> m_longPressPos;
-    // A finger on the output scrolls it (fed to the viewport's QScroller by
-    // hand, see mousePressEvent()); it never selects text, and a held
-    // finger opens the context menu.
-    std::optional<QPoint> m_touchPressPos;
-    bool m_touchScrolling = false;
 
 public:
     explicit DisplayWidget(QWidget *parent);

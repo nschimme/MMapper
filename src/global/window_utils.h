@@ -2,12 +2,8 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // Copyright (C) 2024 The MMapper Authors
 
-#include <memory>
-
-class QMenu;
 class QMessageBox;
 class QObject;
-class QPoint;
 class QWidget;
 class QString;
 
@@ -25,7 +21,4 @@ extern void showFittedToScreen(QWidget &widget);
 extern QMessageBox &showInformation(QWidget *parent, const QString &title, const QString &text);
 extern QMessageBox &showWarning(QWidget *parent, const QString &title, const QString &text);
 extern QMessageBox &showCritical(QWidget *parent, const QString &title, const QString &text);
-// Non-blocking replacement for QMenu::exec(): the menu is shown at a global
-// position and deletes itself when closed.
-extern void popupMenu(std::unique_ptr<QMenu> menu, const QPoint &globalPos);
 } // namespace mmqt

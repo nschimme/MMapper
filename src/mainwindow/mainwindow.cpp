@@ -59,6 +59,7 @@
 #include <QFontDatabase>
 #include <QIcon>
 #include <QProgressDialog>
+#include <QScreen>
 #include <QSize>
 #include <QString>
 #include <QTextBrowser>
@@ -161,7 +162,7 @@ MainWindow::MainWindow()
     m_mediaLibrary = new MediaLibrary(this);
     m_audioManager = new AudioManager(deref(m_mediaLibrary), deref(m_gameObserver), this);
 
-    // Window -> Side Panels -> Log Panel
+    // View -> Side Panels -> Log Panel
     std::invoke([this] {
         auto *const dock = new QDockWidget(tr("Log Panel"), this);
         dock->setObjectName("DockWidgetLog");
@@ -182,7 +183,7 @@ MainWindow::MainWindow()
         m_dockDialogLog = dock;
     });
 
-    // Window -> Side Panels -> Group Panel and Tools -> Group Manager
+    // View -> Side Panels -> Group Panel and Tools -> Group Manager
     std::invoke([this] {
         auto *const w = new GroupWidget(m_groupManager, m_mapData, this);
         auto *const dock = new QDockWidget(tr("Group Panel"), this);
@@ -198,7 +199,7 @@ MainWindow::MainWindow()
         m_dockDialogGroup = dock;
     });
 
-    // Window -> Side Panels -> Room Panel (Mobs)
+    // View -> Side Panels -> Room Panel (Mobs)
     std::invoke([this] {
         auto *const roomManager = new RoomManager(this);
         roomManager->setObjectName("RoomManager");
@@ -238,7 +239,7 @@ MainWindow::MainWindow()
     std::invoke([this] {
         auto *const adv = new AdventureTracker(deref(m_gameObserver), this);
 
-        // Window -> Side Panels -> Adventure Panel (Trophy XP, Achievements, Hints, etc)
+        // View -> Side Panels -> Adventure Panel (Trophy XP, Achievements, Hints, etc)
         auto *const w = new AdventureWidget(deref(adv), this);
         auto *const dock = new QDockWidget(tr("Adventure Panel"), this);
         dock->setObjectName("DockWidgetGameConsole");
@@ -255,7 +256,7 @@ MainWindow::MainWindow()
         m_dockDialogAdventure = dock;
     });
 
-    // Window -> Side Panels -> Description / Area Panel
+    // View -> Side Panels -> Description / Area Panel
     std::invoke([this] {
         auto *const w = new DescriptionWidget(deref(m_mediaLibrary), this);
         auto *const dock = new QDockWidget(tr("Description Panel"), this);
@@ -330,7 +331,7 @@ MainWindow::MainWindow()
         });
     });
 
-    // Window -> Side Panels -> Client Panel
+    // View -> Side Panels -> Client Panel
     std::invoke([this] {
         auto *const timers = m_dockDialogTimers;
         std::ignore = deref(timers);
@@ -410,7 +411,6 @@ MainWindow::MainWindow()
 
     applyPanelScrollGesture(false);
 
-    m_defaultExpandedState = saveState();
     readSettings();
     g_mainWindow = this;
 }
@@ -498,7 +498,7 @@ void MainWindow::writeSettings()
 {
     auto &savedConfig = setConfig().general;
     savedConfig.windowGeometry = saveGeometry();
-    // Each layout persists its own state; see setCompactLayout().
+    // Each layout persists its own state; see updateCompactLayout().
     savedConfig.windowState = m_compact ? m_expandedState : saveState();
     savedConfig.windowStateCompact = m_compact ? saveState() : m_compactState;
 }
@@ -708,7 +708,6 @@ void MainWindow::createActions()
 
     exitAct = new QAction(QIcon::fromTheme("application-exit"), tr("E&xit"), this);
     exitAct->setShortcut(tr("Ctrl+Q"));
-    exitAct->setMenuRole(QAction::QuitRole);
     exitAct->setStatusTip(tr("Exit the application"));
     connect(exitAct, &QAction::triggered, this, &QWidget::close);
     if constexpr (CURRENT_PLATFORM == PlatformEnum::Wasm) {
@@ -734,7 +733,6 @@ void MainWindow::createActions()
                                  tr("&Preferences"),
                                  this);
     preferencesAct->setShortcut(tr("Ctrl+P"));
-    preferencesAct->setMenuRole(QAction::PreferencesRole);
     preferencesAct->setStatusTip(tr("MMapper preferences"));
     connect(preferencesAct, &QAction::triggered, this, &MainWindow::slot_onPreferences);
 
@@ -742,7 +740,6 @@ void MainWindow::createActions()
         mmapperCheckForUpdateAct = new QAction(QIcon(":/icons/mmapper-lo.svg"),
                                                tr("Check for &update"),
                                                this);
-        mmapperCheckForUpdateAct->setMenuRole(QAction::ApplicationSpecificRole);
         connect(mmapperCheckForUpdateAct,
                 &QAction::triggered,
                 this,
@@ -762,12 +759,6 @@ void MainWindow::createActions()
     settingUpMmapperAct = new QAction(QIcon::fromTheme("help-faq"), tr("Get &Help"), this);
     connect(settingUpMmapperAct, &QAction::triggered, this, &MainWindow::slot_openSettingUpMmapper);
 
-    newcomerGuideAct = new QAction(QIcon::fromTheme("help-contents"), tr("&Newcomer's Guide"), this);
-    newcomerGuideAct->setStatusTip(tr("Open the guide for people new to MUME in your browser"));
-    connect(newcomerGuideAct, &QAction::triggered, this, []() {
-        QDesktopServices::openUrl(QUrl("https://docs.mume.org/newcomers"));
-    });
-
     actionReportIssue = new QAction(QIcon::fromTheme("help-browser"),
                                     tr("Report an &Issue..."),
                                     this);
@@ -779,12 +770,10 @@ void MainWindow::createActions()
     connect(newbieAct, &QAction::triggered, this, &MainWindow::slot_openNewbieHelp);
     aboutAct = new QAction(QIcon::fromTheme("help-about"), tr("About &MMapper"), this);
     aboutAct->setStatusTip(tr("Show the application's About box"));
-    aboutAct->setMenuRole(QAction::AboutRole);
     connect(aboutAct, &QAction::triggered, this, &MainWindow::slot_about);
     aboutQtAct = new QAction(tr("About &Qt"), this);
     aboutQtAct->setStatusTip(tr("Show the Qt library's About box"));
-    aboutQtAct->setMenuRole(QAction::AboutQtRole);
-    connect(aboutQtAct, &QAction::triggered, this, &MainWindow::slot_aboutQt);
+    connect(aboutQtAct, &QAction::triggered, qApp, &QApplication::aboutQt);
 
     zoomInAct = new QAction(QIcon::fromTheme("zoom-in", QIcon(":/icons/viewmag+.png")),
                             tr("Zoom In"),
@@ -819,16 +808,6 @@ void MainWindow::createActions()
         showMenuBarAct->setCheckable(true);
         connect(showMenuBarAct, &QAction::triggered, this, &MainWindow::slot_setShowMenuBar);
     }
-
-    compactLayoutAct = new QAction(tr("Compact Layout"), this);
-    compactLayoutAct->setStatusTip(
-        tr("One panel at a time below the map, with the menus and map controls in the status bar"));
-    compactLayoutAct->setCheckable(true);
-    connect(compactLayoutAct, &QAction::toggled, this, &MainWindow::setCompactLayout);
-
-    resetWindowLayoutAct = new QAction(tr("Reset Window Layout"), this);
-    resetWindowLayoutAct->setStatusTip(tr("Put the panels and toolbars back where they started"));
-    connect(resetWindowLayoutAct, &QAction::triggered, this, &MainWindow::slot_resetWindowLayout);
 
     layerUpAct = new QAction(QIcon::fromTheme("go-up", QIcon(":/icons/layerup.png")),
                              tr("Layer Up"),
@@ -1032,24 +1011,24 @@ void MainWindow::createActions()
     findRoomsAct->setShortcut(tr("Ctrl+F"));
     connect(findRoomsAct, &QAction::triggered, this, &MainWindow::slot_onFindRoom);
 
-    clientAct = new QAction(QIcon(":/icons/terminal.png"), tr("&Play MUME"), this);
-    clientAct->setStatusTip(tr("Play MUME right here in MMapper"));
+    clientAct = new QAction(QIcon(":/icons/online.png"), tr("&Launch mud client"), this);
+    clientAct->setStatusTip(tr("Launch the integrated mud client"));
     connect(clientAct, &QAction::triggered, this, &MainWindow::slot_onLaunchClient);
 
     saveLogAct = new QAction(QIcon::fromTheme("document-save", QIcon(":/icons/save.png")),
-                             tr("Save Game Log as &Text..."),
+                             tr("Save Log as &Plain Text..."),
                              this);
     connect(saveLogAct, &QAction::triggered, m_clientWidget, &ClientWidget::slot_saveLog);
-    saveLogAct->setStatusTip(tr("Save the game log as a plain text file"));
+    saveLogAct->setStatusTip(tr("Save log as plain text file"));
 
     saveLogAsHtmlAct = new QAction(QIcon::fromTheme("document-save", QIcon(":/icons/save.png")),
-                                   tr("Save Game Log as &HTML..."),
+                                   tr("Save Log as &HTML..."),
                                    this);
     connect(saveLogAsHtmlAct,
             &QAction::triggered,
             m_clientWidget,
             &ClientWidget::slot_saveLogAsHtml);
-    saveLogAsHtmlAct->setStatusTip(tr("Save the game log as an HTML file"));
+    saveLogAsHtmlAct->setStatusTip(tr("Save log as HTML file"));
 
     releaseAllPathsAct = new QAction(QIcon(":/icons/cancel.png"), tr("Release All Paths"), this);
     releaseAllPathsAct->setStatusTip(tr("Release all paths"));
@@ -1285,6 +1264,11 @@ void MainWindow::setupMenuBar()
     }
 
     editMenu = menuBar()->addMenu(tr("&Edit"));
+    modeMenu = editMenu->addMenu(QIcon(":/icons/online.png"), tr("&Mode"));
+    modeMenu->addAction(mapperMode.playModeAct);
+    modeMenu->addAction(mapperMode.mapModeAct);
+    modeMenu->addAction(mapperMode.offlineModeAct);
+    editMenu->addSeparator();
     editMenu->addAction(m_undoAction);
     editMenu->addAction(m_redoAction);
     editMenu->addSeparator();
@@ -1319,20 +1303,29 @@ void MainWindow::setupMenuBar()
 
     editMenu->addSeparator();
     editMenu->addAction(findRoomsAct);
+    editMenu->addAction(preferencesAct);
 
     viewMenu = menuBar()->addMenu(tr("&View"));
-    // Every mouse mode in one place (the checkable group shows the current
-    // one); each also stays next to the operations it enables, above.
-    QMenu *mouseModeMenu = viewMenu->addMenu(QIcon::fromTheme("input-mouse"), tr("&Mouse Mode"));
-    mouseModeMenu->addAction(mouseMode.modeMoveSelectAct);
-    mouseModeMenu->addAction(mouseMode.modeRoomRaypickAct);
-    mouseModeMenu->addAction(mouseMode.modeRoomSelectAct);
-    mouseModeMenu->addAction(mouseMode.modeInfomarkSelectAct);
-    mouseModeMenu->addAction(mouseMode.modeConnectionSelectAct);
-    mouseModeMenu->addAction(mouseMode.modeCreateInfomarkAct);
-    mouseModeMenu->addAction(mouseMode.modeCreateRoomAct);
-    mouseModeMenu->addAction(mouseMode.modeCreateConnectionAct);
-    mouseModeMenu->addAction(mouseMode.modeCreateOnewayConnectionAct);
+    viewMenu->addAction(mouseMode.modeMoveSelectAct);
+    QMenu *toolbars = viewMenu->addMenu(tr("&Toolbars"));
+    toolbars->addAction(fileToolBar->toggleViewAction());
+    toolbars->addAction(mapperModeToolBar->toggleViewAction());
+    toolbars->addAction(mouseModeToolBar->toggleViewAction());
+    toolbars->addAction(viewToolBar->toggleViewAction());
+    toolbars->addAction(pathMachineToolBar->toggleViewAction());
+    toolbars->addAction(roomToolBar->toggleViewAction());
+    toolbars->addAction(connectionToolBar->toggleViewAction());
+    toolbars->addAction(settingsToolBar->toggleViewAction());
+    toolbars->addAction(audioToolBar->toggleViewAction());
+    QMenu *sidepanels = viewMenu->addMenu(tr("&Side Panels"));
+    sidepanels->addAction(m_dockDialogLog->toggleViewAction());
+    sidepanels->addAction(m_dockDialogClient->toggleViewAction());
+    sidepanels->addAction(m_dockDialogGroup->toggleViewAction());
+    sidepanels->addAction(m_dockDialogRoom->toggleViewAction());
+    sidepanels->addAction(m_dockDialogAdventure->toggleViewAction());
+    sidepanels->addAction(m_dockDialogDescription->toggleViewAction());
+    sidepanels->addAction(m_dockDialogTimers->toggleViewAction());
+    sidepanels->addAction(m_dockDialogAsync->toggleViewAction());
     viewMenu->addSeparator();
     viewMenu->addAction(zoomInAct);
     viewMenu->addAction(zoomOutAct);
@@ -1345,59 +1338,28 @@ void MainWindow::setupMenuBar()
     viewMenu->addAction(centerOnPlayerAct);
     viewMenu->addSeparator();
     viewMenu->addAction(rebuildMeshesAct);
-
-    windowMenu = menuBar()->addMenu(tr("&Window"));
-    QMenu *toolbars = windowMenu->addMenu(tr("&Toolbars"));
-    toolbars->addAction(fileToolBar->toggleViewAction());
-    toolbars->addAction(mapperModeToolBar->toggleViewAction());
-    toolbars->addAction(mouseModeToolBar->toggleViewAction());
-    toolbars->addAction(viewToolBar->toggleViewAction());
-    toolbars->addAction(pathMachineToolBar->toggleViewAction());
-    toolbars->addAction(roomToolBar->toggleViewAction());
-    toolbars->addAction(connectionToolBar->toggleViewAction());
-    toolbars->addAction(settingsToolBar->toggleViewAction());
-    toolbars->addAction(audioToolBar->toggleViewAction());
-    QMenu *sidepanels = windowMenu->addMenu(tr("&Side Panels"));
-    sidepanels->addAction(m_dockDialogLog->toggleViewAction());
-    sidepanels->addAction(m_dockDialogClient->toggleViewAction());
-    sidepanels->addAction(m_dockDialogGroup->toggleViewAction());
-    sidepanels->addAction(m_dockDialogRoom->toggleViewAction());
-    sidepanels->addAction(m_dockDialogAdventure->toggleViewAction());
-    sidepanels->addAction(m_dockDialogDescription->toggleViewAction());
-    sidepanels->addAction(m_dockDialogTimers->toggleViewAction());
-    sidepanels->addAction(m_dockDialogAsync->toggleViewAction());
-    windowMenu->addSeparator();
-    windowMenu->addAction(showStatusBarAct);
-    windowMenu->addAction(showScrollBarsAct);
+    viewMenu->addSeparator();
+    viewMenu->addAction(showStatusBarAct);
+    viewMenu->addAction(showScrollBarsAct);
     if constexpr (CURRENT_PLATFORM != PlatformEnum::Mac) {
-        windowMenu->addAction(showMenuBarAct);
+        viewMenu->addAction(showMenuBarAct);
     }
-    windowMenu->addAction(alwaysOnTopAct);
-    windowMenu->addSeparator();
-    windowMenu->addAction(compactLayoutAct);
-    windowMenu->addAction(resetWindowLayoutAct);
+    viewMenu->addAction(alwaysOnTopAct);
 
     settingsMenu = menuBar()->addMenu(tr("&Tools"));
-    modeMenu = settingsMenu->addMenu(QIcon(":/icons/online.png"), tr("&Mode"));
-    modeMenu->addAction(mapperMode.playModeAct);
-    modeMenu->addAction(mapperMode.mapModeAct);
-    modeMenu->addAction(mapperMode.offlineModeAct);
-    settingsMenu->addSeparator();
-    settingsMenu->addAction(clientAct);
-    settingsMenu->addAction(saveLogAct);
-    settingsMenu->addAction(saveLogAsHtmlAct);
-    settingsMenu->addSeparator();
+    QMenu *clientMenu = settingsMenu->addMenu(QIcon(":/icons/terminal.png"),
+                                              tr("&Integrated Mud Client"));
+    clientMenu->addAction(clientAct);
+    clientMenu->addAction(saveLogAct);
+    clientMenu->addAction(saveLogAsHtmlAct);
     QMenu *pathMachineMenu = settingsMenu->addMenu(QIcon(":/icons/goto.png"), tr("&Path Machine"));
     pathMachineMenu->addAction(mouseMode.modeRoomSelectAct);
     pathMachineMenu->addSeparator();
     pathMachineMenu->addAction(gotoRoomAct);
     pathMachineMenu->addAction(forceRoomAct);
     pathMachineMenu->addAction(releaseAllPathsAct);
-    settingsMenu->addSeparator();
-    settingsMenu->addAction(preferencesAct);
 
     helpMenu = menuBar()->addMenu(tr("&Help"));
-    helpMenu->addAction(newcomerGuideAct);
     helpMenu->addAction(settingUpMmapperAct);
     helpMenu->addAction(actionReportIssue);
     if constexpr (!NO_UPDATER) {
@@ -1412,30 +1374,9 @@ void MainWindow::setupMenuBar()
     mumeMenu->addAction(mumeWikiAct);
     helpMenu->addSeparator();
     helpMenu->addAction(aboutAct);
-    helpMenu->addAction(aboutQtAct);
-
-    m_appMenu = new QMenu(QStringLiteral("\u2630 ") + tr("Menu"), this);
-    for (QMenu *const topLevel :
-         {fileMenu, editMenu, viewMenu, windowMenu, settingsMenu, helpMenu}) {
-        m_appMenu->addMenu(topLevel);
-        // Qt activates a menu action's shortcut only through a visible menu
-        // bar, and the bar is hidden while compact or by "Always Show
-        // Menubar"; held by the window as well, the shortcuts always work.
-        addActions(collectActions(*topLevel));
+    if constexpr (CURRENT_PLATFORM != PlatformEnum::Wasm) {
+        helpMenu->addAction(aboutQtAct);
     }
-}
-
-QList<QAction *> MainWindow::collectActions(const QMenu &menu)
-{
-    QList<QAction *> result;
-    for (QAction *const action : menu.actions()) {
-        if (QMenu *const sub = action->menu()) {
-            result += collectActions(*sub);
-        } else if (!action->isSeparator()) {
-            result += action;
-        }
-    }
-    return result;
 }
 
 void MainWindow::slot_showContextMenu(const QPoint &pos)
@@ -1477,12 +1418,6 @@ void MainWindow::slot_showContextMenu(const QPoint &pos)
         }
     }
     contextMenu.addSeparator();
-    // The menus themselves, only when nothing else on screen leads to them:
-    // no menu bar, and no "\u2630" button (compact layout) in a shown status bar.
-    const bool menusReachable = menuBar()->isVisible() || (m_compact && statusBar()->isVisible());
-    if (!menusReachable) {
-        contextMenu.addMenu(m_appMenu);
-    }
     QMenu *mouseMenu = contextMenu.addMenu(QIcon::fromTheme("input-mouse"), "Mouse Mode");
     mouseMenu->addAction(mouseMode.modeMoveSelectAct);
     mouseMenu->addAction(mouseMode.modeRoomRaypickAct);
@@ -1516,8 +1451,8 @@ void MainWindow::slot_alwaysOnTop()
 void MainWindow::slot_setShowStatusBar()
 {
     const bool showStatusBar = this->showStatusBarAct->isChecked();
-    setConfig().general.showStatusBar = showStatusBar;
     statusBar()->setVisible(showStatusBar || m_compact); // see applyCompactChrome()
+    setConfig().general.showStatusBar = showStatusBar;
     show();
 }
 
@@ -1662,18 +1597,53 @@ void MainWindow::setupStatusBar()
     });
     statusBar()->insertPermanentWidget(0, xpStatus);
 
-    m_pathMachineStatus = new QLabel(statusBar());
-    connect(m_pathMachine, &Mmapper2PathMachine::sig_state, m_pathMachineStatus, &QLabel::setText);
-    statusBar()->insertPermanentWidget(0, m_pathMachineStatus);
+    auto *const pathmachineStatus = new QLabel(statusBar());
+    connect(m_pathMachine, &Mmapper2PathMachine::sig_state, pathmachineStatus, &QLabel::setText);
+    statusBar()->insertPermanentWidget(0, pathmachineStatus);
 
-    // Permanent: QStatusBar hides its normal widgets (and paints over their
-    // area) whenever a temporary message is shown, e.g. a menu's status tip.
-    m_menuButton = createMenuButton();
-    m_menuButton->hide();
-    statusBar()->insertPermanentWidget(0, m_menuButton);
     m_compactActionBar = createCompactActionBar();
     m_compactActionBar->hide();
-    statusBar()->insertPermanentWidget(1, m_compactActionBar);
+    statusBar()->insertWidget(0, m_compactActionBar);
+}
+
+QWidget *MainWindow::createCompactActionBar()
+{
+    auto *const bar = new QWidget(statusBar());
+    auto *const layout = new QHBoxLayout(bar);
+    layout->setContentsMargins(0, 0, 0, 0);
+    layout->setSpacing(0);
+
+    // "\u2630": the top-level menus as submenus. A QAction can sit in
+    // several widgets at once, so the menus stay in the menu bar as well.
+    auto *const menu = new QMenu(tr("Menu"), bar);
+    for (QMenu *const topLevel : {fileMenu, editMenu, viewMenu, settingsMenu, helpMenu}) {
+        menu->addMenu(topLevel);
+    }
+    auto *const menuButton = new QToolButton(bar);
+    menuButton->setText(QStringLiteral("\u2630"));
+    menuButton->setToolTip(tr("Menu"));
+    menuButton->setToolButtonStyle(Qt::ToolButtonTextOnly);
+    menuButton->setAutoRaise(true);
+    QFont font = menuButton->font();
+    font.setPointSizeF(font.pointSizeF() * CompactLayout::TAB_FONT_SCALE);
+    menuButton->setFont(font);
+    // Not setMenu()/InstantPopup: QToolButton shows its menu with
+    // QMenu::exec(), a nested event loop, which is unavailable on wasm.
+    connect(menuButton, &QToolButton::clicked, menu, [menuButton, menu]() {
+        menu->popup(menuButton->mapToGlobal(QPoint(0, 0)));
+    });
+    layout->addWidget(menuButton);
+
+    // The map operations touch has no wheel or keyboard for.
+    for (QAction *const action :
+         {layerUpAct, layerDownAct, zoomInAct, zoomOutAct, centerOnPlayerAct}) {
+        auto *const button = new QToolButton(bar);
+        button->setDefaultAction(action);
+        button->setIconSize(QSize(32, 32));
+        button->setAutoRaise(true);
+        layout->addWidget(button);
+    }
+    return bar;
 }
 
 void MainWindow::slot_onPreferences()
@@ -1702,7 +1672,7 @@ void MainWindow::slot_onPreferences()
     }
 
     auto &configDialog = deref(m_configDialog);
-    configDialog.setCompactLayout(m_compact);
+    configDialog.setCompactLayout(CompactLayout::isCompact(size()));
     mmqt::showFittedToScreen(configDialog);
     configDialog.raise();
     configDialog.activateWindow();
@@ -1751,7 +1721,7 @@ bool MainWindow::eventFilter(QObject *const obj, QEvent *const event)
 {
     // The hidden menu bar's hover "peek" (see slot_setShowMenuBar()); in
     // the compact layout the bar is always shown instead, since touch has
-    // no hover (see setCompactLayout()).
+    // no hover (see updateCompactLayout()).
     if (!m_compact && QApplication::activeWindow() == this && event->type() == QEvent::MouseMove) {
         if (const auto *const mouseEvent = dynamic_cast<QMouseEvent *>(event)) {
             QRect rect = geometry();
@@ -1833,6 +1803,166 @@ void MainWindow::closeEvent(QCloseEvent *const event)
     event->accept();
 }
 
+void MainWindow::resizeEvent(QResizeEvent *const event)
+{
+    QMainWindow::resizeEvent(event);
+    updateCompactLayout();
+}
+
+void MainWindow::updateCompactLayout()
+{
+    if (!m_layoutRestored) {
+        return; // see readSettings()
+    }
+
+    // The expanded layout's minimum size can force the window past the
+    // screen's edge (phones), and it is that layout's minimum this decision
+    // is about to change, so the screen bounds the size that is probed.
+    const QSize probe = compactLayoutProbeSize();
+    const bool compact = CompactLayout::isCompact(probe);
+    if (compact == m_compact) {
+        return;
+    }
+    m_compact = compact;
+    applyCompactMenuBar(compact);
+
+    if (compact) {
+        m_expandedState = saveState();
+        if (!m_compactState.isEmpty() && restoreState(m_compactState)) {
+            applyCompactChrome(true);
+            fitCompactWindowToScreen();
+            return;
+        }
+
+        // No usable compact state yet: build the default one.
+        for (QToolBar *const toolBar : findChildren<QToolBar *>()) {
+            toolBar->hide();
+        }
+
+        // One tabbed group so a single panel shows at a time, below the
+        // map; hidden docks stay hidden and appear as tabs when shown.
+        const std::array<QDockWidget *, 8> docks{m_dockDialogClient,
+                                                 m_dockDialogGroup,
+                                                 m_dockDialogRoom,
+                                                 m_dockDialogDescription,
+                                                 m_dockDialogLog,
+                                                 m_dockDialogAdventure,
+                                                 m_dockDialogTimers,
+                                                 m_dockDialogAsync};
+        QDockWidget *first = nullptr;
+        for (QDockWidget *const dock : docks) {
+            dock->setFloating(false);
+            addDockWidget(Qt::BottomDockWidgetArea, dock);
+            if (first == nullptr) {
+                first = dock;
+            } else {
+                tabifyDockWidget(first, dock);
+            }
+        }
+
+        // The client is what a phone user is here for: put its tab in front
+        // and give the group its share of the height, leaving the map above.
+        m_dockDialogClient->raise();
+        resizeDocks({m_dockDialogClient}, {CompactLayout::clientHeight(probe)}, Qt::Vertical);
+        applyCompactChrome(true);
+        fitCompactWindowToScreen();
+    } else {
+        m_compactState = saveState();
+        if (!restoreState(m_expandedState)) {
+            qWarning() << "Unable to restore the expanded window layout";
+        }
+        applyCompactChrome(false);
+    }
+}
+
+QSize MainWindow::compactLayoutProbeSize() const
+{
+    if (const QScreen *const scr = screen()) {
+        return size().boundedTo(scr->availableSize());
+    }
+    return size();
+}
+
+void MainWindow::fitCompactWindowToScreen()
+{
+    // Once the compact layout's smaller minimum size has taken effect (the
+    // layout settles on the next event loop pass), pull a window that the
+    // expanded layout had pushed past the screen's edge back onto it.
+    QMetaObject::invokeMethod(
+        this,
+        [this]() {
+            const QScreen *const scr = screen();
+            if (scr == nullptr) {
+                return;
+            }
+            const QRect avail = scr->availableGeometry();
+            if (width() > avail.width() || height() > avail.height()) {
+                setGeometry(avail);
+            }
+        },
+        Qt::QueuedConnection);
+}
+
+void MainWindow::applyPanelScrollGesture(const bool compact)
+{
+    // Kinetic scrolling for every panel (client output, log, tables). Mouse
+    // and wheel input are unaffected when expanded. While compact the
+    // gesture is taken from the (synthesized) left button instead, since a
+    // browser can deliver a finger as pointer/mouse events rather than
+    // touch events; QScroller holds the press back until it is clear the
+    // finger is not scrolling, so a held press still selects text.
+    const auto gesture = compact ? QScroller::LeftMouseButtonGesture : QScroller::TouchGesture;
+    for (QAbstractScrollArea *const area : findChildren<QAbstractScrollArea *>()) {
+        QScroller::grabGesture(area->viewport(), gesture);
+    }
+}
+
+void MainWindow::applyCompactChrome(const bool compact)
+{
+    deref(m_clientWidget).setTouchInputStripVisible(compact);
+    applyPanelScrollGesture(compact);
+    deref(m_mapWindow).setScrollBarsSuppressed(compact);
+    // The action bar lives in the status bar, which therefore has to be
+    // shown while compact regardless of the setting.
+    m_compactActionBar->setVisible(compact);
+    statusBar()->setVisible(compact || getConfig().general.showStatusBar);
+
+    // Dock title bars: one tab strip already names the visible panel, and
+    // the float/close buttons are not touch targets, so the title bars are
+    // replaced by empty widgets while compact (which also pins the docks).
+    for (QDockWidget *const dock : findChildren<QDockWidget *>()) {
+        QWidget *const old = dock->titleBarWidget();
+        dock->setTitleBarWidget(compact ? new QWidget(dock) : nullptr);
+        delete old;
+    }
+
+    // The tab strip QMainWindow creates for tabified docks: stretch the
+    // tabs across the width and use a larger font so they are finger-sized.
+    for (QTabBar *const tabBar : findChildren<QTabBar *>()) {
+        if (qobject_cast<QMainWindow *>(tabBar->parentWidget()) == nullptr) {
+            continue; // a widget's own tab bar, not the dock strip
+        }
+        tabBar->setExpanding(compact);
+        QFont font = this->font();
+        if (compact) {
+            font.setPointSizeF(font.pointSizeF() * CompactLayout::TAB_FONT_SCALE);
+        }
+        tabBar->setFont(font);
+    }
+}
+
+void MainWindow::applyCompactMenuBar(const bool compact)
+{
+    // While compact the menu bar's row is given back to the content; the
+    // menus are reached through the action bar's "\u2630" button instead
+    // (see createCompactActionBar()). The Mac's native menu bar lives
+    // outside the window, so it costs no space and is left alone (see
+    // slot_setShowMenuBar()).
+    if constexpr (CURRENT_PLATFORM != PlatformEnum::Mac) {
+        menuBar()->setVisible(!compact && getConfig().general.showMenuBar);
+    }
+}
+
 void MainWindow::showEvent(QShowEvent *const event)
 {
     // Check screen DPI each time MMapper's window is shown
@@ -1844,18 +1974,13 @@ void MainWindow::showEvent(QShowEvent *const event)
         startServices();
 
         // The expanded layout from readSettings() is now realized, so
-        // saveState() is meaningful; only from here on may the layout switch.
-        // Queued so the first show's own layout pass has finished. The
-        // startup choice comes from the screen, since the expanded layout's
-        // minimum size can push the window past a phone's edge.
+        // saveState() is meaningful; only from here on may resizes switch
+        // layouts. Queued so the first show's own layout pass has finished.
         QMetaObject::invokeMethod(
             this,
-            [this, firstRun = getConfig().general.firstRun]() {
+            [this]() {
                 m_layoutRestored = true;
-                setCompactLayout(CompactLayout::isCompact(compactLayoutProbeSize()));
-                if (firstRun && !m_compact) {
-                    fitClientDockToTerminal();
-                }
+                updateCompactLayout();
             },
             Qt::QueuedConnection);
 
@@ -1952,28 +2077,6 @@ void MainWindow::slot_reload()
     });
 }
 
-void MainWindow::slot_aboutQt()
-{
-    if constexpr (CURRENT_PLATFORM != PlatformEnum::Wasm) {
-        QApplication::aboutQt();
-        return;
-    }
-    // QMessageBox::aboutQt() runs a nested event loop, which is unavailable
-    // on wasm; this is its non-blocking twin.
-    auto &box = mmqt::showInformation(
-        this,
-        tr("About Qt"),
-        tr("<h3>About Qt</h3>"
-           "<p>This program uses Qt version %1.</p>"
-           "<p>Qt is a C++ toolkit for cross-platform application development.</p>"
-           "<p>Please see <a href=\"https://www.qt.io/\">qt.io</a> for an overview of Qt, "
-           "and <a href=\"https://www.qt.io/licensing/\">qt.io/licensing</a> for "
-           "licensing information.</p>")
-            .arg(QString::fromLatin1(qVersion())));
-    box.setTextFormat(Qt::RichText);
-    box.setIconPixmap(QPixmap(QStringLiteral(":/qt-project.org/qmessagebox/images/qtlogo-64.png")));
-}
-
 void MainWindow::slot_about()
 {
     auto *about = new AboutDialog(this);
@@ -2021,8 +2124,6 @@ void MainWindow::slot_onFindRoom()
 void MainWindow::slot_onLaunchClient()
 {
     m_dockDialogClient->show();
-    m_dockDialogClient->raise();
-    deref(m_clientWidget).play();
 }
 
 void MainWindow::setCurrentFile(const QString &fileName)

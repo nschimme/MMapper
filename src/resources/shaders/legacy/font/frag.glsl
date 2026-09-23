@@ -10,5 +10,12 @@ out vec4 vFragmentColor;
 
 void main()
 {
-    vFragmentColor = vColor * texture(uFontTexture, vTexCoord);
+    // Sample single-channel (Red) distance field texture value
+    float dist = texture(uFontTexture, vTexCoord).r;
+
+    // Calculate screen-space derivative for dynamic anti-aliasing at any zoom level
+    float smoothing = clamp(fwidth(dist), 0.01, 0.25);
+    float alpha = smoothstep(0.5 - smoothing, 0.5 + smoothing, dist);
+
+    vFragmentColor = vec4(vColor.rgb, vColor.a * alpha);
 }

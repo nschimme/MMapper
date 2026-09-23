@@ -10,9 +10,9 @@
 // dependency on QOpenGLWindow or QtWidgets.
 //
 // MapCanvasWindow re-exposes MapCanvas's public signal/slot surface by
-// forwarding (rather than by exposing a getCore() accessor) so that callers
-// (MainWindow, MapWindow, ...) can connect directly to
-// `MapCanvasWindow::sig_*`/`MapCanvasWindow::slot_*`.
+// forwarding (rather than by exposing a getCore() accessor) so that existing
+// callers (MainWindow, MapWindow, ...) don't need to change at all -- they
+// keep connecting to `MapCanvasWindow::sig_*`/`MapCanvasWindow::slot_*` exactly as before.
 
 #include "../global/Signal2.h"
 #include "../map/PromptFlags.h"
@@ -107,6 +107,10 @@ protected:
         m_core.hostResize(width, height, devicePixelRatioF());
     }
     void mousePressEvent(QMouseEvent *event) override { m_core.handleMousePress(event); }
+    void mouseDoubleClickEvent(QMouseEvent *event) override
+    {
+        m_core.handleMouseDoubleClick(event);
+    }
     void mouseReleaseEvent(QMouseEvent *event) override { m_core.handleMouseRelease(event); }
     void mouseMoveEvent(QMouseEvent *event) override { m_core.handleMouseMove(event); }
     void wheelEvent(QWheelEvent *event) override { m_core.handleWheel(event); }

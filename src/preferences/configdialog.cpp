@@ -47,8 +47,7 @@ class PreferenceWheelFilter final : public QObject
 public:
     explicit PreferenceWheelFilter(QObject *parent = nullptr)
         : QObject(parent)
-    {
-    }
+    {}
 
     bool eventFilter(QObject *obj, QEvent *event) override
     {

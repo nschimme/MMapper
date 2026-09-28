@@ -234,6 +234,7 @@ ConstString KEY_DISPLAY_XP_STATUS = "Display XP status bar widget";
 ConstString KEY_DISPLAY_CLOCK = "Display clock";
 ConstString KEY_DRAW_DOOR_NAMES = "Draw door names";
 ConstString KEY_DRAW_NOT_MAPPED_EXITS = "Draw not mapped exits";
+ConstString KEY_ENABLE_MAZE_VISUALS = "Enable maze visual de-cluttering";
 ConstString KEY_DRAW_UPPER_LAYERS_TEXTURED = "Draw upper layers textured";
 ConstString KEY_EMOJI_ENCODE = "encode emoji";
 ConstString KEY_EMOJI_DECODE = "decode emoji";
@@ -694,6 +695,7 @@ void Configuration::CanvasSettings::read(const QSettings &conf)
     showMissingMapId.set(conf.value(KEY_SHOW_MISSING_MAP_ID, true).toBool());
     showUnsavedChanges.set(conf.value(KEY_SHOW_UNSAVED_CHANGES, true).toBool());
     showUnmappedExits.set(conf.value(KEY_DRAW_NOT_MAPPED_EXITS, true).toBool());
+    enableMazeVisuals.set(conf.value(KEY_ENABLE_MAZE_VISUALS, true).toBool());
     drawUpperLayersTextured = conf.value(KEY_DRAW_UPPER_LAYERS_TEXTURED, false).toBool();
     drawDoorNames = conf.value(KEY_DRAW_DOOR_NAMES, true).toBool();
     backgroundColor = lookupColor(KEY_BACKGROUND_COLOR, DEFAULT_BGCOLOR);
@@ -907,6 +909,7 @@ void Configuration::CanvasSettings::write(QSettings &conf) const
     conf.setValue(KEY_SHOW_MISSING_MAP_ID, showMissingMapId.get());
     conf.setValue(KEY_SHOW_UNSAVED_CHANGES, showUnsavedChanges.get());
     conf.setValue(KEY_DRAW_NOT_MAPPED_EXITS, showUnmappedExits.get());
+    conf.setValue(KEY_ENABLE_MAZE_VISUALS, enableMazeVisuals.get());
     conf.setValue(KEY_DRAW_UPPER_LAYERS_TEXTURED, drawUpperLayersTextured);
     conf.setValue(KEY_DRAW_DOOR_NAMES, drawDoorNames);
     conf.setValue(KEY_BACKGROUND_COLOR, getQColorName(backgroundColor));

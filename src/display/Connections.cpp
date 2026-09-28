@@ -349,6 +349,42 @@ void ConnectionDrawer::drawConnection(const RoomHandle &leftRoom,
         return;
     }
 
+    const auto leftId = leftRoom.getId();
+    const auto rightId = rightRoom.getId();
+
+    std::optional<Color> overrideColor = std::nullopt;
+
+    if (m_enableMazeVisuals && m_mazeInfo) {
+        if (leftId == rightId) {
+            // Self loop connection
+            if (m_currentRoomId && leftId == *m_currentRoomId) {
+                overrideColor = getCanvasNamedColorOptions().connectionNormalColor;
+            } else {
+                overrideColor = getCanvasNamedColorOptions().connectionNormalColor.withAlpha(0.4f);
+            }
+            getFakeGL().setOverrideColor(overrideColor);
+            drawSelfLoopArc(leftRoom, startDir, endDir, static_cast<float>(leftZ));
+            getFakeGL().setOverrideColor(std::nullopt);
+            return;
+        }
+
+        if (m_mazeInfo->isMazeExitConnection(leftId, startDir)) {
+            // Boundary connection leading OUT of the maze cluster!
+            overrideColor = Colors::green.withAlpha(1.0f);
+        } else if (m_mazeInfo->isInternalMazeConnection(leftId, startDir)
+                   || m_mazeInfo->isMazeRoom(leftId)) {
+            // Internal maze connection inside a maze cluster
+            if ((m_currentRoomId && leftId == *m_currentRoomId)
+                || (m_currentRoomId && rightId == *m_currentRoomId)) {
+                overrideColor = getCanvasNamedColorOptions().connectionNormalColor.withAlpha(1.0f);
+            } else {
+                overrideColor = getCanvasNamedColorOptions().connectionNormalColor.withAlpha(0.15f);
+            }
+        }
+    }
+
+    getFakeGL().setOverrideColor(overrideColor);
+
     bool neighbours = false;
 
     if ((dX == 0) && (dY == 1) && (dZ == 0)) {
@@ -409,6 +445,63 @@ void ConnectionDrawer::drawConnection(const RoomHandle &leftRoom,
 
     gl.setOffset(0, 0, 0);
     gl.setNormal();
+    getFakeGL().setOverrideColor(std::nullopt);
+}
+
+void ConnectionDrawer::drawSelfLoopArc(const RoomHandle &room,
+                                       const ExitDirEnum startDir,
+                                       const ExitDirEnum endDir,
+                                       const float srcZ)
+{
+    const Coordinate pos = room.getPosition();
+    getFakeGL().setOffset(static_cast<float>(pos.x), static_cast<float>(pos.y), 0.f);
+
+    const glm::vec3 startOff = getConnectionOffset(startDir);
+    const glm::vec3 p0{startOff.x, startOff.y, srcZ};
+
+    glm::vec3 arcDir{0.f};
+    switch (startDir) {
+    case ExitDirEnum::NORTH:
+        arcDir = glm::vec3{0.f, 0.45f, 0.f};
+        break;
+    case ExitDirEnum::SOUTH:
+        arcDir = glm::vec3{0.f, -0.45f, 0.f};
+        break;
+    case ExitDirEnum::EAST:
+        arcDir = glm::vec3{0.45f, 0.f, 0.f};
+        break;
+    case ExitDirEnum::WEST:
+        arcDir = glm::vec3{-0.45f, 0.f, 0.f};
+        break;
+    case ExitDirEnum::UP:
+        arcDir = glm::vec3{0.35f, 0.35f, 0.f};
+        break;
+    case ExitDirEnum::DOWN:
+        arcDir = glm::vec3{-0.35f, -0.35f, 0.f};
+        break;
+    default:
+        arcDir = glm::vec3{0.f, 0.45f, 0.f};
+        break;
+    }
+
+    const glm::vec3 perp{-arcDir.y, arcDir.x, 0.f};
+
+    std::vector<glm::vec3> points;
+    static constexpr int STEPS = 12;
+    for (int i = 0; i <= STEPS; ++i) {
+        const float t = static_cast<float>(i) / static_cast<float>(STEPS);
+        const float angle = t * 2.f * 3.14159265f;
+        const glm::vec3 pt = p0 + arcDir * (1.f - std::cos(angle)) * 0.6f + perp * std::sin(angle) * 0.4f;
+        points.push_back(pt);
+    }
+
+    drawLineStrip(points);
+
+    if (points.size() >= 2) {
+        drawConnStartTri(startDir, srcZ);
+    }
+
+    getFakeGL().setOffset(0, 0, 0);
 }
 
 void ConnectionDrawer::drawConnectionTriangles(const ExitDirEnum startDir,
@@ -759,8 +852,10 @@ void ConnectionDrawer::ConnectionFakeGL::drawTriangle(const glm::vec3 a,
                                                       const glm::vec3 b,
                                                       const glm::vec3 c)
 {
-    const auto &color = isNormal() ? getCanvasNamedColorOptions().connectionNormalColor
-                                   : Colors::red;
+    const auto &color = m_overrideColor
+                            ? *m_overrideColor
+                            : (isNormal() ? getCanvasNamedColorOptions().connectionNormalColor
+                                          : Colors::red);
     auto &verts = deref(m_currentBuffer).triVerts;
     verts.emplace_back(color, a + m_offset);
     verts.emplace_back(color, b + m_offset);
@@ -796,8 +891,10 @@ void ConnectionDrawer::ConnectionFakeGL::drawLineStrip(const View<glm::vec3> poi
     const auto size = points.size();
     assert(size >= 2);
 
-    const Color base_color = isNormal() ? getCanvasNamedColorOptions().connectionNormalColor
-                                        : Colors::red;
+    const Color base_color = m_overrideColor
+                                 ? *m_overrideColor
+                                 : (isNormal() ? getCanvasNamedColorOptions().connectionNormalColor
+                                               : Colors::red);
 
     for (size_t i = 1; i < size; ++i) {
         const glm::vec3 start_orig = points[i - 1u];

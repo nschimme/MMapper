@@ -873,6 +873,9 @@ target_link_libraries(mm_global PUBLIC
     Qt6::Widgets
     coverage_config
 )
+if(WIN32)
+    target_link_libraries(mm_global PUBLIC ws2_32)
+endif()
 target_link_libraries(mm_map PUBLIC
     Qt6::Core
     Qt6::Widgets

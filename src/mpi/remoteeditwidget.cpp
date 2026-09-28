@@ -600,7 +600,8 @@ void RemoteEditWidget::addBottomButtonBar(QVBoxLayout *const mainLayout)
     barLayout->addStretch(1);
 
     if (m_editSession && !m_draftView) {
-        m_submitButton = new QPushButton(QIcon::fromTheme("document-save", QIcon(":/icons/save.png")),
+        m_submitButton = new QPushButton(QIcon::fromTheme("document-save",
+                                                          QIcon(":/icons/save.png")),
                                          tr("Submit"),
                                          barWidget);
         m_submitButton->setDefault(true);
@@ -608,7 +609,8 @@ void RemoteEditWidget::addBottomButtonBar(QVBoxLayout *const mainLayout)
         connect(m_submitButton, &QPushButton::clicked, this, &RemoteEditWidget::slot_finishEdit);
         barLayout->addWidget(m_submitButton);
 
-        auto *const cancelButton = new QPushButton(QIcon::fromTheme("process-stop", QIcon(":/icons/exit.png")),
+        auto *const cancelButton = new QPushButton(QIcon::fromTheme("process-stop",
+                                                                    QIcon(":/icons/exit.png")),
                                                    tr("Cancel"),
                                                    barWidget);
         cancelButton->setToolTip(tr("Cancel edit and discard unsaved changes"));
@@ -622,14 +624,14 @@ void RemoteEditWidget::addBottomButtonBar(QVBoxLayout *const mainLayout)
         barLayout->addWidget(discardButton);
 
         auto *const closeButton = new QPushButton(QIcon::fromTheme("window-close"),
-                                                 tr("Close"),
-                                                 barWidget);
+                                                  tr("Close"),
+                                                  barWidget);
         connect(closeButton, &QPushButton::clicked, this, &RemoteEditWidget::slot_cancelEdit);
         barLayout->addWidget(closeButton);
     } else {
         auto *const closeButton = new QPushButton(QIcon::fromTheme("window-close"),
-                                                 tr("Close"),
-                                                 barWidget);
+                                                  tr("Close"),
+                                                  barWidget);
         connect(closeButton, &QPushButton::clicked, this, &RemoteEditWidget::slot_cancelEdit);
         barLayout->addWidget(closeButton);
     }

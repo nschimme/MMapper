@@ -937,7 +937,8 @@ static void generateAllLayerMeshes(InternalData &internalData,
             cdb.clear();
             rnb.clear();
 
-            ConnectionDrawer cd{cdb, rnb, thisLayer, bounds, &mazeInfo, currentRoomId, enableMazeVisuals};
+            ConnectionDrawer
+                cd{cdb, rnb, thisLayer, bounds, &mazeInfo, currentRoomId, enableMazeVisuals};
             {
                 DECL_TIMER(t7, "generateAllLayerMeshes.loop.part3b");
                 // pass 2: add to buffers
@@ -1127,7 +1128,8 @@ FutureSharedMapBatchFinisher generateMapDataFinisher(const mctp::MapCanvasTextur
     const auto visitRoomOptions = getVisitRoomOptions();
 
     return std::async(std::launch::async,
-                      [textures, font, map, visitRoomOptions, currentRoomId]() -> SharedMapBatchFinisher {
+                      [textures, font, map, visitRoomOptions, currentRoomId]()
+                          -> SharedMapBatchFinisher {
                           ThreadLocalNamedColorRaii tlRaii{visitRoomOptions.canvasColors,
                                                            visitRoomOptions.colorSettings};
                           DECL_TIMER(t, "[ASYNC] generateAllLayerMeshes");

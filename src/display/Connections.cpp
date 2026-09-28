@@ -491,7 +491,8 @@ void ConnectionDrawer::drawSelfLoopArc(const RoomHandle &room,
     for (int i = 0; i <= STEPS; ++i) {
         const float t = static_cast<float>(i) / static_cast<float>(STEPS);
         const float angle = t * 2.f * 3.14159265f;
-        const glm::vec3 pt = p0 + arcDir * (1.f - std::cos(angle)) * 0.6f + perp * std::sin(angle) * 0.4f;
+        const glm::vec3 pt = p0 + arcDir * (1.f - std::cos(angle)) * 0.6f
+                             + perp * std::sin(angle) * 0.4f;
         points.push_back(pt);
     }
 

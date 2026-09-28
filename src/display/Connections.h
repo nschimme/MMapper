@@ -8,9 +8,9 @@
 #include "../global/utils.h"
 #include "../map/ExitDirection.h"
 #include "../map/RoomHandle.h"
-#include "../mapdata/MazeDetector.h"
 #include "../map/coordinate.h"
 #include "../map/roomid.h"
+#include "../mapdata/MazeDetector.h"
 #include "../opengl/Font.h"
 #include "../opengl/OpenGLTypes.h"
 
@@ -209,9 +209,9 @@ public:
                         bool inExitFlags = true);
 
     void drawSelfLoopArc(const RoomHandle &room,
-                        ExitDirEnum startDir,
-                        ExitDirEnum endDir,
-                        float srcZ);
+                         ExitDirEnum startDir,
+                         ExitDirEnum endDir,
+                         float srcZ);
 
     void drawConnEndTriUpDownUnknown(float dX, float dY, float dstZ);
 

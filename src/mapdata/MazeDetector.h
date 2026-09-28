@@ -21,10 +21,7 @@ struct NODISCARD DirectedExitKey final
     {
         return srcRoom == other.srcRoom && dir == other.dir;
     }
-    NODISCARD bool operator!=(const DirectedExitKey &other) const
-    {
-        return !(*this == other);
-    }
+    NODISCARD bool operator!=(const DirectedExitKey &other) const { return !(*this == other); }
 };
 
 struct NODISCARD DirectedExitKeyHash final

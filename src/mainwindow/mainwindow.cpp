@@ -671,6 +671,9 @@ void MainWindow::wireConnections()
 
         connect(m_remoteEdit, &RemoteEdit::sig_sendGmcp, proxy.data(), &Proxy::slot_sendGmcp);
     });
+    if (auto *const proxy = m_listener->getProxy()) {
+        connect(m_remoteEdit, &RemoteEdit::sig_sendGmcp, proxy, &Proxy::slot_sendGmcp);
+    }
 
     deref(m_gameObserver).sig2_sentToUserGmcp.connect(m_lifetime, [this](const GmcpMessage &msg) {
         m_remoteEdit->slot_parseGmcpInput(msg);

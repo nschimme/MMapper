@@ -2017,6 +2017,61 @@ void testDoorVsExitFlags()
 } // namespace
 
 namespace test {
+void testSubAreas()
+{
+    ProgressCounter pc;
+    Map map;
+
+    const auto res1 = map.applySingleChange(pc,
+                                            Change{room_change_types::AddPermanentRoom{
+                                                Coordinate{0, 0, 0}}});
+    map = res1.map;
+    const RoomId parentId = map.getRooms().first();
+
+    const auto res2 = map.applySingleChange(pc,
+                                            Change{room_change_types::AddPermanentRoom{
+                                                Coordinate{1, 0, 0}}});
+    map = res2.map;
+    const RoomId childId = *(std::next(map.getRooms().begin()));
+
+    TEST_ASSERT(parentId != INVALID_ROOMID);
+    TEST_ASSERT(childId != INVALID_ROOMID);
+
+    const RoomArea areaName = mmqt::makeRoomArea("Bree Town");
+    const auto res3 = map.applySingleChange(pc,
+                                            Change{room_change_types::SetSubArea{parentId,
+                                                                                 parentId,
+                                                                                 areaName}});
+    map = res3.map;
+
+    const auto res4 = map.applySingleChange(pc,
+                                            Change{room_change_types::SetSubArea{childId,
+                                                                                 parentId,
+                                                                                 RoomArea{}}});
+    map = res4.map;
+
+    auto parentRoom = map.getRoomHandle(parentId);
+    auto childRoom = map.getRoomHandle(childId);
+
+    TEST_ASSERT(parentRoom.isSubAreaParent());
+    TEST_ASSERT(parentRoom.isSubAreaChild());
+    TEST_ASSERT(parentRoom.getSubAreaName() == areaName);
+
+    TEST_ASSERT(!childRoom.isSubAreaParent());
+    TEST_ASSERT(childRoom.isSubAreaChild());
+    TEST_ASSERT(childRoom.getSubAreaParentId() == parentId);
+
+    const auto res5 = map.applySingleChange(pc,
+                                            Change{room_change_types::SetSubArea{childId,
+                                                                                 INVALID_ROOMID,
+                                                                                 RoomArea{}}});
+    map = res5.map;
+    childRoom = map.getRoomHandle(childId);
+
+    TEST_ASSERT(!childRoom.isSubAreaChild());
+    TEST_ASSERT(childRoom.getSubAreaParentId() == INVALID_ROOMID);
+}
+
 void testMap()
 {
     Map::enableExtraSanityChecks(true);
@@ -2027,6 +2082,7 @@ void testMap()
     testAddingInvalidEnums();
     testConstructingInvalidEnums();
     testDoorVsExitFlags();
+    testSubAreas();
     test::test_mmapper2room();
 }
 } // namespace test

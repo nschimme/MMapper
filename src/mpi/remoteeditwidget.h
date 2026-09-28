@@ -149,6 +149,7 @@ private:
     QFrame *m_banner = nullptr;
     QLabel *m_bannerLabel = nullptr;
     QAction *m_saveAction = nullptr;
+    QPushButton *m_submitButton = nullptr;
 
 public:
     using Editor = RemoteTextEdit;
@@ -217,6 +218,7 @@ private:
     void addEditAndViewMenus(const Editor *pTextEdit);
     void addSave(QMenu *fileMenu);
     void addExit(QMenu *fileMenu);
+    void addBottomButtonBar(QVBoxLayout *mainLayout);
     void addStatusBar(const Editor *pTextEdit);
     void promptDiscardChanges();
     void showBanner(const QString &text,

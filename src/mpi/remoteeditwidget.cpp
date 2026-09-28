@@ -249,6 +249,8 @@ RemoteEditWidget::RemoteEditWidget(const bool editSession,
     mainLayout->addWidget(m_textEdit.get(), 1);
     setFocusProxy(m_textEdit.get());
 
+    addBottomButtonBar(mainLayout);
+
     m_statusBar = new QStatusBar(this);
     m_statusBar->setSizeGripEnabled(false);
     mainLayout->addWidget(m_statusBar);
@@ -579,11 +581,60 @@ void RemoteEditWidget::addSave(QMenu *const fileMenu)
                                                              QIcon(":/icons/save.png")),
                                             tr("&Submit"),
                                             this);
-    saveAction->setShortcut(tr("Ctrl+S"));
+    saveAction->setShortcuts({QKeySequence(tr("Ctrl+S")),
+                              QKeySequence(Qt::CTRL | Qt::Key_Return),
+                              QKeySequence(Qt::CTRL | Qt::Key_Enter)});
     saveAction->setStatusTip(tr("Submit changes to MUME"));
     fileMenu->addAction(saveAction);
     connect(saveAction, &QAction::triggered, this, &RemoteEditWidget::slot_finishEdit);
     m_saveAction = saveAction;
+}
+
+void RemoteEditWidget::addBottomButtonBar(QVBoxLayout *const mainLayout)
+{
+    auto *const barWidget = new QWidget(this);
+    auto *const barLayout = new QHBoxLayout(barWidget);
+    barLayout->setContentsMargins(8, 4, 8, 4);
+    barLayout->setSpacing(8);
+
+    barLayout->addStretch(1);
+
+    if (m_editSession && !m_draftView) {
+        m_submitButton = new QPushButton(QIcon::fromTheme("document-save", QIcon(":/icons/save.png")),
+                                         tr("Submit"),
+                                         barWidget);
+        m_submitButton->setDefault(true);
+        m_submitButton->setToolTip(tr("Submit changes to MUME (Ctrl+S or Ctrl+Enter)"));
+        connect(m_submitButton, &QPushButton::clicked, this, &RemoteEditWidget::slot_finishEdit);
+        barLayout->addWidget(m_submitButton);
+
+        auto *const cancelButton = new QPushButton(QIcon::fromTheme("process-stop", QIcon(":/icons/exit.png")),
+                                                   tr("Cancel"),
+                                                   barWidget);
+        cancelButton->setToolTip(tr("Cancel edit and discard unsaved changes"));
+        connect(cancelButton, &QPushButton::clicked, this, &RemoteEditWidget::requestClose);
+        barLayout->addWidget(cancelButton);
+    } else if (m_draftView) {
+        auto *const discardButton = new QPushButton(QIcon::fromTheme("edit-delete"),
+                                                    tr("Discard Draft"),
+                                                    barWidget);
+        connect(discardButton, &QPushButton::clicked, this, &RemoteEditWidget::slot_discardDraft);
+        barLayout->addWidget(discardButton);
+
+        auto *const closeButton = new QPushButton(QIcon::fromTheme("window-close"),
+                                                 tr("Close"),
+                                                 barWidget);
+        connect(closeButton, &QPushButton::clicked, this, &RemoteEditWidget::slot_cancelEdit);
+        barLayout->addWidget(closeButton);
+    } else {
+        auto *const closeButton = new QPushButton(QIcon::fromTheme("window-close"),
+                                                 tr("Close"),
+                                                 barWidget);
+        connect(closeButton, &QPushButton::clicked, this, &RemoteEditWidget::slot_cancelEdit);
+        barLayout->addWidget(closeButton);
+    }
+
+    mainLayout->addWidget(barWidget, 0);
 }
 
 void RemoteEditWidget::addExit(QMenu *const fileMenu)
@@ -938,6 +989,9 @@ void RemoteEditWidget::showDisconnected()
     m_connected = false;
     if (m_saveAction != nullptr) {
         m_saveAction->setEnabled(false);
+    }
+    if (m_submitButton != nullptr) {
+        m_submitButton->setEnabled(false);
     }
     if (!m_editSession) {
         return;

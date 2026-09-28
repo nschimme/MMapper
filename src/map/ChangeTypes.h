@@ -106,6 +106,13 @@ struct NODISCARD SetServerId final
     ServerRoomId server_id = INVALID_SERVER_ROOMID;
 };
 
+struct NODISCARD SetSubArea final
+{
+    RoomId room = INVALID_ROOMID;
+    RoomId parent_id = INVALID_ROOMID;
+    RoomArea sub_area_name;
+};
+
 struct NODISCARD MoveRelative final
 {
     RoomId room = INVALID_ROOMID;
@@ -305,6 +312,8 @@ struct NODISCARD ConnectToNeighborsArgs final
     X(room_change_types::RemoveRoom) \
     SEP() \
     X(room_change_types::SetServerId) \
+    SEP() \
+    X(room_change_types::SetSubArea) \
     SEP() \
     X(room_change_types::TryMoveCloseTo) \
     SEP() \

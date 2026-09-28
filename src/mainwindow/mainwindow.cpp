@@ -1029,6 +1029,23 @@ void MainWindow::createActions()
             this,
             &MainWindow::slot_onConnectToNeighboursRoomSelection);
 
+    createSubAreaAct = new QAction(QIcon(":/icons/roomtemplate.png"),
+                                   tr("Create Sub-Area from Selection"),
+                                   this);
+    createSubAreaAct->setStatusTip(tr("Group selected rooms into a nested sub-area"));
+    connect(createSubAreaAct, &QAction::triggered, this, &MainWindow::slot_onCreateSubArea);
+
+    removeSubAreaAct = new QAction(QIcon(":/icons/roomdelete.png"),
+                                   tr("Remove Sub-Area Assignment"),
+                                   this);
+    removeSubAreaAct->setStatusTip(tr("Un-nest selected rooms from sub-area"));
+    connect(removeSubAreaAct, &QAction::triggered, this, &MainWindow::slot_onRemoveSubArea);
+
+    toggleMiniMapAct = new QAction(QIcon(":/icons/map.png"), tr("Toggle Mini-Map"), this);
+    toggleMiniMapAct->setShortcut(tr("Ctrl+M"));
+    toggleMiniMapAct->setStatusTip(tr("Toggle Mini-Map Overlay"));
+    connect(toggleMiniMapAct, &QAction::triggered, this, &MainWindow::slot_toggleMiniMap);
+
     findRoomsAct = new QAction(QIcon(":/icons/roomfind.png"), tr("&Find Rooms"), this);
     findRoomsAct->setStatusTip(tr("Find matching rooms"));
     findRoomsAct->setShortcut(tr("Ctrl+F"));
@@ -1097,6 +1114,8 @@ void MainWindow::createActions()
     selectedRoomActGroup->addAction(mergeUpRoomSelectionAct);
     selectedRoomActGroup->addAction(mergeDownRoomSelectionAct);
     selectedRoomActGroup->addAction(connectToNeighboursRoomSelectionAct);
+    selectedRoomActGroup->addAction(createSubAreaAct);
+    selectedRoomActGroup->addAction(removeSubAreaAct);
     selectedRoomActGroup->setEnabled(false);
 
     deleteConnectionSelectionAct = new QAction(QIcon(":/icons/connectiondelete.png"),
@@ -1311,6 +1330,9 @@ void MainWindow::setupMenuBar()
     roomMenu->addAction(mergeUpRoomSelectionAct);
     roomMenu->addAction(mergeDownRoomSelectionAct);
     roomMenu->addAction(connectToNeighboursRoomSelectionAct);
+    roomMenu->addSeparator();
+    roomMenu->addAction(createSubAreaAct);
+    roomMenu->addAction(removeSubAreaAct);
 
     connectionMenu = editMenu->addMenu(QIcon(":/icons/connectionselection.png"), tr("&Connections"));
     connectionMenu->addAction(mouseMode.modeConnectionSelectAct);
@@ -1345,6 +1367,7 @@ void MainWindow::setupMenuBar()
     viewMenu->addAction(layerResetAct);
     viewMenu->addSeparator();
     viewMenu->addAction(centerOnPlayerAct);
+    viewMenu->addAction(toggleMiniMapAct);
     viewMenu->addSeparator();
     viewMenu->addAction(rebuildMeshesAct);
 
@@ -1465,6 +1488,9 @@ void MainWindow::slot_showContextMenu(const QPoint &pos)
                 contextMenu.addAction(mergeDownRoomSelectionAct);
                 contextMenu.addAction(deleteRoomSelectionAct);
                 contextMenu.addAction(connectToNeighboursRoomSelectionAct);
+                contextMenu.addSeparator();
+                contextMenu.addAction(createSubAreaAct);
+                contextMenu.addAction(removeSubAreaAct);
                 contextMenu.addSeparator();
                 contextMenu.addAction(gotoRoomAct);
                 contextMenu.addAction(forceRoomAct);
@@ -1747,6 +1773,15 @@ void MainWindow::slot_newInfomarkSelection(InfomarkSelection *const is)
             slot_onEditInfomarkSelection();
         }
     }
+}
+
+void MainWindow::slot_toggleMiniMap()
+{
+    bool current = getConfig().canvas.showMiniMap.get();
+    bool next = !current;
+    setConfig().canvas.showMiniMap.set(next);
+    m_mapWindow->slot_graphicsSettingsChanged();
+    showStatusShort(next ? tr("Mini-Map Enabled") : tr("Mini-Map Disabled"));
 }
 
 bool MainWindow::eventFilter(QObject *const obj, QEvent *const event)
@@ -2290,6 +2325,61 @@ void MainWindow::slot_onConnectToNeighboursRoomSelection()
     }
 
     mapData.applyChanges(changes);
+}
+
+void MainWindow::slot_onCreateSubArea()
+{
+    if (m_roomSelection == nullptr || m_roomSelection->empty()) {
+        return;
+    }
+
+    bool ok = false;
+    const QString name = QInputDialog::getText(this,
+                                               tr("Create Sub-Area"),
+                                               tr("Sub-Area Name:"),
+                                               QLineEdit::Normal,
+                                               QString(),
+                                               &ok);
+    if (!ok || name.trimmed().isEmpty()) {
+        return;
+    }
+
+    auto &mapData = deref(m_mapData);
+    auto &sel = deref(m_roomSelection);
+    sel.removeMissing(mapData);
+
+    const RoomId parentId = sel.getFirstRoomId();
+    const RoomArea areaName = mmqt::makeRoomArea(name.trimmed());
+
+    ChangeList changes;
+    for (const RoomId id : sel) {
+        RoomArea saName = (id == parentId) ? areaName : RoomArea{};
+        changes.add(Change{room_change_types::SetSubArea{id, parentId, saName}});
+    }
+
+    if (!changes.empty()) {
+        mapData.applyChanges(changes);
+    }
+}
+
+void MainWindow::slot_onRemoveSubArea()
+{
+    if (m_roomSelection == nullptr || m_roomSelection->empty()) {
+        return;
+    }
+
+    auto &mapData = deref(m_mapData);
+    auto &sel = deref(m_roomSelection);
+    sel.removeMissing(mapData);
+
+    ChangeList changes;
+    for (const RoomId id : sel) {
+        changes.add(Change{room_change_types::SetSubArea{id, INVALID_ROOMID, RoomArea{}}});
+    }
+
+    if (!changes.empty()) {
+        mapData.applyChanges(changes);
+    }
 }
 
 void MainWindow::slot_forceMapperToRoom()

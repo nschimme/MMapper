@@ -221,7 +221,7 @@ void RemoteEdit::cancelEdit(RemoteEditSession *const pSession)
         obj["id"] = session.getSessionId().asInt32();
         QJsonDocument doc;
         doc.setObject(obj);
-        GmcpJson json{QString::fromUtf8(doc.toJson())};
+        GmcpJson json{QString::fromUtf8(doc.toJson(QJsonDocument::Compact))};
         GmcpMessage msg{GmcpMessageTypeEnum::MUME_CLIENT_CANCEL_EDIT, json};
         emit sig_sendGmcp(msg);
         deleteDraft(session.getDraftKey());
@@ -288,7 +288,7 @@ void RemoteEdit::sendToMume(const RemoteEditSession &session)
     obj["id"] = session.getSessionId().asInt32();
     QJsonDocument doc;
     doc.setObject(obj);
-    GmcpJson json{QString::fromUtf8(doc.toJson())};
+    GmcpJson json{QString::fromUtf8(doc.toJson(QJsonDocument::Compact))};
     GmcpMessage msg{GmcpMessageTypeEnum::MUME_CLIENT_WRITE, json};
 
     emit sig_sendGmcp(msg);

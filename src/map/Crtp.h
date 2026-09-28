@@ -129,7 +129,10 @@ public:
     NODISCARD RoomId getSubAreaParentId() const { return crtp_get_fields().subAreaParentId; }
     NODISCARD const RoomArea &getSubAreaName() const { return crtp_get_fields().subAreaName; }
     NODISCARD bool isSubAreaParent() const { return !crtp_get_fields().subAreaName.isEmpty(); }
-    NODISCARD bool isSubAreaChild() const { return crtp_get_fields().subAreaParentId != INVALID_ROOMID; }
+    NODISCARD bool isSubAreaChild() const
+    {
+        return crtp_get_fields().subAreaParentId != INVALID_ROOMID;
+    }
 };
 
 template<typename CRTP>

@@ -412,7 +412,8 @@ void XmlMapStorage::loadRoom(QXmlStreamReader &stream) const
             throwIfDuplicate(stream, found, RoomElementEnum::AREA);
             room.setArea(mmqt::makeRoomArea(loadString(stream)));
         } else if (name == QStringLiteral("subarea_parent")) {
-            room.setSubAreaParentId(RoomId{loadExternalRoomId(stream, loadStringView(stream)).asUint32()});
+            room.setSubAreaParentId(
+                RoomId{loadExternalRoomId(stream, loadStringView(stream)).asUint32()});
         } else if (name == QStringLiteral("subarea_name")) {
             room.setSubAreaName(mmqt::makeRoomArea(loadString(stream)));
         } else if (name == QStringLiteral("align")) {
@@ -780,7 +781,9 @@ void XmlMapStorage::saveRoom(QXmlStreamWriter &stream, const ExternalRawRoom &ro
     saveXmlAttribute(stream, "name", room.getName().toQString());
     saveXmlElement(stream, "area", room.getArea().toQString());
     if (room.getSubAreaParentId() != INVALID_ROOMID) {
-        saveXmlElement(stream, "subarea_parent", externalRoomIdToString(ExternalRoomId{room.getSubAreaParentId().asUint32()}));
+        saveXmlElement(stream,
+                       "subarea_parent",
+                       externalRoomIdToString(ExternalRoomId{room.getSubAreaParentId().asUint32()}));
     }
     if (!room.getSubAreaName().isEmpty()) {
         saveXmlElement(stream, "subarea_name", room.getSubAreaName().toQString());

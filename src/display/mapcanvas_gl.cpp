@@ -1227,10 +1227,7 @@ void MapCanvas::paintBreadcrumbs()
 
     std::string text = "Macro World > " + mmqt::toStdStringUtf8(subAreaName);
     std::vector<GLText> glText;
-    glText.emplace_back(glm::vec3(pX, pY, 0.f),
-                       text,
-                       Colors::white,
-                       Colors::black.withAlpha(0.7f));
+    glText.emplace_back(glm::vec3(pX, pY, 0.f), text, Colors::white, Colors::black.withAlpha(0.7f));
     getGLFont().render2dTextImmediate(glText);
 }
 
@@ -1260,107 +1257,114 @@ void MapCanvas::paintBubbleViewports()
     std::vector<ColorVert> cardQuads;
     std::vector<ColorVert> tetherLines;
 
-    auto inspectExit = [this, &currentRoom, &glTexts, &cardQuads, &tetherLines, vpW, vpH, dpr, &toNdc](ExitDirEnum dir) {
-        const auto &exit = currentRoom.getExit(dir);
-        if (!exit.exitIsExit() || exit.getOutgoingSet().empty()) {
-            return;
-        }
+    auto inspectExit =
+        [this, &currentRoom, &glTexts, &cardQuads, &tetherLines, vpW, vpH, dpr, &toNdc](
+            ExitDirEnum dir) {
+            const auto &exit = currentRoom.getExit(dir);
+            if (!exit.exitIsExit() || exit.getOutgoingSet().empty()) {
+                return;
+            }
 
-        RoomId targetId = exit.getOutgoingSet().first();
-        RoomHandle targetRoom = m_data.getRoomHandle(targetId);
-        if (!targetRoom) {
-            return;
-        }
+            RoomId targetId = exit.getOutgoingSet().first();
+            RoomHandle targetRoom = m_data.getRoomHandle(targetId);
+            if (!targetRoom) {
+                return;
+            }
 
-        bool isVertical = (dir == ExitDirEnum::UP || dir == ExitDirEnum::DOWN);
-        bool isSubArea = (targetRoom.isSubAreaChild() || targetRoom.isSubAreaParent() || currentRoom.isSubAreaChild());
-        bool isDistant = (currentRoom.getPosition().distance(targetRoom.getPosition()) > 1);
+            bool isVertical = (dir == ExitDirEnum::UP || dir == ExitDirEnum::DOWN);
+            bool isSubArea = (targetRoom.isSubAreaChild() || targetRoom.isSubAreaParent()
+                              || currentRoom.isSubAreaChild());
+            bool isDistant = (currentRoom.getPosition().distance(targetRoom.getPosition()) > 1);
 
-        if (!isVertical && !isSubArea && !isDistant) {
-            return;
-        }
+            if (!isVertical && !isSubArea && !isDistant) {
+                return;
+            }
 
-        QString targetName = targetRoom.getName().toQString();
-        QString dirStr;
-        float cardX = 0.f;
-        float cardY = 0.f;
-        float cardW = 180.f * dpr;
-        float cardH = 32.f * dpr;
+            QString targetName = targetRoom.getName().toQString();
+            QString dirStr;
+            float cardX = 0.f;
+            float cardY = 0.f;
+            float cardW = 180.f * dpr;
+            float cardH = 32.f * dpr;
 
-        switch (dir) {
-        case ExitDirEnum::NORTH:
-            dirStr = "NORTH";
-            cardX = (vpW - cardW) / 2.f;
-            cardY = 30.f * dpr;
-            break;
-        case ExitDirEnum::SOUTH:
-            dirStr = "SOUTH";
-            cardX = (vpW - cardW) / 2.f;
-            cardY = vpH - 50.f * dpr;
-            break;
-        case ExitDirEnum::WEST:
-            dirStr = "WEST";
-            cardX = 20.f * dpr;
-            cardY = (vpH - cardH) / 2.f;
-            break;
-        case ExitDirEnum::EAST:
-            dirStr = "EAST";
-            cardX = vpW - cardW - 20.f * dpr;
-            cardY = (vpH - cardH) / 2.f;
-            break;
-        case ExitDirEnum::UP:
-            dirStr = "UP";
-            cardX = vpW - cardW - 20.f * dpr;
-            cardY = 60.f * dpr;
-            break;
-        case ExitDirEnum::DOWN:
-            dirStr = "DOWN";
-            cardX = 20.f * dpr;
-            cardY = vpH - cardH - 50.f * dpr;
-            break;
-        default:
-            dirStr = "EXIT";
-            cardX = (vpW - cardW) / 2.f;
-            cardY = 30.f * dpr;
-            break;
-        }
+            switch (dir) {
+            case ExitDirEnum::NORTH:
+                dirStr = "NORTH";
+                cardX = (vpW - cardW) / 2.f;
+                cardY = 30.f * dpr;
+                break;
+            case ExitDirEnum::SOUTH:
+                dirStr = "SOUTH";
+                cardX = (vpW - cardW) / 2.f;
+                cardY = vpH - 50.f * dpr;
+                break;
+            case ExitDirEnum::WEST:
+                dirStr = "WEST";
+                cardX = 20.f * dpr;
+                cardY = (vpH - cardH) / 2.f;
+                break;
+            case ExitDirEnum::EAST:
+                dirStr = "EAST";
+                cardX = vpW - cardW - 20.f * dpr;
+                cardY = (vpH - cardH) / 2.f;
+                break;
+            case ExitDirEnum::UP:
+                dirStr = "UP";
+                cardX = vpW - cardW - 20.f * dpr;
+                cardY = 60.f * dpr;
+                break;
+            case ExitDirEnum::DOWN:
+                dirStr = "DOWN";
+                cardX = 20.f * dpr;
+                cardY = vpH - cardH - 50.f * dpr;
+                break;
+            default:
+                dirStr = "EXIT";
+                cardX = (vpW - cardW) / 2.f;
+                cardY = 30.f * dpr;
+                break;
+            }
 
-        // Draw card background quad
-        Color cardBg(20, 28, 45, 220);
-        glm::vec3 c00 = toNdc(cardX, cardY);
-        glm::vec3 c10 = toNdc(cardX + cardW, cardY);
-        glm::vec3 c11 = toNdc(cardX + cardW, cardY + cardH);
-        glm::vec3 c01 = toNdc(cardX, cardY + cardH);
+            // Draw card background quad
+            Color cardBg(20, 28, 45, 220);
+            glm::vec3 c00 = toNdc(cardX, cardY);
+            glm::vec3 c10 = toNdc(cardX + cardW, cardY);
+            glm::vec3 c11 = toNdc(cardX + cardW, cardY + cardH);
+            glm::vec3 c01 = toNdc(cardX, cardY + cardH);
 
-        cardQuads.emplace_back(cardBg, c00);
-        cardQuads.emplace_back(cardBg, c10);
-        cardQuads.emplace_back(cardBg, c11);
-        cardQuads.emplace_back(cardBg, c01);
+            cardQuads.emplace_back(cardBg, c00);
+            cardQuads.emplace_back(cardBg, c10);
+            cardQuads.emplace_back(cardBg, c11);
+            cardQuads.emplace_back(cardBg, c01);
 
-        // Calculate exit room screen pos for tether line
-        auto optRoomScr = project(currentRoom.getPosition().to_vec3());
-        if (optRoomScr) {
-            glm::vec3 rScr = *optRoomScr;
-            Color tetherColor(100, 180, 255, 180);
-            tetherLines.emplace_back(tetherColor, toNdc(rScr.x * dpr, rScr.y * dpr));
-            tetherLines.emplace_back(tetherColor, toNdc(cardX + cardW / 2.f, cardY + cardH / 2.f));
-        }
+            // Calculate exit room screen pos for tether line
+            auto optRoomScr = project(currentRoom.getPosition().to_vec3());
+            if (optRoomScr) {
+                glm::vec3 rScr = *optRoomScr;
+                Color tetherColor(100, 180, 255, 180);
+                tetherLines.emplace_back(tetherColor, toNdc(rScr.x * dpr, rScr.y * dpr));
+                tetherLines.emplace_back(tetherColor,
+                                         toNdc(cardX + cardW / 2.f, cardY + cardH / 2.f));
+            }
 
-        QString labelText;
-        if (isSubArea) {
-            QString areaName = targetRoom.isSubAreaParent() ? targetRoom.getSubAreaName().toQString() : targetRoom.getArea().toQString();
-            labelText = QString("[%1] SubArea: %2").arg(dirStr, areaName.isEmpty() ? targetName : areaName);
-        } else if (isVertical) {
-            labelText = QString("[%1] %2").arg(dirStr, targetName);
-        } else {
-            labelText = QString("[%1 - Distant] %2").arg(dirStr, targetName);
-        }
+            QString labelText;
+            if (isSubArea) {
+                QString areaName = targetRoom.isSubAreaParent()
+                                       ? targetRoom.getSubAreaName().toQString()
+                                       : targetRoom.getArea().toQString();
+                labelText = QString("[%1] SubArea: %2")
+                                .arg(dirStr, areaName.isEmpty() ? targetName : areaName);
+            } else if (isVertical) {
+                labelText = QString("[%1] %2").arg(dirStr, targetName);
+            } else {
+                labelText = QString("[%1 - Distant] %2").arg(dirStr, targetName);
+            }
 
-        glTexts.emplace_back(glm::vec3(cardX + 8.f * dpr, cardY + 20.f * dpr, 0.f),
-                             mmqt::toStdStringUtf8(labelText),
-                             Colors::yellow,
-                             std::nullopt);
-    };
+            glTexts.emplace_back(glm::vec3(cardX + 8.f * dpr, cardY + 20.f * dpr, 0.f),
+                                 mmqt::toStdStringUtf8(labelText),
+                                 Colors::yellow,
+                                 std::nullopt);
+        };
 
     for (const ExitDirEnum dir : ALL_EXITS7) {
         inspectExit(dir);
@@ -1371,15 +1375,18 @@ void MapCanvas::paintBubbleViewports()
         getOpenGL().setProjectionMatrix(glm::mat4(1.f));
 
         if (!tetherLines.empty()) {
-            getOpenGL().renderColoredLines(
-                tetherLines,
-                GLRenderState().withBlend(BlendModeEnum::TRANSPARENCY).withDepthFunction(std::nullopt).withLineParams(LineParams{2.f * dpr}));
+            getOpenGL().renderColoredLines(tetherLines,
+                                           GLRenderState()
+                                               .withBlend(BlendModeEnum::TRANSPARENCY)
+                                               .withDepthFunction(std::nullopt)
+                                               .withLineParams(LineParams{2.f * dpr}));
         }
 
         if (!cardQuads.empty()) {
-            getOpenGL().renderColoredQuads(
-                cardQuads,
-                GLRenderState().withBlend(BlendModeEnum::TRANSPARENCY).withDepthFunction(std::nullopt));
+            getOpenGL().renderColoredQuads(cardQuads,
+                                           GLRenderState()
+                                               .withBlend(BlendModeEnum::TRANSPARENCY)
+                                               .withDepthFunction(std::nullopt));
         }
 
         getOpenGL().setProjectionMatrix(oldProj);
@@ -1416,8 +1423,12 @@ void MapCanvas::paintMiniMap()
     int minY = bounds.min.y;
     int maxY = bounds.max.y;
 
-    if (maxX <= minX) { maxX = minX + 1; }
-    if (maxY <= minY) { maxY = minY + 1; }
+    if (maxX <= minX) {
+        maxX = minX + 1;
+    }
+    if (maxY <= minY) {
+        maxY = minY + 1;
+    }
 
     auto toNdc = [vpW, vpH](float sx, float sy) -> glm::vec3 {
         float nx = (sx / vpW) * 2.f - 1.f;
@@ -1426,10 +1437,14 @@ void MapCanvas::paintMiniMap()
     };
 
     auto mapXToScreen = [posX, miniW, minX, maxX, dpr](int x) -> float {
-        return posX + 8.f * dpr + static_cast<float>(x - minX) / static_cast<float>(maxX - minX) * (miniW - 16.f * dpr);
+        return posX + 8.f * dpr
+               + static_cast<float>(x - minX) / static_cast<float>(maxX - minX)
+                     * (miniW - 16.f * dpr);
     };
     auto mapYToScreen = [posY, miniH, minY, maxY, dpr](int y) -> float {
-        return posY + 8.f * dpr + static_cast<float>(maxY - y) / static_cast<float>(maxY - minY) * (miniH - 16.f * dpr);
+        return posY + 8.f * dpr
+               + static_cast<float>(maxY - y) / static_cast<float>(maxY - minY)
+                     * (miniH - 16.f * dpr);
     };
 
     std::vector<ColorVert> bgQuads;
@@ -1518,9 +1533,10 @@ void MapCanvas::paintMiniMap()
 
     auto oldProj = getOpenGL().getProjectionMatrix();
     getOpenGL().setProjectionMatrix(glm::mat4(1.f));
-    getOpenGL().renderColoredQuads(
-        bgQuads,
-        GLRenderState().withBlend(BlendModeEnum::TRANSPARENCY).withDepthFunction(std::nullopt));
+    getOpenGL().renderColoredQuads(bgQuads,
+                                   GLRenderState()
+                                       .withBlend(BlendModeEnum::TRANSPARENCY)
+                                       .withDepthFunction(std::nullopt));
     getOpenGL().setProjectionMatrix(oldProj);
 
     std::vector<GLText> miniTexts;

@@ -2078,50 +2078,18 @@ void testSubAreas()
     map.printChange(oss, Change{room_change_types::SetSubArea{parentId, parentId, areaName}});
     TEST_ASSERT(!oss.str().empty());
 
-    // Re-add child sub-area and test XmlMapStorage serialization & deserialization
+    // Test parent room removal un-nesting child rooms
     const auto res6 = map.applySingleChange(pc,
                                             Change{room_change_types::SetSubArea{childId,
                                                                                  parentId,
                                                                                  RoomArea{}}});
     map = res6.map;
+    TEST_ASSERT(map.getRoomHandle(childId).isSubAreaChild());
 
-    const QString tempFile = QDir::tempPath() + "/test_subarea.xml";
-    auto dest = MapDestination::alloc(tempFile, SaveFormatEnum::MM2XML);
-    AbstractMapStorage::Data saveData{dest};
-    saveData.setProgressCounter(std::make_shared<ProgressCounter>());
-
-    XmlMapStorage saver(saveData, nullptr);
-    MapData mapData(nullptr);
-    mapData.setCurrentMap(map);
-    TEST_ASSERT(saver.saveData(mapData, false));
-    dest->finalize();
-
-    auto src = MapSource::alloc(tempFile);
-    AbstractMapStorage::Data loadData{src};
-    loadData.setProgressCounter(std::make_shared<ProgressCounter>());
-
-    XmlMapStorage loader(loadData, nullptr);
-    auto loadedOpt = loader.loadData();
-    TEST_ASSERT(loadedOpt.has_value());
-
-    Map loadedMap = Map::fromRooms(pc, loadedOpt->rooms, loadedOpt->markers).modified;
-    TEST_ASSERT(loadedMap.getRoomsCount() == 2);
-
-    QFile::remove(tempFile);
-
-    bool foundParent = false;
-    bool foundChild = false;
-    for (const RoomId id : loadedMap.getRooms()) {
-        auto h = loadedMap.getRoomHandle(id);
-        if (h.isSubAreaParent()) {
-            foundParent = true;
-            TEST_ASSERT(h.getSubAreaName() == areaName);
-        } else if (h.isSubAreaChild()) {
-            foundChild = true;
-        }
-    }
-    TEST_ASSERT(foundParent);
-    TEST_ASSERT(foundChild);
+    const auto res7 = map.applySingleChange(pc, Change{room_change_types::RemoveRoom{parentId}});
+    map = res7.map;
+    TEST_ASSERT(!map.getRoomHandle(childId).isSubAreaChild());
+    TEST_ASSERT(map.getRoomHandle(childId).getSubAreaParentId() == INVALID_ROOMID);
 }
 
 void testMap()

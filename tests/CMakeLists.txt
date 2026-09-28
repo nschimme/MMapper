@@ -426,8 +426,22 @@ set(TestClient_SRCS
     TestClient.h
     ../src/client/InputHistory.cpp
     ../src/client/InputHistory.h
+    ../src/client/displaywidget.cpp
+    ../src/client/displaywidget.h
+    ../src/global/AnsiHtml.cpp
+    ../src/global/AnsiHtml.h
+    ../src/mpi/findreplacewidget.cpp
+    ../src/mpi/findreplacewidget.h
+    ../src/mpi/gotowidget.cpp
+    ../src/mpi/gotowidget.h
     ../src/mpi/RemoteEditDocumentOps.cpp
     ../src/mpi/RemoteEditDocumentOps.h
+    ../src/mpi/RemoteEditHighlighter.cpp
+    ../src/mpi/RemoteEditHighlighter.h
+    ../src/mpi/remoteeditwidget.cpp
+    ../src/mpi/remoteeditwidget.h
+    ../src/viewers/AnsiViewWindow.cpp
+    ../src/viewers/AnsiViewWindow.h
 )
 add_executable(TestClient ${TestClient_SRCS})
 add_dependencies(TestClient mm_test mm_global)

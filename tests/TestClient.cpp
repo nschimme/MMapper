@@ -6,7 +6,10 @@
 #include "../src/client/InputHistory.h"
 #include "../src/configuration/configuration.h"
 #include "../src/mpi/RemoteEditDocumentOps.h"
+#include "../src/mpi/remoteeditwidget.h"
 
+#include <QPushButton>
+#include <QSignalSpy>
 #include <QTextCursor>
 #include <QTextDocument>
 #include <QtTest/QtTest>
@@ -365,6 +368,58 @@ void TestClient::remoteEditStatusReportsTabsLongLinesAndTrailingSpace()
     QVERIFY(info.hasTabs);
     QVERIFY(info.hasLongLines);
     QVERIFY(info.hasTrailingSpace);
+}
+
+void TestClient::remoteEditWidgetButtonsAndShortcuts()
+{
+    // Test active edit session widget
+    RemoteEditWidget editWidget(/*editSession=*/true,
+                                /*draftView=*/false,
+                                QStringLiteral("Test Edit"),
+                                QStringLiteral("Hello World"),
+                                nullptr);
+
+    QSignalSpy saveSpy(&editWidget, &RemoteEditWidget::sig_save);
+    QSignalSpy cancelSpy(&editWidget, &RemoteEditWidget::sig_cancel);
+
+    auto buttons = editWidget.findChildren<QPushButton *>();
+    QPushButton *submitBtn = nullptr;
+    QPushButton *cancelBtn = nullptr;
+    for (auto *btn : buttons) {
+        if (btn->text() == QStringLiteral("Submit")) {
+            submitBtn = btn;
+        } else if (btn->text() == QStringLiteral("Cancel")) {
+            cancelBtn = btn;
+        }
+    }
+
+    QVERIFY(submitBtn != nullptr);
+    QVERIFY(cancelBtn != nullptr);
+
+    // Test Submit button click
+    submitBtn->click();
+    QCOMPARE(saveSpy.count(), 1);
+    QCOMPARE(saveSpy.at(0).at(0).toString(), QStringLiteral("Hello World"));
+
+    // Test draft view widget
+    RemoteEditWidget draftWidget(/*editSession=*/true,
+                                 /*draftView=*/true,
+                                 QStringLiteral("Test Draft"),
+                                 QStringLiteral("Draft Content"),
+                                 nullptr);
+
+    QSignalSpy discardSpy(&draftWidget, &RemoteEditWidget::sig_discard);
+    auto draftButtons = draftWidget.findChildren<QPushButton *>();
+    QPushButton *discardBtn = nullptr;
+    for (auto *btn : draftButtons) {
+        if (btn->text() == QStringLiteral("Discard Draft")) {
+            discardBtn = btn;
+        }
+    }
+
+    QVERIFY(discardBtn != nullptr);
+    discardBtn->click();
+    QCOMPARE(discardSpy.count(), 1);
 }
 
 QTEST_MAIN(TestClient)

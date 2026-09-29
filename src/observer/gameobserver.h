@@ -18,6 +18,7 @@ public:
     Signal2<QString> sig2_sentToUserString; // removes ANSI
 
     Signal2<GmcpMessage> sig2_sentToUserGmcp;
+    Signal2<GmcpMessage> sig2_sendGmcpToMud;
     Signal2<bool> sig2_toggledEchoMode;
 
     Signal2<MumeTimeEnum> sig2_timeOfDayChanged;

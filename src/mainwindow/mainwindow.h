@@ -70,6 +70,7 @@ class MediaLibrary;
 class TimerWidget;
 class MapDestination;
 class RemoteEdit;
+class RemoteEditApi;
 
 struct MapLoadData;
 
@@ -307,6 +308,7 @@ private:
     void virt_log(const QString &mod, const QString &msg) final { slot_log(mod, msg); }
     void virt_setMode(const MapModeEnum mode) final { slot_setMode(mode); }
     NODISCARD HotkeyManager &virt_getHotkeyManager() const final { return getHotkeyManager(); }
+    NODISCARD RemoteEditApi &virt_getRemoteEditApi() const final;
     NODISCARD QObject &virt_asQObject() final { return *this; }
 
 public:

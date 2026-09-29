@@ -172,6 +172,7 @@ AbstractParser::AbstractParser(MapData &md,
                                ProxyUserGmcpApi &proxyUserGmcp,
                                GroupManagerApi &group,
                                HotkeyManager &hm,
+                               RemoteEditApi &remoteEditApi,
                                QObject *const parent,
                                AbstractParserOutputs &outputs,
                                ParserCommonData &commonData,
@@ -179,6 +180,7 @@ AbstractParser::AbstractParser(MapData &md,
     : ParserCommon{parent, mc, md, group, hm, proxyUserGmcp, outputs, commonData}
     , m_proxyMudConnection{proxyMudConnection}
     , m_gameObserver{gameObserver}
+    , m_remoteEditApi{remoteEditApi}
 {
     QObject::connect(&m_offlineCommandTimer, &QTimer::timeout, this, [this]() {
         doOfflineCharacterMove();

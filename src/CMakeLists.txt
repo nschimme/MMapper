@@ -426,6 +426,8 @@ set(mmapper_SRCS
     mapstorage/mapstorage.h
     mpi/remoteedit.cpp
     mpi/remoteedit.h
+    mpi/RemoteEditApi.cpp
+    mpi/RemoteEditApi.h
     mpi/remoteeditsession.cpp
     mpi/remoteeditsession.h
     mpi/RemoteEditDraftStore.cpp
@@ -873,6 +875,9 @@ target_link_libraries(mm_global PUBLIC
     Qt6::Widgets
     coverage_config
 )
+if(WIN32)
+    target_link_libraries(mm_global PUBLIC ws2_32)
+endif()
 target_link_libraries(mm_map PUBLIC
     Qt6::Core
     Qt6::Widgets

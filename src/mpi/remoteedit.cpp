@@ -78,10 +78,20 @@ NODISCARD std::unique_ptr<RemoteEditDraftStore> makeDraftStore()
 
 } // namespace
 
-RemoteEdit::RemoteEdit(QObject *const parent)
+RemoteEdit::RemoteEdit(GameObserver &observer, QObject *const parent)
     : QObject(parent)
+    , m_gameObserver(observer)
     , m_store(makeDraftStore())
-{}
+    , m_remoteEditApi(std::make_unique<RemoteEditApi>(*this))
+{
+    m_gameObserver.sig2_sentToUserGmcp.connect(m_lifetime, [this](const GmcpMessage &msg) {
+        slot_parseGmcpInput(msg);
+    });
+
+    m_gameObserver.sig2_disconnected.connect(m_lifetime, [this]() { onDisconnected(); });
+
+    m_gameObserver.sig2_connected.connect(m_lifetime, [this]() { announcePendingDrafts(); });
+}
 
 RemoteEdit::~RemoteEdit() = default;
 
@@ -221,9 +231,9 @@ void RemoteEdit::cancelEdit(RemoteEditSession *const pSession)
         obj["id"] = session.getSessionId().asInt32();
         QJsonDocument doc;
         doc.setObject(obj);
-        GmcpJson json{QString::fromUtf8(doc.toJson())};
+        GmcpJson json{QString::fromUtf8(doc.toJson(QJsonDocument::Compact))};
         GmcpMessage msg{GmcpMessageTypeEnum::MUME_CLIENT_CANCEL_EDIT, json};
-        emit sig_sendGmcp(msg);
+        m_gameObserver.sig2_sendGmcpToMud.invoke(msg);
         deleteDraft(session.getDraftKey());
     } else {
         session.flushDraft();
@@ -288,10 +298,10 @@ void RemoteEdit::sendToMume(const RemoteEditSession &session)
     obj["id"] = session.getSessionId().asInt32();
     QJsonDocument doc;
     doc.setObject(obj);
-    GmcpJson json{QString::fromUtf8(doc.toJson())};
+    GmcpJson json{QString::fromUtf8(doc.toJson(QJsonDocument::Compact))};
     GmcpMessage msg{GmcpMessageTypeEnum::MUME_CLIENT_WRITE, json};
 
-    emit sig_sendGmcp(msg);
+    m_gameObserver.sig2_sendGmcpToMud.invoke(msg);
 
     // FR-4.4: Upon confirmed delivery success, delete local temporary file and unregister task.
     // Deletion is now handled in slot_parseGmcpInput for MUME_CLIENT_WRITE.
@@ -554,86 +564,3 @@ void RemoteEdit::deleteDraft(const QString &key)
     deref(m_store).remove(key);
     emit sig_draftsChanged();
 }
-
-namespace remote_edit {
-
-namespace {
-RemoteEdit *g_instance = nullptr;
-} // namespace
-
-void setInstance(RemoteEdit *const instance)
-{
-    g_instance = instance;
-}
-
-void report_status(AnsiOstream &aos)
-{
-    if (g_instance == nullptr) {
-        aos.write("Error: RemoteEdit is not available.\n");
-        return;
-    }
-    g_instance->reportStatus(aos);
-}
-
-bool report_status(AnsiOstream &aos, const uint32_t id)
-{
-    if (g_instance == nullptr) {
-        aos.write("Error: RemoteEdit is not available.\n");
-        return false;
-    }
-    if (!g_instance->reportStatus(aos, RemoteInternalId{id})) {
-        aos.write("Error: Invalid remote edit id.\n");
-        return false;
-    }
-    return true;
-}
-
-bool cancel(const uint32_t id)
-{
-    if (g_instance == nullptr) {
-        return false;
-    }
-    const auto &sessions = g_instance->getSessions();
-    const auto it = sessions.find(RemoteInternalId{id});
-    if (it == sessions.end()) {
-        return false;
-    }
-    g_instance->cancelEdit(it->second.get());
-    return true;
-}
-
-bool discard(const uint32_t id)
-{
-    if (g_instance == nullptr) {
-        return false;
-    }
-    const auto &sessions = g_instance->getSessions();
-    const auto it = sessions.find(RemoteInternalId{id});
-    if (it == sessions.end()) {
-        return false;
-    }
-    // A live edit has no draft-only state to discard; route it through cancelEdit()
-    // (which also sends the GMCP cancel and deletes the draft) instead.
-    if (it->second->isDraftView()) {
-        g_instance->discardDraft(it->second.get());
-    } else {
-        g_instance->cancelEdit(it->second.get());
-    }
-    return true;
-}
-
-void simulate_edit(const QString &title)
-{
-    if (g_instance == nullptr) {
-        return;
-    }
-    // Large ids keep the fake session clear of anything MUME hands out.
-    static int32_t nextFakeId = 1000000;
-    g_instance->slot_remoteEdit(RemoteSessionId{nextFakeId++},
-                                title,
-                                QString(
-                                    "Simulated edit \"%1\".\nType here; nothing is sent to MUME.\n")
-                                    .arg(title));
-}
-
-} // namespace remote_edit

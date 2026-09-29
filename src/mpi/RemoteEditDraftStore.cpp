@@ -89,7 +89,7 @@ QString RemoteEditFileDraftStore::create(const RemoteSessionId sessionId,
     }
 
     QFile file(filePath(fileName));
-    if (!file.open(QFile::WriteOnly | QFile::Text)) {
+    if (!file.open(QFile::WriteOnly)) {
         qWarning() << "Unable to create draft" << file.fileName();
         return QString();
     }
@@ -105,7 +105,7 @@ bool RemoteEditFileDraftStore::save(const QString &key, const QString &content)
         return false;
     }
     QSaveFile file(filePath(key));
-    if (!file.open(QFile::WriteOnly | QFile::Text)) {
+    if (!file.open(QFile::WriteOnly)) {
         return false;
     }
     file.write(mmqt::toQByteArrayLatin1(content));

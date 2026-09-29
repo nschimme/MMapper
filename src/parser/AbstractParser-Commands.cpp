@@ -1487,14 +1487,14 @@ void AbstractParser::doEditsCommand(StringView rest)
     const auto argInt = syntax::TokenMatcher::alloc<syntax::ArgInt>();
 
     const auto doEditList = syntax::Accept(
-        [](User &user, const Pair * /*args*/) {
+        [this](User &user, const Pair * /*args*/) {
             AnsiOstream &aos = user.getOstream();
-            remote_edit::report_status(aos);
+            m_remoteEditApi.reportStatus(aos);
         },
         "list remote edit/view sessions and recovered drafts");
 
     const auto doEditStatus = syntax::Accept(
-        [](User &user, const Pair *args) {
+        [this](User &user, const Pair *args) {
             AnsiOstream &aos = user.getOstream();
             const auto argv = getAnyVectorReversed(args);
             assert(argv.size() == 2);
@@ -1506,19 +1506,19 @@ void AbstractParser::doEditsCommand(StringView rest)
                     << ColoredValue{red, id} << ".\n";
                 return;
             }
-            std::ignore = remote_edit::report_status(aos, static_cast<uint32_t>(id));
+            std::ignore = m_remoteEditApi.reportStatus(aos, static_cast<uint32_t>(id));
         },
         "show status for a remote edit session");
 
     const auto doEditCancel = syntax::Accept(
-        [](User &user, const Pair *args) {
+        [this](User &user, const Pair *args) {
             AnsiOstream &aos = user.getOstream();
             const auto argv = getAnyVectorReversed(args);
             assert(argv.size() == 2);
             assert(argv[1].getString() == "cancel");
 
             const auto id = argv[0].getInt();
-            if (id < 0 || !remote_edit::cancel(static_cast<uint32_t>(id))) {
+            if (id < 0 || !m_remoteEditApi.cancel(static_cast<uint32_t>(id))) {
                 aos << "Error: cannot cancel invalid remote edit id: " << ColoredValue{red, id}
                     << ".\n";
                 return;
@@ -1528,14 +1528,14 @@ void AbstractParser::doEditsCommand(StringView rest)
         "cancel a remote edit session (draft is preserved)");
 
     const auto doEditDiscard = syntax::Accept(
-        [](User &user, const Pair *args) {
+        [this](User &user, const Pair *args) {
             AnsiOstream &aos = user.getOstream();
             const auto argv = getAnyVectorReversed(args);
             assert(argv.size() == 2);
             assert(argv[1].getString() == "discard");
 
             const auto id = argv[0].getInt();
-            if (id < 0 || !remote_edit::discard(static_cast<uint32_t>(id))) {
+            if (id < 0 || !m_remoteEditApi.discard(static_cast<uint32_t>(id))) {
                 aos << "Error: cannot discard invalid remote edit id: " << ColoredValue{red, id}
                     << ".\n";
                 return;
@@ -1546,7 +1546,7 @@ void AbstractParser::doEditsCommand(StringView rest)
         "draft");
 
     const auto doEditSimulate = syntax::Accept(
-        [](User &user, const Pair *args) {
+        [this](User &user, const Pair *args) {
             AnsiOstream &aos = user.getOstream();
             const auto v = getAnyVectorReversed(args);
             assert(v.size() == 2);
@@ -1556,7 +1556,7 @@ void AbstractParser::doEditsCommand(StringView rest)
                 aos << "Error: a title is required.\n";
                 return;
             }
-            remote_edit::simulate_edit(mmqt::toQStringUtf8(title));
+            m_remoteEditApi.simulateEdit(mmqt::toQStringUtf8(title));
         },
         "(testing) open an editor as if MUME had requested an edit with this title");
 

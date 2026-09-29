@@ -183,7 +183,9 @@ Proxy::Proxy(Badge<Proxy>,
     , m_host{::getProxyHost(listener)}
     , m_userSocket{std::move(userSocket)}
 {
-    //
+    m_gameObserver.sig2_sendGmcpToMud.connect(m_lifetime, [this](const GmcpMessage &msg) {
+        slot_sendGmcp(msg);
+    });
 }
 
 Proxy::~Proxy()
@@ -720,6 +722,7 @@ void Proxy::allocParser()
                                                             deref(gmcp),
                                                             m_groupManager.getGroupManagerApi(),
                                                             m_host.getHotkeyManager(),
+                                                            m_host.getRemoteEditApi(),
                                                             this,
                                                             deref(out),
                                                             deref(parserCommon),

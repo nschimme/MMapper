@@ -35,4 +35,7 @@ private Q_SLOTS:
     void remoteEditFindWrapsAround();
     void remoteEditReplaceAllReplacesEveryOccurrence();
     void remoteEditStatusReportsTabsLongLinesAndTrailingSpace();
+
+    // RemoteEditWidget UI
+    void remoteEditWidgetButtonsAndShortcuts();
 };

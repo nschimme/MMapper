@@ -223,8 +223,25 @@ RemoteEditWidget::RemoteEditWidget(const bool editSession,
 
     setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Preferred);
 
-    m_menuBar = new QMenuBar(this);
-    mainLayout->setMenuBar(m_menuBar);
+    auto *const headerWidget = new QWidget(this);
+    auto *const headerLayout = new QHBoxLayout(headerWidget);
+    headerLayout->setContentsMargins(8, 4, 8, 4);
+
+    m_hamburgerButton = new QToolButton(headerWidget);
+    m_hamburgerButton->setText(QStringLiteral("\u2630 ") + tr("Menu"));
+    m_hamburgerButton->setToolTip(tr("Text editing tools and options"));
+    m_hamburgerButton->setPopupMode(QToolButton::InstantPopup);
+    QMenu *const hamburgerMenu = new QMenu(m_hamburgerButton);
+    m_hamburgerButton->setMenu(hamburgerMenu);
+
+    headerLayout->addWidget(m_hamburgerButton, 0);
+    headerLayout->addStretch(1);
+
+    auto *const titleLabel = new QLabel(m_title, headerWidget);
+    titleLabel->setStyleSheet(QStringLiteral("font-weight: bold;"));
+    headerLayout->addWidget(titleLabel, 0);
+
+    mainLayout->addWidget(headerWidget, 0);
 
     m_gotoWidget.reset(createGotoWidget());
     mainLayout->addWidget(m_gotoWidget.get(), 0);
@@ -248,6 +265,8 @@ RemoteEditWidget::RemoteEditWidget(const bool editSession,
     m_textEdit.reset(createTextEdit());
     mainLayout->addWidget(m_textEdit.get(), 1);
     setFocusProxy(m_textEdit.get());
+
+    addBottomButtonBar(mainLayout);
 
     m_statusBar = new QStatusBar(this);
     m_statusBar->setSizeGripEnabled(false);
@@ -385,11 +404,15 @@ auto RemoteEditWidget::createFindReplaceWidget() -> FindReplaceWidget *
 
 void RemoteEditWidget::addFileMenu(const Editor *const pTextEdit)
 {
-    QMenu *const fileMenu = m_menuBar->addMenu(tr("&File"));
+    QMenu *const menu = m_hamburgerButton->menu();
     if (m_editSession && !m_draftView) {
-        addSave(fileMenu);
+        addSave(menu);
+        addExit(menu);
+        menu->addSeparator();
+    } else {
+        addExit(menu);
+        menu->addSeparator();
     }
-    addExit(fileMenu);
     addEditAndViewMenus(pTextEdit);
 }
 
@@ -446,73 +469,67 @@ struct NODISCARD EditCommand2 final
 
 void RemoteEditWidget::addEditAndViewMenus(const Editor *const pTextEdit)
 {
-    QMenu *const editMenu = m_menuBar->addMenu("&Edit");
-    QMenu *const viewMenu = m_menuBar->addMenu("&View");
+    QMenu *const menu = m_hamburgerButton->menu();
 
-    const std::vector<EditCommand2> cmds{
-
-        EditCommand2{&Editor::undo,
-                     "edit-undo",
-                     ":/icons/undo.png",
-                     "&Undo",
-                     "Undo previous typing or commands",
-                     "Ctrl+Z",
-                     EditCmd2Enum::EDIT_ONLY},
-        EditCommand2{&Editor::redo,
-                     "edit-redo",
-                     ":/icons/redo.png",
-                     "&Redo",
-                     // REVISIT: Ctrl+Y vs Ctrl+Shift+Z may depend on platform conventions;
-                     // it's Ctrl+Shift+Z by default on Ubuntu MATE,
-                     // but it might be Ctrl+Y by default on other desktops?
-                     "Redo previous typing or commands",
-                     "Ctrl+Shift+Z",
-                     EditCmd2Enum::EDIT_ONLY},
-        EditCommand2{},
-        EditCommand2{&Editor::selectAll,
-                     "edit-select-all",
-                     ":/icons/redo.png",
-                     "&Select All",
-                     "Select the entire document",
-                     "Ctrl+A",
-                     EditCmd2Enum::EDIT_OR_VIEW},
-        EditCommand2{},
-        EditCommand2{&Editor::cut,
-                     "edit-cut",
-                     ":/icons/cut.png",
-                     "Cu&t",
-                     "Cut the current selection's contents to the clipboard",
-                     "Ctrl+X",
-                     EditCmd2Enum::EDIT_ONLY},
-        EditCommand2{&Editor::copy,
-                     "edit-copy",
-                     ":/icons/copy.png",
-                     "&Copy",
-                     "Copy the current selection's contents to the clipboard",
-                     "Ctrl+C",
-                     EditCmd2Enum::EDIT_OR_VIEW},
-        EditCommand2{&Editor::paste,
-                     "edit-paste",
-                     ":/icons/paste.png",
-                     "&Paste",
-                     "Paste the clipboard's contents into the current selection",
-                     "Ctrl+V",
-                     EditCmd2Enum::EDIT_ONLY},
-
-        EditCommand2{}};
+    const std::vector<EditCommand2>
+        cmds{EditCommand2{&Editor::undo,
+                          "edit-undo",
+                          ":/icons/undo.png",
+                          "&Undo",
+                          "Undo previous typing or commands",
+                          "Ctrl+Z",
+                          EditCmd2Enum::EDIT_ONLY},
+             EditCommand2{&Editor::redo,
+                          "edit-redo",
+                          ":/icons/redo.png",
+                          "&Redo",
+                          "Redo previous typing or commands",
+                          "Ctrl+Shift+Z",
+                          EditCmd2Enum::EDIT_ONLY},
+             EditCommand2{},
+             EditCommand2{&Editor::selectAll,
+                          "edit-select-all",
+                          ":/icons/redo.png",
+                          "&Select All",
+                          "Select the entire document",
+                          "Ctrl+A",
+                          EditCmd2Enum::EDIT_OR_VIEW},
+             EditCommand2{},
+             EditCommand2{&Editor::cut,
+                          "edit-cut",
+                          ":/icons/cut.png",
+                          "Cu&t",
+                          "Cut the current selection's contents to the clipboard",
+                          "Ctrl+X",
+                          EditCmd2Enum::EDIT_ONLY},
+             EditCommand2{&Editor::copy,
+                          "edit-copy",
+                          ":/icons/copy.png",
+                          "&Copy",
+                          "Copy the current selection's contents to the clipboard",
+                          "Ctrl+C",
+                          EditCmd2Enum::EDIT_OR_VIEW},
+             EditCommand2{&Editor::paste,
+                          "edit-paste",
+                          ":/icons/paste.png",
+                          "&Paste",
+                          "Paste the clipboard's contents into the current selection",
+                          "Ctrl+V",
+                          EditCmd2Enum::EDIT_ONLY},
+             EditCommand2{}};
 
     for (const EditCommand2 &cmd : cmds) {
         switch (cmd.cmd_type) {
         case EditCmd2Enum::SPACER:
-            editMenu->addSeparator();
+            menu->addSeparator();
             break;
         case EditCmd2Enum::EDIT_ONLY:
             if (m_editSession) {
-                addToMenu(editMenu, cmd, pTextEdit);
+                addToMenu(menu, cmd, pTextEdit);
             }
             break;
         case EditCmd2Enum::EDIT_OR_VIEW:
-            addToMenu(editMenu, cmd, pTextEdit);
+            addToMenu(menu, cmd, pTextEdit);
             break;
         }
     }
@@ -525,7 +542,7 @@ void RemoteEditWidget::addEditAndViewMenus(const Editor *const pTextEdit)
         m_findReplaceWidget->show();
         m_findReplaceWidget->setFocusToFindInput();
     });
-    editMenu->addAction(findAction);
+    menu->addAction(findAction);
 
     QAction *gotoAction = new QAction(QIcon::fromTheme("go-jump"), tr("&Go to Line..."), this);
     if constexpr (CURRENT_PLATFORM == PlatformEnum::Mac) {
@@ -539,17 +556,16 @@ void RemoteEditWidget::addEditAndViewMenus(const Editor *const pTextEdit)
         m_gotoWidget->show();
         m_gotoWidget->setFocusToInput();
     });
-    editMenu->addAction(gotoAction);
-    editMenu->addSeparator();
+    menu->addAction(gotoAction);
+    menu->addSeparator();
 
-    // Note: "&Colors" looks like it conflicts with "&Copy",
-    // but you can alt-E-C-C to visit copy first then colors.
-    QMenu *const alignmentMenu = m_editSession ? editMenu->addMenu("&Alignment") : nullptr;
-    QMenu *const colorsMenu = m_editSession ? editMenu->addMenu("&Colors") : nullptr;
-    QMenu *const whitespaceMenu = m_editSession ? editMenu->addMenu("&Whitespace") : nullptr;
+    QMenu *const alignmentMenu = m_editSession ? menu->addMenu("&Alignment") : nullptr;
+    QMenu *const colorsMenu = m_editSession ? menu->addMenu("&Colors") : nullptr;
+    QMenu *const whitespaceMenu = m_editSession ? menu->addMenu("&Whitespace") : nullptr;
+    QMenu *const viewMenu = menu->addMenu("&View");
 
-    const auto getMenu = [alignmentMenu, colorsMenu, editMenu, viewMenu, whitespaceMenu](
-                             const EditViewCmdEnum cmd) -> QMenu * {
+    const auto getSubMenu = [alignmentMenu, colorsMenu, menu, viewMenu, whitespaceMenu](
+                                const EditViewCmdEnum cmd) -> QMenu * {
         switch (cmd) {
         case EditViewCmdEnum::VIEW_OPTION:
             return viewMenu;
@@ -560,12 +576,12 @@ void RemoteEditWidget::addEditAndViewMenus(const Editor *const pTextEdit)
         case EditViewCmdEnum::EDIT_WHITESPACE:
             return whitespaceMenu;
         default:
-            return editMenu;
+            return menu;
         }
     };
 #define X_ADD_MENU(a, b, c, d, e) \
-    if (auto menu = getMenu(b)) { \
-        addToMenu(menu, EditViewCommand{&RemoteEditWidget::slot_##a, (b), (c), (d), (e)}); \
+    if (auto sub = getSubMenu(b)) { \
+        addToMenu(sub, EditViewCommand{&RemoteEditWidget::slot_##a, (b), (c), (d), (e)}); \
     }
     XFOREACH_REMOTE_EDIT_MENU_ITEM(X_ADD_MENU)
 #undef X_ADD_MENU
@@ -579,11 +595,62 @@ void RemoteEditWidget::addSave(QMenu *const fileMenu)
                                                              QIcon(":/icons/save.png")),
                                             tr("&Submit"),
                                             this);
-    saveAction->setShortcut(tr("Ctrl+S"));
+    saveAction->setShortcuts({QKeySequence(tr("Ctrl+S")),
+                              QKeySequence(Qt::CTRL | Qt::Key_Return),
+                              QKeySequence(Qt::CTRL | Qt::Key_Enter)});
     saveAction->setStatusTip(tr("Submit changes to MUME"));
     fileMenu->addAction(saveAction);
     connect(saveAction, &QAction::triggered, this, &RemoteEditWidget::slot_finishEdit);
     m_saveAction = saveAction;
+}
+
+void RemoteEditWidget::addBottomButtonBar(QVBoxLayout *const mainLayout)
+{
+    auto *const barWidget = new QWidget(this);
+    auto *const barLayout = new QHBoxLayout(barWidget);
+    barLayout->setContentsMargins(8, 4, 8, 4);
+    barLayout->setSpacing(8);
+
+    barLayout->addStretch(1);
+
+    if (m_editSession && !m_draftView) {
+        m_submitButton = new QPushButton(QIcon::fromTheme("document-save",
+                                                          QIcon(":/icons/save.png")),
+                                         tr("Submit"),
+                                         barWidget);
+        m_submitButton->setDefault(true);
+        m_submitButton->setToolTip(tr("Submit changes to MUME (Ctrl+S or Ctrl+Enter)"));
+        connect(m_submitButton, &QPushButton::clicked, this, &RemoteEditWidget::slot_finishEdit);
+        barLayout->addWidget(m_submitButton);
+
+        auto *const cancelButton = new QPushButton(QIcon::fromTheme("process-stop",
+                                                                    QIcon(":/icons/exit.png")),
+                                                   tr("Cancel"),
+                                                   barWidget);
+        cancelButton->setToolTip(tr("Cancel edit and discard unsaved changes"));
+        connect(cancelButton, &QPushButton::clicked, this, &RemoteEditWidget::requestClose);
+        barLayout->addWidget(cancelButton);
+    } else if (m_draftView) {
+        auto *const discardButton = new QPushButton(QIcon::fromTheme("edit-delete"),
+                                                    tr("Discard Draft"),
+                                                    barWidget);
+        connect(discardButton, &QPushButton::clicked, this, &RemoteEditWidget::slot_discardDraft);
+        barLayout->addWidget(discardButton);
+
+        auto *const closeButton = new QPushButton(QIcon::fromTheme("window-close"),
+                                                  tr("Close"),
+                                                  barWidget);
+        connect(closeButton, &QPushButton::clicked, this, &RemoteEditWidget::slot_cancelEdit);
+        barLayout->addWidget(closeButton);
+    } else {
+        auto *const closeButton = new QPushButton(QIcon::fromTheme("window-close"),
+                                                  tr("Close"),
+                                                  barWidget);
+        connect(closeButton, &QPushButton::clicked, this, &RemoteEditWidget::slot_cancelEdit);
+        barLayout->addWidget(closeButton);
+    }
+
+    mainLayout->addWidget(barWidget, 0);
 }
 
 void RemoteEditWidget::addExit(QMenu *const fileMenu)
@@ -939,6 +1006,9 @@ void RemoteEditWidget::showDisconnected()
     if (m_saveAction != nullptr) {
         m_saveAction->setEnabled(false);
     }
+    if (m_submitButton != nullptr) {
+        m_submitButton->setEnabled(false);
+    }
     if (!m_editSession) {
         return;
     }
@@ -957,18 +1027,33 @@ void RemoteEditWidget::promptDiscardChanges()
     // Non-blocking: nested event loops are unavailable on wasm.
     auto *const dlg = new QMessageBox(this);
     dlg->setAttribute(Qt::WA_DeleteOnClose);
-    dlg->setIcon(QMessageBox::Warning);
+    dlg->setIcon(QMessageBox::Question);
     dlg->setWindowTitle(m_title);
-    dlg->setText(tr("You have edited the document.\n"
-                    "Are you sure you want to discard all changes?"));
-    dlg->setStandardButtons(QMessageBox::Discard | QMessageBox::Cancel);
-    dlg->setDefaultButton(QMessageBox::Cancel);
-    dlg->setEscapeButton(QMessageBox::Cancel);
-    connect(dlg, &QMessageBox::finished, this, [this](const int result) {
-        if (result == QMessageBox::Discard) {
-            slot_cancelEdit();
-        }
-    });
+    dlg->setText(tr("You have unsaved changes in \"%1\".\nWhat would you like to do?").arg(m_title));
+
+    QPushButton *const submitBtn = dlg->addButton(tr("Submit to MUME"), QMessageBox::AcceptRole);
+    QPushButton *const draftBtn = dlg->addButton(tr("Keep as Unsent Draft"),
+                                                 QMessageBox::AcceptRole);
+    QPushButton *const discardBtn = dlg->addButton(tr("Discard Changes"),
+                                                   QMessageBox::DestructiveRole);
+    QPushButton *const cancelBtn = dlg->addButton(tr("Continue Editing"), QMessageBox::RejectRole);
+
+    dlg->setDefaultButton(submitBtn);
+    dlg->setEscapeButton(cancelBtn);
+
+    connect(dlg,
+            &QMessageBox::finished,
+            this,
+            [this, dlg, submitBtn, draftBtn, discardBtn](MAYBE_UNUSED int result) {
+                QAbstractButton *const clicked = dlg->clickedButton();
+                if (clicked == submitBtn) {
+                    slot_finishEdit();
+                } else if (clicked == draftBtn) {
+                    slot_cancelEdit();
+                } else if (clicked == discardBtn) {
+                    slot_discardDraft();
+                }
+            });
     dlg->open();
 }
 

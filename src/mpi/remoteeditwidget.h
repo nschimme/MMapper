@@ -27,8 +27,8 @@ class QFrame;
 class QKeyEvent;
 class QLabel;
 class QMenu;
-class QMenuBar;
 class QObject;
+class QToolButton;
 class QPlainTextEdit;
 class QStatusBar;
 class QVBoxLayout;
@@ -144,11 +144,12 @@ class NODISCARD_QOBJECT RemoteEditWidget : public QWidget
     Q_OBJECT
 
 private:
-    QMenuBar *m_menuBar = nullptr;
+    QToolButton *m_hamburgerButton = nullptr;
     QStatusBar *m_statusBar = nullptr;
     QFrame *m_banner = nullptr;
     QLabel *m_bannerLabel = nullptr;
     QAction *m_saveAction = nullptr;
+    QPushButton *m_submitButton = nullptr;
 
 public:
     using Editor = RemoteTextEdit;
@@ -217,6 +218,7 @@ private:
     void addEditAndViewMenus(const Editor *pTextEdit);
     void addSave(QMenu *fileMenu);
     void addExit(QMenu *fileMenu);
+    void addBottomButtonBar(QVBoxLayout *mainLayout);
     void addStatusBar(const Editor *pTextEdit);
     void promptDiscardChanges();
     void showBanner(const QString &text,

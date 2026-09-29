@@ -914,7 +914,8 @@ static void generateAllLayerMeshes(InternalData &internalData,
     auto &roomNameBatches = internalData.roomNameBatches;
 
     const bool enableMazeVisuals = getConfig().canvas.enableMazeVisuals.get();
-    const SubAreaInfo mazeInfo = enableMazeVisuals ? SubAreaDetector::detectSubAreas(map) : SubAreaInfo{};
+    const SubAreaInfo mazeInfo = enableMazeVisuals ? SubAreaDetector::detectSubAreas(map)
+                                                   : SubAreaInfo{};
 
     for (const auto &layer : layerToRooms) {
         DECL_TIMER(t2, "generateAllLayerMeshes.loop");
@@ -936,7 +937,8 @@ static void generateAllLayerMeshes(InternalData &internalData,
             cdb.clear();
             rnb.clear();
 
-            ConnectionDrawer cd{cdb, rnb, thisLayer, bounds, &mazeInfo, currentRoomId, enableMazeVisuals};
+            ConnectionDrawer
+                cd{cdb, rnb, thisLayer, bounds, &mazeInfo, currentRoomId, enableMazeVisuals};
             {
                 DECL_TIMER(t7, "generateAllLayerMeshes.loop.part3b");
                 // pass 2: add to buffers
@@ -1126,7 +1128,8 @@ FutureSharedMapBatchFinisher generateMapDataFinisher(const mctp::MapCanvasTextur
     const auto visitRoomOptions = getVisitRoomOptions();
 
     return std::async(std::launch::async,
-                      [textures, font, map, visitRoomOptions, currentRoomId]() -> SharedMapBatchFinisher {
+                      [textures, font, map, visitRoomOptions, currentRoomId]()
+                          -> SharedMapBatchFinisher {
                           ThreadLocalNamedColorRaii tlRaii{visitRoomOptions.canvasColors,
                                                            visitRoomOptions.colorSettings};
                           DECL_TIMER(t, "[ASYNC] generateAllLayerMeshes");

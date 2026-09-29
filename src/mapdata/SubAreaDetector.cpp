@@ -8,8 +8,9 @@
 #include "../map/RoomHandle.h"
 
 #include <algorithm>
-#include <queue>
 #include <stack>
+
+#include <queue>
 
 SubAreaInfo SubAreaDetector::detectSubAreas(const Map &map)
 {

@@ -691,9 +691,9 @@ void MapCanvas::actuallyPaintGL()
                 paintSelections();
                 paintCharacters();
                 paintDifferences();
-    paintBreadcrumbs();
-    paintBubbleViewports();
-    paintMiniMap();
+                paintBreadcrumbs();
+                paintBubbleViewports();
+                paintMiniMap();
 
                 m_weather.prepare();
                 gl.getUboManager().bind(funcs, Legacy::SharedVboEnum::TimeBlock);

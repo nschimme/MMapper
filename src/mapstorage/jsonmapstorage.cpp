@@ -371,6 +371,16 @@ void JsonWorld::addRoom(QJsonArray &jRooms, const ExternalRawRoom &room) const
     jr["sundeath"] = static_cast<uint8_t>(room.getSundeathType());
     jr["mobflags"] = static_cast<qint64>(room.getMobFlags().asUint32());
     jr["loadflags"] = static_cast<qint64>(room.getLoadFlags().asUint32());
+    if (room.getSubAreaParentId() != INVALID_ROOMID) {
+        jr["subarea_parent"] = QString::number(
+            m_jRoomIds[ExternalRoomId{room.getSubAreaParentId().asUint32()}]);
+    }
+    if (!room.getSubAreaName().isEmpty()) {
+        jr["subarea_name"] = room.getSubAreaName().toQString();
+    }
+    if (!room.getSubAreaFlags().isEmpty()) {
+        jr["subarea_flags"] = static_cast<qint64>(room.getSubAreaFlags().asUint32());
+    }
 
     addExits(room, jr);
 

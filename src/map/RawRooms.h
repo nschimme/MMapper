@@ -79,6 +79,37 @@ public:
     XFOREACH_ROOM_ENUM_PROPERTY(X_DECL_ACCESSORS)
 #undef X_DECL_ACCESSORS
 
+    NODISCARD RoomId getRoomSubAreaParentId(const RoomId id) const
+    {
+        return getRawRoomRef(id).fields.subAreaParentId;
+    }
+    void setRoomSubAreaParentId(const RoomId id, RoomId x)
+    {
+        if (getRoomSubAreaParentId(id) != x) {
+            updateRawRoomRef(id, [x](auto &tmp) { tmp.fields.subAreaParentId = x; });
+        }
+    }
+    NODISCARD const RoomArea &getRoomSubAreaName(const RoomId id) const
+    {
+        return getRawRoomRef(id).fields.subAreaName;
+    }
+    void setRoomSubAreaName(const RoomId id, RoomArea x)
+    {
+        if (getRoomSubAreaName(id) != x) {
+            updateRawRoomRef(id, [&x](auto &tmp) { tmp.fields.subAreaName = std::move(x); });
+        }
+    }
+    NODISCARD const SubAreaFlags &getRoomSubAreaFlags(const RoomId id) const
+    {
+        return getRawRoomRef(id).fields.subAreaFlags;
+    }
+    void setRoomSubAreaFlags(const RoomId id, SubAreaFlags flags)
+    {
+        if (getRoomSubAreaFlags(id) != flags) {
+            updateRawRoomRef(id, [flags](auto &tmp) { tmp.fields.subAreaFlags = flags; });
+        }
+    }
+
 public:
 #define X_DEFINE_ACCESSOR(_Type, _Name, _Init) \
     void setExit##_Type(const RoomId id, const ExitDirEnum dir, MM_TYPE_IDENTITY(_Type) x) \

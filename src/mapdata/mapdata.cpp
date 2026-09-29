@@ -139,7 +139,11 @@ std::optional<RoomId> MapData::getLast(const RoomId start, const CommandQueue &d
 FutureSharedMapBatchFinisher MapData::generateBatches(const mctp::MapCanvasTexturesProxy &textures,
                                                       const std::shared_ptr<const FontMetrics> &font)
 {
-    return generateMapDataFinisher(textures, font, getCurrentMap());
+    std::optional<RoomId> curId = std::nullopt;
+    if (auto room = getCurrentRoom()) {
+        curId = room.getId();
+    }
+    return generateMapDataFinisher(textures, font, getCurrentMap(), curId);
 }
 
 void MapData::applyChangesToList(const RoomSelection &sel,

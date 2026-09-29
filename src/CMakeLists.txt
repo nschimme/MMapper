@@ -394,6 +394,8 @@ set(mmapper_SRCS
     mapdata/GenericFind.h
     mapdata/MarkerList.cpp
     mapdata/MarkerList.h
+    mapdata/SubAreaDetector.cpp
+    mapdata/SubAreaDetector.h
     mapdata/mapdata.cpp
     mapdata/mapdata.h
     mapdata/roomfilter.cpp

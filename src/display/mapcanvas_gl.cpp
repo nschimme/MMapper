@@ -691,6 +691,9 @@ void MapCanvas::actuallyPaintGL()
                 paintSelections();
                 paintCharacters();
                 paintDifferences();
+    paintBreadcrumbs();
+    paintBubbleViewports();
+    paintMiniMap();
 
                 m_weather.prepare();
                 gl.getUboManager().bind(funcs, Legacy::SharedVboEnum::TimeBlock);
@@ -842,6 +845,381 @@ void MapCanvas::paintDifferences()
     if (auto &highlights = highlight.highlights; !highlights.empty()) {
         highlights.render(gl, m_textures.room_highlight->getArrayPosition().array);
     }
+}
+
+void MapCanvas::paintBreadcrumbs()
+{
+    auto currentRoom = m_data.getCurrentRoom();
+    if (!currentRoom) {
+        return;
+    }
+
+    RoomId parentId = INVALID_ROOMID;
+    QString subAreaName;
+    if (currentRoom.isSubAreaParent()) {
+        subAreaName = currentRoom.getSubAreaName().toQString();
+    } else if (currentRoom.isSubAreaChild()) {
+        parentId = currentRoom.getSubAreaParentId();
+        if (auto parentRoom = m_data.getRoomHandle(parentId)) {
+            subAreaName = parentRoom.getSubAreaName().toQString();
+        }
+    }
+
+    if (parentId == INVALID_ROOMID || subAreaName.isEmpty()) {
+        return;
+    }
+
+    const auto vp = getOpenGL().getPhysicalViewport();
+    const float vpW = static_cast<float>(vp.size.x);
+    const float vpH = static_cast<float>(vp.size.y);
+    const float dpr = getOpenGL().getDevicePixelRatio();
+
+    std::string text = "Macro World > " + mmqt::toStdStringUtf8(subAreaName);
+
+    std::vector<ColorVert> bgQuads;
+    Color bgColor(20, 25, 40, 220);
+
+    auto toNdc = [vpW, vpH](float sx, float sy) -> glm::vec3 {
+        float nx = (sx / vpW) * 2.f - 1.f;
+        float ny = 1.f - (sy / vpH) * 2.f;
+        return glm::vec3(nx, ny, 0.f);
+    };
+
+    float cardW = 240.f * dpr;
+    float cardH = 30.f * dpr;
+    float posX = 10.f * dpr;
+    float posY = 10.f * dpr;
+
+    bgQuads.emplace_back(bgColor, toNdc(posX, posY));
+    bgQuads.emplace_back(bgColor, toNdc(posX + cardW, posY));
+    bgQuads.emplace_back(bgColor, toNdc(posX + cardW, posY + cardH));
+    bgQuads.emplace_back(bgColor, toNdc(posX, posY + cardH));
+
+    auto oldProj = getOpenGL().getProjectionMatrix();
+    getOpenGL().setProjectionMatrix(glm::mat4(1.f));
+    getOpenGL().renderColoredQuads(bgQuads,
+                                   GLRenderState()
+                                       .withBlend(BlendModeEnum::TRANSPARENCY)
+                                       .withDepthFunction(std::nullopt));
+    getOpenGL().setProjectionMatrix(oldProj);
+
+    std::vector<GLText> glTexts;
+    glTexts.emplace_back(glm::vec3(posX + 8.f * dpr, posY + 20.f * dpr, 0.f),
+                         text,
+                         Colors::yellow,
+                         std::nullopt);
+    getGLFont().render2dTextImmediate(glTexts);
+}
+
+void MapCanvas::paintBubbleViewports()
+{
+    if (!getConfig().canvas.showBubblePeeking.get()) {
+        return;
+    }
+
+    auto currentRoom = m_data.getCurrentRoom();
+    if (!currentRoom) {
+        return;
+    }
+
+    const auto vp = getOpenGL().getPhysicalViewport();
+    const float vpW = static_cast<float>(vp.size.x);
+    const float vpH = static_cast<float>(vp.size.y);
+    const float dpr = getOpenGL().getDevicePixelRatio();
+
+    auto toNdc = [vpW, vpH](float sx, float sy) -> glm::vec3 {
+        float nx = (sx / vpW) * 2.f - 1.f;
+        float ny = 1.f - (sy / vpH) * 2.f;
+        return glm::vec3(nx, ny, 0.f);
+    };
+
+    std::vector<ColorVert> cardQuads;
+    std::vector<ColorVert> tetherLines;
+    std::vector<GLText> glTexts;
+
+    for (const ExitDirEnum dir : ALL_EXITS7) {
+        const RawExit &exit = currentRoom.getExit(dir);
+        for (const RoomId targetId : exit.getOutgoingSet()) {
+            auto targetRoom = m_data.getRoomHandle(targetId);
+            if (!targetRoom.exists()) {
+                continue;
+            }
+
+            bool isVertical = (dir == ExitDirEnum::UP || dir == ExitDirEnum::DOWN);
+            bool isSubArea = (targetRoom.isSubAreaChild() || targetRoom.isSubAreaParent()
+                              || currentRoom.isSubAreaChild());
+            bool isDistant = (targetRoom.getPosition().z != currentRoom.getPosition().z);
+
+            if (!isVertical && !isSubArea && !isDistant) {
+                continue;
+            }
+
+            QString targetName = targetRoom.getName().toQString();
+            if (targetName.isEmpty()) {
+                targetName = "Unknown Room";
+            }
+
+            QString dirStr;
+            float cardX = 0.f;
+            float cardY = 0.f;
+            float cardW = 200.f * dpr;
+            float cardH = 30.f * dpr;
+
+            switch (dir) {
+            case ExitDirEnum::NORTH:
+                dirStr = "NORTH";
+                cardX = (vpW - cardW) / 2.f;
+                cardY = 30.f * dpr;
+                break;
+            case ExitDirEnum::SOUTH:
+                dirStr = "SOUTH";
+                cardX = (vpW - cardW) / 2.f;
+                cardY = vpH - 50.f * dpr;
+                break;
+            case ExitDirEnum::WEST:
+                dirStr = "WEST";
+                cardX = 20.f * dpr;
+                cardY = (vpH - cardH) / 2.f;
+                break;
+            case ExitDirEnum::EAST:
+                dirStr = "EAST";
+                cardX = vpW - cardW - 20.f * dpr;
+                cardY = (vpH - cardH) / 2.f;
+                break;
+            case ExitDirEnum::UP:
+                dirStr = "UP";
+                cardX = vpW - cardW - 20.f * dpr;
+                cardY = 60.f * dpr;
+                break;
+            case ExitDirEnum::DOWN:
+                dirStr = "DOWN";
+                cardX = 20.f * dpr;
+                cardY = vpH - cardH - 50.f * dpr;
+                break;
+            default:
+                dirStr = "EXIT";
+                cardX = (vpW - cardW) / 2.f;
+                cardY = 30.f * dpr;
+                break;
+            }
+
+            // Draw card background quad
+            Color cardBg(20, 28, 45, 220);
+            glm::vec3 c00 = toNdc(cardX, cardY);
+            glm::vec3 c10 = toNdc(cardX + cardW, cardY);
+            glm::vec3 c11 = toNdc(cardX + cardW, cardY + cardH);
+            glm::vec3 c01 = toNdc(cardX, cardY + cardH);
+
+            cardQuads.emplace_back(cardBg, c00);
+            cardQuads.emplace_back(cardBg, c10);
+            cardQuads.emplace_back(cardBg, c11);
+            cardQuads.emplace_back(cardBg, c01);
+
+            // Calculate exit room screen pos for tether line
+            auto optRoomScr = project(currentRoom.getPosition().to_vec3());
+            if (optRoomScr) {
+                glm::vec3 rScr = *optRoomScr;
+                Color tetherColor(100, 180, 255, 180);
+                tetherLines.emplace_back(tetherColor, toNdc(rScr.x * dpr, rScr.y * dpr));
+                tetherLines.emplace_back(tetherColor,
+                                         toNdc(cardX + cardW / 2.f, cardY + cardH / 2.f));
+            }
+
+            QString labelText;
+            if (isSubArea) {
+                QString areaName = targetRoom.isSubAreaParent()
+                                       ? targetRoom.getSubAreaName().toQString()
+                                       : targetRoom.getArea().toQString();
+                labelText = QString("[%1] SubArea: %2")
+                                .arg(dirStr, areaName.isEmpty() ? targetName : areaName);
+            } else if (isVertical) {
+                labelText = QString("[%1] %2").arg(dirStr, targetName);
+            } else {
+                labelText = QString("[%1 - Distant] %2").arg(dirStr, targetName);
+            }
+
+            glTexts.emplace_back(glm::vec3(cardX + 8.f * dpr, cardY + 20.f * dpr, 0.f),
+                                 mmqt::toStdStringUtf8(labelText),
+                                 Colors::yellow,
+                                 std::nullopt);
+        }
+    }
+
+    if (!cardQuads.empty() || !tetherLines.empty()) {
+        auto oldProj = getOpenGL().getProjectionMatrix();
+        getOpenGL().setProjectionMatrix(glm::mat4(1.f));
+
+        if (!tetherLines.empty()) {
+            getOpenGL().renderColoredLines(tetherLines,
+                                           GLRenderState()
+                                               .withBlend(BlendModeEnum::TRANSPARENCY)
+                                               .withDepthFunction(std::nullopt)
+                                               .withLineParams(LineParams{2.f * dpr}));
+        }
+
+        if (!cardQuads.empty()) {
+            getOpenGL().renderColoredQuads(cardQuads,
+                                           GLRenderState()
+                                               .withBlend(BlendModeEnum::TRANSPARENCY)
+                                               .withDepthFunction(std::nullopt));
+        }
+
+        getOpenGL().setProjectionMatrix(oldProj);
+    }
+
+    if (!glTexts.empty()) {
+        getGLFont().render2dTextImmediate(glTexts);
+    }
+}
+
+void MapCanvas::paintMiniMap()
+{
+    if (!getConfig().canvas.showMiniMap.get()) {
+        return;
+    }
+
+    const auto vp = getOpenGL().getPhysicalViewport();
+    const float vpW = static_cast<float>(vp.size.x);
+    const float vpH = static_cast<float>(vp.size.y);
+    const float dpr = getOpenGL().getDevicePixelRatio();
+
+    const float miniW = 180.f * dpr;
+    const float miniH = 180.f * dpr;
+    const float margin = 10.f * dpr;
+
+    const float posX = vpW - miniW - margin;
+    const float posY = margin;
+
+    auto optBounds = m_data.getCurrentMap().getBounds();
+    Bounds bounds = optBounds.value_or(Bounds{Coordinate{-50, -50, 0}, Coordinate{50, 50, 0}});
+
+    int minX = bounds.min.x;
+    int maxX = bounds.max.x;
+    int minY = bounds.min.y;
+    int maxY = bounds.max.y;
+
+    if (maxX <= minX) {
+        maxX = minX + 1;
+    }
+    if (maxY <= minY) {
+        maxY = minY + 1;
+    }
+
+    auto toNdc = [vpW, vpH](float sx, float sy) -> glm::vec3 {
+        float nx = (sx / vpW) * 2.f - 1.f;
+        float ny = 1.f - (sy / vpH) * 2.f;
+        return glm::vec3(nx, ny, 0.f);
+    };
+
+    auto mapXToScreen = [posX, miniW, minX, maxX, dpr](int x) -> float {
+        return posX + 8.f * dpr
+               + static_cast<float>(x - minX) / static_cast<float>(maxX - minX)
+                     * (miniW - 16.f * dpr);
+    };
+    auto mapYToScreen = [posY, miniH, minY, maxY, dpr](int y) -> float {
+        return posY + 8.f * dpr
+               + static_cast<float>(maxY - y) / static_cast<float>(maxY - minY)
+                     * (miniH - 16.f * dpr);
+    };
+
+    std::vector<ColorVert> bgQuads;
+    Color bgColor(15, 20, 30, 210);
+
+    // Mini-map background box quad
+    glm::vec3 p00 = toNdc(posX, posY);
+    glm::vec3 p10 = toNdc(posX + miniW, posY);
+    glm::vec3 p11 = toNdc(posX + miniW, posY + miniH);
+    glm::vec3 p01 = toNdc(posX, posY + miniH);
+
+    bgQuads.emplace_back(bgColor, p00);
+    bgQuads.emplace_back(bgColor, p10);
+    bgQuads.emplace_back(bgColor, p11);
+    bgQuads.emplace_back(bgColor, p01);
+
+    const Map &map = m_data.getCurrentMap();
+    const auto &roomSet = map.getRooms();
+
+    // Render terrain colored room nodes
+    roomSet.for_each([&](RoomId id) {
+        if (auto room = map.getRoomHandle(id)) {
+            Coordinate pos = room.getPosition();
+            float rx = mapXToScreen(pos.x);
+            float ry = mapYToScreen(pos.y);
+
+            Color terrainColor(180, 180, 180, 255);
+            switch (room.getTerrainType()) {
+            case RoomTerrainEnum::CITY:
+            case RoomTerrainEnum::INDOORS:
+                terrainColor = Color(230, 230, 230, 255);
+                break;
+            case RoomTerrainEnum::FIELD:
+            case RoomTerrainEnum::FOREST:
+            case RoomTerrainEnum::HILLS:
+            case RoomTerrainEnum::BRUSH:
+                terrainColor = Color(60, 190, 80, 255);
+                break;
+            case RoomTerrainEnum::MOUNTAINS:
+                terrainColor = Color(150, 150, 160, 255);
+                break;
+            case RoomTerrainEnum::ROAD:
+                terrainColor = Color(220, 170, 80, 255);
+                break;
+            case RoomTerrainEnum::WATER:
+            case RoomTerrainEnum::RAPIDS:
+            case RoomTerrainEnum::SHALLOW:
+            case RoomTerrainEnum::UNDERWATER:
+                terrainColor = Color(50, 130, 240, 255);
+                break;
+            default:
+                break;
+            }
+
+            float size = 1.5f * dpr;
+            glm::vec3 r00 = toNdc(rx - size, ry - size);
+            glm::vec3 r10 = toNdc(rx + size, ry - size);
+            glm::vec3 r11 = toNdc(rx + size, ry + size);
+            glm::vec3 r01 = toNdc(rx - size, ry + size);
+
+            bgQuads.emplace_back(terrainColor, r00);
+            bgQuads.emplace_back(terrainColor, r10);
+            bgQuads.emplace_back(terrainColor, r11);
+            bgQuads.emplace_back(terrainColor, r01);
+        }
+    });
+
+    // Render player marker
+    if (auto playerRoom = m_data.getCurrentRoom()) {
+        Coordinate ppos = playerRoom.getPosition();
+        float px = mapXToScreen(ppos.x);
+        float py = mapYToScreen(ppos.y);
+
+        Color playerColor(255, 40, 40, 255);
+        float psize = 3.5f * dpr;
+        glm::vec3 m00 = toNdc(px - psize, py - psize);
+        glm::vec3 m10 = toNdc(px + psize, py - psize);
+        glm::vec3 m11 = toNdc(px + psize, py + psize);
+        glm::vec3 m01 = toNdc(px - psize, py + psize);
+
+        bgQuads.emplace_back(playerColor, m00);
+        bgQuads.emplace_back(playerColor, m10);
+        bgQuads.emplace_back(playerColor, m11);
+        bgQuads.emplace_back(playerColor, m01);
+    }
+
+    auto oldProj = getOpenGL().getProjectionMatrix();
+    getOpenGL().setProjectionMatrix(glm::mat4(1.f));
+    getOpenGL().renderColoredQuads(bgQuads,
+                                   GLRenderState()
+                                       .withBlend(BlendModeEnum::TRANSPARENCY)
+                                       .withDepthFunction(std::nullopt));
+    getOpenGL().setProjectionMatrix(oldProj);
+
+    std::vector<GLText> miniTexts;
+    miniTexts.emplace_back(glm::vec3(posX + 6.f * dpr, posY + 16.f * dpr, 0.f),
+                           "MINI MAP",
+                           Colors::cyan,
+                           std::nullopt);
+    getGLFont().render2dTextImmediate(miniTexts);
 }
 
 void MapCanvas::paintMap()

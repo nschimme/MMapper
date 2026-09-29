@@ -79,7 +79,7 @@ SubAreaInfo SubAreaDetector::detectSubAreas(const Map &map)
         }
     }
 
-    // Tarjan's SCC algorithm to locate components
+    // Iterative Tarjan's SCC algorithm to prevent stack overflow
     std::unordered_map<RoomId, int> dfn;
     std::unordered_map<RoomId, int> low;
     std::unordered_set<RoomId> onStack;
@@ -87,41 +87,60 @@ SubAreaInfo SubAreaDetector::detectSubAreas(const Map &map)
     int timer = 0;
     std::vector<std::vector<RoomId>> sccs;
 
-    auto tarjan = [&](auto &self, const RoomId u) -> void {
-        dfn[u] = low[u] = ++timer;
-        st.push(u);
-        onStack.insert(u);
+    struct Frame
+    {
+        RoomId u;
+        size_t neighborIdx;
+    };
 
-        auto it = adj.find(u);
-        if (it != adj.end()) {
-            for (const RoomId v : it->second) {
+    for (const RoomId root : allRooms) {
+        if (dfn.contains(root)) {
+            continue;
+        }
+
+        std::stack<Frame> callStack;
+        callStack.push({root, 0});
+
+        dfn[root] = low[root] = ++timer;
+        st.push(root);
+        onStack.insert(root);
+
+        while (!callStack.empty()) {
+            Frame &top = callStack.top();
+            RoomId u = top.u;
+            auto itAdj = adj.find(u);
+
+            if (itAdj != adj.end() && top.neighborIdx < itAdj->second.size()) {
+                RoomId v = itAdj->second[top.neighborIdx++];
                 if (!dfn.contains(v)) {
-                    self(self, v);
-                    low[u] = std::min(low[u], low[v]);
+                    dfn[v] = low[v] = ++timer;
+                    st.push(v);
+                    onStack.insert(v);
+                    callStack.push({v, 0});
                 } else if (onStack.contains(v)) {
                     low[u] = std::min(low[u], dfn[v]);
                 }
-            }
-        }
+            } else {
+                callStack.pop();
+                if (!callStack.empty()) {
+                    RoomId parent = callStack.top().u;
+                    low[parent] = std::min(low[parent], low[u]);
+                }
 
-        if (low[u] == dfn[u]) {
-            std::vector<RoomId> scc;
-            while (true) {
-                const RoomId node = st.top();
-                st.pop();
-                onStack.erase(node);
-                scc.push_back(node);
-                if (node == u) {
-                    break;
+                if (low[u] == dfn[u]) {
+                    std::vector<RoomId> scc;
+                    while (true) {
+                        const RoomId node = st.top();
+                        st.pop();
+                        onStack.erase(node);
+                        scc.push_back(node);
+                        if (node == u) {
+                            break;
+                        }
+                    }
+                    sccs.push_back(std::move(scc));
                 }
             }
-            sccs.push_back(std::move(scc));
-        }
-    };
-
-    for (const RoomId v : allRooms) {
-        if (!dfn.contains(v)) {
-            tarjan(tarjan, v);
         }
     }
 

@@ -27,8 +27,8 @@ class QFrame;
 class QKeyEvent;
 class QLabel;
 class QMenu;
-class QMenuBar;
 class QObject;
+class QToolButton;
 class QPlainTextEdit;
 class QStatusBar;
 class QVBoxLayout;
@@ -144,7 +144,7 @@ class NODISCARD_QOBJECT RemoteEditWidget : public QWidget
     Q_OBJECT
 
 private:
-    QMenuBar *m_menuBar = nullptr;
+    QToolButton *m_hamburgerButton = nullptr;
     QStatusBar *m_statusBar = nullptr;
     QFrame *m_banner = nullptr;
     QLabel *m_bannerLabel = nullptr;

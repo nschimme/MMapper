@@ -12,6 +12,7 @@
 #include <QSignalSpy>
 #include <QTextCursor>
 #include <QTextDocument>
+#include <QToolButton>
 #include <QtTest/QtTest>
 
 TestClient::TestClient()
@@ -395,6 +396,10 @@ void TestClient::remoteEditWidgetButtonsAndShortcuts()
 
     QVERIFY(submitBtn != nullptr);
     QVERIFY(cancelBtn != nullptr);
+
+    auto *hamburgerBtn = editWidget.findChild<QToolButton *>();
+    QVERIFY(hamburgerBtn != nullptr);
+    QVERIFY(hamburgerBtn->menu() != nullptr);
 
     // Test Submit button click
     submitBtn->click();

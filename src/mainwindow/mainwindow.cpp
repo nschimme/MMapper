@@ -662,18 +662,6 @@ void MainWindow::wireConnections()
             &FindRoomsDlg::sig_editSelection,
             this,
             &MainWindow::slot_onEditRoomSelection);
-
-    deref(m_gameObserver).sig2_sentToUserGmcp.connect(m_lifetime, [this](const GmcpMessage &msg) {
-        m_remoteEdit->slot_parseGmcpInput(msg);
-    });
-
-    deref(m_gameObserver).sig2_disconnected.connect(m_lifetime, [this]() {
-        m_remoteEdit->onDisconnected();
-    });
-
-    deref(m_gameObserver).sig2_connected.connect(m_lifetime, [this]() {
-        m_remoteEdit->announcePendingDrafts();
-    });
 }
 
 RemoteEditApi &MainWindow::virt_getRemoteEditApi() const

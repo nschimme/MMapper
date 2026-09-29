@@ -41,6 +41,7 @@ private:
     std::map<RemoteInternalId, std::unique_ptr<RemoteEditSession>> m_sessions;
     uint32_t m_greatestUsedId = 0;
     std::unique_ptr<RemoteEditApi> m_remoteEditApi;
+    Signal2Lifetime m_lifetime;
 
 public:
     explicit RemoteEdit(GameObserver &observer, QObject *parent);
@@ -126,4 +127,3 @@ public slots:
     void slot_remoteView(const QString &, const QString &);
     void slot_remoteEdit(const RemoteSessionId, const QString &, const QString &);
 };
-

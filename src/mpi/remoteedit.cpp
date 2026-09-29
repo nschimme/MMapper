@@ -83,7 +83,15 @@ RemoteEdit::RemoteEdit(GameObserver &observer, QObject *const parent)
     , m_gameObserver(observer)
     , m_store(makeDraftStore())
     , m_remoteEditApi(std::make_unique<RemoteEditApi>(*this))
-{}
+{
+    m_gameObserver.sig2_sentToUserGmcp.connect(m_lifetime, [this](const GmcpMessage &msg) {
+        slot_parseGmcpInput(msg);
+    });
+
+    m_gameObserver.sig2_disconnected.connect(m_lifetime, [this]() { onDisconnected(); });
+
+    m_gameObserver.sig2_connected.connect(m_lifetime, [this]() { announcePendingDrafts(); });
+}
 
 RemoteEdit::~RemoteEdit() = default;
 
@@ -556,4 +564,3 @@ void RemoteEdit::deleteDraft(const QString &key)
     deref(m_store).remove(key);
     emit sig_draftsChanged();
 }
-

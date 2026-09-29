@@ -55,6 +55,7 @@ struct NODISCARD VisitRoomOptions final
     SharedCanvasNamedColorOptions canvasColors;
     SharedNamedColorOptions colorSettings;
     bool drawNotMappedExits = false;
+    bool enableMazeVisuals = true;
 };
 
 enum class NODISCARD StreamTypeEnum { OutFlow, InFlow };
@@ -73,6 +74,7 @@ NODISCARD static VisitRoomOptions getVisitRoomOptions()
     result.canvasColors = canvas.clone();
     result.colorSettings = config.colorSettings.clone();
     result.drawNotMappedExits = canvas.showUnmappedExits.get();
+    result.enableMazeVisuals = canvas.enableMazeVisuals.get();
     return result;
 }
 
@@ -913,7 +915,7 @@ static void generateAllLayerMeshes(InternalData &internalData,
     auto &connectionDrawerBuffers = internalData.connectionDrawerBuffers;
     auto &roomNameBatches = internalData.roomNameBatches;
 
-    const bool enableMazeVisuals = getConfig().canvas.enableMazeVisuals.get();
+    const bool enableMazeVisuals = visitRoomOptions.enableMazeVisuals;
     const SubAreaInfo mazeInfo = enableMazeVisuals ? SubAreaDetector::detectSubAreas(map)
                                                    : SubAreaInfo{};
 

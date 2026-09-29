@@ -78,8 +78,9 @@ NODISCARD std::unique_ptr<RemoteEditDraftStore> makeDraftStore()
 
 } // namespace
 
-RemoteEdit::RemoteEdit(QObject *const parent)
+RemoteEdit::RemoteEdit(GameObserver &observer, QObject *const parent)
     : QObject(parent)
+    , m_gameObserver(observer)
     , m_store(makeDraftStore())
 {}
 
@@ -223,7 +224,7 @@ void RemoteEdit::cancelEdit(RemoteEditSession *const pSession)
         doc.setObject(obj);
         GmcpJson json{QString::fromUtf8(doc.toJson(QJsonDocument::Compact))};
         GmcpMessage msg{GmcpMessageTypeEnum::MUME_CLIENT_CANCEL_EDIT, json};
-        emit sig_sendGmcp(msg);
+        m_gameObserver.sig2_sendGmcpToMud.invoke(msg);
         deleteDraft(session.getDraftKey());
     } else {
         session.flushDraft();
@@ -291,7 +292,7 @@ void RemoteEdit::sendToMume(const RemoteEditSession &session)
     GmcpJson json{QString::fromUtf8(doc.toJson(QJsonDocument::Compact))};
     GmcpMessage msg{GmcpMessageTypeEnum::MUME_CLIENT_WRITE, json};
 
-    emit sig_sendGmcp(msg);
+    m_gameObserver.sig2_sendGmcpToMud.invoke(msg);
 
     // FR-4.4: Upon confirmed delivery success, delete local temporary file and unregister task.
     // Deletion is now handled in slot_parseGmcpInput for MUME_CLIENT_WRITE.

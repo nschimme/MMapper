@@ -142,13 +142,13 @@ MainWindow::MainWindow()
 
     m_prespammedPath = new PrespammedPath(this);
 
-    m_remoteEdit = new RemoteEdit(this);
-    remote_edit::setInstance(m_remoteEdit);
-
     m_groupManager = new Mmapper2Group(this);
     m_groupManager->setObjectName("GroupManager");
 
     m_gameObserver = std::make_unique<GameObserver>();
+
+    m_remoteEdit = new RemoteEdit(deref(m_gameObserver), this);
+    remote_edit::setInstance(m_remoteEdit);
 
     m_mapWindow = new MapWindow(deref(m_mapData),
                                 deref(m_gameObserver),
@@ -664,16 +664,6 @@ void MainWindow::wireConnections()
             &FindRoomsDlg::sig_editSelection,
             this,
             &MainWindow::slot_onEditRoomSelection);
-
-    connect(m_listener, &ConnectionListener::sig_proxyCreated, this, [this](QPointer<Proxy> proxy) {
-        if (!proxy)
-            return;
-
-        connect(m_remoteEdit, &RemoteEdit::sig_sendGmcp, proxy.data(), &Proxy::slot_sendGmcp);
-    });
-    if (auto *const proxy = m_listener->getProxy()) {
-        connect(m_remoteEdit, &RemoteEdit::sig_sendGmcp, proxy, &Proxy::slot_sendGmcp);
-    }
 
     deref(m_gameObserver).sig2_sentToUserGmcp.connect(m_lifetime, [this](const GmcpMessage &msg) {
         m_remoteEdit->slot_parseGmcpInput(msg);

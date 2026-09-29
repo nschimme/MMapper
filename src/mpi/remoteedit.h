@@ -5,6 +5,7 @@
 
 #include "../global/macros.h"
 #include "../global/utils.h"
+#include "../observer/gameobserver.h"
 #include "../proxy/GmcpMessage.h"
 #include "RemoteEditDraftStore.h"
 #include "remoteeditsession.h"
@@ -34,12 +35,13 @@ public:
     using DraftInfo = RemoteEditDraftInfo;
 
 private:
+    GameObserver &m_gameObserver;
     std::unique_ptr<RemoteEditDraftStore> m_store;
     std::map<RemoteInternalId, std::unique_ptr<RemoteEditSession>> m_sessions;
     uint32_t m_greatestUsedId = 0;
 
 public:
-    explicit RemoteEdit(QObject *parent);
+    explicit RemoteEdit(GameObserver &observer, QObject *parent);
     ~RemoteEdit() final;
 
 public:
@@ -111,7 +113,6 @@ private:
     void trySaveLocally(const RemoteEditSession &session);
 
 signals:
-    void sig_sendGmcp(const GmcpMessage &msg);
     /// Emitted whenever a session is added or removed.
     void sig_sessionsChanged();
     /// Emitted whenever a draft file is created or deleted.

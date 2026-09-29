@@ -183,7 +183,9 @@ Proxy::Proxy(Badge<Proxy>,
     , m_host{::getProxyHost(listener)}
     , m_userSocket{std::move(userSocket)}
 {
-    //
+    m_gameObserver.sig2_sendGmcpToMud.connect(m_lifetime, [this](const GmcpMessage &msg) {
+        slot_sendGmcp(msg);
+    });
 }
 
 Proxy::~Proxy()

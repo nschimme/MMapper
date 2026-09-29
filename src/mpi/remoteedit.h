@@ -7,6 +7,7 @@
 #include "../global/utils.h"
 #include "../observer/gameobserver.h"
 #include "../proxy/GmcpMessage.h"
+#include "RemoteEditApi.h"
 #include "RemoteEditDraftStore.h"
 #include "remoteeditsession.h"
 
@@ -39,10 +40,13 @@ private:
     std::unique_ptr<RemoteEditDraftStore> m_store;
     std::map<RemoteInternalId, std::unique_ptr<RemoteEditSession>> m_sessions;
     uint32_t m_greatestUsedId = 0;
+    std::unique_ptr<RemoteEditApi> m_remoteEditApi;
 
 public:
     explicit RemoteEdit(GameObserver &observer, QObject *parent);
     ~RemoteEdit() final;
+
+    NODISCARD RemoteEditApi &getRemoteEditApi() { return deref(m_remoteEditApi); }
 
 public:
     void onDisconnected();
@@ -123,16 +127,3 @@ public slots:
     void slot_remoteEdit(const RemoteSessionId, const QString &, const QString &);
 };
 
-/// Non-owning access to the single MainWindow-owned RemoteEdit instance, for
-/// callers (like the `_edits` in-game command in AbstractParser) that have
-/// no direct reference to it. Mirrors the async_tasks:: free-function
-/// registry pattern (see AsyncTasks.h) used for the same reason.
-namespace remote_edit {
-void setInstance(RemoteEdit *instance);
-extern void report_status(AnsiOstream &aos);
-NODISCARD extern bool report_status(AnsiOstream &aos, uint32_t id);
-NODISCARD extern bool cancel(uint32_t id);
-NODISCARD extern bool discard(uint32_t id);
-/// Testing aid: behaves exactly as if MUME had sent MUME.Client.Edit.
-extern void simulate_edit(const QString &title);
-} // namespace remote_edit

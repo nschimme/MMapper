@@ -23,6 +23,7 @@
 #include "../map/mmapper2room.h"
 #include "../map/parseevent.h"
 #include "../mapdata/roomselection.h"
+#include "../mpi/RemoteEditApi.h"
 #include "../proxy/ProxyParserApi.h"
 #include "../proxy/telnetfilter.h"
 #include "../timers/CTimers.h"
@@ -357,6 +358,7 @@ private:
 private:
     QTimer m_offlineCommandTimer;
     GameObserver &m_gameObserver;
+    RemoteEditApi &m_remoteEditApi;
 
 public:
     explicit AbstractParser(MapData &,
@@ -365,6 +367,7 @@ public:
                             ProxyUserGmcpApi &,
                             GroupManagerApi &,
                             HotkeyManager &,
+                            RemoteEditApi &,
                             QObject *parent,
                             AbstractParserOutputs &outputs,
                             ParserCommonData &commonData,

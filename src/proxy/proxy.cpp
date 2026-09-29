@@ -722,6 +722,7 @@ void Proxy::allocParser()
                                                             deref(gmcp),
                                                             m_groupManager.getGroupManagerApi(),
                                                             m_host.getHotkeyManager(),
+                                                            m_host.getRemoteEditApi(),
                                                             this,
                                                             deref(out),
                                                             deref(parserCommon),

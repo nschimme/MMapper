@@ -113,7 +113,6 @@ static void addApplicationFont()
 MainWindow::~MainWindow()
 {
     g_mainWindow = nullptr;
-    remote_edit::setInstance(nullptr);
     mmqt::rdisconnect(this);
     async_tasks::cleanup();
     delete m_listener;
@@ -148,7 +147,6 @@ MainWindow::MainWindow()
     m_gameObserver = std::make_unique<GameObserver>();
 
     m_remoteEdit = new RemoteEdit(deref(m_gameObserver), this);
-    remote_edit::setInstance(m_remoteEdit);
 
     m_mapWindow = new MapWindow(deref(m_mapData),
                                 deref(m_gameObserver),
@@ -676,6 +674,11 @@ void MainWindow::wireConnections()
     deref(m_gameObserver).sig2_connected.connect(m_lifetime, [this]() {
         m_remoteEdit->announcePendingDrafts();
     });
+}
+
+RemoteEditApi &MainWindow::virt_getRemoteEditApi() const
+{
+    return getRemoteEdit().getRemoteEditApi();
 }
 
 void MainWindow::slot_log(const QString &mod, const QString &message)

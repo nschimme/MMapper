@@ -82,6 +82,7 @@ RemoteEdit::RemoteEdit(GameObserver &observer, QObject *const parent)
     : QObject(parent)
     , m_gameObserver(observer)
     , m_store(makeDraftStore())
+    , m_remoteEditApi(std::make_unique<RemoteEditApi>(*this))
 {}
 
 RemoteEdit::~RemoteEdit() = default;
@@ -556,85 +557,3 @@ void RemoteEdit::deleteDraft(const QString &key)
     emit sig_draftsChanged();
 }
 
-namespace remote_edit {
-
-namespace {
-RemoteEdit *g_instance = nullptr;
-} // namespace
-
-void setInstance(RemoteEdit *const instance)
-{
-    g_instance = instance;
-}
-
-void report_status(AnsiOstream &aos)
-{
-    if (g_instance == nullptr) {
-        aos.write("Error: RemoteEdit is not available.\n");
-        return;
-    }
-    g_instance->reportStatus(aos);
-}
-
-bool report_status(AnsiOstream &aos, const uint32_t id)
-{
-    if (g_instance == nullptr) {
-        aos.write("Error: RemoteEdit is not available.\n");
-        return false;
-    }
-    if (!g_instance->reportStatus(aos, RemoteInternalId{id})) {
-        aos.write("Error: Invalid remote edit id.\n");
-        return false;
-    }
-    return true;
-}
-
-bool cancel(const uint32_t id)
-{
-    if (g_instance == nullptr) {
-        return false;
-    }
-    const auto &sessions = g_instance->getSessions();
-    const auto it = sessions.find(RemoteInternalId{id});
-    if (it == sessions.end()) {
-        return false;
-    }
-    g_instance->cancelEdit(it->second.get());
-    return true;
-}
-
-bool discard(const uint32_t id)
-{
-    if (g_instance == nullptr) {
-        return false;
-    }
-    const auto &sessions = g_instance->getSessions();
-    const auto it = sessions.find(RemoteInternalId{id});
-    if (it == sessions.end()) {
-        return false;
-    }
-    // A live edit has no draft-only state to discard; route it through cancelEdit()
-    // (which also sends the GMCP cancel and deletes the draft) instead.
-    if (it->second->isDraftView()) {
-        g_instance->discardDraft(it->second.get());
-    } else {
-        g_instance->cancelEdit(it->second.get());
-    }
-    return true;
-}
-
-void simulate_edit(const QString &title)
-{
-    if (g_instance == nullptr) {
-        return;
-    }
-    // Large ids keep the fake session clear of anything MUME hands out.
-    static int32_t nextFakeId = 1000000;
-    g_instance->slot_remoteEdit(RemoteSessionId{nextFakeId++},
-                                title,
-                                QString(
-                                    "Simulated edit \"%1\".\nType here; nothing is sent to MUME.\n")
-                                    .arg(title));
-}
-
-} // namespace remote_edit

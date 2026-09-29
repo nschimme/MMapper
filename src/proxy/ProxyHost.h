@@ -9,6 +9,7 @@
 #include <QString>
 
 class HotkeyManager;
+class RemoteEditApi;
 
 // The callbacks Proxy/ConnectionListener need from their owning host, so
 // they don't depend on the concrete type MainWindow. The host implements
@@ -34,6 +35,9 @@ public:
     // The parser needs this to expand user-defined hotkey aliases.
     NODISCARD HotkeyManager &getHotkeyManager() const { return virt_getHotkeyManager(); }
 
+    // The parser needs this to execute in-game slash commands on remote edits (_edits).
+    NODISCARD RemoteEditApi &getRemoteEditApi() const { return virt_getRemoteEditApi(); }
+
     // RemoteEdit needs a QObject parent to outlive the Proxy that spawned it
     // (see Proxy::allocRemoteEdit()'s "Caution: RemoteEdit outlives the
     // proxy" comment); this exposes the host's own QObject identity for that
@@ -44,5 +48,6 @@ private:
     virtual void virt_log(const QString &mod, const QString &msg) = 0;
     virtual void virt_setMode(MapModeEnum mode) = 0;
     NODISCARD virtual HotkeyManager &virt_getHotkeyManager() const = 0;
+    NODISCARD virtual RemoteEditApi &virt_getRemoteEditApi() const = 0;
     NODISCARD virtual QObject &virt_asQObject() = 0;
 };

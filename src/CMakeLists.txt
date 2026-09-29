@@ -426,6 +426,8 @@ set(mmapper_SRCS
     mapstorage/mapstorage.h
     mpi/remoteedit.cpp
     mpi/remoteedit.h
+    mpi/RemoteEditApi.cpp
+    mpi/RemoteEditApi.h
     mpi/remoteeditsession.cpp
     mpi/remoteeditsession.h
     mpi/RemoteEditDraftStore.cpp

@@ -4,9 +4,9 @@
 #include "TestMap.h"
 
 #include "../src/global/HideQDebug.h"
+#include "../src/global/progresscounter.h"
 #include "../src/map/Diff.h"
 #include "../src/map/Map.h"
-#include "../src/global/progresscounter.h"
 #include "../src/map/TinyRoomIdSet.h"
 #include "../src/map/sanitizer.h"
 #include "../src/mapdata/SubAreaDetector.h"

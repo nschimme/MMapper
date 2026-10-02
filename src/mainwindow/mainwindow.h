@@ -165,7 +165,6 @@ private:
     // long-press on the map. A QAction can sit in several widgets at once,
     // so the menus stay in the menu bar as well.
     QMenu *m_appMenu = nullptr;
-    QMenu *mumeMenu = nullptr;
     QMenu *onlineTutorialsMenu = nullptr;
     // Compact layout for small windows; see setCompactLayout(). While
     // compact, the menu bar is hidden and the top-level menus above are
@@ -201,12 +200,8 @@ private:
 
     QAction *voteAct = nullptr;
     QAction *mmapperCheckForUpdateAct = nullptr;
-    QAction *mumeWebsiteAct = nullptr;
-    QAction *mumeForumAct = nullptr;
-    QAction *mumeWikiAct = nullptr;
     QAction *settingUpMmapperAct = nullptr;
     QAction *newcomerGuideAct = nullptr;
-    QAction *newbieAct = nullptr;
     QAction *actionReportIssue = nullptr;
     QAction *aboutAct = nullptr;
     QAction *aboutQtAct = nullptr;
@@ -466,10 +461,6 @@ public slots:
 
     void slot_onCheckForUpdate();
     void slot_voteForMUME();
-    void slot_openMumeWebsite();
-    void slot_openMumeForum();
-    void slot_openMumeWiki();
     void slot_openSettingUpMmapper();
-    void slot_openNewbieHelp();
     void onReportIssueTriggered();
 };

@@ -113,6 +113,8 @@ target_link_libraries(TestExpandoraCommon
         mm_global
         Qt6::Gui
         Qt6::Network
+        Qt6::OpenGL
+        Qt6::OpenGLWidgets
         Qt6::Test
         Qt6::Widgets
         coverage_config)
@@ -135,6 +137,8 @@ target_link_libraries(TestParser
         mm_global
         Qt6::Gui
         Qt6::Network
+        Qt6::OpenGL
+        Qt6::OpenGLWidgets
         Qt6::Test
         Qt6::Widgets
         coverage_config)
@@ -245,6 +249,8 @@ target_link_libraries(TestGroup
         mm_global
         Qt6::Gui
         Qt6::Network
+        Qt6::OpenGL
+        Qt6::OpenGLWidgets
         Qt6::Test
         Qt6::Widgets
         coverage_config)
@@ -269,6 +275,8 @@ target_link_libraries(TestMap
         mm_global
         Qt6::Gui
         Qt6::Network
+        Qt6::OpenGL
+        Qt6::OpenGLWidgets
         Qt6::Test
         Qt6::Widgets
         coverage_config)

@@ -174,6 +174,9 @@ public:
     XFOREACH_ROOM_PROPERTY(X_DECL_GETTER)
 #undef X_DECL_GETTER
 
+    NODISCARD RoomId getRoomSubAreaParentId(RoomId id) const;
+    NODISCARD const RoomArea &getRoomSubAreaName(RoomId id) const;
+
 public:
     void printStats(ProgressCounter &pc, AnsiOstream &aos) const;
     NODISCARD static WorldComparisonStats getComparisonStats(const World &base,

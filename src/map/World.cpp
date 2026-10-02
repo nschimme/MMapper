@@ -1650,6 +1650,14 @@ void World::apply(ProgressCounter & /*pc*/, const room_change_types::SetServerId
     setServerId(change.room, change.server_id);
 }
 
+void World::apply(ProgressCounter & /*pc*/, const room_change_types::SetSubArea &change)
+{
+    requireValidRoom(change.room);
+    m_rooms.setRoomSubAreaParentId(change.room, change.parent_id);
+    m_rooms.setRoomSubAreaName(change.room, change.sub_area_name);
+    m_rooms.setRoomSubAreaFlags(change.room, change.sub_area_flags);
+}
+
 void World::apply(ProgressCounter & /*pc*/, const room_change_types::MoveRelative &change)
 {
     //
@@ -2457,6 +2465,24 @@ bool World::isTemporary(const RoomId id) const
     }
 XFOREACH_ROOM_PROPERTY(X_DEFINE_GETTER)
 #undef X_DEFINE_GETTER
+
+RoomId World::getRoomSubAreaParentId(RoomId id) const
+{
+    requireValidRoom(id);
+    return m_rooms.getRoomSubAreaParentId(id);
+}
+
+const RoomArea &World::getRoomSubAreaName(RoomId id) const
+{
+    requireValidRoom(id);
+    return m_rooms.getRoomSubAreaName(id);
+}
+
+const SubAreaFlags &World::getRoomSubAreaFlags(RoomId id) const
+{
+    requireValidRoom(id);
+    return m_rooms.getRoomSubAreaFlags(id);
+}
 
 bool World::containsRoomsNotIn(const World &other) const
 {

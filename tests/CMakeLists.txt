@@ -260,6 +260,8 @@ add_test(NAME TestGroup COMMAND TestGroup)
 # Map
 set(TestMap_SRCS
         TestMap.cpp
+        ../src/mapdata/SubAreaDetector.cpp
+        ../src/mapdata/SubAreaDetector.h
 )
 add_executable(TestMap ${TestMap_SRCS})
 add_dependencies(TestMap mm_test mm_global mm_map)

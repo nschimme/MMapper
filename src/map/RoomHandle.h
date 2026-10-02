@@ -43,6 +43,12 @@ public:
     XFOREACH_ROOM_PROPERTY(X_DECL_GETTER)
 #undef X_DECL_GETTER
 
+    NODISCARD RoomId getSubAreaParentId() const { return getRaw().getSubAreaParentId(); }
+    NODISCARD const RoomArea &getSubAreaName() const { return getRaw().getSubAreaName(); }
+    NODISCARD const SubAreaFlags &getSubAreaFlags() const { return getRaw().getSubAreaFlags(); }
+    NODISCARD bool isSubAreaParent() const { return getRaw().isSubAreaParent(); }
+    NODISCARD bool isSubAreaChild() const { return getRaw().isSubAreaChild(); }
+
 public:
     NODISCARD const RawRoom &getRaw() const;
     NODISCARD ExternalRawRoom getRawCopyExternal() const;

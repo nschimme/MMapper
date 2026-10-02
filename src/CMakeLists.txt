@@ -392,6 +392,8 @@ set(mmapper_SRCS
     map/utils.h
     mapdata/GenericFind.cpp
     mapdata/GenericFind.h
+    mapdata/MazeDetector.cpp
+    mapdata/MazeDetector.h
     mapdata/MarkerList.cpp
     mapdata/MarkerList.h
     mapdata/mapdata.cpp
@@ -770,9 +772,9 @@ set(mmapper_DATA
 
 set(mmapper_map_SRCS ${mmapper_SRCS})
 set(mmapper_global_SRCS ${mmapper_SRCS})
-list(FILTER mmapper_map_SRCS INCLUDE REGEX "map/")
+list(FILTER mmapper_map_SRCS INCLUDE REGEX "map/|mapdata/")
 list(FILTER mmapper_global_SRCS INCLUDE REGEX "global/")
-list(FILTER mmapper_SRCS EXCLUDE REGEX "map/")
+list(FILTER mmapper_SRCS EXCLUDE REGEX "map/|mapdata/")
 list(FILTER mmapper_SRCS EXCLUDE REGEX "global/")
 
 message("mmapper_SRCS=[${mmapper_SRCS}]")
@@ -877,6 +879,8 @@ target_link_libraries(mm_global PUBLIC
 )
 target_link_libraries(mm_map PUBLIC
     Qt6::Core
+    Qt6::Gui
+    Qt6::OpenGL
     Qt6::Widgets
     coverage_config
 )

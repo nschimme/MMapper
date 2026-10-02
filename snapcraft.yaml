@@ -64,7 +64,10 @@ parts:
     source: .
     source-type: local
     cmake-generator: Ninja
+    build-environment:
+      - CMAKE_PREFIX_PATH: /snap/kde-qt6-core24-sdk/current/usr:/snap/kf6-core24-sdk/current/usr:${CMAKE_PREFIX_PATH}
     cmake-parameters:
+      - -DCMAKE_PREFIX_PATH=/snap/kde-qt6-core24-sdk/current/usr:/snap/kf6-core24-sdk/current/usr
       - -DPACKAGE_TYPE=Snap
       - -DCMAKE_INSTALL_PREFIX=/usr
       - -DCMAKE_BUILD_TYPE=Release

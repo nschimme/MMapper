@@ -5,6 +5,7 @@
 // Author: Marek Krejza <krejza@gmail.com> (Caligor)
 // Author: Nils Schimmelmann <nschimme@gmail.com> (Jahara)
 
+#include "../client/HotkeyManager.h"
 #include "../clock/mumemoment.h"
 #include "../global/ChangeMonitor.h"
 #include "../global/Signal2.h"
@@ -15,7 +16,6 @@
 #include "../opengl/OpenGL.h"
 #include "../opengl/Weather.h"
 #include "FrameManager.h"
-#include "../client/HotkeyManager.h"
 #include "GlInputPrompt.h"
 #include "GlTerminalBuffer.h"
 #include "Infomarks.h"

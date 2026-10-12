@@ -3,7 +3,6 @@
 
 #include "../configuration/NamedConfig.h"
 #include "../configuration/configuration.h"
-#include <QApplication>
 #include "../global/Array.h"
 #include "../global/CaseUtils.h"
 #include "../global/ChangeMonitor.h"
@@ -53,6 +52,8 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
+
+#include <QApplication>
 
 #ifdef Q_OS_WASM
 #include <emscripten/heap.h>
@@ -1219,7 +1220,9 @@ void MapCanvas::paintMudClientConsole()
     // Ensure GL viewport spans the full host window for 2D overlay text rendering
     getOpenGL().glViewport(0, 0, hostW, hostH);
 
-    const int consoleWidth = std::max(100, static_cast<int>(static_cast<float>(hostW) * m_terminalSplitRatio));
+    const int consoleWidth = std::max(100,
+                                      static_cast<int>(static_cast<float>(hostW)
+                                                       * m_terminalSplitRatio));
     const int consoleHeight = hostH;
 
     const int fontHeight = std::max(12, getGLFont().getFontHeight());
@@ -1261,7 +1264,8 @@ void MapCanvas::paintMudClientConsole()
             if (!currentRun.isEmpty()) {
                 const int xPos = runStartCol * charWidth + 4;
                 const glm::vec3 pos{static_cast<float>(xPos), static_cast<float>(y), 0.f};
-                batchText.emplace_back(GLText{pos, mmqt::toStdStringUtf8(currentRun), currentFg, currentBg});
+                batchText.emplace_back(
+                    GLText{pos, mmqt::toStdStringUtf8(currentRun), currentFg, currentBg});
                 currentRun.clear();
             }
         };

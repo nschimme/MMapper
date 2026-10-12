@@ -55,10 +55,7 @@ private:
     bool m_bellTriggered = false;
 
 public:
-    GlTerminalBuffer()
-    {
-        m_lines.emplace_back();
-    }
+    GlTerminalBuffer() { m_lines.emplace_back(); }
 
     void setMaxLines(int maxLines);
     NODISCARD int getMaxLines() const { return m_maxLines; }

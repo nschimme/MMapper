@@ -292,15 +292,15 @@ void TestClient::glInputPromptEditing()
     QCOMPARE(prompt.getText(), QString());
 
     QKeyEvent keyA(QEvent::KeyPress, Qt::Key_A, Qt::NoModifier, QStringLiteral("a"));
-    prompt.handleKeyPress(&keyA);
+    std::ignore = prompt.handleKeyPress(&keyA);
     QCOMPARE(prompt.getText(), QStringLiteral("a"));
 
     QKeyEvent keyB(QEvent::KeyPress, Qt::Key_B, Qt::NoModifier, QStringLiteral("b"));
-    prompt.handleKeyPress(&keyB);
+    std::ignore = prompt.handleKeyPress(&keyB);
     QCOMPARE(prompt.getText(), QStringLiteral("ab"));
 
     QKeyEvent keyBk(QEvent::KeyPress, Qt::Key_Backspace, Qt::NoModifier);
-    prompt.handleKeyPress(&keyBk);
+    std::ignore = prompt.handleKeyPress(&keyBk);
     QCOMPARE(prompt.getText(), QStringLiteral("a"));
 
     // Enter to submit
@@ -312,7 +312,7 @@ void TestClient::glInputPromptEditing()
 
     // Password masking
     prompt.setEchoMode(EchoModeEnum::Hidden);
-    prompt.handleKeyPress(&keyA);
+    std::ignore = prompt.handleKeyPress(&keyA);
     QCOMPARE(prompt.getDisplayText(), QStringLiteral("*"));
 }
 

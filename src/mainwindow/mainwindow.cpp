@@ -42,14 +42,11 @@ private:
 
     void virt_echoModeChanged(const bool echo) final
     {
-        m_mainWin.getCanvas()->getCore().getInputPrompt().setEchoMode(
-            echo ? EchoModeEnum::Visible : EchoModeEnum::Hidden);
+        m_mainWin.getCanvas()->getCore().getInputPrompt().setEchoMode(echo ? EchoModeEnum::Visible
+                                                                           : EchoModeEnum::Hidden);
     }
 
-    void virt_sendToUser(const QString &str) final
-    {
-        m_mainWin.getCanvas()->slot_displayText(str);
-    }
+    void virt_sendToUser(const QString &str) final { m_mainWin.getCanvas()->slot_displayText(str); }
 };
 #include "../client/HotkeyManager.h"
 #include "../clock/mumeclock.h"
@@ -1076,7 +1073,8 @@ void MainWindow::createActions()
     connect(saveLogAct, &QAction::triggered, this, [this]() {
         const QString text = getCanvas()->getCore().getTerminalBuffer().getAllText();
         const QByteArray logContent = text.toUtf8();
-        QString newFileName = "log-" + QDateTime::currentDateTime().toString("yyyyMMdd-hhmmss") + ".txt";
+        QString newFileName = "log-" + QDateTime::currentDateTime().toString("yyyyMMdd-hhmmss")
+                              + ".txt";
         QFileDialog::saveFileContent(logContent, newFileName);
     });
     saveLogAct->setStatusTip(tr("Save the game log as a plain text file"));
@@ -1087,7 +1085,8 @@ void MainWindow::createActions()
     connect(saveLogAsHtmlAct, &QAction::triggered, this, [this]() {
         const QString text = getCanvas()->getCore().getTerminalBuffer().getAllText();
         const QByteArray logContent = text.toUtf8();
-        QString newFileNameHtml = "log-" + QDateTime::currentDateTime().toString("yyyyMMdd-hhmmss") + ".html";
+        QString newFileNameHtml = "log-" + QDateTime::currentDateTime().toString("yyyyMMdd-hhmmss")
+                                  + ".html";
         QFileDialog::saveFileContent(logContent, newFileNameHtml);
     });
     saveLogAsHtmlAct->setStatusTip(tr("Save the game log as an HTML file"));

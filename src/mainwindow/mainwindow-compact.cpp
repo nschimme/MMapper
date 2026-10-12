@@ -144,9 +144,7 @@ void MainWindow::slot_resetWindowLayout()
     }
 }
 
-void MainWindow::fitClientDockToTerminal()
-{
-}
+void MainWindow::fitClientDockToTerminal() {}
 
 QSize MainWindow::compactLayoutProbeSize() const
 {

@@ -220,7 +220,8 @@ void MapCanvas::handleWheel(QWheelEvent *const event)
 
     if (m_terminalOverlayEnabled) {
         const QPointF pos = event->position();
-        const int consoleW = static_cast<int>(static_cast<float>(currentHostSize().width()) * m_terminalSplitRatio);
+        const int consoleW = static_cast<int>(static_cast<float>(currentHostSize().width())
+                                              * m_terminalSplitRatio);
         if (pos.x() <= consoleW) {
             const int angleDelta = event->angleDelta().y();
             if (angleDelta != 0) {
@@ -585,7 +586,8 @@ void MapCanvas::handleMousePress(QMouseEvent *const event)
 {
     if (m_terminalOverlayEnabled) {
         const QPointF pos = event->position();
-        const int consoleW = static_cast<int>(static_cast<float>(currentHostSize().width()) * m_terminalSplitRatio);
+        const int consoleW = static_cast<int>(static_cast<float>(currentHostSize().width())
+                                              * m_terminalSplitRatio);
         if (pos.x() <= consoleW) {
             const int fontHeight = std::max(12, getGLFont().getFontHeight());
             const int charWidth = std::max(6, getGLFont().getGlyphAdvance(' ').value_or(10));
@@ -595,7 +597,9 @@ void MapCanvas::handleMousePress(QMouseEvent *const event)
             const size_t totalLines = m_terminalBuffer.getLineCount();
             const int scrollOffset = m_terminalBuffer.getScrollOffset();
             const int rows = m_terminalBuffer.getRows();
-            const int topVisibleLineIdx = std::max(0, static_cast<int>(totalLines) - rows - scrollOffset);
+            const int topVisibleLineIdx = std::max(0,
+                                                   static_cast<int>(totalLines) - rows
+                                                       - scrollOffset);
             const int lineIdx = topVisibleLineIdx + row;
 
             m_terminalSelectingText = true;
@@ -848,7 +852,8 @@ void MapCanvas::handleMouseMove(QMouseEvent *event)
         const size_t totalLines = m_terminalBuffer.getLineCount();
         const int scrollOffset = m_terminalBuffer.getScrollOffset();
         const int rows = m_terminalBuffer.getRows();
-        const int topVisibleLineIdx = std::max(0, static_cast<int>(totalLines) - rows - scrollOffset);
+        const int topVisibleLineIdx = std::max(0,
+                                               static_cast<int>(totalLines) - rows - scrollOffset);
         const int lineIdx = topVisibleLineIdx + row;
 
         m_terminalBuffer.updateSelection(col, lineIdx);

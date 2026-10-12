@@ -156,7 +156,10 @@ signals:
 public slots:
     void slot_displayText(const QStringView str) { m_core.slot_displayText(str); }
     void slot_displayText(const QString &str) { m_core.slot_displayText(str); }
-    void slot_setTerminalOverlayEnabled(bool enabled) { m_core.slot_setTerminalOverlayEnabled(enabled); }
+    void slot_setTerminalOverlayEnabled(bool enabled)
+    {
+        m_core.slot_setTerminalOverlayEnabled(enabled);
+    }
     void slot_onForcedPositionChange() { m_core.slot_onForcedPositionChange(); }
     void slot_createRoom() { m_core.slot_createRoom(); }
 

@@ -29,7 +29,8 @@ class AdventureWidget;
 class AnsiOstream;
 class AudioManager;
 class AutoLogger;
-class ClientWidget;
+class ClientTelnetOutputs;
+class ClientTelnet;
 class ConfigDialog;
 class ConnectionListener;
 class ConnectionSelection;
@@ -75,6 +76,7 @@ struct MapLoadData;
 class NODISCARD_QOBJECT MainWindow final : public QMainWindow, public ProxyHost
 {
     Q_OBJECT
+    friend class MainWindowTelnetOutputs;
 
 private:
     static inline MainWindow *g_mainWindow = nullptr;
@@ -85,7 +87,6 @@ private:
 
     QDockWidget *m_dockDialogRoom = nullptr;
     QDockWidget *m_dockDialogLog = nullptr;
-    QDockWidget *m_dockDialogClient = nullptr;
     QDockWidget *m_dockDialogGroup = nullptr;
     QDockWidget *m_dockDialogAdventure = nullptr;
     QDockWidget *m_dockDialogDescription = nullptr;
@@ -109,7 +110,8 @@ private:
     RoomWidget *m_roomWidget = nullptr;
     RoomManager *m_roomManager = nullptr;
 
-    ClientWidget *m_clientWidget = nullptr;
+    std::unique_ptr<ClientTelnetOutputs> m_clientTelnetOutputs;
+    std::unique_ptr<ClientTelnet> m_clientTelnet;
     UpdateDialog *m_updateDialog = nullptr;
 
     std::unique_ptr<ConfigDialog> m_configDialog;

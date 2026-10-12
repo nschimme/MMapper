@@ -217,6 +217,21 @@ NODISCARD static uint32_t operator&(const Qt::KeyboardModifiers left, const Qt::
 void MapCanvas::handleWheel(QWheelEvent *const event)
 {
     stopFlick();
+
+    if (m_terminalOverlayEnabled) {
+        const QPointF pos = event->position();
+        const int consoleW = static_cast<int>(static_cast<float>(currentHostSize().width()) * m_terminalSplitRatio);
+        if (pos.x() <= consoleW) {
+            const int angleDelta = event->angleDelta().y();
+            if (angleDelta != 0) {
+                const int steps = angleDelta / 120;
+                m_terminalBuffer.scroll(-(steps != 0 ? steps * 3 : (angleDelta > 0 ? 3 : -3)));
+                m_frameManager.requestUpdate();
+            }
+            event->accept();
+            return;
+        }
+    }
     const bool hasCtrl = (event->modifiers() & Qt::CTRL) != 0u;
 
     switch (m_canvasMouseMode) {
@@ -568,6 +583,29 @@ void MapCanvas::onFlickTick()
 
 void MapCanvas::handleMousePress(QMouseEvent *const event)
 {
+    if (m_terminalOverlayEnabled) {
+        const QPointF pos = event->position();
+        const int consoleW = static_cast<int>(static_cast<float>(currentHostSize().width()) * m_terminalSplitRatio);
+        if (pos.x() <= consoleW) {
+            const int fontHeight = std::max(12, getGLFont().getFontHeight());
+            const int charWidth = std::max(6, getGLFont().getGlyphAdvance(' ').value_or(10));
+            const int col = std::max(0, static_cast<int>(pos.x() - 4) / charWidth);
+            const int row = std::max(0, static_cast<int>(pos.y() - 4) / fontHeight);
+
+            const size_t totalLines = m_terminalBuffer.getLineCount();
+            const int scrollOffset = m_terminalBuffer.getScrollOffset();
+            const int rows = m_terminalBuffer.getRows();
+            const int topVisibleLineIdx = std::max(0, static_cast<int>(totalLines) - rows - scrollOffset);
+            const int lineIdx = topVisibleLineIdx + row;
+
+            m_terminalSelectingText = true;
+            m_terminalBuffer.startSelection(col, lineIdx);
+            m_frameManager.requestUpdate();
+            event->accept();
+            return;
+        }
+    }
+
     if (event->button() != Qt::RightButton) {
         emit sig_dismissContextMenu();
     }
@@ -769,8 +807,56 @@ void MapCanvas::handleMousePress(QMouseEvent *const event)
     }
 }
 
-void MapCanvas::handleMouseMove(QMouseEvent *const event)
+void MapCanvas::handleKeyPress(QKeyEvent *const event)
 {
+    if (!event) {
+        return;
+    }
+
+    if (m_terminalOverlayEnabled) {
+        if (m_hotkeyManager != nullptr) {
+            const Hotkey hk(static_cast<Qt::Key>(event->key()), event->modifiers());
+            if (hk.isValid()) {
+                if (const auto cmd = m_hotkeyManager->getCommand(hk)) {
+                    emit sig_sendUserInput(mmqt::toQStringUtf8(*cmd));
+                    m_terminalBuffer.scrollToBottom();
+                    m_frameManager.requestUpdate();
+                    return;
+                }
+            }
+        }
+
+        if (const auto optSubmitted = m_inputPrompt.handleKeyPress(event)) {
+            emit sig_sendUserInput(*optSubmitted);
+            m_terminalBuffer.scrollToBottom();
+            m_frameManager.requestUpdate();
+            return;
+        }
+        m_frameManager.requestUpdate();
+    }
+}
+
+void MapCanvas::handleMouseMove(QMouseEvent *event)
+{
+    if (m_terminalOverlayEnabled && m_terminalSelectingText) {
+        const QPointF pos = event->position();
+        const int fontHeight = std::max(12, getGLFont().getFontHeight());
+        const int charWidth = std::max(6, getGLFont().getGlyphAdvance(' ').value_or(10));
+        const int col = std::max(0, static_cast<int>(pos.x() - 4) / charWidth);
+        const int row = std::max(0, static_cast<int>(pos.y() - 4) / fontHeight);
+
+        const size_t totalLines = m_terminalBuffer.getLineCount();
+        const int scrollOffset = m_terminalBuffer.getScrollOffset();
+        const int rows = m_terminalBuffer.getRows();
+        const int topVisibleLineIdx = std::max(0, static_cast<int>(totalLines) - rows - scrollOffset);
+        const int lineIdx = topVisibleLineIdx + row;
+
+        m_terminalBuffer.updateSelection(col, lineIdx);
+        m_frameManager.requestUpdate();
+        event->accept();
+        return;
+    }
+
     if (m_longPressPos
         && (event->position() - *m_longPressPos).manhattanLength()
                > QGuiApplication::styleHints()->startDragDistance()) {
@@ -975,6 +1061,14 @@ void MapCanvas::handlePointerMove(const glm::vec2 xy,
 
 void MapCanvas::handleMouseRelease(QMouseEvent *const event)
 {
+    if (m_terminalOverlayEnabled && m_terminalSelectingText) {
+        m_terminalSelectingText = false;
+        m_terminalBuffer.copySelectionToClipboard();
+        m_frameManager.requestUpdate();
+        event->accept();
+        return;
+    }
+
     cancelLongPress();
     if (std::exchange(m_longPressFired, false) && event->button() == Qt::LeftButton) {
         // onLongPress() already abandoned the press and opened the context

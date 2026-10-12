@@ -3,6 +3,7 @@
 
 #include "../configuration/NamedConfig.h"
 #include "../configuration/configuration.h"
+#include <QApplication>
 #include "../global/Array.h"
 #include "../global/CaseUtils.h"
 #include "../global/ChangeMonitor.h"
@@ -477,11 +478,17 @@ void MapCanvas::setViewportAndMvp(const int width, const int height, const qreal
     }
 
     auto &gl = getOpenGL();
-    gl.glViewport(0, 0, width, height);
 
-    const auto size = getViewport().size;
-    assert(size.x == width);
-    assert(size.y == height);
+    int mapX = 0;
+    int mapW = width;
+    if (m_terminalOverlayEnabled) {
+        int consoleW = static_cast<int>(static_cast<float>(width) * m_terminalSplitRatio);
+        mapX = consoleW;
+        mapW = std::max(1, width - consoleW);
+    }
+
+    setSubViewport(glm::ivec2{mapX, 0}, glm::ivec2{mapW, height});
+    gl.glViewport(mapX, 0, mapW, height);
 
     gl.setProjectionMatrix(MapCanvasViewport::getViewProj());
 }
@@ -696,6 +703,8 @@ void MapCanvas::actuallyPaintGL()
                 gl.getUboManager().bind(funcs, Legacy::SharedVboEnum::TimeBlock);
 
                 m_weather.render(m_opengl.getDefaultRenderState());
+
+                paintMudClientConsole();
             }
         } catch (...) {
             paintSucceeded = false;
@@ -1191,4 +1200,135 @@ void MapCanvas::renderMapBatches()
         }
         drawLayer(thisLayer, currentLayer);
     }
+}
+
+void MapCanvas::paintMudClientConsole()
+{
+    if (!m_terminalOverlayEnabled) {
+        return;
+    }
+
+    const QSize hostSize = currentHostSize();
+    const int hostW = hostSize.width();
+    const int hostH = hostSize.height();
+
+    if (hostW <= 0 || hostH <= 0) {
+        return;
+    }
+
+    // Ensure GL viewport spans the full host window for 2D overlay text rendering
+    getOpenGL().glViewport(0, 0, hostW, hostH);
+
+    const int consoleWidth = std::max(100, static_cast<int>(static_cast<float>(hostW) * m_terminalSplitRatio));
+    const int consoleHeight = hostH;
+
+    const int fontHeight = std::max(12, getGLFont().getFontHeight());
+    const int charWidth = std::max(6, getGLFont().getGlyphAdvance(' ').value_or(10));
+
+    const int inputBarHeight = fontHeight + 8;
+    const int outputHeight = std::max(0, consoleHeight - inputBarHeight);
+
+    const int cols = std::max(1, (consoleWidth - 8) / charWidth);
+    const int rows = std::max(1, (outputHeight - 8) / fontHeight);
+
+    if (cols != m_terminalBuffer.getColumns() || rows != m_terminalBuffer.getRows()) {
+        m_terminalBuffer.setColumnsRows(cols, rows);
+        emit sig_windowSizeChanged(cols, rows);
+    }
+
+    const size_t totalLines = m_terminalBuffer.getLineCount();
+    const int scrollOffset = m_terminalBuffer.getScrollOffset();
+    const int topVisibleLineIdx = std::max(0, static_cast<int>(totalLines) - rows - scrollOffset);
+
+    std::vector<GLText> batchText;
+    batchText.reserve(static_cast<size_t>(rows + 10));
+
+    for (int r = 0; r < rows; ++r) {
+        const int lineIdx = topVisibleLineIdx + r;
+        if (lineIdx < 0 || lineIdx >= static_cast<int>(totalLines)) {
+            continue;
+        }
+
+        const auto &line = m_terminalBuffer.getLine(static_cast<size_t>(lineIdx));
+        const int yPos = r * fontHeight + 4;
+
+        QString currentRun;
+        Color currentFg{};
+        Color currentBg{};
+        int runStartCol = 0;
+
+        const auto flushRun = [&](int y) {
+            if (!currentRun.isEmpty()) {
+                const int xPos = runStartCol * charWidth + 4;
+                const glm::vec3 pos{static_cast<float>(xPos), static_cast<float>(y), 0.f};
+                batchText.emplace_back(GLText{pos, mmqt::toStdStringUtf8(currentRun), currentFg, currentBg});
+                currentRun.clear();
+            }
+        };
+
+        for (size_t c = 0; c < line.cells.size() && static_cast<int>(c) < cols; ++c) {
+            const auto &cell = line.cells[c];
+            if (cell.charCode == 0) {
+                continue;
+            }
+
+            Color bg = cell.bgColor;
+            if (m_terminalBuffer.isCellSelected(static_cast<int>(c), lineIdx)) {
+                bg = Color{0.2f, 0.4f, 0.8f, 0.8f};
+            }
+
+            if (currentRun.isEmpty()) {
+                currentRun.append(QChar(static_cast<char16_t>(cell.charCode)));
+                currentFg = cell.fgColor;
+                currentBg = bg;
+                runStartCol = static_cast<int>(c);
+            } else if (cell.fgColor == currentFg && bg == currentBg) {
+                currentRun.append(QChar(static_cast<char16_t>(cell.charCode)));
+            } else {
+                flushRun(yPos);
+                currentRun.append(QChar(static_cast<char16_t>(cell.charCode)));
+                currentFg = cell.fgColor;
+                currentBg = bg;
+                runStartCol = static_cast<int>(c);
+            }
+        }
+        flushRun(yPos);
+    }
+
+    const int inputY = consoleHeight - inputBarHeight + 4;
+    std::string promptStr = "> " + mmqt::toStdStringUtf8(m_inputPrompt.getDisplayText());
+
+    if (m_inputPrompt.isFocused()) {
+        int cursorCol = m_inputPrompt.getCursorPos() + 2;
+        if (cursorCol >= 0 && cursorCol < cols) {
+            promptStr += " ";
+        }
+    }
+
+    const glm::vec3 promptPos{4.0f, static_cast<float>(inputY), 0.f};
+    Color fgPrompt = Color{0.9f, 0.9f, 0.9f, 1.0f};
+    batchText.emplace_back(GLText{promptPos, std::move(promptStr), fgPrompt});
+
+    if (!batchText.empty()) {
+        getGLFont().render2dTextImmediate(batchText);
+    }
+
+    if (m_terminalBuffer.takeBellTriggered()) {
+        if (getConfig().integratedClient.audibleBell) {
+            QApplication::beep();
+        }
+    }
+}
+
+void MapCanvas::slot_displayText(const QStringView str)
+{
+    m_terminalBuffer.appendStreamText(str);
+    m_frameManager.requestUpdate();
+}
+
+void MapCanvas::slot_setTerminalOverlayEnabled(const bool enabled)
+{
+    m_terminalOverlayEnabled = enabled;
+    markViewProjDirty();
+    m_frameManager.requestUpdate();
 }

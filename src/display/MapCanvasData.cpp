@@ -34,8 +34,9 @@ MapCanvasViewport::~MapCanvasViewport() = default;
 
 const glm::mat4 &MapCanvasViewport::getViewProj() const
 {
-    const int w = width();
-    const int h = height();
+    const Viewport vp = getViewport();
+    const int w = vp.size.x;
+    const int h = vp.size.y;
     if (m_viewProjDirty && w > 0 && h > 0) {
         const float zoomScale = getTotalScaleFactor();
         const auto size = glm::ivec2(w, h);

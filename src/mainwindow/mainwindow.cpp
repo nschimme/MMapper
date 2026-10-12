@@ -10,7 +10,47 @@
 #include "../adventure/adventuretracker.h"
 #include "../adventure/adventurewidget.h"
 #include "../adventure/xpstatuswidget.h"
-#include "../client/ClientWidget.h"
+#include "../client/ClientTelnet.h"
+#include "../client/stackedinputwidget.h"
+#include "../display/MapCanvasWindow.h"
+
+class MainWindowTelnetOutputs final : public ClientTelnetOutputs
+{
+private:
+    MainWindow &m_mainWin;
+
+public:
+    explicit MainWindowTelnetOutputs(MainWindow &mainWin)
+        : m_mainWin{mainWin}
+    {}
+
+private:
+    void virt_connected() final
+    {
+        m_mainWin.showStatusShort("Connected using the integrated GL client");
+    }
+
+    void virt_disconnected() final
+    {
+        m_mainWin.showStatusShort("Disconnected using the integrated GL client");
+    }
+
+    void virt_socketError(const QString &errorStr) final
+    {
+        m_mainWin.getCanvas()->slot_displayText(QString("\nInternal error! %1\n").arg(errorStr));
+    }
+
+    void virt_echoModeChanged(const bool echo) final
+    {
+        m_mainWin.getCanvas()->getCore().getInputPrompt().setEchoMode(
+            echo ? EchoModeEnum::Visible : EchoModeEnum::Hidden);
+    }
+
+    void virt_sendToUser(const QString &str) final
+    {
+        m_mainWin.getCanvas()->slot_displayText(str);
+    }
+};
 #include "../client/HotkeyManager.h"
 #include "../clock/mumeclock.h"
 #include "../clock/mumeclockwidget.h"
@@ -347,21 +387,9 @@ MainWindow::MainWindow()
                                                       deref(m_gameObserver),
                                                       this);
 
-        auto *const w = new ClientWidget(deref(listener), deref(m_hotkeyManager), this);
-        w->setObjectName("InternalMudClientWidget");
-
-        auto *const dock = new QDockWidget("Client Panel", this);
-        dock->setObjectName("DockWidgetClient");
-        dock->setAllowedAreas(Qt::AllDockWidgetAreas);
-        dock->setFeatures(QDockWidget::DockWidgetMovable | QDockWidget::DockWidgetFloatable
-                          | QDockWidget::DockWidgetClosable);
-        addDockWidget(Qt::RightDockWidgetArea, timers); // caution: this is different
-        addDockWidget(Qt::LeftDockWidgetArea, dock);
-        dock->setWidget(w);
-
         m_listener = listener;
-        m_clientWidget = w;
-        m_dockDialogClient = dock;
+        m_clientTelnetOutputs = std::make_unique<MainWindowTelnetOutputs>(*this);
+        m_clientTelnet = std::make_unique<ClientTelnet>(*m_clientTelnetOutputs);
     });
 
     createActions();
@@ -513,6 +541,7 @@ void MainWindow::wireConnections()
             &PathMachine::slot_releaseAllPaths);
 
     MapCanvasWindow *const canvas = getCanvas();
+    canvas->getCore().setHotkeyManager(m_hotkeyManager.get());
 
     connect(m_mapData,
             &MapFrontend::sig_clearingMap,
@@ -600,6 +629,21 @@ void MainWindow::wireConnections()
             this,
             &MainWindow::slot_closeContextMenu);
 
+    connect(canvas, &MapCanvasWindow::sig_sendUserInput, this, [this](const QString &msg) {
+        if (m_clientTelnet) {
+            if (!m_clientTelnet->isConnected() && m_listener) {
+                m_clientTelnet->connectToHost(*m_listener);
+            }
+            m_clientTelnet->sendToMud(msg);
+        }
+    });
+
+    connect(canvas, &MapCanvasWindow::sig_windowSizeChanged, this, [this](int cols, int rows) {
+        if (m_clientTelnet && m_clientTelnet->isConnected()) {
+            m_clientTelnet->onWindowSizeChanged(cols, rows);
+        }
+    });
+
     // Group
     connect(m_groupManager, &Mmapper2Group::sig_log, this, &MainWindow::slot_log);
     connect(m_groupManager,
@@ -612,18 +656,6 @@ void MainWindow::wireConnections()
     connect(m_mumeClock, &MumeClock::sig_log, this, &MainWindow::slot_log);
 
     connect(m_listener, &ConnectionListener::sig_log, this, &MainWindow::slot_log);
-    connect(m_dockDialogClient,
-            &QDockWidget::visibilityChanged,
-            m_clientWidget,
-            &ClientWidget::slot_onVisibilityChanged);
-    connect(m_listener, &ConnectionListener::sig_clientSuccessfullyConnected, this, [this]() {
-        if (!m_clientWidget->isUsingClient()) {
-            m_dockDialogClient->hide();
-        }
-    });
-    connect(m_clientWidget, &ClientWidget::sig_relayMessage, this, [this](const QString &message) {
-        showStatusShort(message);
-    });
 
     // Find Room Dialog Connections
     connect(m_findRoomsDlg,
@@ -1041,16 +1073,23 @@ void MainWindow::createActions()
     saveLogAct = new QAction(QIcon::fromTheme("document-save", QIcon(":/icons/save.png")),
                              tr("Save Game Log as &Text..."),
                              this);
-    connect(saveLogAct, &QAction::triggered, m_clientWidget, &ClientWidget::slot_saveLog);
+    connect(saveLogAct, &QAction::triggered, this, [this]() {
+        const QString text = getCanvas()->getCore().getTerminalBuffer().getAllText();
+        const QByteArray logContent = text.toUtf8();
+        QString newFileName = "log-" + QDateTime::currentDateTime().toString("yyyyMMdd-hhmmss") + ".txt";
+        QFileDialog::saveFileContent(logContent, newFileName);
+    });
     saveLogAct->setStatusTip(tr("Save the game log as a plain text file"));
 
     saveLogAsHtmlAct = new QAction(QIcon::fromTheme("document-save", QIcon(":/icons/save.png")),
                                    tr("Save Game Log as &HTML..."),
                                    this);
-    connect(saveLogAsHtmlAct,
-            &QAction::triggered,
-            m_clientWidget,
-            &ClientWidget::slot_saveLogAsHtml);
+    connect(saveLogAsHtmlAct, &QAction::triggered, this, [this]() {
+        const QString text = getCanvas()->getCore().getTerminalBuffer().getAllText();
+        const QByteArray logContent = text.toUtf8();
+        QString newFileNameHtml = "log-" + QDateTime::currentDateTime().toString("yyyyMMdd-hhmmss") + ".html";
+        QFileDialog::saveFileContent(logContent, newFileNameHtml);
+    });
     saveLogAsHtmlAct->setStatusTip(tr("Save the game log as an HTML file"));
 
     releaseAllPathsAct = new QAction(QIcon(":/icons/cancel.png"), tr("Release All Paths"), this);
@@ -1361,7 +1400,6 @@ void MainWindow::setupMenuBar()
     toolbars->addAction(audioToolBar->toggleViewAction());
     QMenu *sidepanels = windowMenu->addMenu(tr("&Side Panels"));
     sidepanels->addAction(m_dockDialogLog->toggleViewAction());
-    sidepanels->addAction(m_dockDialogClient->toggleViewAction());
     sidepanels->addAction(m_dockDialogGroup->toggleViewAction());
     sidepanels->addAction(m_dockDialogRoom->toggleViewAction());
     sidepanels->addAction(m_dockDialogAdventure->toggleViewAction());
@@ -1538,7 +1576,6 @@ void MainWindow::slot_setShowMenuBar()
     show();
 
     m_dockDialogAdventure->setMouseTracking(!showMenuBar);
-    m_dockDialogClient->setMouseTracking(!showMenuBar);
     m_dockDialogGroup->setMouseTracking(!showMenuBar);
     m_dockDialogLog->setMouseTracking(!showMenuBar);
     m_dockDialogRoom->setMouseTracking(!showMenuBar);
@@ -1550,7 +1587,6 @@ void MainWindow::slot_setShowMenuBar()
             menuBar()->show();
         }
         m_dockDialogAdventure->removeEventFilter(this);
-        m_dockDialogClient->removeEventFilter(this);
         m_dockDialogGroup->removeEventFilter(this);
         m_dockDialogLog->removeEventFilter(this);
         m_dockDialogRoom->removeEventFilter(this);
@@ -1558,7 +1594,6 @@ void MainWindow::slot_setShowMenuBar()
         m_mapWindow->getCanvas()->removeEventFilter(this);
     } else {
         m_dockDialogAdventure->installEventFilter(this);
-        m_dockDialogClient->installEventFilter(this);
         m_dockDialogGroup->installEventFilter(this);
         m_dockDialogLog->installEventFilter(this);
         m_dockDialogRoom->installEventFilter(this);
@@ -2022,9 +2057,14 @@ void MainWindow::slot_onFindRoom()
 
 void MainWindow::slot_onLaunchClient()
 {
-    m_dockDialogClient->show();
-    m_dockDialogClient->raise();
-    deref(m_clientWidget).play();
+    if (!m_clientTelnet) {
+        m_clientTelnetOutputs = std::make_unique<MainWindowTelnetOutputs>(*this);
+        m_clientTelnet = std::make_unique<ClientTelnet>(*m_clientTelnetOutputs);
+    }
+    if (m_listener && !m_clientTelnet->isConnected()) {
+        m_clientTelnet->connectToHost(*m_listener);
+    }
+    getCanvas()->slot_setTerminalOverlayEnabled(true);
 }
 
 void MainWindow::setCurrentFile(const QString &fileName)

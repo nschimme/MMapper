@@ -5,6 +5,8 @@
 
 #include "../src/client/InputHistory.h"
 #include "../src/configuration/configuration.h"
+#include "../src/display/GlInputPrompt.h"
+#include "../src/display/GlTerminalBuffer.h"
 #include "../src/mpi/RemoteEditDocumentOps.h"
 
 #include <QTextCursor>
@@ -238,6 +240,80 @@ void TestClient::tabHistoryNextMatchCycling()
     QCOMPARE(history.nextMatch("ap"), std::make_optional(QStringLiteral("apricot")));
 
     setConfig().integratedClient.tabCompletionDictionarySize = savedCap;
+}
+
+// --- GlTerminalBuffer & GlInputPrompt ---
+
+void TestClient::glTerminalBufferAnsiParsing()
+{
+    mmgl::GlTerminalBuffer buf;
+    buf.setColumnsRows(80, 24);
+    buf.setMaxLines(10);
+
+    buf.appendStreamText(QStringLiteral("Hello \033[1;31mWorld\033[0m\nLine 2\a"));
+
+    QCOMPARE(buf.getLineCount(), static_cast<size_t>(2));
+    QVERIFY(buf.takeBellTriggered());
+
+    const auto &line0 = buf.getLine(0);
+    QVERIFY(line0.cells.size() >= 11);
+    QCOMPARE(static_cast<char16_t>(line0.cells[0].charCode), QChar::fromUcs2('H'));
+    // "World" cells should have bold flag set
+    QCOMPARE(static_cast<char16_t>(line0.cells[6].charCode), QChar::fromUcs2('W'));
+    QVERIFY(line0.cells[6].bold);
+
+    // Scrollback capping test
+    for (int i = 0; i < 20; ++i) {
+        buf.appendStreamText(QStringLiteral("Extra line\n"));
+    }
+    QCOMPARE(buf.getLineCount(), static_cast<size_t>(10));
+}
+
+void TestClient::glTerminalBufferSelectionAndCopy()
+{
+    mmgl::GlTerminalBuffer buf;
+    buf.setColumnsRows(80, 24);
+    buf.appendStreamText(QStringLiteral("First line\nSecond line"));
+
+    buf.startSelection(0, 0);
+    buf.updateSelection(4, 0);
+
+    QVERIFY(buf.hasSelection());
+    QVERIFY(buf.isCellSelected(0, 0));
+    QVERIFY(buf.isCellSelected(4, 0));
+    QVERIFY(!buf.isCellSelected(5, 0));
+
+    QCOMPARE(buf.getSelectedText(), QStringLiteral("First"));
+}
+
+void TestClient::glInputPromptEditing()
+{
+    mmgl::GlInputPrompt prompt;
+    QCOMPARE(prompt.getText(), QString());
+
+    QKeyEvent keyA(QEvent::KeyPress, Qt::Key_A, Qt::NoModifier, QStringLiteral("a"));
+    prompt.handleKeyPress(&keyA);
+    QCOMPARE(prompt.getText(), QStringLiteral("a"));
+
+    QKeyEvent keyB(QEvent::KeyPress, Qt::Key_B, Qt::NoModifier, QStringLiteral("b"));
+    prompt.handleKeyPress(&keyB);
+    QCOMPARE(prompt.getText(), QStringLiteral("ab"));
+
+    QKeyEvent keyBk(QEvent::KeyPress, Qt::Key_Backspace, Qt::NoModifier);
+    prompt.handleKeyPress(&keyBk);
+    QCOMPARE(prompt.getText(), QStringLiteral("a"));
+
+    // Enter to submit
+    QKeyEvent keyEnter(QEvent::KeyPress, Qt::Key_Return, Qt::NoModifier);
+    const auto optSubmitted = prompt.handleKeyPress(&keyEnter);
+    QVERIFY(optSubmitted.has_value());
+    QCOMPARE(*optSubmitted, QStringLiteral("a"));
+    QCOMPARE(prompt.getText(), QString());
+
+    // Password masking
+    prompt.setEchoMode(EchoModeEnum::Hidden);
+    prompt.handleKeyPress(&keyA);
+    QCOMPARE(prompt.getDisplayText(), QStringLiteral("*"));
 }
 
 // --- RemoteEditDocumentOps ---

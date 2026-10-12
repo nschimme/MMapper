@@ -115,6 +115,7 @@ protected:
     void mousePressEvent(QMouseEvent *event) override { m_core.handleMousePress(event); }
     void mouseReleaseEvent(QMouseEvent *event) override { m_core.handleMouseRelease(event); }
     void mouseMoveEvent(QMouseEvent *event) override { m_core.handleMouseMove(event); }
+    void keyPressEvent(QKeyEvent *event) override { m_core.handleKeyPress(event); }
     void wheelEvent(QWheelEvent *event) override { m_core.handleWheel(event); }
     void touchEvent(QTouchEvent *event) override { m_core.handleTouch(event); }
     bool event(QEvent *e) override
@@ -131,6 +132,8 @@ public:
     void graphicsSettingsChanged() { m_core.graphicsSettingsChanged(); }
 
 signals:
+    void sig_sendUserInput(const QString &msg);
+    void sig_windowSizeChanged(int cols, int rows);
     void sig_onCenter(glm::vec2 worldCoord);
     void sig_mapMove(int dx, int dy);
     void sig_setScrollBars(Coordinate min, Coordinate max);
@@ -151,6 +154,9 @@ signals:
     void sig_dismissContextMenu();
 
 public slots:
+    void slot_displayText(const QStringView str) { m_core.slot_displayText(str); }
+    void slot_displayText(const QString &str) { m_core.slot_displayText(str); }
+    void slot_setTerminalOverlayEnabled(bool enabled) { m_core.slot_setTerminalOverlayEnabled(enabled); }
     void slot_onForcedPositionChange() { m_core.slot_onForcedPositionChange(); }
     void slot_createRoom() { m_core.slot_createRoom(); }
 

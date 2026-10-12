@@ -15,6 +15,9 @@
 #include "../opengl/OpenGL.h"
 #include "../opengl/Weather.h"
 #include "FrameManager.h"
+#include "../client/HotkeyManager.h"
+#include "GlInputPrompt.h"
+#include "GlTerminalBuffer.h"
 #include "Infomarks.h"
 #include "MapCanvasConfig.h"
 #include "MapCanvasData.h"
@@ -232,7 +235,19 @@ private:
     QTimer m_flickTimer;
     glm::vec2 m_flickVelocity{0.f};
 
+    // MUD Client GL Overlay State
+    mmgl::GlTerminalBuffer m_terminalBuffer;
+    mmgl::GlInputPrompt m_inputPrompt;
+    HotkeyManager *m_hotkeyManager = nullptr;
+    bool m_terminalOverlayEnabled = true;
+    float m_terminalSplitRatio = 0.35f;
+    bool m_terminalSelectingText = false;
+
 public:
+    NODISCARD mmgl::GlTerminalBuffer &getTerminalBuffer() { return m_terminalBuffer; }
+    NODISCARD mmgl::GlInputPrompt &getInputPrompt() { return m_inputPrompt; }
+    void setHotkeyManager(HotkeyManager *hm) { m_hotkeyManager = hm; }
+
     explicit MapCanvas(MapData &mapData,
                        GameObserver &observer,
                        PrespammedPath &prespammedPath,
@@ -306,6 +321,7 @@ public:
     void handleMouseRelease(QMouseEvent *event);
     void handleMouseMove(QMouseEvent *event);
     void handlePointerMove(glm::vec2 pos, Qt::KeyboardModifiers modifiers, Qt::MouseButtons buttons);
+    void handleKeyPress(QKeyEvent *event);
     void handleWheel(QWheelEvent *event);
     void handleTouch(QTouchEvent *event);
     void handleNativeGesture(QNativeGestureEvent *event);
@@ -357,6 +373,7 @@ public:
     void paintSelectedInfomarks();
     void paintCharacters();
     void paintDifferences();
+    void paintMudClientConsole();
 
     // Immediately drops all cached meshes (must run with a current GL context).
     void forceUpdateMeshes();
@@ -400,6 +417,8 @@ private:
     void log(const QString &msg) { emit sig_log("MapCanvas", msg); }
 
 signals:
+    void sig_sendUserInput(const QString &msg);
+    void sig_windowSizeChanged(int cols, int rows);
     void sig_onCenter(glm::vec2 worldCoord);
     void sig_mapMove(int dx, int dy);
     void sig_setScrollBars(Coordinate min, Coordinate max);
@@ -431,6 +450,9 @@ signals:
     void sig_glFatalError(const QString &message);
 
 public slots:
+    void slot_displayText(const QStringView str);
+    void slot_displayText(const QString &str) { slot_displayText(QStringView{str}); }
+    void slot_setTerminalOverlayEnabled(bool enabled);
     void slot_onForcedPositionChange();
     void slot_createRoom();
 

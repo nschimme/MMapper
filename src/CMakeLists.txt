@@ -85,6 +85,10 @@ set(mmapper_SRCS
     display/MapCanvasData.h
     display/MapCanvasRoomDrawer.cpp
     display/MapCanvasRoomDrawer.h
+    display/GlInputPrompt.cpp
+    display/GlInputPrompt.h
+    display/GlTerminalBuffer.cpp
+    display/GlTerminalBuffer.h
     display/MapCanvasWindow.cpp
     display/MapCanvasWindow.h
     display/MapCanvasWindow_gl.cpp

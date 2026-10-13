@@ -1250,36 +1250,38 @@ void MapCanvas::paintMudClientConsole()
     const auto oldProj = gl.getProjectionMatrix();
     gl.setProjectionMatrix(viewProj2d);
 
-    const auto renderState = GLRenderState()
-                                 .withBlend(BlendModeEnum::TRANSPARENCY)
-                                 .withDepthFunction(std::nullopt);
+    const auto renderState
+        = GLRenderState().withBlend(BlendModeEnum::TRANSPARENCY).withDepthFunction(std::nullopt);
 
     // Render solid dark opaque background panel for terminal log overlay
-    const std::vector<glm::vec3> panelVerts{
-        {0.0f, 0.0f, 0.0f},
-        {static_cast<float>(consoleWidth), 0.0f, 0.0f},
-        {static_cast<float>(consoleWidth), static_cast<float>(consoleHeight), 0.0f},
-        {0.0f, static_cast<float>(consoleHeight), 0.0f}};
+    const std::vector<glm::vec3> panelVerts{{0.0f, 0.0f, 0.0f},
+                                            {static_cast<float>(consoleWidth), 0.0f, 0.0f},
+                                            {static_cast<float>(consoleWidth),
+                                             static_cast<float>(consoleHeight),
+                                             0.0f},
+                                            {0.0f, static_cast<float>(consoleHeight), 0.0f}};
     gl.renderPlainQuads(panelVerts, renderState.withColor(Color{0.05f, 0.05f, 0.07f, 0.98f}));
 
     // Render input bar background quad at bottom
     const float inputYPos = static_cast<float>(consoleHeight - inputBarHeight);
-    const std::vector<glm::vec3> inputBarVerts{
-        {0.0f, inputYPos, 0.0f},
-        {static_cast<float>(consoleWidth), inputYPos, 0.0f},
-        {static_cast<float>(consoleWidth), static_cast<float>(consoleHeight), 0.0f},
-        {0.0f, static_cast<float>(consoleHeight), 0.0f}};
+    const std::vector<glm::vec3> inputBarVerts{{0.0f, inputYPos, 0.0f},
+                                               {static_cast<float>(consoleWidth), inputYPos, 0.0f},
+                                               {static_cast<float>(consoleWidth),
+                                                static_cast<float>(consoleHeight),
+                                                0.0f},
+                                               {0.0f, static_cast<float>(consoleHeight), 0.0f}};
     gl.renderPlainQuads(inputBarVerts, renderState.withColor(Color{0.12f, 0.12f, 0.15f, 1.0f}));
 
     // Render separator line above input bar and right edge of terminal
-    const std::vector<glm::vec3> borderVerts{
-        {0.0f, inputYPos, 0.0f},
-        {static_cast<float>(consoleWidth), inputYPos, 0.0f},
-        {static_cast<float>(consoleWidth), 0.0f, 0.0f},
-        {static_cast<float>(consoleWidth), static_cast<float>(consoleHeight), 0.0f}};
-    gl.renderPlainLines(
-        borderVerts,
-        renderState.withLineParams(LineParams{2.0f}).withColor(Color{0.25f, 0.25f, 0.3f, 1.0f}));
+    const std::vector<glm::vec3> borderVerts{{0.0f, inputYPos, 0.0f},
+                                             {static_cast<float>(consoleWidth), inputYPos, 0.0f},
+                                             {static_cast<float>(consoleWidth), 0.0f, 0.0f},
+                                             {static_cast<float>(consoleWidth),
+                                              static_cast<float>(consoleHeight),
+                                              0.0f}};
+    gl.renderPlainLines(borderVerts,
+                        renderState.withLineParams(LineParams{2.0f})
+                            .withColor(Color{0.25f, 0.25f, 0.3f, 1.0f}));
 
     const size_t totalLines = m_terminalBuffer.getLineCount();
     const int scrollOffset = m_terminalBuffer.getScrollOffset();

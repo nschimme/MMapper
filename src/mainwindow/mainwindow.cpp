@@ -23,6 +23,7 @@ public:
     explicit MainWindowTelnetOutputs(MainWindow &mainWin)
         : m_mainWin{mainWin}
     {}
+    ~MainWindowTelnetOutputs() final;
 
 private:
     void virt_connected() final
@@ -48,6 +49,8 @@ private:
 
     void virt_sendToUser(const QString &str) final { m_mainWin.getCanvas()->slot_displayText(str); }
 };
+
+MainWindowTelnetOutputs::~MainWindowTelnetOutputs() = default;
 #include "../client/HotkeyManager.h"
 #include "../clock/mumeclock.h"
 #include "../clock/mumeclockwidget.h"

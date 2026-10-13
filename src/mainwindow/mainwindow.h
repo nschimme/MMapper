@@ -29,7 +29,7 @@ class AdventureWidget;
 class AnsiOstream;
 class AudioManager;
 class AutoLogger;
-class ClientTelnetOutputs;
+struct ClientTelnetOutputs;
 class ClientTelnet;
 class ConfigDialog;
 class ConnectionListener;

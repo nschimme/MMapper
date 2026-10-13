@@ -481,15 +481,21 @@ void MapCanvas::setViewportAndMvp(const int width, const int height, const qreal
     auto &gl = getOpenGL();
 
     int mapX = 0;
+    int mapY = 0;
     int mapW = width;
+    int mapH = height;
     if (m_terminalOverlayEnabled) {
         int consoleW = static_cast<int>(static_cast<float>(width) * m_terminalSplitRatio);
+        const int fontHeight = std::max(12, getGLFont().getFontHeight());
+        const int inputBarHeight = fontHeight + 8;
         mapX = consoleW;
+        mapY = inputBarHeight;
         mapW = std::max(1, width - consoleW);
+        mapH = std::max(1, height - inputBarHeight);
     }
 
-    setSubViewport(glm::ivec2{mapX, 0}, glm::ivec2{mapW, height});
-    gl.glViewport(mapX, 0, mapW, height);
+    setSubViewport(glm::ivec2{mapX, mapY}, glm::ivec2{mapW, mapH});
+    gl.glViewport(mapX, mapY, mapW, mapH);
 
     gl.setProjectionMatrix(MapCanvasViewport::getViewProj());
 }
@@ -1256,32 +1262,28 @@ void MapCanvas::paintMudClientConsole()
                                  .withDepthFunction(std::nullopt)
                                  .withCulling(CullingEnum::DISABLED);
 
-    // Render solid dark opaque background panel for terminal log overlay
+    // Render solid dark opaque background panel for terminal log overlay above bottom bar
+    const float inputYPos = static_cast<float>(consoleHeight - inputBarHeight);
     const std::vector<glm::vec3> panelVerts{{0.0f, 0.0f, 0.0f},
                                             {static_cast<float>(consoleWidth), 0.0f, 0.0f},
-                                            {static_cast<float>(consoleWidth),
-                                             static_cast<float>(consoleHeight),
-                                             0.0f},
-                                            {0.0f, static_cast<float>(consoleHeight), 0.0f}};
+                                            {static_cast<float>(consoleWidth), inputYPos, 0.0f},
+                                            {0.0f, inputYPos, 0.0f}};
     gl.renderPlainQuads(panelVerts, renderState.withColor(Color{0.05f, 0.05f, 0.07f, 0.98f}));
 
-    // Render input bar background quad at bottom
-    const float inputYPos = static_cast<float>(consoleHeight - inputBarHeight);
+    // Render full-width input bar background quad across the bottom of the screen
     const std::vector<glm::vec3> inputBarVerts{{0.0f, inputYPos, 0.0f},
-                                               {static_cast<float>(consoleWidth), inputYPos, 0.0f},
-                                               {static_cast<float>(consoleWidth),
+                                               {static_cast<float>(hostW), inputYPos, 0.0f},
+                                               {static_cast<float>(hostW),
                                                 static_cast<float>(consoleHeight),
                                                 0.0f},
                                                {0.0f, static_cast<float>(consoleHeight), 0.0f}};
     gl.renderPlainQuads(inputBarVerts, renderState.withColor(Color{0.12f, 0.12f, 0.15f, 1.0f}));
 
-    // Render separator line above input bar and right edge of terminal
+    // Render separator line above input bar (full-width) and right edge of terminal log area
     const std::vector<glm::vec3> borderVerts{{0.0f, inputYPos, 0.0f},
-                                             {static_cast<float>(consoleWidth), inputYPos, 0.0f},
+                                             {static_cast<float>(hostW), inputYPos, 0.0f},
                                              {static_cast<float>(consoleWidth), 0.0f, 0.0f},
-                                             {static_cast<float>(consoleWidth),
-                                              static_cast<float>(consoleHeight),
-                                              0.0f}};
+                                             {static_cast<float>(consoleWidth), inputYPos, 0.0f}};
     gl.renderPlainLines(borderVerts,
                         renderState.withLineParams(LineParams{2.0f})
                             .withColor(Color{0.25f, 0.25f, 0.3f, 1.0f}));
@@ -1373,9 +1375,11 @@ void MapCanvas::paintMudClientConsole()
 
     // Restore map sub-viewport and projection matrix
     const int mapX = consoleWidth;
+    const int mapY = inputBarHeight;
     const int mapW = std::max(1, hostW - consoleWidth);
-    setSubViewport(glm::ivec2{mapX, 0}, glm::ivec2{mapW, hostH});
-    gl.glViewport(mapX, 0, mapW, hostH);
+    const int mapH = std::max(1, hostH - inputBarHeight);
+    setSubViewport(glm::ivec2{mapX, mapY}, glm::ivec2{mapW, mapH});
+    gl.glViewport(mapX, mapY, mapW, mapH);
     gl.setProjectionMatrix(oldProj);
 
     if (m_terminalBuffer.takeBellTriggered()) {

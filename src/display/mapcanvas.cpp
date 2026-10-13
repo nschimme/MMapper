@@ -798,9 +798,9 @@ void MapCanvas::handleMousePress(QMouseEvent *const event)
             for (int z = hiz; z >= loz; --z) {
                 const float t = (static_cast<float>(z) - near.z) * inv_denom;
                 assert(isClamped(t, 0.f, 1.f));
-                const auto pos = glm::mix(near, far, t);
-                assert(static_cast<int>(std::lround(pos.z)) == z);
-                const Coordinate c2 = MouseSel{Coordinate2f{pos.x, pos.y}, z}.getCoordinate();
+                const auto rayPos = glm::mix(near, far, t);
+                assert(static_cast<int>(std::lround(rayPos.z)) == z);
+                const Coordinate c2 = MouseSel{Coordinate2f{rayPos.x, rayPos.y}, z}.getCoordinate();
                 if (const auto r = m_data.findRoomHandle(c2)) {
                     tmpSel.insert(r.getId());
                 }

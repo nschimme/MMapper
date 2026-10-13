@@ -228,7 +228,6 @@ MainWindow::MainWindow()
         m_dockDialogLog = dock;
     });
 
-
     // Window -> Side Panels -> Room Panel (Mobs)
     std::invoke([this] {
         auto *const roomManager = new RoomManager(this);

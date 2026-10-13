@@ -593,7 +593,8 @@ void MapCanvas::handleMousePress(QMouseEvent *const event)
         const int consoleW = static_cast<int>(logicalW * m_terminalSplitRatio);
         const int fontHeight = std::max(12, getGLFont().getFontHeight());
         const int promptHeight = fontHeight + 8;
-        const float availableTextHeight = std::max(0.0f, logicalH - static_cast<float>(promptHeight));
+        const float availableTextHeight = std::max(0.0f,
+                                                   logicalH - static_cast<float>(promptHeight));
 
         if (pos.x() <= static_cast<qreal>(consoleW)) {
             if (pos.y() < static_cast<qreal>(availableTextHeight)) {
@@ -868,8 +869,12 @@ void MapCanvas::handleMouseMove(QMouseEvent *event)
             if (m_terminalSelectingText) {
                 const int fontHeight = std::max(12, getGLFont().getFontHeight());
                 const int promptHeight = fontHeight + 8;
-                const float availableTextHeight = std::max(0.0f, logicalH - static_cast<float>(promptHeight));
-                const float clampedY = std::clamp(static_cast<float>(pos.y()), 0.0f, availableTextHeight - 1.0f);
+                const float availableTextHeight = std::max(0.0f,
+                                                           logicalH
+                                                               - static_cast<float>(promptHeight));
+                const float clampedY = std::clamp(static_cast<float>(pos.y()),
+                                                  0.0f,
+                                                  availableTextHeight - 1.0f);
 
                 const int charWidth = std::max(6, getGLFont().getGlyphAdvance(' ').value_or(10));
                 const int col = std::max(0, static_cast<int>(pos.x() - 4.0) / charWidth);

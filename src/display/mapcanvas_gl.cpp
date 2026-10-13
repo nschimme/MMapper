@@ -1242,7 +1242,10 @@ void MapCanvas::paintMudClientConsole()
 
     if (cols != m_terminalBuffer.getColumns() || rows != m_terminalBuffer.getRows()) {
         m_terminalBuffer.setColumnsRows(cols, rows);
-        emit sig_windowSizeChanged(cols, rows);
+        QMetaObject::invokeMethod(
+            this,
+            [this, cols, rows]() { emit sig_windowSizeChanged(cols, rows); },
+            Qt::QueuedConnection);
     }
 
     OpenGL &gl = getOpenGL();
@@ -1306,7 +1309,7 @@ void MapCanvas::paintMudClientConsole()
 
         QString currentRun;
         Color currentFg{};
-        Color currentBg{};
+        std::optional<Color> currentBg = std::nullopt;
         int runStartCol = 0;
 
         const auto flushRun = [&](int y) {
@@ -1325,7 +1328,7 @@ void MapCanvas::paintMudClientConsole()
                 continue;
             }
 
-            Color bg = cell.bgColor;
+            std::optional<Color> bg = cell.bgColor;
             if (m_terminalBuffer.isCellSelected(static_cast<int>(c), lineIdx)) {
                 bg = Color{0.2f, 0.4f, 0.8f, 0.8f};
             }

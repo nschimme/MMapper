@@ -107,18 +107,23 @@ void GlTerminalBuffer::processAnsiSequence(const QStringView ansi)
         QColor fgQc = mmqt::decodeColor(m_currentRawAnsi.fg,
                                         getConfig().integratedClient.foregroundColor,
                                         isBold);
-        QColor bgQc = mmqt::decodeColor(m_currentRawAnsi.bg,
-                                        getConfig().integratedClient.backgroundColor,
-                                        false);
-
         m_currentStyle.fgColor = toGlColor(fgQc);
-        m_currentStyle.bgColor = toGlColor(bgQc);
+        if (m_currentRawAnsi.bg.hasDefaultColor()) {
+            m_currentStyle.bgColor = std::nullopt;
+        } else {
+            QColor bgQc = mmqt::decodeColor(m_currentRawAnsi.bg,
+                                            getConfig().integratedClient.backgroundColor,
+                                            false);
+            m_currentStyle.bgColor = toGlColor(bgQc);
+        }
         m_currentStyle.bold = isBold;
         m_currentStyle.underline = isUnderline;
         m_currentStyle.reversed = isReverse;
 
         if (m_currentStyle.reversed) {
-            std::swap(m_currentStyle.fgColor, m_currentStyle.bgColor);
+            Color tempFg = m_currentStyle.fgColor;
+            m_currentStyle.fgColor = m_currentStyle.bgColor.value_or(Color{0.0f, 0.0f, 0.0f, 1.0f});
+            m_currentStyle.bgColor = tempFg;
         }
     }
 }

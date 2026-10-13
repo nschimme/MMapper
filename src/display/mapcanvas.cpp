@@ -591,16 +591,18 @@ void MapCanvas::handleMousePress(QMouseEvent *const event)
         const float logicalW = static_cast<float>(currentHostSize().width()) / dpr;
         const float logicalH = static_cast<float>(currentHostSize().height()) / dpr;
         const int consoleW = static_cast<int>(logicalW * m_terminalSplitRatio);
-        const int fontHeight = std::max(12, getGLFont().getFontHeight());
-        const int promptHeight = fontHeight + 8;
-        const float availableTextHeight = std::max(0.0f,
-                                                   logicalH - static_cast<float>(promptHeight));
+
+        const float logicalFontHeight = static_cast<float>(getGLFont().getFontHeight()) / dpr;
+        const float logicalCharWidth = static_cast<float>(getGLFont().getGlyphAdvance(' ').value_or(10)) / dpr;
+        const float promptHeight = logicalFontHeight + (8.0f / dpr);
+        const float availableTextHeight = std::max(0.0f, logicalH - promptHeight);
 
         if (pos.x() <= static_cast<qreal>(consoleW)) {
             if (pos.y() < static_cast<qreal>(availableTextHeight)) {
-                const int charWidth = std::max(6, getGLFont().getGlyphAdvance(' ').value_or(10));
-                const int col = std::max(0, static_cast<int>(pos.x() - 4.0) / charWidth);
-                const int row = std::max(0, static_cast<int>(pos.y() - 4.0) / fontHeight);
+                const float posX = static_cast<float>(pos.x());
+                const float posY = static_cast<float>(pos.y());
+                const int col = std::max(0, static_cast<int>((posX - (4.0f / dpr)) / logicalCharWidth));
+                const int row = std::max(0, static_cast<int>((posY - (4.0f / dpr)) / logicalFontHeight));
 
                 const size_t totalLines = m_terminalBuffer.getLineCount();
                 const int scrollOffset = m_terminalBuffer.getScrollOffset();
@@ -827,6 +829,17 @@ void MapCanvas::handleKeyPress(QKeyEvent *const event)
     }
 
     if (m_terminalOverlayEnabled) {
+        if (const auto optSubmitted = m_inputPrompt.handleKeyPress(event)) {
+            QString cmdStr = *optSubmitted;
+            if (!cmdStr.endsWith('\n')) {
+                cmdStr += "\n";
+            }
+            emit sig_sendUserInput(cmdStr);
+            m_terminalBuffer.scrollToBottom();
+            m_frameManager.requestUpdate();
+            return;
+        }
+
         if (m_hotkeyManager != nullptr) {
             const Hotkey hk(static_cast<Qt::Key>(event->key()), event->modifiers());
             if (hk.isValid()) {
@@ -843,16 +856,6 @@ void MapCanvas::handleKeyPress(QKeyEvent *const event)
             }
         }
 
-        if (const auto optSubmitted = m_inputPrompt.handleKeyPress(event)) {
-            QString cmdStr = *optSubmitted;
-            if (!cmdStr.endsWith('\n')) {
-                cmdStr += "\n";
-            }
-            emit sig_sendUserInput(cmdStr);
-            m_terminalBuffer.scrollToBottom();
-            m_frameManager.requestUpdate();
-            return;
-        }
         m_frameManager.requestUpdate();
     }
 }
@@ -867,18 +870,17 @@ void MapCanvas::handleMouseMove(QMouseEvent *event)
         const int consoleW = static_cast<int>(logicalW * m_terminalSplitRatio);
         if (pos.x() <= static_cast<qreal>(consoleW)) {
             if (m_terminalSelectingText) {
-                const int fontHeight = std::max(12, getGLFont().getFontHeight());
-                const int promptHeight = fontHeight + 8;
-                const float availableTextHeight = std::max(0.0f,
-                                                           logicalH
-                                                               - static_cast<float>(promptHeight));
+                const float logicalFontHeight = static_cast<float>(getGLFont().getFontHeight()) / dpr;
+                const float logicalCharWidth = static_cast<float>(getGLFont().getGlyphAdvance(' ').value_or(10)) / dpr;
+                const float promptHeight = logicalFontHeight + (8.0f / dpr);
+                const float availableTextHeight = std::max(0.0f, logicalH - promptHeight);
                 const float clampedY = std::clamp(static_cast<float>(pos.y()),
                                                   0.0f,
                                                   availableTextHeight - 1.0f);
 
-                const int charWidth = std::max(6, getGLFont().getGlyphAdvance(' ').value_or(10));
-                const int col = std::max(0, static_cast<int>(pos.x() - 4.0) / charWidth);
-                const int row = std::max(0, static_cast<int>(clampedY - 4.0f) / fontHeight);
+                const float posX = static_cast<float>(pos.x());
+                const int col = std::max(0, static_cast<int>((posX - (4.0f / dpr)) / logicalCharWidth));
+                const int row = std::max(0, static_cast<int>((clampedY - (4.0f / dpr)) / logicalFontHeight));
 
                 const size_t totalLines = m_terminalBuffer.getLineCount();
                 const int scrollOffset = m_terminalBuffer.getScrollOffset();

@@ -23,7 +23,7 @@ struct GlTerminalCell final
 {
     uint32_t charCode = ' ';
     Color fgColor{0.8f, 0.8f, 0.8f, 1.0f};
-    Color bgColor{0.0f, 0.0f, 0.0f, 1.0f};
+    std::optional<Color> bgColor = std::nullopt;
     bool bold = false;
     bool underline = false;
     bool reversed = false;

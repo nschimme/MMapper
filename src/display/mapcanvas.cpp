@@ -822,7 +822,11 @@ void MapCanvas::handleKeyPress(QKeyEvent *const event)
             const Hotkey hk(static_cast<Qt::Key>(event->key()), event->modifiers());
             if (hk.isValid()) {
                 if (const auto cmd = m_hotkeyManager->getCommand(hk)) {
-                    emit sig_sendUserInput(mmqt::toQStringUtf8(*cmd));
+                    QString cmdStr = mmqt::toQStringUtf8(*cmd);
+                    if (!cmdStr.endsWith('\n')) {
+                        cmdStr += "\n";
+                    }
+                    emit sig_sendUserInput(cmdStr);
                     m_terminalBuffer.scrollToBottom();
                     m_frameManager.requestUpdate();
                     return;
@@ -831,7 +835,11 @@ void MapCanvas::handleKeyPress(QKeyEvent *const event)
         }
 
         if (const auto optSubmitted = m_inputPrompt.handleKeyPress(event)) {
-            emit sig_sendUserInput(*optSubmitted);
+            QString cmdStr = *optSubmitted;
+            if (!cmdStr.endsWith('\n')) {
+                cmdStr += "\n";
+            }
+            emit sig_sendUserInput(cmdStr);
             m_terminalBuffer.scrollToBottom();
             m_frameManager.requestUpdate();
             return;
@@ -842,24 +850,31 @@ void MapCanvas::handleKeyPress(QKeyEvent *const event)
 
 void MapCanvas::handleMouseMove(QMouseEvent *event)
 {
-    if (m_terminalOverlayEnabled && m_terminalSelectingText) {
+    if (m_terminalOverlayEnabled) {
         const QPointF pos = event->position();
-        const int fontHeight = std::max(12, getGLFont().getFontHeight());
-        const int charWidth = std::max(6, getGLFont().getGlyphAdvance(' ').value_or(10));
-        const int col = std::max(0, static_cast<int>(pos.x() - 4) / charWidth);
-        const int row = std::max(0, static_cast<int>(pos.y() - 4) / fontHeight);
+        const int consoleW = static_cast<int>(static_cast<float>(currentHostSize().width())
+                                              * m_terminalSplitRatio);
+        if (pos.x() <= consoleW) {
+            if (m_terminalSelectingText) {
+                const int fontHeight = std::max(12, getGLFont().getFontHeight());
+                const int charWidth = std::max(6, getGLFont().getGlyphAdvance(' ').value_or(10));
+                const int col = std::max(0, static_cast<int>(pos.x() - 4) / charWidth);
+                const int row = std::max(0, static_cast<int>(pos.y() - 4) / fontHeight);
 
-        const size_t totalLines = m_terminalBuffer.getLineCount();
-        const int scrollOffset = m_terminalBuffer.getScrollOffset();
-        const int rows = m_terminalBuffer.getRows();
-        const int topVisibleLineIdx = std::max(0,
-                                               static_cast<int>(totalLines) - rows - scrollOffset);
-        const int lineIdx = topVisibleLineIdx + row;
+                const size_t totalLines = m_terminalBuffer.getLineCount();
+                const int scrollOffset = m_terminalBuffer.getScrollOffset();
+                const int rows = m_terminalBuffer.getRows();
+                const int topVisibleLineIdx = std::max(0,
+                                                       static_cast<int>(totalLines) - rows
+                                                           - scrollOffset);
+                const int lineIdx = topVisibleLineIdx + row;
 
-        m_terminalBuffer.updateSelection(col, lineIdx);
-        m_frameManager.requestUpdate();
-        event->accept();
-        return;
+                m_terminalBuffer.updateSelection(col, lineIdx);
+                m_frameManager.requestUpdate();
+            }
+            event->accept();
+            return;
+        }
     }
 
     if (m_longPressPos

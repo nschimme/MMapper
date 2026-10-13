@@ -1240,12 +1240,13 @@ void MapCanvas::paintMudClientConsole()
     }
 
     OpenGL &gl = getOpenGL();
-    const auto vp = gl.getPhysicalViewport();
     const auto viewProj2d = glm::scale(glm::mat4(1), glm::vec3(2, 2, 1))
                             * glm::translate(glm::mat4(1), glm::vec3(-0.5f, 0.5f, 0.0f))
                             * glm::scale(glm::mat4(1),
-                                         glm::vec3(1.f / glm::vec2(vp.size.x, -vp.size.y), 1.f))
-                            * glm::translate(glm::mat4(1), glm::vec3(-glm::vec2(vp.offset), 1.f));
+                                         glm::vec3(1.f
+                                                       / glm::vec2(static_cast<float>(hostW),
+                                                                   -static_cast<float>(hostH)),
+                                                   1.f));
 
     const auto oldProj = gl.getProjectionMatrix();
     gl.setProjectionMatrix(viewProj2d);
@@ -1347,10 +1348,17 @@ void MapCanvas::paintMudClientConsole()
     std::string promptStr = "> " + mmqt::toStdStringUtf8(m_inputPrompt.getDisplayText());
 
     if (m_inputPrompt.isFocused()) {
-        int cursorCol = m_inputPrompt.getCursorPos() + 2;
-        if (cursorCol >= 0 && cursorCol < cols) {
-            promptStr += " ";
-        }
+        const int cursorCol = m_inputPrompt.getCursorPos() + 2;
+        const float cursorX = 4.0f + static_cast<float>(cursorCol * charWidth);
+        const float cursorY = static_cast<float>(inputY);
+        const float cursorW = static_cast<float>(charWidth);
+        const float cursorH = static_cast<float>(fontHeight);
+
+        const std::vector<glm::vec3> cursorVerts{{cursorX, cursorY, 0.0f},
+                                                 {cursorX + cursorW, cursorY, 0.0f},
+                                                 {cursorX + cursorW, cursorY + cursorH, 0.0f},
+                                                 {cursorX, cursorY + cursorH, 0.0f}};
+        gl.renderPlainQuads(cursorVerts, renderState.withColor(Color{0.8f, 0.8f, 0.9f, 0.6f}));
     }
 
     const glm::vec3 promptPos{4.0f, static_cast<float>(inputY), 0.f};
@@ -1361,6 +1369,11 @@ void MapCanvas::paintMudClientConsole()
         getGLFont().render2dTextImmediate(batchText);
     }
 
+    // Restore map sub-viewport and projection matrix
+    const int mapX = consoleWidth;
+    const int mapW = std::max(1, hostW - consoleWidth);
+    setSubViewport(glm::ivec2{mapX, 0}, glm::ivec2{mapW, hostH});
+    gl.glViewport(mapX, 0, mapW, hostH);
     gl.setProjectionMatrix(oldProj);
 
     if (m_terminalBuffer.takeBellTriggered()) {

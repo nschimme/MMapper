@@ -226,7 +226,7 @@ void MapCanvas::handleWheel(QWheelEvent *const event)
             const int angleDelta = event->angleDelta().y();
             if (angleDelta != 0) {
                 const int steps = angleDelta / 120;
-                m_terminalBuffer.scroll(-(steps != 0 ? steps * 3 : (angleDelta > 0 ? 3 : -3)));
+                m_terminalBuffer.scroll(steps != 0 ? steps * 3 : (angleDelta > 0 ? 3 : -3));
                 m_frameManager.requestUpdate();
             }
             event->accept();

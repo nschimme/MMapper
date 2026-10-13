@@ -39,8 +39,13 @@ public:
 
     NODISCARD QString getDisplayText() const;
 
-    // Returns a QString if Return/Enter was pressed to submit command, else std::nullopt
-    NODISCARD std::optional<QString> handleKeyPress(QKeyEvent *event);
+    struct PromptResult final
+    {
+        bool handled = false;
+        std::optional<QString> submitted;
+    };
+
+    NODISCARD PromptResult handleKeyPress(QKeyEvent *event);
 
     void clear();
 

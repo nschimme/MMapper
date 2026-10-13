@@ -187,6 +187,7 @@ private:
     GameObserver &m_observer;
     mutable OpenGL m_opengl;
     GLFont m_glFont;
+    GLFont m_terminalGlFont;
     Batches m_batches;
     MapCanvasTextures m_textures;
     MapData &m_data;
@@ -275,6 +276,7 @@ private:
 private:
     NODISCARD inline auto &getOpenGL() { return m_opengl; }
     NODISCARD inline auto &getGLFont() { return m_glFont; }
+    NODISCARD inline auto &getTerminalGLFont() { return m_terminalGlFont; }
 
 public:
     // Called by the host with a current GL context. Idempotent: cleanup state

@@ -97,10 +97,10 @@ void GlInputPrompt::pasteFromClipboard()
     }
 }
 
-std::optional<QString> GlInputPrompt::handleKeyPress(QKeyEvent *event)
+GlInputPrompt::PromptResult GlInputPrompt::handleKeyPress(QKeyEvent *event)
 {
     if (!event) {
-        return std::nullopt;
+        return PromptResult{};
     }
 
     const int key = event->key();
@@ -109,15 +109,15 @@ std::optional<QString> GlInputPrompt::handleKeyPress(QKeyEvent *event)
     if (mods == Qt::ControlModifier) {
         if (key == Qt::Key_C) {
             copyToClipboard();
-            return std::nullopt;
+            return PromptResult{true, std::nullopt};
         }
         if (key == Qt::Key_V) {
             pasteFromClipboard();
-            return std::nullopt;
+            return PromptResult{true, std::nullopt};
         }
         if (key == Qt::Key_X) {
             cutToClipboard();
-            return std::nullopt;
+            return PromptResult{true, std::nullopt};
         }
     }
 
@@ -130,52 +130,52 @@ std::optional<QString> GlInputPrompt::handleKeyPress(QKeyEvent *event)
             m_tabHistory.addInputLine(submitted);
         }
         clear();
-        return submitted;
+        return PromptResult{true, submitted};
     }
     case Qt::Key_Backspace:
         if (m_cursorPos > 0 && !m_text.isEmpty()) {
             m_text.remove(m_cursorPos - 1, 1);
             --m_cursorPos;
         }
-        return std::nullopt;
+        return PromptResult{true, std::nullopt};
 
     case Qt::Key_Delete:
         if (m_cursorPos < m_text.size()) {
             m_text.remove(m_cursorPos, 1);
         }
-        return std::nullopt;
+        return PromptResult{true, std::nullopt};
 
     case Qt::Key_Left:
         if (m_cursorPos > 0) {
             --m_cursorPos;
         }
-        return std::nullopt;
+        return PromptResult{true, std::nullopt};
 
     case Qt::Key_Right:
         if (m_cursorPos < m_text.size()) {
             ++m_cursorPos;
         }
-        return std::nullopt;
+        return PromptResult{true, std::nullopt};
 
     case Qt::Key_Home:
         m_cursorPos = 0;
-        return std::nullopt;
+        return PromptResult{true, std::nullopt};
 
     case Qt::Key_End:
         m_cursorPos = static_cast<int>(m_text.size());
-        return std::nullopt;
+        return PromptResult{true, std::nullopt};
 
     case Qt::Key_Up:
         backwardHistory();
-        return std::nullopt;
+        return PromptResult{true, std::nullopt};
 
     case Qt::Key_Down:
         forwardHistory();
-        return std::nullopt;
+        return PromptResult{true, std::nullopt};
 
     case Qt::Key_Tab:
         tabComplete();
-        return std::nullopt;
+        return PromptResult{true, std::nullopt};
 
     default:
         break;
@@ -185,9 +185,10 @@ std::optional<QString> GlInputPrompt::handleKeyPress(QKeyEvent *event)
     if (!keyText.isEmpty() && keyText[0].isPrint()) {
         m_text.insert(m_cursorPos, keyText);
         m_cursorPos += static_cast<int>(keyText.size());
+        return PromptResult{true, std::nullopt};
     }
 
-    return std::nullopt;
+    return PromptResult{false, std::nullopt};
 }
 
 } // namespace mmgl

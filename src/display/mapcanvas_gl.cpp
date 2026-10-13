@@ -135,6 +135,7 @@ void MapCanvas::hostCleanupGL()
     m_weather.cleanup();
     m_textures.destroyAll();
     getGLFont().cleanup();
+    getTerminalGLFont().cleanup();
     getOpenGL().cleanup();
     m_logger.reset();
 
@@ -344,6 +345,14 @@ bool MapCanvas::hostInitializeGL()
     auto &font = getGLFont();
     font.setTextureId(allocateTextureId());
     font.init(currentLogicalDpi());
+
+    auto &termFont = getTerminalGLFont();
+    termFont.setTextureId(allocateTextureId());
+    QString clientFont = getConfig().integratedClient.font;
+    if (clientFont.isEmpty()) {
+        clientFont = QFont(QStringLiteral("Monospace"), 10).toString();
+    }
+    termFont.init(currentLogicalDpi(), clientFont);
     updateTextures();
 
     // compile all shaders
@@ -486,7 +495,7 @@ void MapCanvas::setViewportAndMvp(const int width, const int height, const qreal
     int mapH = height;
     if (m_terminalOverlayEnabled) {
         int consoleW = static_cast<int>(static_cast<float>(width) * m_terminalSplitRatio);
-        const int fontHeight = std::max(12, getGLFont().getFontHeight());
+        const int fontHeight = std::max(12, getTerminalGLFont().getFontHeight());
         const int inputBarHeight = fontHeight + 8;
         mapX = consoleW;
         mapY = inputBarHeight;
@@ -633,6 +642,14 @@ void MapCanvas::applyPendingGLWork()
         auto &font = getGLFont();
         font.cleanup();
         font.init(currentLogicalDpi());
+
+        auto &termFont = getTerminalGLFont();
+        termFont.cleanup();
+        QString clientFont = getConfig().integratedClient.font;
+        if (clientFont.isEmpty()) {
+            clientFont = QFont(QStringLiteral("Monospace"), 10).toString();
+        }
+        termFont.init(currentLogicalDpi(), clientFont);
     }
     if (m_pendingRenderScale.has_value()) {
         const float newScale = *m_pendingRenderScale;
@@ -656,6 +673,15 @@ void MapCanvas::applyPendingGLWork()
         auto &font = getGLFont();
         font.cleanup();
         font.init(currentLogicalDpi());
+
+        auto &termFont = getTerminalGLFont();
+        termFont.cleanup();
+        QString clientFont = getConfig().integratedClient.font;
+        if (clientFont.isEmpty()) {
+            clientFont = QFont(QStringLiteral("Monospace"), 10).toString();
+        }
+        termFont.init(currentLogicalDpi(), clientFont);
+
         // existing text meshes reference the old atlas
         m_pendingForceUpdateMeshes = true;
     }
@@ -1231,8 +1257,8 @@ void MapCanvas::paintMudClientConsole()
                                                        * m_terminalSplitRatio));
     const int consoleHeight = hostH;
 
-    const int fontHeight = std::max(12, getGLFont().getFontHeight());
-    const int charWidth = std::max(6, getGLFont().getGlyphAdvance(' ').value_or(10));
+    const int fontHeight = std::max(12, getTerminalGLFont().getFontHeight());
+    const int charWidth = std::max(6, getTerminalGLFont().getGlyphAdvance(' ').value_or(10));
 
     const int inputBarHeight = fontHeight + 8;
     const int outputHeight = std::max(0, consoleHeight - inputBarHeight);
@@ -1373,7 +1399,7 @@ void MapCanvas::paintMudClientConsole()
     batchText.emplace_back(GLText{promptPos, std::move(promptStr), fgPrompt});
 
     if (!batchText.empty()) {
-        getGLFont().render2dTextImmediate(batchText);
+        getTerminalGLFont().render2dTextImmediate(batchText);
     }
 
     // Restore map sub-viewport and projection matrix

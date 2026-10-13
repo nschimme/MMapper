@@ -305,9 +305,9 @@ void TestClient::glInputPromptEditing()
 
     // Enter to submit
     QKeyEvent keyEnter(QEvent::KeyPress, Qt::Key_Return, Qt::NoModifier);
-    const auto optSubmitted = prompt.handleKeyPress(&keyEnter);
-    QVERIFY(optSubmitted.has_value());
-    QCOMPARE(*optSubmitted, QStringLiteral("a"));
+    const auto promptRes = prompt.handleKeyPress(&keyEnter);
+    QVERIFY(promptRes.submitted.has_value());
+    QCOMPARE(*promptRes.submitted, QStringLiteral("a"));
     QCOMPARE(prompt.getText(), QString());
 
     // Password masking

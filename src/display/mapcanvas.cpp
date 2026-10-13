@@ -77,6 +77,7 @@ MapCanvas::MapCanvas(MapData &mapData,
     , m_observer{observer}
     , m_opengl{}
     , m_glFont{m_opengl}
+    , m_terminalGlFont{m_opengl}
     , m_data{mapData}
     , m_groupManager{groupManager}
     , m_host{host}
@@ -592,9 +593,10 @@ void MapCanvas::handleMousePress(QMouseEvent *const event)
         const float logicalH = static_cast<float>(currentHostSize().height()) / dpr;
         const int consoleW = static_cast<int>(logicalW * m_terminalSplitRatio);
 
-        const float logicalFontHeight = static_cast<float>(getGLFont().getFontHeight()) / dpr;
+        const float logicalFontHeight = static_cast<float>(getTerminalGLFont().getFontHeight())
+                                        / dpr;
         const float logicalCharWidth = static_cast<float>(
-                                           getGLFont().getGlyphAdvance(' ').value_or(10))
+                                           getTerminalGLFont().getGlyphAdvance(' ').value_or(10))
                                        / dpr;
         const float promptHeight = logicalFontHeight + (8.0f / dpr);
         const float availableTextHeight = std::max(0.0f, logicalH - promptHeight);
@@ -834,12 +836,19 @@ void MapCanvas::handleKeyPress(QKeyEvent *const event)
     }
 
     if (m_terminalOverlayEnabled) {
-        if (const auto optSubmitted = m_inputPrompt.handleKeyPress(event)) {
-            QString cmdStr = *optSubmitted;
+        const auto promptRes = m_inputPrompt.handleKeyPress(event);
+        if (promptRes.submitted.has_value()) {
+            QString cmdStr = *promptRes.submitted;
             if (!cmdStr.endsWith('\n')) {
                 cmdStr += "\n";
             }
             emit sig_sendUserInput(cmdStr);
+            m_terminalBuffer.scrollToBottom();
+            m_frameManager.requestUpdate();
+            return;
+        }
+
+        if (promptRes.handled) {
             m_terminalBuffer.scrollToBottom();
             m_frameManager.requestUpdate();
             return;
@@ -875,11 +884,12 @@ void MapCanvas::handleMouseMove(QMouseEvent *event)
         const int consoleW = static_cast<int>(logicalW * m_terminalSplitRatio);
         if (pos.x() <= static_cast<qreal>(consoleW)) {
             if (m_terminalSelectingText) {
-                const float logicalFontHeight = static_cast<float>(getGLFont().getFontHeight())
+                const float logicalFontHeight = static_cast<float>(
+                                                    getTerminalGLFont().getFontHeight())
                                                 / dpr;
-                const float logicalCharWidth = static_cast<float>(
-                                                   getGLFont().getGlyphAdvance(' ').value_or(10))
-                                               / dpr;
+                const float logicalCharWidth
+                    = static_cast<float>(getTerminalGLFont().getGlyphAdvance(' ').value_or(10))
+                      / dpr;
                 const float promptHeight = logicalFontHeight + (8.0f / dpr);
                 const float availableTextHeight = std::max(0.0f, logicalH - promptHeight);
                 const float clampedY = std::clamp(static_cast<float>(pos.y()),

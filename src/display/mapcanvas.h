@@ -243,11 +243,15 @@ private:
     bool m_terminalOverlayEnabled = true;
     float m_terminalSplitRatio = 0.35f;
     bool m_terminalSelectingText = false;
+    bool m_groupPanelEnabled = true;
+    int m_glGroupSelectedIndex = -1;
 
 public:
     NODISCARD mmgl::GlTerminalBuffer &getTerminalBuffer() { return m_terminalBuffer; }
     NODISCARD mmgl::GlInputPrompt &getInputPrompt() { return m_inputPrompt; }
     void setHotkeyManager(HotkeyManager *hm) { m_hotkeyManager = hm; }
+    NODISCARD int computeGroupPanelHeight() const;
+    void setGroupPanelEnabled(bool enabled) { m_groupPanelEnabled = enabled; }
 
     explicit MapCanvas(MapData &mapData,
                        GameObserver &observer,
@@ -376,6 +380,7 @@ public:
     void paintCharacters();
     void paintDifferences();
     void paintMudClientConsole();
+    void paintGroupPanel();
 
     // Immediately drops all cached meshes (must run with a current GL context).
     void forceUpdateMeshes();

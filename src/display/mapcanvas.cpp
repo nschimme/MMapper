@@ -10,6 +10,7 @@
 #include "../global/parserutils.h"
 #include "../global/progresscounter.h"
 #include "../global/utils.h"
+#include "../group/mmapper2group.h"
 #include "../map/ExitDirection.h"
 #include "../map/coordinate.h"
 #include "../map/exit.h"
@@ -96,6 +97,22 @@ MapCanvas::MapCanvas(MapData &mapData,
     m_frameManager.registerCallback(m_lifetime, [this]() {
         return m_batches.remeshCookie.isPending() ? FrameManager::AnimationStatusEnum::Continue
                                                   : FrameManager::AnimationStatusEnum::Stop;
+    });
+
+    connect(&m_groupManager, &Mmapper2Group::sig_characterAdded, this, [this]() {
+        m_frameManager.requestUpdate();
+    });
+    connect(&m_groupManager, &Mmapper2Group::sig_characterRemoved, this, [this]() {
+        m_frameManager.requestUpdate();
+    });
+    connect(&m_groupManager, &Mmapper2Group::sig_characterUpdated, this, [this]() {
+        m_frameManager.requestUpdate();
+    });
+    connect(&m_groupManager, &Mmapper2Group::sig_groupReset, this, [this]() {
+        m_frameManager.requestUpdate();
+    });
+    connect(&m_groupManager, &Mmapper2Group::sig_updateMapCanvas, this, [this]() {
+        m_frameManager.requestUpdate();
     });
 
     applyCursor(Qt::OpenHandCursor);
@@ -215,13 +232,30 @@ NODISCARD static uint32_t operator&(const Qt::KeyboardModifiers left, const Qt::
     return static_cast<uint32_t>(left) & static_cast<uint32_t>(right);
 }
 
+int MapCanvas::computeGroupPanelHeight() const
+{
+    if (!m_groupPanelEnabled) {
+        return 0;
+    }
+    const auto &chars = m_groupManager.selectAll();
+    if (chars.empty()) {
+        return 0;
+    }
+    const int fontHeight = std::max(12, m_terminalGlFont.getFontHeight());
+    const int headerHeight = fontHeight + 8;
+    const int rowHeight = fontHeight + 8;
+    return headerHeight + static_cast<int>(chars.size()) * rowHeight + 4;
+}
+
 void MapCanvas::handleWheel(QWheelEvent *const event)
 {
     stopFlick();
 
-    if (m_terminalOverlayEnabled) {
-        const QPointF pos = event->position();
-        const float dpr = static_cast<float>(currentDpr());
+    const float dpr = static_cast<float>(currentDpr());
+    const float groupH = static_cast<float>(computeGroupPanelHeight()) / dpr;
+    const QPointF pos = event->position();
+
+    if (m_terminalOverlayEnabled && pos.y() >= static_cast<qreal>(groupH)) {
         const float logicalW = static_cast<float>(currentHostSize().width()) / dpr;
         const int consoleW = static_cast<int>(logicalW * m_terminalSplitRatio);
         if (pos.x() <= static_cast<qreal>(consoleW)) {
@@ -586,11 +620,43 @@ void MapCanvas::onFlickTick()
 
 void MapCanvas::handleMousePress(QMouseEvent *const event)
 {
-    if (m_terminalOverlayEnabled) {
-        const QPointF pos = event->position();
-        const float dpr = static_cast<float>(currentDpr());
-        const float logicalW = static_cast<float>(currentHostSize().width()) / dpr;
-        const float logicalH = static_cast<float>(currentHostSize().height()) / dpr;
+    const QPointF pos = event->position();
+    const float dpr = static_cast<float>(currentDpr());
+    const float logicalW = static_cast<float>(currentHostSize().width()) / dpr;
+    const float logicalH = static_cast<float>(currentHostSize().height()) / dpr;
+    const float groupH = static_cast<float>(computeGroupPanelHeight()) / dpr;
+
+    // 1. Group Panel hit test
+    if (m_groupPanelEnabled && pos.y() < static_cast<qreal>(groupH)) {
+        const float fontH = static_cast<float>(getTerminalGLFont().getFontHeight()) / dpr;
+        const float headerH = fontH + (8.0f / dpr);
+        const float rowH = fontH + (8.0f / dpr);
+        const auto &chars = m_groupManager.selectAll();
+
+        if (pos.y() >= static_cast<qreal>(headerH) && !chars.empty()) {
+            const int rowIdx = static_cast<int>((pos.y() - static_cast<qreal>(headerH))
+                                                / static_cast<qreal>(rowH));
+            if (rowIdx >= 0 && rowIdx < static_cast<int>(chars.size())) {
+                m_glGroupSelectedIndex = rowIdx;
+                const auto &selectedChar = chars[static_cast<size_t>(rowIdx)];
+                if (selectedChar && event->type() == QEvent::MouseButtonDblClick) {
+                    const ServerRoomId srvId = selectedChar->getServerId();
+                    if (srvId != INVALID_SERVER_ROOMID) {
+                        if (const auto r = m_data.findRoomHandle(srvId)) {
+                            const auto vec2 = r.getPosition().to_vec2() + glm::vec2{0.5f, 0.5f};
+                            slot_setScroll(vec2);
+                        }
+                    }
+                }
+                m_frameManager.requestUpdate();
+            }
+        }
+        event->accept();
+        return;
+    }
+
+    // 2. Terminal left region hit test
+    if (m_terminalOverlayEnabled && pos.y() >= static_cast<qreal>(groupH)) {
         const int consoleW = static_cast<int>(logicalW * m_terminalSplitRatio);
 
         const float logicalFontHeight = static_cast<float>(getTerminalGLFont().getFontHeight())
@@ -599,12 +665,12 @@ void MapCanvas::handleMousePress(QMouseEvent *const event)
                                            getTerminalGLFont().getGlyphAdvance(' ').value_or(10))
                                        / dpr;
         const float promptHeight = logicalFontHeight + (8.0f / dpr);
-        const float availableTextHeight = std::max(0.0f, logicalH - promptHeight);
+        const float availableTextHeight = std::max(groupH, logicalH - promptHeight);
 
         if (pos.x() <= static_cast<qreal>(consoleW)) {
             if (pos.y() < static_cast<qreal>(availableTextHeight)) {
                 const float posX = static_cast<float>(pos.x());
-                const float posY = static_cast<float>(pos.y());
+                const float posY = static_cast<float>(pos.y()) - groupH;
                 const int col = std::max(0,
                                          static_cast<int>((posX - (4.0f / dpr)) / logicalCharWidth));
                 const int row = std::max(0,
@@ -881,8 +947,9 @@ void MapCanvas::handleMouseMove(QMouseEvent *event)
         const float dpr = static_cast<float>(currentDpr());
         const float logicalW = static_cast<float>(currentHostSize().width()) / dpr;
         const float logicalH = static_cast<float>(currentHostSize().height()) / dpr;
+        const float groupH = static_cast<float>(computeGroupPanelHeight()) / dpr;
         const int consoleW = static_cast<int>(logicalW * m_terminalSplitRatio);
-        if (pos.x() <= static_cast<qreal>(consoleW)) {
+        if (pos.x() <= static_cast<qreal>(consoleW) && pos.y() >= static_cast<qreal>(groupH)) {
             if (m_terminalSelectingText) {
                 const float logicalFontHeight = static_cast<float>(
                                                     getTerminalGLFont().getFontHeight())
@@ -891,16 +958,17 @@ void MapCanvas::handleMouseMove(QMouseEvent *event)
                     = static_cast<float>(getTerminalGLFont().getGlyphAdvance(' ').value_or(10))
                       / dpr;
                 const float promptHeight = logicalFontHeight + (8.0f / dpr);
-                const float availableTextHeight = std::max(0.0f, logicalH - promptHeight);
+                const float availableTextHeight = std::max(groupH, logicalH - promptHeight);
                 const float clampedY = std::clamp(static_cast<float>(pos.y()),
-                                                  0.0f,
+                                                  groupH,
                                                   availableTextHeight - 1.0f);
 
                 const float posX = static_cast<float>(pos.x());
+                const float posY = clampedY - groupH;
                 const int col = std::max(0,
                                          static_cast<int>((posX - (4.0f / dpr)) / logicalCharWidth));
                 const int row = std::max(0,
-                                         static_cast<int>((clampedY - (4.0f / dpr))
+                                         static_cast<int>((posY - (4.0f / dpr))
                                                           / logicalFontHeight));
 
                 const size_t totalLines = m_terminalBuffer.getLineCount();

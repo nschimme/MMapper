@@ -28,8 +28,11 @@ private Q_SLOTS:
 
     // GlTerminalBuffer & GlInputPrompt
     void glTerminalBufferAnsiParsing();
+    void glTerminalBufferExtendedAnsiAndWrapping();
     void glTerminalBufferSelectionAndCopy();
+    void glTerminalBufferScrollingAndClear();
     void glInputPromptEditing();
+    void glInputPromptExtendedEditingAndClipboard();
 
     // RemoteEditDocumentOps (widget-free core of the MPI remote editor)
     void remoteEditJustifyTextRewrapsLongLines();

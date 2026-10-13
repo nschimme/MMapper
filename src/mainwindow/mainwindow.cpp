@@ -68,7 +68,6 @@ void MainWindowTelnetOutputs::virt_sendToUser(const QString &str)
 #include "../global/SendToUser.h"
 #include "../global/Version.h"
 #include "../global/window_utils.h"
-#include "../group/groupwidget.h"
 #include "../logger/autologger.h"
 #include "../media/AudioManager.h"
 #include "../media/DescriptionWidget.h"
@@ -229,21 +228,6 @@ MainWindow::MainWindow()
         m_dockDialogLog = dock;
     });
 
-    // Window -> Side Panels -> Group Panel and Tools -> Group Manager
-    std::invoke([this] {
-        auto *const w = new GroupWidget(m_groupManager, m_mapData, this);
-        auto *const dock = new QDockWidget(tr("Group Panel"), this);
-        dock->setObjectName("DockWidgetGroup");
-        dock->setAllowedAreas(Qt::TopDockWidgetArea | Qt::BottomDockWidgetArea);
-        dock->setFeatures(QDockWidget::DockWidgetMovable | QDockWidget::DockWidgetFloatable
-                          | QDockWidget::DockWidgetClosable);
-        addDockWidget(Qt::TopDockWidgetArea, dock);
-        dock->setWidget(w);
-        connect(w, &GroupWidget::sig_center, m_mapWindow, &MapWindow::slot_centerOnWorldPos);
-
-        m_groupWidget = w;
-        m_dockDialogGroup = dock;
-    });
 
     // Window -> Side Panels -> Room Panel (Mobs)
     std::invoke([this] {
@@ -655,8 +639,6 @@ void MainWindow::wireConnections()
             &Mmapper2Group::sig_updateMapCanvas,
             canvas,
             &MapCanvasWindow::slot_requestUpdate);
-
-    connect(m_mapData, &MapFrontend::sig_clearingMap, m_groupWidget, &GroupWidget::slot_mapUnloaded);
 
     connect(m_mumeClock, &MumeClock::sig_log, this, &MainWindow::slot_log);
 
@@ -1417,7 +1399,6 @@ void MainWindow::setupMenuBar()
     toolbars->addAction(audioToolBar->toggleViewAction());
     QMenu *sidepanels = windowMenu->addMenu(tr("&Side Panels"));
     sidepanels->addAction(m_dockDialogLog->toggleViewAction());
-    sidepanels->addAction(m_dockDialogGroup->toggleViewAction());
     sidepanels->addAction(m_dockDialogRoom->toggleViewAction());
     sidepanels->addAction(m_dockDialogAdventure->toggleViewAction());
     sidepanels->addAction(m_dockDialogDescription->toggleViewAction());
@@ -1593,7 +1574,6 @@ void MainWindow::slot_setShowMenuBar()
     show();
 
     m_dockDialogAdventure->setMouseTracking(!showMenuBar);
-    m_dockDialogGroup->setMouseTracking(!showMenuBar);
     m_dockDialogLog->setMouseTracking(!showMenuBar);
     m_dockDialogRoom->setMouseTracking(!showMenuBar);
 
@@ -1604,14 +1584,12 @@ void MainWindow::slot_setShowMenuBar()
             menuBar()->show();
         }
         m_dockDialogAdventure->removeEventFilter(this);
-        m_dockDialogGroup->removeEventFilter(this);
         m_dockDialogLog->removeEventFilter(this);
         m_dockDialogRoom->removeEventFilter(this);
         m_mapWindow->removeEventFilter(this);
         m_mapWindow->getCanvas()->removeEventFilter(this);
     } else {
         m_dockDialogAdventure->installEventFilter(this);
-        m_dockDialogGroup->installEventFilter(this);
         m_dockDialogLog->installEventFilter(this);
         m_dockDialogRoom->installEventFilter(this);
         m_mapWindow->installEventFilter(this);
@@ -1944,7 +1922,6 @@ void MainWindow::forceNewFile()
 
     setCurrentFile("");
     getCanvas()->slot_dataLoaded();
-    m_groupWidget->slot_mapLoaded();
     updateDescriptionRoom(RoomHandle{});
     m_audioManager->onAreaChanged(RoomArea{});
 
@@ -2467,7 +2444,6 @@ void MainWindow::onSuccessfulLoad(const MapLoadData &mapLoadData)
 {
     auto &mapData = deref(m_mapData);
     auto &mapCanvas = deref(getCanvas());
-    auto &groupWidget = deref(m_groupWidget);
     auto &pathMachine = deref(m_pathMachine);
 
     mapData.setMapData(mapLoadData);
@@ -2475,7 +2451,6 @@ void MainWindow::onSuccessfulLoad(const MapLoadData &mapLoadData)
 
     // TODO: convert from slot_xxx prefix if these are no longer used as slots anywhere.
     mapCanvas.slot_dataLoaded();
-    groupWidget.slot_mapLoaded();
     pathMachine.onMapLoaded();
     if (const auto room = mapData.getCurrentRoom()) {
         updateDescriptionRoom(room);
@@ -2494,7 +2469,6 @@ void MainWindow::onSuccessfulMerge(const Map &map)
 {
     auto &mapData = deref(m_mapData);
     auto &mapCanvas = deref(getCanvas());
-    auto &groupWidget = deref(m_groupWidget);
 
     mapData.setCurrentMap(map);
     mapData.checkSize();
@@ -2504,7 +2478,6 @@ void MainWindow::onSuccessfulMerge(const Map &map)
     // one in parallel? (see: ignorePendingRemesh)
 
     mapCanvas.slot_dataLoaded();
-    groupWidget.slot_mapLoaded();
     updateMapModified();
     mapChanged();
     showStatusShort(tr("File merged"));

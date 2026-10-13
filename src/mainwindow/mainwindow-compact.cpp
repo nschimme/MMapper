@@ -104,8 +104,7 @@ void MainWindow::buildDefaultCompactLayout()
 
     // One tabbed group so a single panel shows at a time, below the
     // map; hidden docks stay hidden and appear as tabs when shown.
-    const std::array<QDockWidget *, 7> docks{m_dockDialogGroup,
-                                             m_dockDialogRoom,
+    const std::array<QDockWidget *, 6> docks{m_dockDialogRoom,
                                              m_dockDialogDescription,
                                              m_dockDialogLog,
                                              m_dockDialogAdventure,

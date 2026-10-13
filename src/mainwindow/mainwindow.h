@@ -36,7 +36,6 @@ class ConnectionListener;
 class ConnectionSelection;
 class FindRoomsDlg;
 class GameObserver;
-class GroupWidget;
 class HotkeyManager;
 class InfomarkSelection;
 class MapCanvasWindow;
@@ -87,7 +86,6 @@ private:
 
     QDockWidget *m_dockDialogRoom = nullptr;
     QDockWidget *m_dockDialogLog = nullptr;
-    QDockWidget *m_dockDialogGroup = nullptr;
     QDockWidget *m_dockDialogAdventure = nullptr;
     QDockWidget *m_dockDialogDescription = nullptr;
     QDockWidget *m_dockDialogTimers = nullptr;
@@ -105,7 +103,6 @@ private:
     // Pandora Ported
     FindRoomsDlg *m_findRoomsDlg = nullptr;
     Mmapper2Group *m_groupManager = nullptr;
-    GroupWidget *m_groupWidget = nullptr;
 
     RoomWidget *m_roomWidget = nullptr;
     RoomManager *m_roomManager = nullptr;

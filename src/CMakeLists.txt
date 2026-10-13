@@ -258,8 +258,6 @@ set(mmapper_SRCS
     group/GroupManagerApi.h
     group/GroupModel.cpp
     group/GroupModel.h
-    group/groupwidget.cpp
-    group/groupwidget.h
     group/enums.cpp
     group/enums.h
     group/mmapper2character.cpp

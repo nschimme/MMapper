@@ -47,10 +47,15 @@ private:
                                                                            : EchoModeEnum::Hidden);
     }
 
-    void virt_sendToUser(const QString &str) final { m_mainWin.getCanvas()->slot_displayText(str); }
+    void virt_sendToUser(const QString &str) final;
 };
 
 MainWindowTelnetOutputs::~MainWindowTelnetOutputs() = default;
+
+void MainWindowTelnetOutputs::virt_sendToUser(const QString &str)
+{
+    m_mainWin.getCanvas()->slot_displayText(str);
+}
 #include "../client/HotkeyManager.h"
 #include "../clock/mumeclock.h"
 #include "../clock/mumeclockwidget.h"

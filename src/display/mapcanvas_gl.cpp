@@ -1239,6 +1239,48 @@ void MapCanvas::paintMudClientConsole()
         emit sig_windowSizeChanged(cols, rows);
     }
 
+    OpenGL &gl = getOpenGL();
+    const auto vp = gl.getPhysicalViewport();
+    const auto viewProj2d = glm::scale(glm::mat4(1), glm::vec3(2, 2, 1))
+                            * glm::translate(glm::mat4(1), glm::vec3(-0.5f, 0.5f, 0.0f))
+                            * glm::scale(glm::mat4(1),
+                                         glm::vec3(1.f / glm::vec2(vp.size.x, -vp.size.y), 1.f))
+                            * glm::translate(glm::mat4(1), glm::vec3(-glm::vec2(vp.offset), 1.f));
+
+    const auto oldProj = gl.getProjectionMatrix();
+    gl.setProjectionMatrix(viewProj2d);
+
+    const auto renderState = GLRenderState()
+                                 .withBlend(BlendModeEnum::TRANSPARENCY)
+                                 .withDepthFunction(std::nullopt);
+
+    // Render solid dark opaque background panel for terminal log overlay
+    const std::vector<glm::vec3> panelVerts{
+        {0.0f, 0.0f, 0.0f},
+        {static_cast<float>(consoleWidth), 0.0f, 0.0f},
+        {static_cast<float>(consoleWidth), static_cast<float>(consoleHeight), 0.0f},
+        {0.0f, static_cast<float>(consoleHeight), 0.0f}};
+    gl.renderPlainQuads(panelVerts, renderState.withColor(Color{0.05f, 0.05f, 0.07f, 0.98f}));
+
+    // Render input bar background quad at bottom
+    const float inputYPos = static_cast<float>(consoleHeight - inputBarHeight);
+    const std::vector<glm::vec3> inputBarVerts{
+        {0.0f, inputYPos, 0.0f},
+        {static_cast<float>(consoleWidth), inputYPos, 0.0f},
+        {static_cast<float>(consoleWidth), static_cast<float>(consoleHeight), 0.0f},
+        {0.0f, static_cast<float>(consoleHeight), 0.0f}};
+    gl.renderPlainQuads(inputBarVerts, renderState.withColor(Color{0.12f, 0.12f, 0.15f, 1.0f}));
+
+    // Render separator line above input bar and right edge of terminal
+    const std::vector<glm::vec3> borderVerts{
+        {0.0f, inputYPos, 0.0f},
+        {static_cast<float>(consoleWidth), inputYPos, 0.0f},
+        {static_cast<float>(consoleWidth), 0.0f, 0.0f},
+        {static_cast<float>(consoleWidth), static_cast<float>(consoleHeight), 0.0f}};
+    gl.renderPlainLines(
+        borderVerts,
+        renderState.withLineParams(LineParams{2.0f}).withColor(Color{0.25f, 0.25f, 0.3f, 1.0f}));
+
     const size_t totalLines = m_terminalBuffer.getLineCount();
     const int scrollOffset = m_terminalBuffer.getScrollOffset();
     const int topVisibleLineIdx = std::max(0, static_cast<int>(totalLines) - rows - scrollOffset);
@@ -1316,6 +1358,8 @@ void MapCanvas::paintMudClientConsole()
     if (!batchText.empty()) {
         getGLFont().render2dTextImmediate(batchText);
     }
+
+    gl.setProjectionMatrix(oldProj);
 
     if (m_terminalBuffer.takeBellTriggered()) {
         if (getConfig().integratedClient.audibleBell) {

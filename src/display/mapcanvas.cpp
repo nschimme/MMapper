@@ -237,26 +237,30 @@ int MapCanvas::computeGroupPanelHeight() const
     if (!m_groupPanelEnabled) {
         return 0;
     }
-    const auto &chars = m_groupManager.selectAll();
-    if (chars.empty()) {
+    const float dpr = static_cast<float>(currentDpr());
+    if (dpr <= 0.0f) {
         return 0;
     }
-    const int fontHeight = std::max(12, m_terminalGlFont.getFontHeight());
-    const int headerHeight = fontHeight + 8;
-    const int rowHeight = fontHeight + 8;
-    return headerHeight + static_cast<int>(chars.size()) * rowHeight + 4;
+    const float fontHeightLog = static_cast<float>(m_terminalGlFont.getFontHeight()) / dpr;
+    const float headerHeightLog = fontHeightLog + 8.0f;
+    const auto &chars = m_groupManager.selectAll();
+    if (chars.empty()) {
+        return static_cast<int>(std::ceil(headerHeightLog + 4.0f));
+    }
+    const float rowHeightLog = fontHeightLog + 8.0f;
+    return static_cast<int>(
+        std::ceil(headerHeightLog + static_cast<float>(chars.size()) * rowHeightLog + 4.0f));
 }
 
 void MapCanvas::handleWheel(QWheelEvent *const event)
 {
     stopFlick();
 
-    const float dpr = static_cast<float>(currentDpr());
-    const float groupH = static_cast<float>(computeGroupPanelHeight()) / dpr;
+    const float groupH = static_cast<float>(computeGroupPanelHeight());
     const QPointF pos = event->position();
 
     if (m_terminalOverlayEnabled && pos.y() >= static_cast<qreal>(groupH)) {
-        const float logicalW = static_cast<float>(currentHostSize().width()) / dpr;
+        const float logicalW = static_cast<float>(currentHostSize().width());
         const int consoleW = static_cast<int>(logicalW * m_terminalSplitRatio);
         if (pos.x() <= static_cast<qreal>(consoleW)) {
             const int angleDelta = event->angleDelta().y();
@@ -622,15 +626,15 @@ void MapCanvas::handleMousePress(QMouseEvent *const event)
 {
     const QPointF pos = event->position();
     const float dpr = static_cast<float>(currentDpr());
-    const float logicalW = static_cast<float>(currentHostSize().width()) / dpr;
-    const float logicalH = static_cast<float>(currentHostSize().height()) / dpr;
-    const float groupH = static_cast<float>(computeGroupPanelHeight()) / dpr;
+    const float logicalW = static_cast<float>(currentHostSize().width());
+    const float logicalH = static_cast<float>(currentHostSize().height());
+    const float groupH = static_cast<float>(computeGroupPanelHeight());
 
     // 1. Group Panel hit test
     if (m_groupPanelEnabled && pos.y() < static_cast<qreal>(groupH)) {
         const float fontH = static_cast<float>(getTerminalGLFont().getFontHeight()) / dpr;
-        const float headerH = fontH + (8.0f / dpr);
-        const float rowH = fontH + (8.0f / dpr);
+        const float headerH = fontH + 8.0f;
+        const float rowH = fontH + 8.0f;
         const auto &chars = m_groupManager.selectAll();
 
         if (pos.y() >= static_cast<qreal>(headerH) && !chars.empty()) {
@@ -664,18 +668,15 @@ void MapCanvas::handleMousePress(QMouseEvent *const event)
         const float logicalCharWidth = static_cast<float>(
                                            getTerminalGLFont().getGlyphAdvance(' ').value_or(10))
                                        / dpr;
-        const float promptHeight = logicalFontHeight + (8.0f / dpr);
+        const float promptHeight = logicalFontHeight + 8.0f;
         const float availableTextHeight = std::max(groupH, logicalH - promptHeight);
 
         if (pos.x() <= static_cast<qreal>(consoleW)) {
             if (pos.y() < static_cast<qreal>(availableTextHeight)) {
                 const float posX = static_cast<float>(pos.x());
                 const float posY = static_cast<float>(pos.y()) - groupH;
-                const int col = std::max(0,
-                                         static_cast<int>((posX - (4.0f / dpr)) / logicalCharWidth));
-                const int row = std::max(0,
-                                         static_cast<int>((posY - (4.0f / dpr))
-                                                          / logicalFontHeight));
+                const int col = std::max(0, static_cast<int>((posX - 4.0f) / logicalCharWidth));
+                const int row = std::max(0, static_cast<int>((posY - 4.0f) / logicalFontHeight));
 
                 const size_t totalLines = m_terminalBuffer.getLineCount();
                 const int scrollOffset = m_terminalBuffer.getScrollOffset();
@@ -945,9 +946,9 @@ void MapCanvas::handleMouseMove(QMouseEvent *event)
     if (m_terminalOverlayEnabled) {
         const QPointF pos = event->position();
         const float dpr = static_cast<float>(currentDpr());
-        const float logicalW = static_cast<float>(currentHostSize().width()) / dpr;
-        const float logicalH = static_cast<float>(currentHostSize().height()) / dpr;
-        const float groupH = static_cast<float>(computeGroupPanelHeight()) / dpr;
+        const float logicalW = static_cast<float>(currentHostSize().width());
+        const float logicalH = static_cast<float>(currentHostSize().height());
+        const float groupH = static_cast<float>(computeGroupPanelHeight());
         const int consoleW = static_cast<int>(logicalW * m_terminalSplitRatio);
         if (pos.x() <= static_cast<qreal>(consoleW) && pos.y() >= static_cast<qreal>(groupH)) {
             if (m_terminalSelectingText) {
@@ -957,7 +958,7 @@ void MapCanvas::handleMouseMove(QMouseEvent *event)
                 const float logicalCharWidth
                     = static_cast<float>(getTerminalGLFont().getGlyphAdvance(' ').value_or(10))
                       / dpr;
-                const float promptHeight = logicalFontHeight + (8.0f / dpr);
+                const float promptHeight = logicalFontHeight + 8.0f;
                 const float availableTextHeight = std::max(groupH, logicalH - promptHeight);
                 const float clampedY = std::clamp(static_cast<float>(pos.y()),
                                                   groupH,
@@ -965,11 +966,8 @@ void MapCanvas::handleMouseMove(QMouseEvent *event)
 
                 const float posX = static_cast<float>(pos.x());
                 const float posY = clampedY - groupH;
-                const int col = std::max(0,
-                                         static_cast<int>((posX - (4.0f / dpr)) / logicalCharWidth));
-                const int row = std::max(0,
-                                         static_cast<int>((posY - (4.0f / dpr))
-                                                          / logicalFontHeight));
+                const int col = std::max(0, static_cast<int>((posX - 4.0f) / logicalCharWidth));
+                const int row = std::max(0, static_cast<int>((posY - 4.0f) / logicalFontHeight));
 
                 const size_t totalLines = m_terminalBuffer.getLineCount();
                 const int scrollOffset = m_terminalBuffer.getScrollOffset();

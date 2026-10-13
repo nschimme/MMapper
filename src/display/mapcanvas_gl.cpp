@@ -1243,30 +1243,36 @@ void MapCanvas::paintMudClientConsole()
     }
 
     const QSize hostSize = currentHostSize();
-    const int hostW = hostSize.width();
-    const int hostH = hostSize.height();
+    const float hostW = static_cast<float>(hostSize.width());
+    const float hostH = static_cast<float>(hostSize.height());
+    const float dpr = static_cast<float>(currentDpr());
 
-    if (hostW <= 0 || hostH <= 0) {
+    if (hostW <= 0.0f || hostH <= 0.0f || dpr <= 0.0f) {
         return;
     }
 
-    // Ensure GL viewport spans the full host window for 2D overlay text rendering
-    getOpenGL().glViewport(0, 0, hostW, hostH);
+    const float physW = hostW * dpr;
+    const float physH = hostH * dpr;
 
-    const int groupHeight = computeGroupPanelHeight();
-    const int consoleWidth = std::max(100,
-                                      static_cast<int>(static_cast<float>(hostW)
-                                                       * m_terminalSplitRatio));
-    const int consoleHeight = std::max(0, hostH - groupHeight);
+    OpenGL &gl = getOpenGL();
+    gl.glViewport(0, 0, static_cast<int>(hostW), static_cast<int>(hostH));
 
-    const int fontHeight = std::max(12, getTerminalGLFont().getFontHeight());
-    const int charWidth = std::max(6, getTerminalGLFont().getGlyphAdvance(' ').value_or(10));
+    const float groupHeightPhys = static_cast<float>(computeGroupPanelHeight()) * dpr;
+    const float consoleWidthPhys = std::max(100.0f * dpr, physW * m_terminalSplitRatio);
+    const float consoleHeightPhys = std::max(0.0f, physH - groupHeightPhys);
 
-    const int inputBarHeight = fontHeight + 8;
-    const int outputHeight = std::max(0, consoleHeight - inputBarHeight);
+    const float fontHeightPhys = static_cast<float>(
+        std::max(12, getTerminalGLFont().getFontHeight()));
+    const float charWidthPhys = static_cast<float>(
+        std::max(6, getTerminalGLFont().getGlyphAdvance(' ').value_or(10)));
 
-    const int cols = std::max(1, (consoleWidth - 8) / charWidth);
-    const int rows = std::max(1, (outputHeight - 8) / fontHeight);
+    const float inputBarHeightPhys = fontHeightPhys + (8.0f * dpr);
+    const float outputHeightPhys = std::max(0.0f, consoleHeightPhys - inputBarHeightPhys);
+
+    const int cols = std::max(1,
+                              static_cast<int>((consoleWidthPhys - (8.0f * dpr)) / charWidthPhys));
+    const int rows = std::max(1,
+                              static_cast<int>((outputHeightPhys - (8.0f * dpr)) / fontHeightPhys));
 
     if (cols != m_terminalBuffer.getColumns() || rows != m_terminalBuffer.getRows()) {
         m_terminalBuffer.setColumnsRows(cols, rows);
@@ -1276,14 +1282,10 @@ void MapCanvas::paintMudClientConsole()
             Qt::QueuedConnection);
     }
 
-    OpenGL &gl = getOpenGL();
     const auto viewProj2d = glm::scale(glm::mat4(1), glm::vec3(2, 2, 1))
                             * glm::translate(glm::mat4(1), glm::vec3(-0.5f, 0.5f, 0.0f))
                             * glm::scale(glm::mat4(1),
-                                         glm::vec3(1.f
-                                                       / glm::vec2(static_cast<float>(hostW),
-                                                                   -static_cast<float>(hostH)),
-                                                   1.f));
+                                         glm::vec3(1.f / glm::vec2(physW, -physH), 1.f));
 
     const auto oldProj = gl.getProjectionMatrix();
     gl.setProjectionMatrix(viewProj2d);
@@ -1293,34 +1295,30 @@ void MapCanvas::paintMudClientConsole()
                                  .withDepthFunction(std::nullopt)
                                  .withCulling(CullingEnum::DISABLED);
 
-    const float topY = static_cast<float>(groupHeight);
-    const float inputYPos = static_cast<float>(hostH - inputBarHeight);
+    const float topYPhys = groupHeightPhys;
+    const float inputYPosPhys = physH - inputBarHeightPhys;
 
     // 1. Render dark opaque background panel for terminal log overlay
-    const std::vector<glm::vec3> panelVerts{{0.0f, topY, 0.0f},
-                                            {static_cast<float>(consoleWidth), topY, 0.0f},
-                                            {static_cast<float>(consoleWidth), inputYPos, 0.0f},
-                                            {0.0f, inputYPos, 0.0f}};
+    const std::vector<glm::vec3> panelVerts{{0.0f, topYPhys, 0.0f},
+                                            {consoleWidthPhys, topYPhys, 0.0f},
+                                            {consoleWidthPhys, inputYPosPhys, 0.0f},
+                                            {0.0f, inputYPosPhys, 0.0f}};
     gl.renderPlainQuads(panelVerts, renderState.withColor(Color{0.05f, 0.05f, 0.07f, 0.98f}));
 
     // 2. Render input bar background quad STRICTLY under terminal section
-    const std::vector<glm::vec3> inputBarVerts{{0.0f, inputYPos, 0.0f},
-                                               {static_cast<float>(consoleWidth), inputYPos, 0.0f},
-                                               {static_cast<float>(consoleWidth),
-                                                static_cast<float>(hostH),
-                                                0.0f},
-                                               {0.0f, static_cast<float>(hostH), 0.0f}};
+    const std::vector<glm::vec3> inputBarVerts{{0.0f, inputYPosPhys, 0.0f},
+                                               {consoleWidthPhys, inputYPosPhys, 0.0f},
+                                               {consoleWidthPhys, physH, 0.0f},
+                                               {0.0f, physH, 0.0f}};
     gl.renderPlainQuads(inputBarVerts, renderState.withColor(Color{0.12f, 0.12f, 0.15f, 1.0f}));
 
-    // 3. Render separator lines: line above input bar and line at right edge of terminal panel
-    const std::vector<glm::vec3> borderVerts{{0.0f, inputYPos, 0.0f},
-                                             {static_cast<float>(consoleWidth), inputYPos, 0.0f},
-                                             {static_cast<float>(consoleWidth), topY, 0.0f},
-                                             {static_cast<float>(consoleWidth),
-                                              static_cast<float>(hostH),
-                                              0.0f}};
+    // 3. Render separator lines
+    const std::vector<glm::vec3> borderVerts{{0.0f, inputYPosPhys, 0.0f},
+                                             {consoleWidthPhys, inputYPosPhys, 0.0f},
+                                             {consoleWidthPhys, topYPhys, 0.0f},
+                                             {consoleWidthPhys, physH, 0.0f}};
     gl.renderPlainLines(borderVerts,
-                        renderState.withLineParams(LineParams{2.0f})
+                        renderState.withLineParams(LineParams{2.0f * dpr})
                             .withColor(Color{0.25f, 0.25f, 0.3f, 1.0f}));
 
     const size_t totalLines = m_terminalBuffer.getLineCount();
@@ -1337,17 +1335,18 @@ void MapCanvas::paintMudClientConsole()
         }
 
         const auto &line = m_terminalBuffer.getLine(static_cast<size_t>(lineIdx));
-        const int yPos = groupHeight + r * fontHeight + 4;
+        const float yPosPhys = topYPhys + static_cast<float>(r) * fontHeightPhys + (4.0f * dpr);
 
         QString currentRun;
         Color currentFg{};
         std::optional<Color> currentBg = std::nullopt;
         int runStartCol = 0;
 
-        const auto flushRun = [&](int y) {
+        const auto flushRun = [&](float y) {
             if (!currentRun.isEmpty()) {
-                const int xPos = runStartCol * charWidth + 4;
-                const glm::vec3 pos{static_cast<float>(xPos), static_cast<float>(y), 0.f};
+                const float xPosPhys = static_cast<float>(runStartCol) * charWidthPhys
+                                       + (4.0f * dpr);
+                const glm::vec3 pos{xPosPhys, y, 0.f};
                 batchText.emplace_back(
                     GLText{pos, mmqt::toStdStringUtf8(currentRun), currentFg, currentBg});
                 currentRun.clear();
@@ -1373,25 +1372,25 @@ void MapCanvas::paintMudClientConsole()
             } else if (cell.fgColor == currentFg && bg == currentBg) {
                 currentRun.append(QChar(static_cast<char16_t>(cell.charCode)));
             } else {
-                flushRun(yPos);
+                flushRun(yPosPhys);
                 currentRun.append(QChar(static_cast<char16_t>(cell.charCode)));
                 currentFg = cell.fgColor;
                 currentBg = bg;
                 runStartCol = static_cast<int>(c);
             }
         }
-        flushRun(yPos);
+        flushRun(yPosPhys);
     }
 
-    const int inputY = hostH - inputBarHeight + 4;
+    const float inputYPhys = inputYPosPhys + (4.0f * dpr);
     std::string promptStr = "> " + mmqt::toStdStringUtf8(m_inputPrompt.getDisplayText());
 
     if (m_inputPrompt.isFocused()) {
         const int cursorCol = m_inputPrompt.getCursorPos() + 2;
-        const float cursorX = 4.0f + static_cast<float>(cursorCol * charWidth);
-        const float cursorY = static_cast<float>(inputY);
-        const float cursorW = static_cast<float>(charWidth);
-        const float cursorH = static_cast<float>(fontHeight);
+        const float cursorX = (4.0f * dpr) + static_cast<float>(cursorCol) * charWidthPhys;
+        const float cursorY = inputYPhys;
+        const float cursorW = charWidthPhys;
+        const float cursorH = fontHeightPhys;
 
         const std::vector<glm::vec3> cursorVerts{{cursorX, cursorY, 0.0f},
                                                  {cursorX + cursorW, cursorY, 0.0f},
@@ -1400,7 +1399,7 @@ void MapCanvas::paintMudClientConsole()
         gl.renderPlainQuads(cursorVerts, renderState.withColor(Color{0.8f, 0.8f, 0.9f, 0.6f}));
     }
 
-    const glm::vec3 promptPos{4.0f, static_cast<float>(inputY), 0.f};
+    const glm::vec3 promptPos{4.0f * dpr, inputYPhys, 0.f};
     Color fgPrompt = Color{0.9f, 0.9f, 0.9f, 1.0f};
     batchText.emplace_back(GLText{promptPos, std::move(promptStr), fgPrompt});
 
@@ -1409,12 +1408,14 @@ void MapCanvas::paintMudClientConsole()
     }
 
     // Restore map sub-viewport and projection matrix
-    const int mapX = consoleWidth;
-    const int mapY = 0;
-    const int mapW = std::max(1, hostW - consoleWidth);
-    const int mapH = std::max(1, hostH - groupHeight);
-    setSubViewport(glm::ivec2{mapX, mapY}, glm::ivec2{mapW, mapH});
-    gl.glViewport(mapX, mapY, mapW, mapH);
+    const int mapXLogical = static_cast<int>(consoleWidthPhys / dpr);
+    const int mapYLogical = 0;
+    const int mapWLogical = std::max(1, static_cast<int>(hostW) - mapXLogical);
+    const int mapHLogical = std::max(1,
+                                     static_cast<int>(hostH)
+                                         - static_cast<int>(groupHeightPhys / dpr));
+    setSubViewport(glm::ivec2{mapXLogical, mapYLogical}, glm::ivec2{mapWLogical, mapHLogical});
+    gl.glViewport(mapXLogical, mapYLogical, mapWLogical, mapHLogical);
     gl.setProjectionMatrix(oldProj);
 
     if (m_terminalBuffer.takeBellTriggered()) {
@@ -1429,34 +1430,36 @@ void MapCanvas::paintGroupPanel()
     if (!m_groupPanelEnabled) {
         return;
     }
-    const auto &chars = m_groupManager.selectAll();
-    if (chars.empty()) {
-        return;
-    }
 
     const QSize hostSize = currentHostSize();
-    const int hostW = hostSize.width();
-    const int hostH = hostSize.height();
+    const float hostW = static_cast<float>(hostSize.width());
+    const float hostH = static_cast<float>(hostSize.height());
+    const float dpr = static_cast<float>(currentDpr());
 
-    if (hostW <= 0 || hostH <= 0) {
+    if (hostW <= 0.0f || hostH <= 0.0f || dpr <= 0.0f) {
         return;
     }
 
-    OpenGL &gl = getOpenGL();
-    gl.glViewport(0, 0, hostW, hostH);
+    const float physW = hostW * dpr;
+    const float physH = hostH * dpr;
 
-    const int fontHeight = std::max(12, getTerminalGLFont().getFontHeight());
-    const int headerHeight = fontHeight + 8;
-    const int rowHeight = fontHeight + 8;
-    const int panelHeight = headerHeight + static_cast<int>(chars.size()) * rowHeight + 4;
+    OpenGL &gl = getOpenGL();
+    gl.glViewport(0, 0, static_cast<int>(hostW), static_cast<int>(hostH));
+
+    const auto &chars = m_groupManager.selectAll();
+
+    const float fontHeightPhys = static_cast<float>(
+        std::max(12, getTerminalGLFont().getFontHeight()));
+    const float padPhys = 8.0f * dpr;
+    const float headerHeightPhys = fontHeightPhys + padPhys;
+    const float rowHeightPhys = fontHeightPhys + padPhys;
+    const float panelHeightPhys = headerHeightPhys
+                                  + static_cast<float>(chars.size()) * rowHeightPhys + (4.0f * dpr);
 
     const auto viewProj2d = glm::scale(glm::mat4(1), glm::vec3(2, 2, 1))
                             * glm::translate(glm::mat4(1), glm::vec3(-0.5f, 0.5f, 0.0f))
                             * glm::scale(glm::mat4(1),
-                                         glm::vec3(1.f
-                                                       / glm::vec2(static_cast<float>(hostW),
-                                                                   -static_cast<float>(hostH)),
-                                                   1.f));
+                                         glm::vec3(1.f / glm::vec2(physW, -physH), 1.f));
 
     const auto oldProj = gl.getProjectionMatrix();
     gl.setProjectionMatrix(viewProj2d);
@@ -1468,54 +1471,49 @@ void MapCanvas::paintGroupPanel()
 
     // 1. Panel Background
     const std::vector<glm::vec3> bgVerts{{0.0f, 0.0f, 0.0f},
-                                         {static_cast<float>(hostW), 0.0f, 0.0f},
-                                         {static_cast<float>(hostW),
-                                          static_cast<float>(panelHeight),
-                                          0.0f},
-                                         {0.0f, static_cast<float>(panelHeight), 0.0f}};
+                                         {physW, 0.0f, 0.0f},
+                                         {physW, panelHeightPhys, 0.0f},
+                                         {0.0f, panelHeightPhys, 0.0f}};
     gl.renderPlainQuads(bgVerts, renderState.withColor(Color{0.1f, 0.1f, 0.14f, 0.98f}));
 
     // Bottom border line
-    const std::vector<glm::vec3> borderVerts{{0.0f, static_cast<float>(panelHeight), 0.0f},
-                                             {static_cast<float>(hostW),
-                                              static_cast<float>(panelHeight),
-                                              0.0f}};
+    const std::vector<glm::vec3> borderVerts{{0.0f, panelHeightPhys, 0.0f},
+                                             {physW, panelHeightPhys, 0.0f}};
     gl.renderPlainLines(borderVerts,
-                        renderState.withLineParams(LineParams{2.0f})
+                        renderState.withLineParams(LineParams{2.0f * dpr})
                             .withColor(Color{0.3f, 0.3f, 0.35f, 1.0f}));
 
     // Header Background
     const std::vector<glm::vec3> headerVerts{{0.0f, 0.0f, 0.0f},
-                                             {static_cast<float>(hostW), 0.0f, 0.0f},
-                                             {static_cast<float>(hostW),
-                                              static_cast<float>(headerHeight),
-                                              0.0f},
-                                             {0.0f, static_cast<float>(headerHeight), 0.0f}};
+                                             {physW, 0.0f, 0.0f},
+                                             {physW, headerHeightPhys, 0.0f},
+                                             {0.0f, headerHeightPhys, 0.0f}};
     gl.renderPlainQuads(headerVerts, renderState.withColor(Color{0.18f, 0.18f, 0.22f, 1.0f}));
 
-    // Column widths
-    const float colNameW = 130.0f;
-    const float colHpW = 120.0f;
-    const float colManaW = 120.0f;
-    const float colMovesW = 120.0f;
-    const float colStateW = 90.0f;
+    // Column widths in physical pixels
+    const float colNameW = 130.0f * dpr;
+    const float colHpW = 120.0f * dpr;
+    const float colManaW = 120.0f * dpr;
+    const float colMovesW = 120.0f * dpr;
+    const float colStateW = 90.0f * dpr;
 
     std::vector<GLText> headerText;
     headerText.reserve(6);
     const Color headerFg = Color{0.75f, 0.75f, 0.8f, 1.0f};
 
-    float xOffset = 8.0f;
-    headerText.emplace_back(GLText{glm::vec3{xOffset, 4.0f, 0.0f}, "Name", headerFg});
+    float xOffset = 8.0f * dpr;
+    headerText.emplace_back(GLText{glm::vec3{xOffset, 4.0f * dpr, 0.0f}, "Name", headerFg});
     xOffset += colNameW;
-    headerText.emplace_back(GLText{glm::vec3{xOffset, 4.0f, 0.0f}, "HP", headerFg});
+    headerText.emplace_back(GLText{glm::vec3{xOffset, 4.0f * dpr, 0.0f}, "HP", headerFg});
     xOffset += colHpW;
-    headerText.emplace_back(GLText{glm::vec3{xOffset, 4.0f, 0.0f}, "Mana", headerFg});
+    headerText.emplace_back(GLText{glm::vec3{xOffset, 4.0f * dpr, 0.0f}, "Mana", headerFg});
     xOffset += colManaW;
-    headerText.emplace_back(GLText{glm::vec3{xOffset, 4.0f, 0.0f}, "Moves", headerFg});
+    headerText.emplace_back(GLText{glm::vec3{xOffset, 4.0f * dpr, 0.0f}, "Moves", headerFg});
     xOffset += colMovesW;
-    headerText.emplace_back(GLText{glm::vec3{xOffset, 4.0f, 0.0f}, "State", headerFg});
+    headerText.emplace_back(GLText{glm::vec3{xOffset, 4.0f * dpr, 0.0f}, "State", headerFg});
     xOffset += colStateW;
-    headerText.emplace_back(GLText{glm::vec3{xOffset, 4.0f, 0.0f}, "Location / Room", headerFg});
+    headerText.emplace_back(
+        GLText{glm::vec3{xOffset, 4.0f * dpr, 0.0f}, "Location / Room", headerFg});
 
     if (!headerText.empty()) {
         getTerminalGLFont().render2dTextImmediate(headerText);
@@ -1551,7 +1549,7 @@ void MapCanvas::paintGroupPanel()
         if (!character)
             continue;
 
-        const float rowY = static_cast<float>(headerHeight + static_cast<int>(i) * rowHeight);
+        const float rowY = headerHeightPhys + static_cast<float>(i) * rowHeightPhys;
         const bool isSelected = (m_glGroupSelectedIndex == static_cast<int>(i));
 
         // Row background
@@ -1566,23 +1564,21 @@ void MapCanvas::paintGroupPanel()
         }
 
         const std::vector<glm::vec3> rowBgVerts{{0.0f, rowY, 0.0f},
-                                                {static_cast<float>(hostW), rowY, 0.0f},
-                                                {static_cast<float>(hostW),
-                                                 rowY + static_cast<float>(rowHeight),
-                                                 0.0f},
-                                                {0.0f, rowY + static_cast<float>(rowHeight), 0.0f}};
+                                                {physW, rowY, 0.0f},
+                                                {physW, rowY + rowHeightPhys, 0.0f},
+                                                {0.0f, rowY + rowHeightPhys, 0.0f}};
         gl.renderPlainQuads(rowBgVerts, renderState.withColor(rowBgColor));
 
-        xOffset = 8.0f;
+        xOffset = 8.0f * dpr;
         const Color textFg = Color{0.95f, 0.95f, 0.95f, 1.0f};
 
         // Name
         std::string nameStr = mmqt::toStdStringUtf8(character->getName().toQString());
-        rowText.emplace_back(GLText{glm::vec3{xOffset, rowY + 4.0f, 0.0f}, nameStr, textFg});
+        rowText.emplace_back(GLText{glm::vec3{xOffset, rowY + 4.0f * dpr, 0.0f}, nameStr, textFg});
         xOffset += colNameW;
 
-        const float barH = static_cast<float>(rowHeight - 6);
-        const float barY = rowY + 3.0f;
+        const float barH = rowHeightPhys - (6.0f * dpr);
+        const float barY = rowY + (3.0f * dpr);
 
         // HP Bar
         {
@@ -1594,14 +1590,15 @@ void MapCanvas::paintGroupPanel()
                                                1.0f)
                                   : 1.0f;
 
+            const float barW = colHpW - (12.0f * dpr);
             const std::vector<glm::vec3> barBgVerts{{xOffset, barY, 0.0f},
-                                                    {xOffset + colHpW - 12.0f, barY, 0.0f},
-                                                    {xOffset + colHpW - 12.0f, barY + barH, 0.0f},
+                                                    {xOffset + barW, barY, 0.0f},
+                                                    {xOffset + barW, barY + barH, 0.0f},
                                                     {xOffset, barY + barH, 0.0f}};
             gl.renderPlainQuads(barBgVerts, renderState.withColor(Color{0.08f, 0.08f, 0.1f, 0.8f}));
 
             if (pct > 0.0f) {
-                const float fillW = (colHpW - 12.0f) * pct;
+                const float fillW = barW * pct;
                 Color hpColor = (pct < 0.3f) ? Color{0.95f, 0.3f, 0.3f, 0.9f}
                                              : Color{0.31f, 0.98f, 0.48f, 0.9f};
                 const std::vector<glm::vec3> barFillVerts{{xOffset, barY, 0.0f},
@@ -1613,7 +1610,7 @@ void MapCanvas::paintGroupPanel()
 
             std::string hpStr = std::to_string(hp) + " / " + std::to_string(maxHp);
             rowText.emplace_back(
-                GLText{glm::vec3{xOffset + 6.0f, barY + 2.0f, 0.0f}, hpStr, textFg});
+                GLText{glm::vec3{xOffset + 6.0f * dpr, barY + 2.0f * dpr, 0.0f}, hpStr, textFg});
             xOffset += colHpW;
         }
 
@@ -1621,24 +1618,23 @@ void MapCanvas::paintGroupPanel()
         {
             const int mana = character->getMana();
             const int maxMana = character->getMaxMana();
+            const float barW = colManaW - (12.0f * dpr);
             if (maxMana <= 0) {
                 rowText.emplace_back(
-                    GLText{glm::vec3{xOffset + 12.0f, barY + 2.0f, 0.0f}, "--", textFg});
+                    GLText{glm::vec3{xOffset + 12.0f * dpr, barY + 2.0f * dpr, 0.0f}, "--", textFg});
             } else {
                 const float pct = std::clamp(static_cast<float>(mana) / static_cast<float>(maxMana),
                                              0.0f,
                                              1.0f);
                 const std::vector<glm::vec3> barBgVerts{{xOffset, barY, 0.0f},
-                                                        {xOffset + colManaW - 12.0f, barY, 0.0f},
-                                                        {xOffset + colManaW - 12.0f,
-                                                         barY + barH,
-                                                         0.0f},
+                                                        {xOffset + barW, barY, 0.0f},
+                                                        {xOffset + barW, barY + barH, 0.0f},
                                                         {xOffset, barY + barH, 0.0f}};
                 gl.renderPlainQuads(barBgVerts,
                                     renderState.withColor(Color{0.08f, 0.08f, 0.1f, 0.8f}));
 
                 if (pct > 0.0f) {
-                    const float fillW = (colManaW - 12.0f) * pct;
+                    const float fillW = barW * pct;
                     const std::vector<glm::vec3> barFillVerts{{xOffset, barY, 0.0f},
                                                               {xOffset + fillW, barY, 0.0f},
                                                               {xOffset + fillW, barY + barH, 0.0f},
@@ -1648,8 +1644,9 @@ void MapCanvas::paintGroupPanel()
                 }
 
                 std::string manaStr = std::to_string(mana) + " / " + std::to_string(maxMana);
-                rowText.emplace_back(
-                    GLText{glm::vec3{xOffset + 6.0f, barY + 2.0f, 0.0f}, manaStr, textFg});
+                rowText.emplace_back(GLText{glm::vec3{xOffset + 6.0f * dpr, barY + 2.0f * dpr, 0.0f},
+                                            manaStr,
+                                            textFg});
             }
             xOffset += colManaW;
         }
@@ -1658,6 +1655,7 @@ void MapCanvas::paintGroupPanel()
         {
             const int moves = character->getMoves();
             const int maxMoves = character->getMaxMoves();
+            const float barW = colMovesW - (12.0f * dpr);
             const float pct = maxMoves > 0 ? std::clamp(static_cast<float>(moves)
                                                             / static_cast<float>(maxMoves),
                                                         0.0f,
@@ -1665,13 +1663,13 @@ void MapCanvas::paintGroupPanel()
                                            : 1.0f;
 
             const std::vector<glm::vec3> barBgVerts{{xOffset, barY, 0.0f},
-                                                    {xOffset + colMovesW - 12.0f, barY, 0.0f},
-                                                    {xOffset + colMovesW - 12.0f, barY + barH, 0.0f},
+                                                    {xOffset + barW, barY, 0.0f},
+                                                    {xOffset + barW, barY + barH, 0.0f},
                                                     {xOffset, barY + barH, 0.0f}};
             gl.renderPlainQuads(barBgVerts, renderState.withColor(Color{0.08f, 0.08f, 0.1f, 0.8f}));
 
             if (pct > 0.0f) {
-                const float fillW = (colMovesW - 12.0f) * pct;
+                const float fillW = barW * pct;
                 const std::vector<glm::vec3> barFillVerts{{xOffset, barY, 0.0f},
                                                           {xOffset + fillW, barY, 0.0f},
                                                           {xOffset + fillW, barY + barH, 0.0f},
@@ -1682,18 +1680,18 @@ void MapCanvas::paintGroupPanel()
 
             std::string movesStr = std::to_string(moves) + " / " + std::to_string(maxMoves);
             rowText.emplace_back(
-                GLText{glm::vec3{xOffset + 6.0f, barY + 2.0f, 0.0f}, movesStr, textFg});
+                GLText{glm::vec3{xOffset + 6.0f * dpr, barY + 2.0f * dpr, 0.0f}, movesStr, textFg});
             xOffset += colMovesW;
         }
 
         // State / Position
         std::string posStr = getPositionString(character->getPosition());
-        rowText.emplace_back(GLText{glm::vec3{xOffset, rowY + 4.0f, 0.0f}, posStr, textFg});
+        rowText.emplace_back(GLText{glm::vec3{xOffset, rowY + 4.0f * dpr, 0.0f}, posStr, textFg});
         xOffset += colStateW;
 
         // Room Name / Location
         std::string roomStr = mmqt::toStdStringUtf8(character->getRoomName().toQString());
-        rowText.emplace_back(GLText{glm::vec3{xOffset, rowY + 4.0f, 0.0f}, roomStr, textFg});
+        rowText.emplace_back(GLText{glm::vec3{xOffset, rowY + 4.0f * dpr, 0.0f}, roomStr, textFg});
     }
 
     if (!rowText.empty()) {

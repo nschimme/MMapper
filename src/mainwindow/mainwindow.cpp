@@ -14,6 +14,7 @@
 #include "../client/stackedinputwidget.h"
 #include "../display/MapCanvasWindow.h"
 
+namespace {
 class MainWindowTelnetOutputs final : public ClientTelnetOutputs
 {
 private:
@@ -56,6 +57,7 @@ void MainWindowTelnetOutputs::virt_sendToUser(const QString &str)
 {
     m_mainWin.getCanvas()->slot_displayText(str);
 }
+} // namespace
 #include "../client/HotkeyManager.h"
 #include "../clock/mumeclock.h"
 #include "../clock/mumeclockwidget.h"
@@ -1091,8 +1093,18 @@ void MainWindow::createActions()
                                    tr("Save Game Log as &HTML..."),
                                    this);
     connect(saveLogAsHtmlAct, &QAction::triggered, this, [this]() {
-        const QString text = getCanvas()->getCore().getTerminalBuffer().getAllText();
-        const QByteArray logContent = text.toUtf8();
+        const QString rawText = getCanvas()->getCore().getTerminalBuffer().getAllText();
+        const QString htmlContent = QString(
+                                         "<!DOCTYPE html>\n<html>\n<head>\n"
+                                         "<meta charset=\"utf-8\">\n"
+                                         "<title>MMapper Game Log</title>\n"
+                                         "<style>\n"
+                                         "body { background-color: #000000; color: #c0c0c0; "
+                                         "font-family: monospace; padding: 10px; }\n"
+                                         "pre { white-space: pre-wrap; word-wrap: break-word; }\n"
+                                         "</style>\n</head>\n<body>\n<pre>%1</pre>\n</body>\n</html>\n")
+                                         .arg(rawText.toHtmlEscaped());
+        const QByteArray logContent = htmlContent.toUtf8();
         QString newFileNameHtml = "log-" + QDateTime::currentDateTime().toString("yyyyMMdd-hhmmss")
                                   + ".html";
         QFileDialog::saveFileContent(logContent, newFileNameHtml);

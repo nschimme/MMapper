@@ -1251,8 +1251,10 @@ void MapCanvas::paintMudClientConsole()
     const auto oldProj = gl.getProjectionMatrix();
     gl.setProjectionMatrix(viewProj2d);
 
-    const auto renderState
-        = GLRenderState().withBlend(BlendModeEnum::TRANSPARENCY).withDepthFunction(std::nullopt);
+    const auto renderState = GLRenderState()
+                                 .withBlend(BlendModeEnum::TRANSPARENCY)
+                                 .withDepthFunction(std::nullopt)
+                                 .withCulling(CullingEnum::DISABLED);
 
     // Render solid dark opaque background panel for terminal log overlay
     const std::vector<glm::vec3> panelVerts{{0.0f, 0.0f, 0.0f},

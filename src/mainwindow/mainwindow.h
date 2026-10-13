@@ -299,6 +299,8 @@ public:
 
     NODISCARD HotkeyManager &getHotkeyManager() const { return deref(m_hotkeyManager); }
     NODISCARD CTimers &getTimers() const { return deref(m_timers); }
+    NODISCARD MapCanvasWindow *getCanvas() const;
+    void showStatusShort(const QString &txt) { showStatusInternal(txt, 2000); }
 
 private:
     // ProxyHost
@@ -344,7 +346,6 @@ private:
     void promptOpenFile();
     void showWarning(const QString &s);
     void showStatusInternal(const QString &txt, int duration);
-    void showStatusShort(const QString &txt) { showStatusInternal(txt, 2000); }
     void showStatusLong(const QString &txt) { showStatusInternal(txt, 5000); }
     void showStatusForever(const QString &txt) { showStatusInternal(txt, 0); }
     NODISCARD bool tryStartNewAsync();
@@ -390,7 +391,6 @@ private:
     };
     void hideCanvas(bool hide);
 
-    NODISCARD MapCanvasWindow *getCanvas() const;
     void mapChanged() const;
     void setCanvasMouseMode(CanvasMouseModeEnum mode);
     void setMapModified(bool);

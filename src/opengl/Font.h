@@ -79,7 +79,7 @@ public:
         m_id = id;
     }
     // NOTE: call cleanup() + init() again if the font, DPI, or DPR changes.
-    void init(float logicalDpi);
+    void init(float logicalDpi, const QString &customFont = {});
     void cleanup();
     NODISCARD float getLogicalDpi() const { return m_logicalDpi; }
 

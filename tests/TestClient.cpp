@@ -5,6 +5,8 @@
 
 #include "../src/client/InputHistory.h"
 #include "../src/configuration/configuration.h"
+#include "../src/display/GlInputPrompt.h"
+#include "../src/display/GlTerminalBuffer.h"
 #include "../src/mpi/RemoteEditDocumentOps.h"
 
 #include <QTextCursor>
@@ -238,6 +240,170 @@ void TestClient::tabHistoryNextMatchCycling()
     QCOMPARE(history.nextMatch("ap"), std::make_optional(QStringLiteral("apricot")));
 
     setConfig().integratedClient.tabCompletionDictionarySize = savedCap;
+}
+
+// --- GlTerminalBuffer & GlInputPrompt ---
+
+void TestClient::glTerminalBufferAnsiParsing()
+{
+    mmgl::GlTerminalBuffer buf;
+    buf.setColumnsRows(80, 24);
+    buf.setMaxLines(10);
+
+    buf.appendStreamText(QStringLiteral("Hello \033[1;31mWorld\033[0m\nLine 2\a"));
+
+    QCOMPARE(buf.getLineCount(), static_cast<size_t>(2));
+    QVERIFY(buf.takeBellTriggered());
+
+    const auto &line0 = buf.getLine(0);
+    QVERIFY(line0.cells.size() >= 11);
+    QCOMPARE(static_cast<char16_t>(line0.cells[0].charCode), QChar::fromUcs2('H'));
+    // "World" cells should have bold flag set
+    QCOMPARE(static_cast<char16_t>(line0.cells[6].charCode), QChar::fromUcs2('W'));
+    QVERIFY(line0.cells[6].bold);
+
+    // Scrollback capping test
+    for (int i = 0; i < 20; ++i) {
+        buf.appendStreamText(QStringLiteral("Extra line\n"));
+    }
+    QCOMPARE(buf.getLineCount(), static_cast<size_t>(10));
+}
+
+void TestClient::glTerminalBufferExtendedAnsiAndWrapping()
+{
+    mmgl::GlTerminalBuffer buf;
+    buf.setColumnsRows(10, 5); // 10 columns for easy line wrapping
+
+    // Line wrapping test: "1234567890ABC" -> 13 chars -> wrapped into 2 lines
+    buf.appendStreamText(QStringLiteral("1234567890ABC\n"));
+    QCOMPARE(buf.getLineCount(), static_cast<size_t>(3)); // 2 wrapped lines + 1 new empty line
+    QVERIFY(buf.getLine(0).isWrapped);
+    QVERIFY(!buf.getLine(1).isWrapped);
+
+    // 256-color & truecolor ANSI formatting + text attributes
+    mmgl::GlTerminalBuffer buf2;
+    buf2.setColumnsRows(80, 24);
+    buf2.appendStreamText(
+        QStringLiteral("\033[4mUnderline\033[7mReversed\033[38;5;196m256Fg\033[48;2;10;20;"
+                       "30mTrueBg\033[0mNormal\n"));
+    const auto &line = buf2.getLine(0);
+    QVERIFY(!line.cells.empty());
+    QVERIFY(line.cells[0].underline);
+
+    QCOMPARE(buf.getAllText().contains(QStringLiteral("1234567890ABC")), true);
+}
+
+void TestClient::glTerminalBufferSelectionAndCopy()
+{
+    mmgl::GlTerminalBuffer buf;
+    buf.setColumnsRows(80, 24);
+    buf.appendStreamText(QStringLiteral("First line\nSecond line"));
+
+    buf.startSelection(0, 0);
+    buf.updateSelection(4, 0);
+
+    QVERIFY(buf.hasSelection());
+    QVERIFY(buf.isCellSelected(0, 0));
+    QVERIFY(buf.isCellSelected(4, 0));
+    QVERIFY(!buf.isCellSelected(5, 0));
+
+    QCOMPARE(buf.getSelectedText(), QStringLiteral("First"));
+
+    buf.clearSelection();
+    QVERIFY(!buf.hasSelection());
+}
+
+void TestClient::glTerminalBufferScrollingAndClear()
+{
+    mmgl::GlTerminalBuffer buf;
+    buf.setColumnsRows(80, 5);
+
+    for (int i = 0; i < 20; ++i) {
+        buf.appendStreamText(QString("Line %1\n").arg(i));
+    }
+
+    QCOMPARE(buf.isAtBottom(), true);
+    QCOMPARE(buf.getScrollOffset(), 0);
+
+    buf.scroll(5); // Scroll up
+    QCOMPARE(buf.getScrollOffset(), 5);
+    QCOMPARE(buf.isAtBottom(), false);
+
+    buf.scrollToBottom();
+    QCOMPARE(buf.isAtBottom(), true);
+
+    buf.setScrollOffset(1000); // Out of bounds clamp check
+    QVERIFY(buf.getScrollOffset() <= static_cast<int>(buf.getLineCount()));
+
+    buf.clear();
+    QCOMPARE(buf.getLineCount(), static_cast<size_t>(1)); // Initial empty line
+    QCOMPARE(buf.getScrollOffset(), 0);
+}
+
+void TestClient::glInputPromptEditing()
+{
+    mmgl::GlInputPrompt prompt;
+    QCOMPARE(prompt.getText(), QString());
+
+    QKeyEvent keyA(QEvent::KeyPress, Qt::Key_A, Qt::NoModifier, QStringLiteral("a"));
+    std::ignore = prompt.handleKeyPress(&keyA);
+    QCOMPARE(prompt.getText(), QStringLiteral("a"));
+
+    QKeyEvent keyB(QEvent::KeyPress, Qt::Key_B, Qt::NoModifier, QStringLiteral("b"));
+    std::ignore = prompt.handleKeyPress(&keyB);
+    QCOMPARE(prompt.getText(), QStringLiteral("ab"));
+
+    QKeyEvent keyBk(QEvent::KeyPress, Qt::Key_Backspace, Qt::NoModifier);
+    std::ignore = prompt.handleKeyPress(&keyBk);
+    QCOMPARE(prompt.getText(), QStringLiteral("a"));
+
+    // Enter to submit
+    QKeyEvent keyEnter(QEvent::KeyPress, Qt::Key_Return, Qt::NoModifier);
+    const auto promptRes = prompt.handleKeyPress(&keyEnter);
+    QVERIFY(promptRes.submitted.has_value());
+    QCOMPARE(*promptRes.submitted, QStringLiteral("a"));
+    QCOMPARE(prompt.getText(), QString());
+
+    // Password masking
+    prompt.setEchoMode(EchoModeEnum::Hidden);
+    std::ignore = prompt.handleKeyPress(&keyA);
+    QCOMPARE(prompt.getDisplayText(), QStringLiteral("*"));
+}
+
+void TestClient::glInputPromptExtendedEditingAndClipboard()
+{
+    mmgl::GlInputPrompt prompt;
+
+    prompt.setFocused(false);
+    QVERIFY(!prompt.isFocused());
+    prompt.setFocused(true);
+    QVERIFY(prompt.isFocused());
+
+    prompt.setText(QStringLiteral("hello world"));
+    QCOMPARE(prompt.getText(), QStringLiteral("hello world"));
+    QCOMPARE(prompt.getCursorPos(), 11);
+
+    // Navigation: Left, Home, Right, End
+    QKeyEvent keyLeft(QEvent::KeyPress, Qt::Key_Left, Qt::NoModifier);
+    std::ignore = prompt.handleKeyPress(&keyLeft);
+    QCOMPARE(prompt.getCursorPos(), 10);
+
+    QKeyEvent keyHome(QEvent::KeyPress, Qt::Key_Home, Qt::NoModifier);
+    std::ignore = prompt.handleKeyPress(&keyHome);
+    QCOMPARE(prompt.getCursorPos(), 0);
+
+    QKeyEvent keyDelete(QEvent::KeyPress, Qt::Key_Delete, Qt::NoModifier);
+    std::ignore = prompt.handleKeyPress(&keyDelete); // deletes 'h'
+    QCOMPARE(prompt.getText(), QStringLiteral("ello world"));
+
+    QKeyEvent keyEnd(QEvent::KeyPress, Qt::Key_End, Qt::NoModifier);
+    std::ignore = prompt.handleKeyPress(&keyEnd);
+    QCOMPARE(prompt.getCursorPos(), 10);
+
+    // Clear
+    prompt.clear();
+    QCOMPARE(prompt.getText(), QString());
+    QCOMPARE(prompt.getCursorPos(), 0);
 }
 
 // --- RemoteEditDocumentOps ---

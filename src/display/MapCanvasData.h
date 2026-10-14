@@ -96,6 +96,8 @@ private:
     // particular host widget/window type.
     int m_viewportWidth = 0;
     int m_viewportHeight = 0;
+    glm::ivec2 m_subViewportOffset{0, 0};
+    glm::ivec2 m_subViewportSize{0, 0};
     qreal m_dpr = 1.0;
 
 protected:
@@ -188,8 +190,20 @@ public:
     }
 
     NODISCARD const glm::mat4 &getViewProj() const;
+    void setSubViewport(const glm::ivec2 offset, const glm::ivec2 size)
+    {
+        if (m_subViewportOffset != offset || m_subViewportSize != size) {
+            m_subViewportOffset = offset;
+            m_subViewportSize = size;
+            markViewProjDirty();
+        }
+    }
+
     NODISCARD Viewport getViewport() const
     {
+        if (m_subViewportSize.x > 0 && m_subViewportSize.y > 0) {
+            return Viewport{m_subViewportOffset, m_subViewportSize};
+        }
         return Viewport{glm::ivec2{0, 0}, glm::ivec2{m_viewportWidth, m_viewportHeight}};
     }
     NODISCARD float getTotalScaleFactor() const { return m_scaleFactor.getTotal(); }

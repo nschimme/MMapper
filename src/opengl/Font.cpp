@@ -335,34 +335,63 @@ NODISCARD static int getMaxTextureSize()
     return std::min(maxSize, DESIRED);
 }
 
-void GLFont::init(const float logicalDpi)
+void GLFont::init(const float logicalDpi, const QString &customFont)
 {
     assert(m_gl.isRendererInitialized());
 
     const auto &canvas = getConfig().canvas;
-    const QString family = canvas.mapFontFamily.get();
-    const int pointSize = canvas.mapFontPointSize.get();
-    const float dpr = m_gl.getDevicePixelRatio();
+    QString family;
+    int pointSize = 0;
+    QFont qfont;
+
+    if (!customFont.isEmpty()) {
+        qfont.fromString(customFont);
+        family = qfont.family();
+        pointSize = qfont.pointSize();
+        if (family.isEmpty()) {
+            family = customFont;
+            qfont.setFamily(family);
+        }
+        if (pointSize <= 0) {
+            pointSize = 10;
+        }
+    } else {
+        family = canvas.mapFontFamily.get();
+        pointSize = canvas.mapFontPointSize.get();
+        qfont.setFamily(family);
+    }
+
     m_logicalDpi = logicalDpi;
+    const float dpr = m_gl.getDevicePixelRatio();
 
     // the font shader works in physical pixels, so rasterize at that size
     const int pixelSize = font::pointSizeToPhysicalPixels(pointSize, logicalDpi, dpr);
-    QFont qfont(family);
     qfont.setPixelSize(pixelSize);
-    // NOTE: Cantarell has no symbols or emoji. Prefer the platform's color
-    // emoji font (whichever exists); the bundled DejaVu Sans Mono then
-    // guarantees the monochrome symbol blocks (arrows, U+2600, dingbats).
-    qfont.setFamilies({family,
-                       QStringLiteral("Apple Color Emoji"),
-                       QStringLiteral("Segoe UI Emoji"),
-                       QStringLiteral("Noto Color Emoji"),
-                       QStringLiteral("DejaVu Sans Mono")});
+
+    if (!customFont.isEmpty()) {
+        qfont.setStyleHint(QFont::Monospace);
+        qfont.setFamilies({family,
+                           QStringLiteral("Monospace"),
+                           QStringLiteral("DejaVu Sans Mono"),
+                           QStringLiteral("Courier New"),
+                           QStringLiteral("Consolas"),
+                           QStringLiteral("Apple Color Emoji"),
+                           QStringLiteral("Segoe UI Emoji"),
+                           QStringLiteral("Noto Color Emoji")});
+    } else {
+        qfont.setStyleHint(QFont::SansSerif);
+        qfont.setFamilies({family,
+                           QStringLiteral("Apple Color Emoji"),
+                           QStringLiteral("Segoe UI Emoji"),
+                           QStringLiteral("Noto Color Emoji"),
+                           QStringLiteral("DejaVu Sans Mono")});
+    }
 
     font::GlyphAtlas::Config config;
     config.font = qfont;
     config.maxSize = getMaxTextureSize();
 
-    qInfo() << "Map font:" << family << pointSize << "pt =" << pixelSize << "px (dpi" << logicalDpi
+    qInfo() << "Font:" << family << pointSize << "pt =" << pixelSize << "px (dpi" << logicalDpi
             << ", dpr" << dpr << ")";
 
     m_fontMetrics = std::make_shared<FontMetrics>(config);

@@ -12,7 +12,6 @@
 // and status bar toggles (slot_setShowMenuBar(), slot_setShowStatusBar())
 // and the hidden menu bar's hover peek (eventFilter()).
 
-#include "../client/ClientWidget.h"
 #include "../client/displaywidget.h"
 #include "../configuration/configuration.h"
 #include "../display/mapwindow.h"
@@ -105,9 +104,7 @@ void MainWindow::buildDefaultCompactLayout()
 
     // One tabbed group so a single panel shows at a time, below the
     // map; hidden docks stay hidden and appear as tabs when shown.
-    const std::array<QDockWidget *, 8> docks{m_dockDialogClient,
-                                             m_dockDialogGroup,
-                                             m_dockDialogRoom,
+    const std::array<QDockWidget *, 6> docks{m_dockDialogRoom,
                                              m_dockDialogDescription,
                                              m_dockDialogLog,
                                              m_dockDialogAdventure,
@@ -115,6 +112,9 @@ void MainWindow::buildDefaultCompactLayout()
                                              m_dockDialogAsync};
     QDockWidget *first = nullptr;
     for (QDockWidget *const dock : docks) {
+        if (dock == nullptr) {
+            continue;
+        }
         dock->setFloating(false);
         addDockWidget(Qt::BottomDockWidgetArea, dock);
         if (first == nullptr) {
@@ -123,13 +123,6 @@ void MainWindow::buildDefaultCompactLayout()
             tabifyDockWidget(first, dock);
         }
     }
-
-    // The client is what a phone user is here for: put its tab in front
-    // and give the group its share of the height, leaving the map above.
-    m_dockDialogClient->raise();
-    resizeDocks({m_dockDialogClient},
-                {CompactLayout::clientHeight(compactLayoutProbeSize())},
-                Qt::Vertical);
 }
 
 void MainWindow::slot_resetWindowLayout()
@@ -150,20 +143,7 @@ void MainWindow::slot_resetWindowLayout()
     }
 }
 
-void MainWindow::fitClientDockToTerminal()
-{
-    // The default expanded layout gives the client its configured terminal
-    // size (80x24 unless changed) when the window has room for that and
-    // the map; QMainWindow's own default split does not consult it.
-    const QSize terminal = deref(m_dockDialogClient).widget()->sizeHint();
-    const QSize mapMin = deref(m_mapWindow).minimumSize();
-    if (width() - terminal.width() >= mapMin.width()) {
-        resizeDocks({m_dockDialogClient}, {terminal.width()}, Qt::Horizontal);
-    }
-    if (height() - terminal.height() >= mapMin.height()) {
-        resizeDocks({m_dockDialogClient}, {terminal.height()}, Qt::Vertical);
-    }
-}
+void MainWindow::fitClientDockToTerminal() {}
 
 QSize MainWindow::compactLayoutProbeSize() const
 {
@@ -210,7 +190,6 @@ void MainWindow::applyPanelScrollGesture(const bool compact)
 
 void MainWindow::applyCompactChrome(const bool compact)
 {
-    deref(m_clientWidget).setCompactLayout(compact);
     applyPanelScrollGesture(compact);
     deref(m_mapWindow).setScrollBarsSuppressed(compact);
     // The action bar lives in the status bar, which therefore has to be

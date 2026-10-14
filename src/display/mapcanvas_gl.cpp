@@ -11,6 +11,7 @@
 #include "../global/logging.h"
 #include "../global/progresscounter.h"
 #include "../global/utils.h"
+#include "../group/mmapper2group.h"
 #include "../map/coordinate.h"
 #include "../mapdata/mapdata.h"
 #include "../opengl/Font.h"
@@ -52,6 +53,8 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
+
+#include <QApplication>
 
 #ifdef Q_OS_WASM
 #include <emscripten/heap.h>
@@ -133,6 +136,7 @@ void MapCanvas::hostCleanupGL()
     m_weather.cleanup();
     m_textures.destroyAll();
     getGLFont().cleanup();
+    getTerminalGLFont().cleanup();
     getOpenGL().cleanup();
     m_logger.reset();
 
@@ -342,6 +346,14 @@ bool MapCanvas::hostInitializeGL()
     auto &font = getGLFont();
     font.setTextureId(allocateTextureId());
     font.init(currentLogicalDpi());
+
+    auto &termFont = getTerminalGLFont();
+    termFont.setTextureId(allocateTextureId());
+    QString clientFont = getConfig().integratedClient.font;
+    if (clientFont.isEmpty()) {
+        clientFont = QFont(QStringLiteral("Monospace"), 10).toString();
+    }
+    termFont.init(currentLogicalDpi(), clientFont);
     updateTextures();
 
     // compile all shaders
@@ -477,11 +489,29 @@ void MapCanvas::setViewportAndMvp(const int width, const int height, const qreal
     }
 
     auto &gl = getOpenGL();
-    gl.glViewport(0, 0, width, height);
 
-    const auto size = getViewport().size;
-    assert(size.x == width);
-    assert(size.y == height);
+    const int groupHeight = computeGroupPanelHeight();
+
+    int mapX = 0;
+    int mapY = 0;
+    int mapW = width;
+    int mapH = std::max(1, height - groupHeight);
+
+    if (m_terminalOverlayEnabled) {
+        int consoleW = static_cast<int>(static_cast<float>(width) * m_terminalSplitRatio);
+        mapX = consoleW;
+        mapW = std::max(1, width - consoleW);
+    }
+
+    setSubViewport(glm::ivec2{mapX, mapY}, glm::ivec2{mapW, mapH});
+
+    const float dprF = static_cast<float>(dpr);
+    const int physMapX = static_cast<int>(static_cast<float>(mapX) * dprF);
+    const int physMapY = static_cast<int>(static_cast<float>(mapY) * dprF);
+    const int physMapW = static_cast<int>(static_cast<float>(mapW) * dprF);
+    const int physMapH = static_cast<int>(static_cast<float>(mapH) * dprF);
+
+    gl.glViewport(physMapX, physMapY, physMapW, physMapH);
 
     gl.setProjectionMatrix(MapCanvasViewport::getViewProj());
 }
@@ -619,6 +649,14 @@ void MapCanvas::applyPendingGLWork()
         auto &font = getGLFont();
         font.cleanup();
         font.init(currentLogicalDpi());
+
+        auto &termFont = getTerminalGLFont();
+        termFont.cleanup();
+        QString clientFont = getConfig().integratedClient.font;
+        if (clientFont.isEmpty()) {
+            clientFont = QFont(QStringLiteral("Monospace"), 10).toString();
+        }
+        termFont.init(currentLogicalDpi(), clientFont);
     }
     if (m_pendingRenderScale.has_value()) {
         const float newScale = *m_pendingRenderScale;
@@ -642,6 +680,15 @@ void MapCanvas::applyPendingGLWork()
         auto &font = getGLFont();
         font.cleanup();
         font.init(currentLogicalDpi());
+
+        auto &termFont = getTerminalGLFont();
+        termFont.cleanup();
+        QString clientFont = getConfig().integratedClient.font;
+        if (clientFont.isEmpty()) {
+            clientFont = QFont(QStringLiteral("Monospace"), 10).toString();
+        }
+        termFont.init(currentLogicalDpi(), clientFont);
+
         // existing text meshes reference the old atlas
         m_pendingForceUpdateMeshes = true;
     }
@@ -696,6 +743,9 @@ void MapCanvas::actuallyPaintGL()
                 gl.getUboManager().bind(funcs, Legacy::SharedVboEnum::TimeBlock);
 
                 m_weather.render(m_opengl.getDefaultRenderState());
+
+                paintMudClientConsole();
+                paintGroupPanel();
             }
         } catch (...) {
             paintSucceeded = false;
@@ -1191,4 +1241,524 @@ void MapCanvas::renderMapBatches()
         }
         drawLayer(thisLayer, currentLayer);
     }
+}
+
+void MapCanvas::paintMudClientConsole()
+{
+    if (!m_terminalOverlayEnabled) {
+        return;
+    }
+
+    const QSize hostSize = currentHostSize();
+    const float hostW = static_cast<float>(hostSize.width());
+    const float hostH = static_cast<float>(hostSize.height());
+    const float dpr = static_cast<float>(currentDpr());
+
+    if (hostW <= 0.0f || hostH <= 0.0f || dpr <= 0.0f) {
+        return;
+    }
+
+    const float physW = hostW * dpr;
+    const float physH = hostH * dpr;
+
+    OpenGL &gl = getOpenGL();
+    const auto oldVp = gl.getViewport();
+    gl.glViewport(0, 0, static_cast<int>(physW), static_cast<int>(physH));
+
+    const float groupHeightPhys = static_cast<float>(computeGroupPanelHeight()) * dpr;
+    const float consoleWidthPhys = std::max(100.0f * dpr, physW * m_terminalSplitRatio);
+    const float consoleHeightPhys = std::max(0.0f, physH - groupHeightPhys);
+
+    const float fontHeightPhys = static_cast<float>(
+        std::max(12, getTerminalGLFont().getFontHeight()));
+    const float charWidthPhys = static_cast<float>(
+        std::max(6, getTerminalGLFont().getGlyphAdvance(' ').value_or(10)));
+
+    const float inputBarHeightPhys = fontHeightPhys + (8.0f * dpr);
+    const float outputHeightPhys = std::max(0.0f, consoleHeightPhys - inputBarHeightPhys);
+
+    const bool showPeek = !m_terminalBuffer.isAtBottom();
+    const int peekLineCount = showPeek
+                                  ? std::max(1, getConfig().integratedClient.linesOfPeekPreview)
+                                  : 0;
+    const float peekHeightPhys = showPeek ? (static_cast<float>(peekLineCount) * fontHeightPhys
+                                             + (8.0f * dpr))
+                                          : 0.0f;
+
+    const float mainOutputHeightPhys = std::max(0.0f, outputHeightPhys - peekHeightPhys);
+
+    const int cols = std::max(1,
+                              static_cast<int>((consoleWidthPhys - (8.0f * dpr)) / charWidthPhys));
+    const int rows = std::max(1,
+                              static_cast<int>((mainOutputHeightPhys - (8.0f * dpr))
+                                               / fontHeightPhys));
+
+    if (cols != m_terminalBuffer.getColumns() || rows != m_terminalBuffer.getRows()) {
+        m_terminalBuffer.setColumnsRows(cols, rows);
+        QMetaObject::invokeMethod(
+            this,
+            [this, cols, rows]() { emit sig_windowSizeChanged(cols, rows); },
+            Qt::QueuedConnection);
+    }
+
+    const auto viewProj2d = glm::scale(glm::mat4(1), glm::vec3(2, 2, 1))
+                            * glm::translate(glm::mat4(1), glm::vec3(-0.5f, 0.5f, 0.0f))
+                            * glm::scale(glm::mat4(1),
+                                         glm::vec3(1.f / glm::vec2(physW, -physH), 1.f));
+
+    const auto oldProj = gl.getProjectionMatrix();
+    gl.setProjectionMatrix(viewProj2d);
+
+    const auto renderState = GLRenderState()
+                                 .withBlend(BlendModeEnum::TRANSPARENCY)
+                                 .withDepthFunction(std::nullopt)
+                                 .withCulling(CullingEnum::DISABLED);
+
+    const float topYPhys = groupHeightPhys;
+    const float inputYPosPhys = physH - inputBarHeightPhys;
+    const float mainBottomYPhys = inputYPosPhys - peekHeightPhys;
+
+    // 1. Render dark opaque background panel for main terminal log overlay
+    const std::vector<glm::vec3> panelVerts{{0.0f, topYPhys, 0.0f},
+                                            {consoleWidthPhys, topYPhys, 0.0f},
+                                            {consoleWidthPhys, mainBottomYPhys, 0.0f},
+                                            {0.0f, mainBottomYPhys, 0.0f}};
+    gl.renderPlainQuads(panelVerts, renderState.withColor(Color{0.05f, 0.05f, 0.07f, 0.98f}));
+
+    // 2. Peek preview panel if scrolled back
+    if (showPeek && peekHeightPhys > 0.0f) {
+        const std::vector<glm::vec3> peekVerts{{0.0f, mainBottomYPhys, 0.0f},
+                                               {consoleWidthPhys, mainBottomYPhys, 0.0f},
+                                               {consoleWidthPhys, inputYPosPhys, 0.0f},
+                                               {0.0f, inputYPosPhys, 0.0f}};
+        gl.renderPlainQuads(peekVerts, renderState.withColor(Color{0.08f, 0.08f, 0.12f, 0.98f}));
+
+        const std::vector<glm::vec3> peekBorderVerts{{0.0f, mainBottomYPhys, 0.0f},
+                                                     {consoleWidthPhys, mainBottomYPhys, 0.0f}};
+        gl.renderPlainLines(peekBorderVerts,
+                            renderState.withLineParams(LineParams{2.0f * dpr})
+                                .withColor(Color{0.4f, 0.5f, 0.7f, 1.0f}));
+    }
+
+    // 3. Render input bar background quad STRICTLY under terminal section
+    const std::vector<glm::vec3> inputBarVerts{{0.0f, inputYPosPhys, 0.0f},
+                                               {consoleWidthPhys, inputYPosPhys, 0.0f},
+                                               {consoleWidthPhys, physH, 0.0f},
+                                               {0.0f, physH, 0.0f}};
+    gl.renderPlainQuads(inputBarVerts, renderState.withColor(Color{0.12f, 0.12f, 0.15f, 1.0f}));
+
+    // 4. Render vertical separator line
+    const std::vector<glm::vec3> borderVerts{{consoleWidthPhys, topYPhys, 0.0f},
+                                             {consoleWidthPhys, physH, 0.0f},
+                                             {0.0f, inputYPosPhys, 0.0f},
+                                             {consoleWidthPhys, inputYPosPhys, 0.0f}};
+    gl.renderPlainLines(borderVerts,
+                        renderState.withLineParams(LineParams{2.0f * dpr})
+                            .withColor(Color{0.25f, 0.25f, 0.3f, 1.0f}));
+
+    const size_t totalLines = m_terminalBuffer.getLineCount();
+    const int scrollOffset = m_terminalBuffer.getScrollOffset();
+    const int topVisibleLineIdx = std::max(0, static_cast<int>(totalLines) - rows - scrollOffset);
+
+    std::vector<GLText> batchText;
+    batchText.reserve(static_cast<size_t>(rows + peekLineCount + 10));
+
+    const auto renderLineCells = [&](const size_t lineIdx, const float yPosPhys) {
+        if (lineIdx >= totalLines) {
+            return;
+        }
+        const auto &line = m_terminalBuffer.getLine(lineIdx);
+        QString currentRun;
+        Color currentFg{};
+        std::optional<Color> currentBg = std::nullopt;
+        int runStartCol = 0;
+
+        const auto flushRun = [&](float y) {
+            if (!currentRun.isEmpty()) {
+                const float xPosPhys = static_cast<float>(runStartCol) * charWidthPhys
+                                       + (4.0f * dpr);
+                const glm::vec3 pos{xPosPhys, y, 0.f};
+                batchText.emplace_back(
+                    GLText{pos, mmqt::toStdStringUtf8(currentRun), currentFg, currentBg});
+                currentRun.clear();
+            }
+        };
+
+        for (size_t c = 0; c < line.cells.size() && static_cast<int>(c) < cols; ++c) {
+            const auto &cell = line.cells[c];
+            if (cell.charCode == 0) {
+                continue;
+            }
+
+            std::optional<Color> bg = cell.bgColor;
+            if (m_terminalBuffer.isCellSelected(static_cast<int>(c), static_cast<int>(lineIdx))) {
+                bg = Color{0.2f, 0.4f, 0.8f, 0.8f};
+            }
+
+            if (currentRun.isEmpty()) {
+                currentRun.append(QChar(static_cast<char16_t>(cell.charCode)));
+                currentFg = cell.fgColor;
+                currentBg = bg;
+                runStartCol = static_cast<int>(c);
+            } else if (cell.fgColor == currentFg && bg == currentBg) {
+                currentRun.append(QChar(static_cast<char16_t>(cell.charCode)));
+            } else {
+                flushRun(yPosPhys);
+                currentRun.append(QChar(static_cast<char16_t>(cell.charCode)));
+                currentFg = cell.fgColor;
+                currentBg = bg;
+                runStartCol = static_cast<int>(c);
+            }
+        }
+        flushRun(yPosPhys);
+    };
+
+    // Render main scrollback lines
+    for (int r = 0; r < rows; ++r) {
+        const int lineIdx = topVisibleLineIdx + r;
+        if (lineIdx < 0 || lineIdx >= static_cast<int>(totalLines)) {
+            continue;
+        }
+        const float yPosPhys = topYPhys + static_cast<float>(r) * fontHeightPhys + (4.0f * dpr);
+        renderLineCells(static_cast<size_t>(lineIdx), yPosPhys);
+    }
+
+    // Render peek preview lines if scrolled back
+    if (showPeek && peekLineCount > 0) {
+        const int peekStartLine = std::max(0, static_cast<int>(totalLines) - peekLineCount);
+        const float peekTopY = mainBottomYPhys + (4.0f * dpr);
+        for (int pr = 0; pr < peekLineCount; ++pr) {
+            const int lineIdx = peekStartLine + pr;
+            if (lineIdx >= static_cast<int>(totalLines)) {
+                continue;
+            }
+            const float yPosPhys = peekTopY + static_cast<float>(pr) * fontHeightPhys;
+            renderLineCells(static_cast<size_t>(lineIdx), yPosPhys);
+        }
+    }
+
+    const float inputYPhys = inputYPosPhys + (4.0f * dpr);
+    std::string promptStr = "> " + mmqt::toStdStringUtf8(m_inputPrompt.getDisplayText());
+
+    if (m_inputPrompt.isFocused()) {
+        const int cursorCol = m_inputPrompt.getCursorPos() + 2;
+        const float cursorX = (4.0f * dpr) + static_cast<float>(cursorCol) * charWidthPhys;
+        const float cursorY = inputYPhys;
+        const float cursorW = charWidthPhys;
+        const float cursorH = fontHeightPhys;
+
+        const std::vector<glm::vec3> cursorVerts{{cursorX, cursorY, 0.0f},
+                                                 {cursorX + cursorW, cursorY, 0.0f},
+                                                 {cursorX + cursorW, cursorY + cursorH, 0.0f},
+                                                 {cursorX, cursorY + cursorH, 0.0f}};
+        gl.renderPlainQuads(cursorVerts, renderState.withColor(Color{0.8f, 0.8f, 0.9f, 0.6f}));
+    }
+
+    const glm::vec3 promptPos{4.0f * dpr, inputYPhys, 0.f};
+    Color fgPrompt = Color{0.9f, 0.9f, 0.9f, 1.0f};
+    batchText.emplace_back(GLText{promptPos, std::move(promptStr), fgPrompt});
+
+    if (!batchText.empty()) {
+        getTerminalGLFont().render2dTextImmediate(batchText);
+    }
+
+    gl.glViewport(oldVp.offset.x, oldVp.offset.y, oldVp.size.x, oldVp.size.y);
+    gl.setProjectionMatrix(oldProj);
+
+    if (m_terminalBuffer.takeBellTriggered()) {
+        if (getConfig().integratedClient.audibleBell) {
+            QApplication::beep();
+        }
+    }
+}
+
+void MapCanvas::paintGroupPanel()
+{
+    if (!m_groupPanelEnabled) {
+        return;
+    }
+
+    const QSize hostSize = currentHostSize();
+    const float hostW = static_cast<float>(hostSize.width());
+    const float hostH = static_cast<float>(hostSize.height());
+    const float dpr = static_cast<float>(currentDpr());
+
+    if (hostW <= 0.0f || hostH <= 0.0f || dpr <= 0.0f) {
+        return;
+    }
+
+    const float physW = hostW * dpr;
+    const float physH = hostH * dpr;
+
+    OpenGL &gl = getOpenGL();
+    const auto oldVp = gl.getViewport();
+    gl.glViewport(0, 0, static_cast<int>(physW), static_cast<int>(physH));
+
+    const auto &chars = m_groupManager.selectAll();
+
+    const float fontHeightPhys = static_cast<float>(
+        std::max(12, getTerminalGLFont().getFontHeight()));
+    const float padPhys = 8.0f * dpr;
+    const float headerHeightPhys = fontHeightPhys + padPhys;
+    const float rowHeightPhys = fontHeightPhys + padPhys;
+    const float panelHeightPhys = headerHeightPhys
+                                  + static_cast<float>(chars.size()) * rowHeightPhys + (4.0f * dpr);
+
+    const auto viewProj2d = glm::scale(glm::mat4(1), glm::vec3(2, 2, 1))
+                            * glm::translate(glm::mat4(1), glm::vec3(-0.5f, 0.5f, 0.0f))
+                            * glm::scale(glm::mat4(1),
+                                         glm::vec3(1.f / glm::vec2(physW, -physH), 1.f));
+
+    const auto oldProj = gl.getProjectionMatrix();
+    gl.setProjectionMatrix(viewProj2d);
+
+    const auto renderState = GLRenderState()
+                                 .withBlend(BlendModeEnum::TRANSPARENCY)
+                                 .withDepthFunction(std::nullopt)
+                                 .withCulling(CullingEnum::DISABLED);
+
+    // 1. Panel Background
+    const std::vector<glm::vec3> bgVerts{{0.0f, 0.0f, 0.0f},
+                                         {physW, 0.0f, 0.0f},
+                                         {physW, panelHeightPhys, 0.0f},
+                                         {0.0f, panelHeightPhys, 0.0f}};
+    gl.renderPlainQuads(bgVerts, renderState.withColor(Color{0.1f, 0.1f, 0.14f, 0.98f}));
+
+    // Bottom border line
+    const std::vector<glm::vec3> borderVerts{{0.0f, panelHeightPhys, 0.0f},
+                                             {physW, panelHeightPhys, 0.0f}};
+    gl.renderPlainLines(borderVerts,
+                        renderState.withLineParams(LineParams{2.0f * dpr})
+                            .withColor(Color{0.3f, 0.3f, 0.35f, 1.0f}));
+
+    // Header Background
+    const std::vector<glm::vec3> headerVerts{{0.0f, 0.0f, 0.0f},
+                                             {physW, 0.0f, 0.0f},
+                                             {physW, headerHeightPhys, 0.0f},
+                                             {0.0f, headerHeightPhys, 0.0f}};
+    gl.renderPlainQuads(headerVerts, renderState.withColor(Color{0.18f, 0.18f, 0.22f, 1.0f}));
+
+    // Column widths in physical pixels
+    const float colNameW = 130.0f * dpr;
+    const float colHpW = 120.0f * dpr;
+    const float colManaW = 120.0f * dpr;
+    const float colMovesW = 120.0f * dpr;
+    const float colStateW = 90.0f * dpr;
+
+    std::vector<GLText> headerText;
+    headerText.reserve(6);
+    const Color headerFg = Color{0.75f, 0.75f, 0.8f, 1.0f};
+
+    float xOffset = 8.0f * dpr;
+    headerText.emplace_back(GLText{glm::vec3{xOffset, 4.0f * dpr, 0.0f}, "Name", headerFg});
+    xOffset += colNameW;
+    headerText.emplace_back(GLText{glm::vec3{xOffset, 4.0f * dpr, 0.0f}, "HP", headerFg});
+    xOffset += colHpW;
+    headerText.emplace_back(GLText{glm::vec3{xOffset, 4.0f * dpr, 0.0f}, "Mana", headerFg});
+    xOffset += colManaW;
+    headerText.emplace_back(GLText{glm::vec3{xOffset, 4.0f * dpr, 0.0f}, "Moves", headerFg});
+    xOffset += colMovesW;
+    headerText.emplace_back(GLText{glm::vec3{xOffset, 4.0f * dpr, 0.0f}, "State", headerFg});
+    xOffset += colStateW;
+    headerText.emplace_back(
+        GLText{glm::vec3{xOffset, 4.0f * dpr, 0.0f}, "Location / Room", headerFg});
+
+    if (!headerText.empty()) {
+        getTerminalGLFont().render2dTextImmediate(headerText);
+    }
+
+    std::vector<GLText> rowText;
+    rowText.reserve(chars.size() * 6);
+
+    const auto getPositionString = [](CharacterPositionEnum pos) -> const char * {
+        switch (pos) {
+        case CharacterPositionEnum::DEAD:
+            return "Dead";
+        case CharacterPositionEnum::INCAPACITATED:
+            return "Incapacitated";
+        case CharacterPositionEnum::SLEEPING:
+            return "Sleeping";
+        case CharacterPositionEnum::RESTING:
+            return "Resting";
+        case CharacterPositionEnum::SITTING:
+            return "Sitting";
+        case CharacterPositionEnum::STANDING:
+            return "Standing";
+        case CharacterPositionEnum::FIGHTING:
+            return "Fighting";
+        case CharacterPositionEnum::UNDEFINED:
+        default:
+            return "-";
+        }
+    };
+
+    for (size_t i = 0; i < chars.size(); ++i) {
+        const auto &character = chars[i];
+        if (!character)
+            continue;
+
+        const float rowY = headerHeightPhys + static_cast<float>(i) * rowHeightPhys;
+        const bool isSelected = (m_glGroupSelectedIndex == static_cast<int>(i));
+
+        // Row background
+        QColor qcol = character->getColor();
+        Color rowBgColor = qcol.isValid() ? Color{static_cast<float>(qcol.redF()),
+                                                  static_cast<float>(qcol.greenF()),
+                                                  static_cast<float>(qcol.blueF()),
+                                                  0.35f}
+                                          : Color{0.14f, 0.14f, 0.18f, 0.5f};
+        if (isSelected) {
+            rowBgColor = Color{0.25f, 0.45f, 0.75f, 0.6f};
+        }
+
+        const std::vector<glm::vec3> rowBgVerts{{0.0f, rowY, 0.0f},
+                                                {physW, rowY, 0.0f},
+                                                {physW, rowY + rowHeightPhys, 0.0f},
+                                                {0.0f, rowY + rowHeightPhys, 0.0f}};
+        gl.renderPlainQuads(rowBgVerts, renderState.withColor(rowBgColor));
+
+        xOffset = 8.0f * dpr;
+        const Color textFg = Color{0.95f, 0.95f, 0.95f, 1.0f};
+
+        // Name
+        std::string nameStr = mmqt::toStdStringUtf8(character->getName().toQString());
+        rowText.emplace_back(GLText{glm::vec3{xOffset, rowY + 4.0f * dpr, 0.0f}, nameStr, textFg});
+        xOffset += colNameW;
+
+        const float barH = rowHeightPhys - (6.0f * dpr);
+        const float barY = rowY + (3.0f * dpr);
+
+        // HP Bar
+        {
+            const int hp = character->getHits();
+            const int maxHp = character->getMaxHits();
+            const float pct = maxHp > 0
+                                  ? std::clamp(static_cast<float>(hp) / static_cast<float>(maxHp),
+                                               0.0f,
+                                               1.0f)
+                                  : 1.0f;
+
+            const float barW = colHpW - (12.0f * dpr);
+            const std::vector<glm::vec3> barBgVerts{{xOffset, barY, 0.0f},
+                                                    {xOffset + barW, barY, 0.0f},
+                                                    {xOffset + barW, barY + barH, 0.0f},
+                                                    {xOffset, barY + barH, 0.0f}};
+            gl.renderPlainQuads(barBgVerts, renderState.withColor(Color{0.08f, 0.08f, 0.1f, 0.8f}));
+
+            if (pct > 0.0f) {
+                const float fillW = barW * pct;
+                Color hpColor = (pct < 0.3f) ? Color{0.95f, 0.3f, 0.3f, 0.9f}
+                                             : Color{0.31f, 0.98f, 0.48f, 0.9f};
+                const std::vector<glm::vec3> barFillVerts{{xOffset, barY, 0.0f},
+                                                          {xOffset + fillW, barY, 0.0f},
+                                                          {xOffset + fillW, barY + barH, 0.0f},
+                                                          {xOffset, barY + barH, 0.0f}};
+                gl.renderPlainQuads(barFillVerts, renderState.withColor(hpColor));
+            }
+
+            std::string hpStr = std::to_string(hp) + " / " + std::to_string(maxHp);
+            rowText.emplace_back(
+                GLText{glm::vec3{xOffset + 6.0f * dpr, barY + 2.0f * dpr, 0.0f}, hpStr, textFg});
+            xOffset += colHpW;
+        }
+
+        // Mana Bar
+        {
+            const int mana = character->getMana();
+            const int maxMana = character->getMaxMana();
+            const float barW = colManaW - (12.0f * dpr);
+            if (maxMana <= 0) {
+                rowText.emplace_back(
+                    GLText{glm::vec3{xOffset + 12.0f * dpr, barY + 2.0f * dpr, 0.0f}, "--", textFg});
+            } else {
+                const float pct = std::clamp(static_cast<float>(mana) / static_cast<float>(maxMana),
+                                             0.0f,
+                                             1.0f);
+                const std::vector<glm::vec3> barBgVerts{{xOffset, barY, 0.0f},
+                                                        {xOffset + barW, barY, 0.0f},
+                                                        {xOffset + barW, barY + barH, 0.0f},
+                                                        {xOffset, barY + barH, 0.0f}};
+                gl.renderPlainQuads(barBgVerts,
+                                    renderState.withColor(Color{0.08f, 0.08f, 0.1f, 0.8f}));
+
+                if (pct > 0.0f) {
+                    const float fillW = barW * pct;
+                    const std::vector<glm::vec3> barFillVerts{{xOffset, barY, 0.0f},
+                                                              {xOffset + fillW, barY, 0.0f},
+                                                              {xOffset + fillW, barY + barH, 0.0f},
+                                                              {xOffset, barY + barH, 0.0f}};
+                    gl.renderPlainQuads(barFillVerts,
+                                        renderState.withColor(Color{0.55f, 0.91f, 0.99f, 0.9f}));
+                }
+
+                std::string manaStr = std::to_string(mana) + " / " + std::to_string(maxMana);
+                rowText.emplace_back(GLText{glm::vec3{xOffset + 6.0f * dpr, barY + 2.0f * dpr, 0.0f},
+                                            manaStr,
+                                            textFg});
+            }
+            xOffset += colManaW;
+        }
+
+        // Moves Bar
+        {
+            const int moves = character->getMoves();
+            const int maxMoves = character->getMaxMoves();
+            const float barW = colMovesW - (12.0f * dpr);
+            const float pct = maxMoves > 0 ? std::clamp(static_cast<float>(moves)
+                                                            / static_cast<float>(maxMoves),
+                                                        0.0f,
+                                                        1.0f)
+                                           : 1.0f;
+
+            const std::vector<glm::vec3> barBgVerts{{xOffset, barY, 0.0f},
+                                                    {xOffset + barW, barY, 0.0f},
+                                                    {xOffset + barW, barY + barH, 0.0f},
+                                                    {xOffset, barY + barH, 0.0f}};
+            gl.renderPlainQuads(barBgVerts, renderState.withColor(Color{0.08f, 0.08f, 0.1f, 0.8f}));
+
+            if (pct > 0.0f) {
+                const float fillW = barW * pct;
+                const std::vector<glm::vec3> barFillVerts{{xOffset, barY, 0.0f},
+                                                          {xOffset + fillW, barY, 0.0f},
+                                                          {xOffset + fillW, barY + barH, 0.0f},
+                                                          {xOffset, barY + barH, 0.0f}};
+                gl.renderPlainQuads(barFillVerts,
+                                    renderState.withColor(Color{1.0f, 0.72f, 0.42f, 0.9f}));
+            }
+
+            std::string movesStr = std::to_string(moves) + " / " + std::to_string(maxMoves);
+            rowText.emplace_back(
+                GLText{glm::vec3{xOffset + 6.0f * dpr, barY + 2.0f * dpr, 0.0f}, movesStr, textFg});
+            xOffset += colMovesW;
+        }
+
+        // State / Position
+        std::string posStr = getPositionString(character->getPosition());
+        rowText.emplace_back(GLText{glm::vec3{xOffset, rowY + 4.0f * dpr, 0.0f}, posStr, textFg});
+        xOffset += colStateW;
+
+        // Room Name / Location
+        std::string roomStr = mmqt::toStdStringUtf8(character->getRoomName().toQString());
+        rowText.emplace_back(GLText{glm::vec3{xOffset, rowY + 4.0f * dpr, 0.0f}, roomStr, textFg});
+    }
+
+    if (!rowText.empty()) {
+        getTerminalGLFont().render2dTextImmediate(rowText);
+    }
+
+    gl.glViewport(oldVp.offset.x, oldVp.offset.y, oldVp.size.x, oldVp.size.y);
+    gl.setProjectionMatrix(oldProj);
+}
+
+void MapCanvas::slot_displayText(const QStringView str)
+{
+    m_terminalBuffer.appendStreamText(str);
+    m_frameManager.requestUpdate();
+}
+
+void MapCanvas::slot_setTerminalOverlayEnabled(const bool enabled)
+{
+    m_terminalOverlayEnabled = enabled;
+    markViewProjDirty();
+    m_frameManager.requestUpdate();
 }

@@ -29,13 +29,13 @@ class AdventureWidget;
 class AnsiOstream;
 class AudioManager;
 class AutoLogger;
-class ClientWidget;
+struct ClientTelnetOutputs;
+class ClientTelnet;
 class ConfigDialog;
 class ConnectionListener;
 class ConnectionSelection;
 class FindRoomsDlg;
 class GameObserver;
-class GroupWidget;
 class HotkeyManager;
 class InfomarkSelection;
 class MapCanvasWindow;
@@ -75,6 +75,7 @@ struct MapLoadData;
 class NODISCARD_QOBJECT MainWindow final : public QMainWindow, public ProxyHost
 {
     Q_OBJECT
+    friend class MainWindowTelnetOutputs;
 
 private:
     static inline MainWindow *g_mainWindow = nullptr;
@@ -85,8 +86,6 @@ private:
 
     QDockWidget *m_dockDialogRoom = nullptr;
     QDockWidget *m_dockDialogLog = nullptr;
-    QDockWidget *m_dockDialogClient = nullptr;
-    QDockWidget *m_dockDialogGroup = nullptr;
     QDockWidget *m_dockDialogAdventure = nullptr;
     QDockWidget *m_dockDialogDescription = nullptr;
     QDockWidget *m_dockDialogTimers = nullptr;
@@ -104,12 +103,12 @@ private:
     // Pandora Ported
     FindRoomsDlg *m_findRoomsDlg = nullptr;
     Mmapper2Group *m_groupManager = nullptr;
-    GroupWidget *m_groupWidget = nullptr;
 
     RoomWidget *m_roomWidget = nullptr;
     RoomManager *m_roomManager = nullptr;
 
-    ClientWidget *m_clientWidget = nullptr;
+    std::unique_ptr<ClientTelnetOutputs> m_clientTelnetOutputs;
+    std::unique_ptr<ClientTelnet> m_clientTelnet;
     UpdateDialog *m_updateDialog = nullptr;
 
     std::unique_ptr<ConfigDialog> m_configDialog;
@@ -297,6 +296,8 @@ public:
 
     NODISCARD HotkeyManager &getHotkeyManager() const { return deref(m_hotkeyManager); }
     NODISCARD CTimers &getTimers() const { return deref(m_timers); }
+    NODISCARD MapCanvasWindow *getCanvas() const;
+    void showStatusShort(const QString &txt) { showStatusInternal(txt, 2000); }
 
 private:
     // ProxyHost
@@ -342,7 +343,6 @@ private:
     void promptOpenFile();
     void showWarning(const QString &s);
     void showStatusInternal(const QString &txt, int duration);
-    void showStatusShort(const QString &txt) { showStatusInternal(txt, 2000); }
     void showStatusLong(const QString &txt) { showStatusInternal(txt, 5000); }
     void showStatusForever(const QString &txt) { showStatusInternal(txt, 0); }
     NODISCARD bool tryStartNewAsync();
@@ -388,7 +388,6 @@ private:
     };
     void hideCanvas(bool hide);
 
-    NODISCARD MapCanvasWindow *getCanvas() const;
     void mapChanged() const;
     void setCanvasMouseMode(CanvasMouseModeEnum mode);
     void setMapModified(bool);

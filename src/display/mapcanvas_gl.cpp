@@ -504,7 +504,14 @@ void MapCanvas::setViewportAndMvp(const int width, const int height, const qreal
     }
 
     setSubViewport(glm::ivec2{mapX, mapY}, glm::ivec2{mapW, mapH});
-    gl.glViewport(mapX, mapY, mapW, mapH);
+
+    const float dprF = static_cast<float>(dpr);
+    const int physMapX = static_cast<int>(static_cast<float>(mapX) * dprF);
+    const int physMapY = static_cast<int>(static_cast<float>(mapY) * dprF);
+    const int physMapW = static_cast<int>(static_cast<float>(mapW) * dprF);
+    const int physMapH = static_cast<int>(static_cast<float>(mapH) * dprF);
+
+    gl.glViewport(physMapX, physMapY, physMapW, physMapH);
 
     gl.setProjectionMatrix(MapCanvasViewport::getViewProj());
 }
@@ -1255,7 +1262,7 @@ void MapCanvas::paintMudClientConsole()
     const float physH = hostH * dpr;
 
     OpenGL &gl = getOpenGL();
-    gl.glViewport(0, 0, static_cast<int>(hostW), static_cast<int>(hostH));
+    gl.glViewport(0, 0, static_cast<int>(physW), static_cast<int>(physH));
 
     const float groupHeightPhys = static_cast<float>(computeGroupPanelHeight()) * dpr;
     const float consoleWidthPhys = std::max(100.0f * dpr, physW * m_terminalSplitRatio);
@@ -1414,8 +1421,13 @@ void MapCanvas::paintMudClientConsole()
     const int mapHLogical = std::max(1,
                                      static_cast<int>(hostH)
                                          - static_cast<int>(groupHeightPhys / dpr));
+    const int physMapX = static_cast<int>(static_cast<float>(mapXLogical) * dpr);
+    const int physMapY = static_cast<int>(static_cast<float>(mapYLogical) * dpr);
+    const int physMapW = static_cast<int>(static_cast<float>(mapWLogical) * dpr);
+    const int physMapH = static_cast<int>(static_cast<float>(mapHLogical) * dpr);
+
     setSubViewport(glm::ivec2{mapXLogical, mapYLogical}, glm::ivec2{mapWLogical, mapHLogical});
-    gl.glViewport(mapXLogical, mapYLogical, mapWLogical, mapHLogical);
+    gl.glViewport(physMapX, physMapY, physMapW, physMapH);
     gl.setProjectionMatrix(oldProj);
 
     if (m_terminalBuffer.takeBellTriggered()) {
@@ -1444,7 +1456,7 @@ void MapCanvas::paintGroupPanel()
     const float physH = hostH * dpr;
 
     OpenGL &gl = getOpenGL();
-    gl.glViewport(0, 0, static_cast<int>(hostW), static_cast<int>(hostH));
+    gl.glViewport(0, 0, static_cast<int>(physW), static_cast<int>(physH));
 
     const auto &chars = m_groupManager.selectAll();
 

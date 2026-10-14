@@ -138,19 +138,9 @@ void MapCanvas::slot_layerReset()
     layerChanged();
 }
 
-void MapCanvas::slot_setCanvasMouseMode(const CanvasMouseModeEnum mode)
+void MapCanvas::restoreCursorForMouseMode()
 {
-    // FIXME: This probably isn't what you actually want here,
-    // since it clears selections when re-choosing the same mode,
-    // or when changing to a compatible mode.
-    //
-    // e.g. RAYPICK_ROOMS vs SELECT_CONNECTIONS,
-    // or if you're trying to use MOVE to pan to reach more rooms
-    // (granted, the latter isn't "necessary" because you can use
-    // scrollbars or use the new zoom-recenter feature).
-    slot_clearAllSelections();
-
-    switch (mode) {
+    switch (m_canvasMouseMode) {
     case CanvasMouseModeEnum::MOVE:
         applyCursor(Qt::OpenHandCursor);
         break;
@@ -171,9 +161,23 @@ void MapCanvas::slot_setCanvasMouseMode(const CanvasMouseModeEnum mode)
         applyCursor(Qt::ArrowCursor);
         break;
     }
+}
+
+void MapCanvas::slot_setCanvasMouseMode(const CanvasMouseModeEnum mode)
+{
+    // FIXME: This probably isn't what you actually want here,
+    // since it clears selections when re-choosing the same mode,
+    // or when changing to a compatible mode.
+    //
+    // e.g. RAYPICK_ROOMS vs SELECT_CONNECTIONS,
+    // or if you're trying to use MOVE to pan to reach more rooms
+    // (granted, the latter isn't "necessary" because you can use
+    // scrollbars or use the new zoom-recenter feature).
+    slot_clearAllSelections();
 
     m_canvasMouseMode = mode;
     m_activeInteraction.reset();
+    restoreCursorForMouseMode();
     selectionChanged();
 }
 
@@ -980,7 +984,7 @@ void MapCanvas::handleMouseMove(QMouseEvent *event)
             event->accept();
             return;
         } else if (m_currentCursor == Qt::SplitHCursor) {
-            slot_setCanvasMouseMode(m_canvasMouseMode);
+            restoreCursorForMouseMode();
         }
 
         if (pos.x() <= static_cast<qreal>(consoleW) && pos.y() >= static_cast<qreal>(groupH)) {
@@ -1224,7 +1228,7 @@ void MapCanvas::handleMouseRelease(QMouseEvent *const event)
 {
     if (m_terminalDraggingSplit) {
         m_terminalDraggingSplit = false;
-        slot_setCanvasMouseMode(m_canvasMouseMode);
+        restoreCursorForMouseMode();
         m_frameManager.requestUpdate();
         event->accept();
         return;

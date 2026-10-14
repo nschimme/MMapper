@@ -277,6 +277,7 @@ private:
         m_host.setHostCursor(shape);
     }
     NODISCARD QCursor currentCursor() const { return QCursor(m_currentCursor); }
+    void restoreCursorForMouseMode();
 
 private:
     NODISCARD inline auto &getOpenGL() { return m_opengl; }

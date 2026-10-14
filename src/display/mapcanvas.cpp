@@ -662,6 +662,14 @@ void MapCanvas::handleMousePress(QMouseEvent *const event)
     // 2. Terminal left region hit test
     if (m_terminalOverlayEnabled && pos.y() >= static_cast<qreal>(groupH)) {
         const int consoleW = static_cast<int>(logicalW * m_terminalSplitRatio);
+        const float splitHitTol = 6.0f;
+
+        if (std::abs(static_cast<float>(pos.x()) - static_cast<float>(consoleW)) <= splitHitTol) {
+            m_terminalDraggingSplit = true;
+            applyCursor(Qt::SplitHCursor);
+            event->accept();
+            return;
+        }
 
         const float logicalFontHeight = static_cast<float>(getTerminalGLFont().getFontHeight())
                                         / dpr;
@@ -943,13 +951,38 @@ void MapCanvas::handleKeyPress(QKeyEvent *const event)
 
 void MapCanvas::handleMouseMove(QMouseEvent *event)
 {
+    const float logicalW = static_cast<float>(currentHostSize().width());
+
+    if (m_terminalDraggingSplit) {
+        if (logicalW > 0.0f) {
+            m_terminalSplitRatio = std::clamp(static_cast<float>(event->position().x()) / logicalW,
+                                              0.15f,
+                                              0.85f);
+            markViewProjDirty();
+            m_frameManager.requestUpdate();
+        }
+        applyCursor(Qt::SplitHCursor);
+        event->accept();
+        return;
+    }
+
     if (m_terminalOverlayEnabled) {
         const QPointF pos = event->position();
         const float dpr = static_cast<float>(currentDpr());
-        const float logicalW = static_cast<float>(currentHostSize().width());
         const float logicalH = static_cast<float>(currentHostSize().height());
         const float groupH = static_cast<float>(computeGroupPanelHeight());
-        const int consoleW = static_cast<int>(logicalW * m_terminalSplitRatio);
+        const float consoleW = logicalW * m_terminalSplitRatio;
+        const float splitHitTol = 6.0f;
+
+        if (pos.y() >= static_cast<qreal>(groupH)
+            && std::abs(static_cast<float>(pos.x()) - consoleW) <= splitHitTol) {
+            applyCursor(Qt::SplitHCursor);
+            event->accept();
+            return;
+        } else if (m_currentCursor == Qt::SplitHCursor) {
+            slot_setCanvasMouseMode(m_canvasMouseMode);
+        }
+
         if (pos.x() <= static_cast<qreal>(consoleW) && pos.y() >= static_cast<qreal>(groupH)) {
             if (m_terminalSelectingText) {
                 const float logicalFontHeight = static_cast<float>(
@@ -1189,6 +1222,14 @@ void MapCanvas::handlePointerMove(const glm::vec2 xy,
 
 void MapCanvas::handleMouseRelease(QMouseEvent *const event)
 {
+    if (m_terminalDraggingSplit) {
+        m_terminalDraggingSplit = false;
+        slot_setCanvasMouseMode(m_canvasMouseMode);
+        m_frameManager.requestUpdate();
+        event->accept();
+        return;
+    }
+
     if (m_terminalOverlayEnabled && m_terminalSelectingText) {
         m_terminalSelectingText = false;
         m_terminalBuffer.copySelectionToClipboard();

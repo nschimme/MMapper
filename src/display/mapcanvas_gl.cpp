@@ -1276,10 +1276,21 @@ void MapCanvas::paintMudClientConsole()
     const float inputBarHeightPhys = fontHeightPhys + (8.0f * dpr);
     const float outputHeightPhys = std::max(0.0f, consoleHeightPhys - inputBarHeightPhys);
 
+    const bool showPeek = !m_terminalBuffer.isAtBottom();
+    const int peekLineCount = showPeek
+                                  ? std::max(1, getConfig().integratedClient.linesOfPeekPreview)
+                                  : 0;
+    const float peekHeightPhys = showPeek ? (static_cast<float>(peekLineCount) * fontHeightPhys
+                                             + (8.0f * dpr))
+                                          : 0.0f;
+
+    const float mainOutputHeightPhys = std::max(0.0f, outputHeightPhys - peekHeightPhys);
+
     const int cols = std::max(1,
                               static_cast<int>((consoleWidthPhys - (8.0f * dpr)) / charWidthPhys));
     const int rows = std::max(1,
-                              static_cast<int>((outputHeightPhys - (8.0f * dpr)) / fontHeightPhys));
+                              static_cast<int>((mainOutputHeightPhys - (8.0f * dpr))
+                                               / fontHeightPhys));
 
     if (cols != m_terminalBuffer.getColumns() || rows != m_terminalBuffer.getRows()) {
         m_terminalBuffer.setColumnsRows(cols, rows);
@@ -1304,26 +1315,42 @@ void MapCanvas::paintMudClientConsole()
 
     const float topYPhys = groupHeightPhys;
     const float inputYPosPhys = physH - inputBarHeightPhys;
+    const float mainBottomYPhys = inputYPosPhys - peekHeightPhys;
 
-    // 1. Render dark opaque background panel for terminal log overlay
+    // 1. Render dark opaque background panel for main terminal log overlay
     const std::vector<glm::vec3> panelVerts{{0.0f, topYPhys, 0.0f},
                                             {consoleWidthPhys, topYPhys, 0.0f},
-                                            {consoleWidthPhys, inputYPosPhys, 0.0f},
-                                            {0.0f, inputYPosPhys, 0.0f}};
+                                            {consoleWidthPhys, mainBottomYPhys, 0.0f},
+                                            {0.0f, mainBottomYPhys, 0.0f}};
     gl.renderPlainQuads(panelVerts, renderState.withColor(Color{0.05f, 0.05f, 0.07f, 0.98f}));
 
-    // 2. Render input bar background quad STRICTLY under terminal section
+    // 2. Peek preview panel if scrolled back
+    if (showPeek && peekHeightPhys > 0.0f) {
+        const std::vector<glm::vec3> peekVerts{{0.0f, mainBottomYPhys, 0.0f},
+                                               {consoleWidthPhys, mainBottomYPhys, 0.0f},
+                                               {consoleWidthPhys, inputYPosPhys, 0.0f},
+                                               {0.0f, inputYPosPhys, 0.0f}};
+        gl.renderPlainQuads(peekVerts, renderState.withColor(Color{0.08f, 0.08f, 0.12f, 0.98f}));
+
+        const std::vector<glm::vec3> peekBorderVerts{{0.0f, mainBottomYPhys, 0.0f},
+                                                     {consoleWidthPhys, mainBottomYPhys, 0.0f}};
+        gl.renderPlainLines(peekBorderVerts,
+                            renderState.withLineParams(LineParams{2.0f * dpr})
+                                .withColor(Color{0.4f, 0.5f, 0.7f, 1.0f}));
+    }
+
+    // 3. Render input bar background quad STRICTLY under terminal section
     const std::vector<glm::vec3> inputBarVerts{{0.0f, inputYPosPhys, 0.0f},
                                                {consoleWidthPhys, inputYPosPhys, 0.0f},
                                                {consoleWidthPhys, physH, 0.0f},
                                                {0.0f, physH, 0.0f}};
     gl.renderPlainQuads(inputBarVerts, renderState.withColor(Color{0.12f, 0.12f, 0.15f, 1.0f}));
 
-    // 3. Render separator lines
-    const std::vector<glm::vec3> borderVerts{{0.0f, inputYPosPhys, 0.0f},
-                                             {consoleWidthPhys, inputYPosPhys, 0.0f},
-                                             {consoleWidthPhys, topYPhys, 0.0f},
-                                             {consoleWidthPhys, physH, 0.0f}};
+    // 4. Render vertical separator line
+    const std::vector<glm::vec3> borderVerts{{consoleWidthPhys, topYPhys, 0.0f},
+                                             {consoleWidthPhys, physH, 0.0f},
+                                             {0.0f, inputYPosPhys, 0.0f},
+                                             {consoleWidthPhys, inputYPosPhys, 0.0f}};
     gl.renderPlainLines(borderVerts,
                         renderState.withLineParams(LineParams{2.0f * dpr})
                             .withColor(Color{0.25f, 0.25f, 0.3f, 1.0f}));
@@ -1333,17 +1360,13 @@ void MapCanvas::paintMudClientConsole()
     const int topVisibleLineIdx = std::max(0, static_cast<int>(totalLines) - rows - scrollOffset);
 
     std::vector<GLText> batchText;
-    batchText.reserve(static_cast<size_t>(rows + 10));
+    batchText.reserve(static_cast<size_t>(rows + peekLineCount + 10));
 
-    for (int r = 0; r < rows; ++r) {
-        const int lineIdx = topVisibleLineIdx + r;
-        if (lineIdx < 0 || lineIdx >= static_cast<int>(totalLines)) {
-            continue;
+    const auto renderLineCells = [&](const size_t lineIdx, const float yPosPhys) {
+        if (lineIdx >= totalLines) {
+            return;
         }
-
-        const auto &line = m_terminalBuffer.getLine(static_cast<size_t>(lineIdx));
-        const float yPosPhys = topYPhys + static_cast<float>(r) * fontHeightPhys + (4.0f * dpr);
-
+        const auto &line = m_terminalBuffer.getLine(lineIdx);
         QString currentRun;
         Color currentFg{};
         std::optional<Color> currentBg = std::nullopt;
@@ -1367,7 +1390,7 @@ void MapCanvas::paintMudClientConsole()
             }
 
             std::optional<Color> bg = cell.bgColor;
-            if (m_terminalBuffer.isCellSelected(static_cast<int>(c), lineIdx)) {
+            if (m_terminalBuffer.isCellSelected(static_cast<int>(c), static_cast<int>(lineIdx))) {
                 bg = Color{0.2f, 0.4f, 0.8f, 0.8f};
             }
 
@@ -1387,6 +1410,30 @@ void MapCanvas::paintMudClientConsole()
             }
         }
         flushRun(yPosPhys);
+    };
+
+    // Render main scrollback lines
+    for (int r = 0; r < rows; ++r) {
+        const int lineIdx = topVisibleLineIdx + r;
+        if (lineIdx < 0 || lineIdx >= static_cast<int>(totalLines)) {
+            continue;
+        }
+        const float yPosPhys = topYPhys + static_cast<float>(r) * fontHeightPhys + (4.0f * dpr);
+        renderLineCells(static_cast<size_t>(lineIdx), yPosPhys);
+    }
+
+    // Render peek preview lines if scrolled back
+    if (showPeek && peekLineCount > 0) {
+        const int peekStartLine = std::max(0, static_cast<int>(totalLines) - peekLineCount);
+        const float peekTopY = mainBottomYPhys + (4.0f * dpr);
+        for (int pr = 0; pr < peekLineCount; ++pr) {
+            const int lineIdx = peekStartLine + pr;
+            if (lineIdx >= static_cast<int>(totalLines)) {
+                continue;
+            }
+            const float yPosPhys = peekTopY + static_cast<float>(pr) * fontHeightPhys;
+            renderLineCells(static_cast<size_t>(lineIdx), yPosPhys);
+        }
     }
 
     const float inputYPhys = inputYPosPhys + (4.0f * dpr);

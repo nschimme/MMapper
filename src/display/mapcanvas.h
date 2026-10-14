@@ -242,6 +242,7 @@ private:
     HotkeyManager *m_hotkeyManager = nullptr;
     bool m_terminalOverlayEnabled = true;
     float m_terminalSplitRatio = 0.35f;
+    bool m_terminalDraggingSplit = false;
     bool m_terminalSelectingText = false;
     bool m_groupPanelEnabled = true;
     int m_glGroupSelectedIndex = -1;

@@ -45,6 +45,11 @@ enum class NODISCARD EditCmd2Enum { EDIT_ONLY, EDIT_OR_VIEW, SPACER };
       "Justify &Selection", \
       "Justify selection to 80 characters", \
       "Ctrl+J") \
+    X(transliterateText, \
+      EditViewCmdEnum::EDIT_WHITESPACE, \
+      "&Transliterate Unicode", \
+      "Convert special Unicode characters to simple ASCII equivalents", \
+      "Ctrl+T") \
     X(expandTabs, \
       EditViewCmdEnum::EDIT_WHITESPACE, \
       "&Expand Tabs", \

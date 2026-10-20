@@ -865,7 +865,7 @@ void Proxy::allocRemoteEdit()
     QObject::connect(&remoteEdit,
                      &RemoteEdit::sig_remoteEditSave,
                      this,
-                     [this](const RemoteSessionId id, const Latin1Bytes &content) {
+                     [this](const RemoteSessionId id, const QString &content) {
                          getMpiFilterToMud().saveRemoteEdit(id, content);
                      });
 }

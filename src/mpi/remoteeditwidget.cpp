@@ -7,6 +7,7 @@
 #include "../client/displaywidget.h"
 #include "../configuration/configuration.h"
 #include "../global/AnsiTextUtils.h"
+#include "../global/Charset.h"
 #include "../global/Consts.h"
 #include "../global/TabUtils.h"
 #include "../global/TextUtils.h"
@@ -274,7 +275,7 @@ auto RemoteEditWidget::createTextEdit() -> Editor *
     pTextEdit->showWhitespace(false);
 
     auto *const doc = pTextEdit->document();
-    new RemoteEditHighlighter(doc, mmqt::REMOTE_EDIT_MAX_LENGTH);
+    new RemoteEditHighlighter(doc, mmqt::REMOTE_EDIT_MAX_LENGTH, m_options);
     return pTextEdit;
 }
 
@@ -730,7 +731,52 @@ void RemoteEditWidget::slot_updateStatusBar()
         status.append(hasSelection ? ", Selected-Lines: Ok" : ", Document: Ok");
     }
 
+    if (m_options.maxSize.has_value()) {
+        const int maxSize = m_options.maxSize.value();
+        const int byteCount = static_cast<int>(m_textEdit->toPlainText().toUtf8().size());
+        const int pct = maxSize > 0 ? (byteCount * 100) / maxSize : 0;
+        if (byteCount > maxSize) {
+            status.append(QString(", Bytes: %1/%2 OVER LIMIT (%3%)")
+                              .arg(byteCount)
+                              .arg(maxSize)
+                              .arg(pct));
+        } else {
+            status.append(QString(", Bytes: %1/%2 (%3%)").arg(byteCount).arg(maxSize).arg(pct));
+        }
+    }
+
     m_statusBar->showMessage(status);
+}
+
+void RemoteEditWidget::slot_transliterateText()
+{
+    const QString old = m_textEdit->toPlainText();
+    QString result;
+    result.reserve(old.size());
+    int i = 0;
+    const int len = old.length();
+    while (i < len) {
+        const QChar qc = old.at(i);
+        if (qc.isHighSurrogate() && i + 1 < len && old.at(i + 1).isLowSurrogate()) {
+            const char32_t cp = QChar::surrogateToUcs4(qc, old.at(i + 1));
+            const char32_t translited = charset::simple_unicode_translit(cp);
+            if (translited <= 0xFFFF) {
+                result.append(QChar(static_cast<ushort>(translited)));
+            } else {
+                result.append(QChar::fromUcs4(translited));
+            }
+            i += 2;
+        } else {
+            result.append(mmqt::simple_unicode_translit(qc));
+            i += 1;
+        }
+    }
+    if (result != old) {
+        m_textEdit->replaceAll(result);
+        slot_updateStatus(tr("Transliterated special Unicode characters."));
+    } else {
+        slot_updateStatus(tr("No characters needed transliteration."));
+    }
 }
 
 void RemoteEditWidget::slot_justifyText()
@@ -874,7 +920,76 @@ void RemoteEditWidget::slot_cancelEdit()
 
 void RemoteEditWidget::slot_finishEdit()
 {
+    const QString text = m_textEdit->toPlainText();
+    bool hasDisallowed = false;
+    int pos = 0;
+    const int len = text.length();
+    while (pos < len) {
+        char32_t cp = 0;
+        int charLen = 1;
+        const QChar qc = text.at(pos);
+        if (qc.isHighSurrogate() && pos + 1 < len && text.at(pos + 1).isLowSurrogate()) {
+            cp = QChar::surrogateToUcs4(qc, text.at(pos + 1));
+            charLen = 2;
+        } else {
+            cp = qc.unicode();
+        }
+        if (!m_options.isCodepointAllowed(cp)) {
+            hasDisallowed = true;
+            break;
+        }
+        pos += charLen;
+    }
+
+    const int byteCount = static_cast<int>(text.toUtf8().size());
+    const bool overLimit = m_options.maxSize.has_value() && byteCount > m_options.maxSize.value();
+
+    if (hasDisallowed || overLimit) {
+        auto *const dlg = new QMessageBox(this);
+        dlg->setAttribute(Qt::WA_DeleteOnClose);
+        dlg->setIcon(QMessageBox::Warning);
+        dlg->setWindowTitle(m_title);
+
+        QString msg = tr("The text contains issues before submitting:\n");
+        if (hasDisallowed) {
+            msg += tr("- Disallowed Unicode characters for this editor session\n");
+        }
+        if (overLimit) {
+            msg += tr("- Exceeds maximum byte limit (%1 > %2)\n")
+                       .arg(byteCount)
+                       .arg(m_options.maxSize.value());
+        }
+        msg += tr("\nWhat would you like to do?");
+        dlg->setText(msg);
+
+        QPushButton *transliterateBtn = nullptr;
+        if (hasDisallowed) {
+            transliterateBtn = dlg->addButton(tr("Transliterate && Submit"), QMessageBox::AcceptRole);
+        }
+        QPushButton *submitAnywayBtn = dlg->addButton(tr("Submit Anyway"), QMessageBox::AcceptRole);
+        dlg->addButton(QMessageBox::Cancel);
+
+        connect(dlg, &QMessageBox::finished, this, [this, transliterateBtn, submitAnywayBtn](int) {
+            QAbstractButton *clicked = nullptr;
+            if (auto *box = qobject_cast<QMessageBox *>(sender())) {
+                clicked = box->clickedButton();
+            }
+            if (transliterateBtn && clicked == transliterateBtn) {
+                slot_transliterateText();
+                m_submitted = true;
+                emit sig_save(m_textEdit->toPlainText());
+                close();
+            } else if (clicked == submitAnywayBtn) {
+                m_submitted = true;
+                emit sig_save(m_textEdit->toPlainText());
+                close();
+            }
+        });
+        dlg->open();
+        return;
+    }
+
     m_submitted = true;
-    emit sig_save(m_textEdit->toPlainText());
+    emit sig_save(text);
     close();
 }

@@ -5,6 +5,7 @@
 
 #include "../src/client/InputHistory.h"
 #include "../src/configuration/configuration.h"
+#include "../src/mpi/MumeEditOptions.h"
 #include "../src/mpi/RemoteEditDocumentOps.h"
 
 #include <QTextCursor>
@@ -365,6 +366,32 @@ void TestClient::remoteEditStatusReportsTabsLongLinesAndTrailingSpace()
     QVERIFY(info.hasTabs);
     QVERIFY(info.hasLongLines);
     QVERIFY(info.hasTrailingSpace);
+}
+
+void TestClient::defaultCharacterEncodingIsUtf8()
+{
+    QCOMPARE(getConfig().general.characterEncoding, CharacterEncodingEnum::UTF8);
+}
+
+void TestClient::mumeEditOptionsAllowedRangesValidation()
+{
+    MumeEditOptions opts;
+    // Unrestricted by default
+    QVERIFY(opts.isCodepointAllowed(U'A'));
+    QVERIFY(opts.isCodepointAllowed(0x1F600)); // emoji
+
+    // Restricted ranges
+    opts.hasAllowedRanges = true;
+    opts.ranges.push_back({32, 126}); // ASCII printable
+
+    QVERIFY(opts.isCodepointAllowed(U'A'));
+    QVERIFY(opts.isCodepointAllowed(U' '));
+    QVERIFY(!opts.isCodepointAllowed(U'é')); // 0xE9 = 233
+    QVERIFY(!opts.isCodepointAllowed(0x1F600));
+
+    // Multiple ranges
+    opts.ranges.push_back({160, 255}); // Latin-1 supplement
+    QVERIFY(opts.isCodepointAllowed(U'é'));
 }
 
 QTEST_MAIN(TestClient)

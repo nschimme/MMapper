@@ -66,7 +66,7 @@ public:
 
 public:
     void cancelRemoteEdit(const RemoteSessionId id);
-    void saveRemoteEdit(const RemoteSessionId id, const Latin1Bytes &content);
+    void saveRemoteEdit(const RemoteSessionId id, const QString &text);
 
 private:
     void sendRemoteEditMessage(GmcpMessageTypeEnum type,

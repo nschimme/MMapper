@@ -56,10 +56,8 @@ void MpiFilterToMud::cancelRemoteEdit(const RemoteSessionId id)
     sendRemoteEditMessage(GmcpMessageTypeEnum::MUME_CLIENT_CANCEL_EDIT, id);
 }
 
-void MpiFilterToMud::saveRemoteEdit(const RemoteSessionId id, const Latin1Bytes &content)
+void MpiFilterToMud::saveRemoteEdit(const RemoteSessionId id, const QString &text)
 {
-    auto payload = content.getQByteArray();
-    QString text = QString::fromLatin1(payload);
     sendRemoteEditMessage(GmcpMessageTypeEnum::MUME_CLIENT_WRITE, id, text);
 }
 

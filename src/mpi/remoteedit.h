@@ -56,7 +56,7 @@ private:
 
 signals:
     void sig_remoteEditCancel(const RemoteSessionId sessionId);
-    void sig_remoteEditSave(const RemoteSessionId sessionId, const Latin1Bytes &content);
+    void sig_remoteEditSave(const RemoteSessionId sessionId, const QString &content);
 
 public slots:
     void slot_remoteView(const QString &, const QString &);

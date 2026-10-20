@@ -126,11 +126,7 @@ void RemoteEdit::sendToMume(const RemoteEditSession &session)
     }
 
     qDebug() << "Saving session" << session.getSessionId().asInt32();
-    // REVISIT: should we warn if this transformation modifies the content
-    // (e.g. unicode transliteration, etc).
-    auto latin1 = Latin1Bytes{
-        mmqt::toQByteArrayLatin1(session.getContent())}; // MPI is always Latin1
-    emit sig_remoteEditSave(session.getSessionId(), latin1);
+    emit sig_remoteEditSave(session.getSessionId(), session.getContent());
 }
 
 void RemoteEdit::trySaveLocally(const RemoteEditSession &session)

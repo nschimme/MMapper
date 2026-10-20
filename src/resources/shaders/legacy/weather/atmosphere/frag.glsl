@@ -32,12 +32,10 @@ uniform sampler2D uTexture;
 in vec3 vWorldPos;
 out vec4 vFragmentColor;
 
-// Noise texture is 256x256; avoid dynamic textureSize queries in fragment loop on Intel GPUs
-const float INV_NOISE_SIZE = 1.0 / 256.0;
-
+// Avoid dynamic textureSize queries in fragment loop on Intel GPUs; WEATHER_INV_NOISE_SIZE is injected at shader compile time
 float get_noise(vec2 p)
 {
-    return texture(uTexture, p * INV_NOISE_SIZE).r;
+    return texture(uTexture, p * WEATHER_INV_NOISE_SIZE).r;
 }
 
 float fbm(vec2 p)

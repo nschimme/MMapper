@@ -167,13 +167,12 @@ void RemoteEditHighlighter::highlightEncodingErrors(const QString &line)
     }
     DECL_FMT(unicode, red, "Disallowed Unicode");
     DECL_FMT(nbsp, cyan, "NBSP");
-    DECL_FMT(utf8, yellow, "UTF-8");
     DECL_FMT(unprintable, darkOrange, "(unprintable)");
 
 #undef DECL_FMT
 
     int pos = 0;
-    const int len = line.length();
+    const int len = static_cast<int>(line.length());
     while (pos < len) {
         char32_t cp = 0;
         int charLen = 1;

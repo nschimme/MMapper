@@ -13,7 +13,6 @@
 #include <QString>
 #include <QtWidgets>
 
-
 // Order of entries in themeComboBox drop down
 static_assert(static_cast<int>(ThemeEnum::System) == 0);
 static_assert(static_cast<int>(ThemeEnum::Dark) == 1);

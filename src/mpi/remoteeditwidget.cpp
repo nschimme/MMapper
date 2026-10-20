@@ -736,10 +736,8 @@ void RemoteEditWidget::slot_updateStatusBar()
         const int byteCount = static_cast<int>(m_textEdit->toPlainText().toUtf8().size());
         const int pct = maxSize > 0 ? (byteCount * 100) / maxSize : 0;
         if (byteCount > maxSize) {
-            status.append(QString(", Bytes: %1/%2 OVER LIMIT (%3%)")
-                              .arg(byteCount)
-                              .arg(maxSize)
-                              .arg(pct));
+            status.append(
+                QString(", Bytes: %1/%2 OVER LIMIT (%3%)").arg(byteCount).arg(maxSize).arg(pct));
         } else {
             status.append(QString(", Bytes: %1/%2 (%3%)").arg(byteCount).arg(maxSize).arg(pct));
         }
@@ -754,7 +752,7 @@ void RemoteEditWidget::slot_transliterateText()
     QString result;
     result.reserve(old.size());
     int i = 0;
-    const int len = old.length();
+    const int len = static_cast<int>(old.length());
     while (i < len) {
         const QChar qc = old.at(i);
         if (qc.isHighSurrogate() && i + 1 < len && old.at(i + 1).isLowSurrogate()) {
@@ -923,7 +921,7 @@ void RemoteEditWidget::slot_finishEdit()
     const QString text = m_textEdit->toPlainText();
     bool hasDisallowed = false;
     int pos = 0;
-    const int len = text.length();
+    const int len = static_cast<int>(text.length());
     while (pos < len) {
         char32_t cp = 0;
         int charLen = 1;
@@ -964,7 +962,8 @@ void RemoteEditWidget::slot_finishEdit()
 
         QPushButton *transliterateBtn = nullptr;
         if (hasDisallowed) {
-            transliterateBtn = dlg->addButton(tr("Transliterate && Submit"), QMessageBox::AcceptRole);
+            transliterateBtn = dlg->addButton(tr("Transliterate && Submit"),
+                                              QMessageBox::AcceptRole);
         }
         QPushButton *submitAnywayBtn = dlg->addButton(tr("Submit Anyway"), QMessageBox::AcceptRole);
         dlg->addButton(QMessageBox::Cancel);

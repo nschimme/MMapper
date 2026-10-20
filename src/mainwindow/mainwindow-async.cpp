@@ -342,17 +342,24 @@ void MainWindow::AsyncIO::reset()
 {
     m_progressDlg.reset();
     m_progressData.reset();
+    auto oldData = std::move(m_asyncData);
     m_asyncData.reset();
     resetExtraBlockers();
     assert(!hasCurrentTask());
+    oldData.reset();
 }
 
 void MainWindow::asyncTaskEnded(const QString &taskName)
 {
     if (getAsyncIO().isWaitingForSaveAtShutdown()) {
         qInfo() << "async task" << taskName << "ended; closing mmapper.";
-        show();
-        close();
+        QMetaObject::invokeMethod(
+            this,
+            [this]() {
+                show();
+                close();
+            },
+            Qt::QueuedConnection);
     }
 }
 

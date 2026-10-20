@@ -207,11 +207,13 @@ void RemoteTextEdit::toggleWhitespace()
 RemoteEditWidget::RemoteEditWidget(const bool editSession,
                                    QString title,
                                    QString body,
-                                   QWidget *const parent)
+                                   QWidget *const parent,
+                                   const MumeEditOptions &options)
     : QDialog(parent)
     , m_editSession(editSession)
     , m_title(std::move(title))
     , m_body(std::move(body))
+    , m_options(options)
 {
     setWindowFlags(Qt::Window | Qt::WindowSystemMenuHint | Qt::WindowMinimizeButtonHint
                    | Qt::WindowMaximizeButtonHint | Qt::WindowCloseButtonHint);

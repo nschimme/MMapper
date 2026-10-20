@@ -165,8 +165,8 @@ public:
     explicit RemoteEditWidget(bool editSession,
                               QString title,
                               QString body,
-                              const MumeEditOptions &options = {},
-                              QWidget *parent = nullptr);
+                              QWidget *parent = nullptr,
+                              const MumeEditOptions &options = {});
     ~RemoteEditWidget() override;
 
 public:

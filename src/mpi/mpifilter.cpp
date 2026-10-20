@@ -24,9 +24,12 @@ void MpiFilter::receiveMpiView(const QString &title, const QString body)
     m_outputs.onViewMessage(title, body);
 }
 
-void MpiFilter::receiveMpiEdit(const RemoteSessionId id, const QString &title, const QString body)
+void MpiFilter::receiveMpiEdit(const RemoteSessionId id,
+                               const QString &title,
+                               const QString body,
+                               const MumeEditOptions &options)
 {
-    m_outputs.onEditMessage(id, title, body);
+    m_outputs.onEditMessage(id, title, body, options);
 }
 
 MpiFilterToMud::~MpiFilterToMud() = default;

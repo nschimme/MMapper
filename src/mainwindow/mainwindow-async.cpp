@@ -342,9 +342,11 @@ void MainWindow::AsyncIO::reset()
 {
     m_progressDlg.reset();
     m_progressData.reset();
+    auto oldData = std::move(m_asyncData);
     m_asyncData.reset();
     resetExtraBlockers();
     assert(!hasCurrentTask());
+    oldData.reset();
 }
 
 void MainWindow::asyncTaskEnded(const QString &taskName)

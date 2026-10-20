@@ -353,8 +353,13 @@ void MainWindow::asyncTaskEnded(const QString &taskName)
 {
     if (getAsyncIO().isWaitingForSaveAtShutdown()) {
         qInfo() << "async task" << taskName << "ended; closing mmapper.";
-        show();
-        close();
+        QMetaObject::invokeMethod(
+            this,
+            [this]() {
+                show();
+                close();
+            },
+            Qt::QueuedConnection);
     }
 }
 

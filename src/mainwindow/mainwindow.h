@@ -268,7 +268,10 @@ private:
     QAction *mergeUpRoomSelectionAct = nullptr;
     QAction *mergeDownRoomSelectionAct = nullptr;
     QAction *connectToNeighboursRoomSelectionAct = nullptr;
+    QAction *createSubAreaAct = nullptr;
+    QAction *removeSubAreaAct = nullptr;
 
+    QAction *toggleMiniMapAct = nullptr;
     QAction *findRoomsAct = nullptr;
 
     QAction *clientAct = nullptr;
@@ -445,6 +448,9 @@ public slots:
     void slot_onMergeUpRoomSelection();
     void slot_onMergeDownRoomSelection();
     void slot_onConnectToNeighboursRoomSelection();
+    void slot_onCreateSubArea();
+    void slot_onRemoveSubArea();
+    void slot_toggleMiniMap();
     void slot_forceMapperToRoom();
     void slot_onFindRoom();
     void slot_onLaunchClient();

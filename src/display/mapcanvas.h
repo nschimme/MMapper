@@ -357,6 +357,9 @@ public:
     void paintSelectedInfomarks();
     void paintCharacters();
     void paintDifferences();
+    void paintBreadcrumbs();
+    void paintBubbleViewports();
+    void paintMiniMap();
 
     // Immediately drops all cached meshes (must run with a current GL context).
     void forceUpdateMeshes();

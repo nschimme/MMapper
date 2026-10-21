@@ -694,6 +694,9 @@ void Configuration::CanvasSettings::read(const QSettings &conf)
     showMissingMapId.set(conf.value(KEY_SHOW_MISSING_MAP_ID, true).toBool());
     showUnsavedChanges.set(conf.value(KEY_SHOW_UNSAVED_CHANGES, true).toBool());
     showUnmappedExits.set(conf.value(KEY_DRAW_NOT_MAPPED_EXITS, true).toBool());
+    showMiniMap.set(conf.value("Show mini-map", true).toBool());
+    miniMapOpacity.set(conf.value("Mini-map opacity", 85).toInt());
+    showBubblePeeking.set(conf.value("Show bubble peeking", true).toBool());
     drawUpperLayersTextured = conf.value(KEY_DRAW_UPPER_LAYERS_TEXTURED, false).toBool();
     drawDoorNames = conf.value(KEY_DRAW_DOOR_NAMES, true).toBool();
     backgroundColor = lookupColor(KEY_BACKGROUND_COLOR, DEFAULT_BGCOLOR);
@@ -907,6 +910,9 @@ void Configuration::CanvasSettings::write(QSettings &conf) const
     conf.setValue(KEY_SHOW_MISSING_MAP_ID, showMissingMapId.get());
     conf.setValue(KEY_SHOW_UNSAVED_CHANGES, showUnsavedChanges.get());
     conf.setValue(KEY_DRAW_NOT_MAPPED_EXITS, showUnmappedExits.get());
+    conf.setValue("Show mini-map", showMiniMap.get());
+    conf.setValue("Mini-map opacity", miniMapOpacity.get());
+    conf.setValue("Show bubble peeking", showBubblePeeking.get());
     conf.setValue(KEY_DRAW_UPPER_LAYERS_TEXTURED, drawUpperLayersTextured);
     conf.setValue(KEY_DRAW_DOOR_NAMES, drawDoorNames);
     conf.setValue(KEY_BACKGROUND_COLOR, getQColorName(backgroundColor));

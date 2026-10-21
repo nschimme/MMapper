@@ -28,6 +28,7 @@ apps:
       - kde-neon-6
     plugs:
       - audio-playback
+      - bluez
       - home
       - network
       - network-bind

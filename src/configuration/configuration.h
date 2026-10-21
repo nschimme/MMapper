@@ -182,6 +182,10 @@ public:
         NamedConfig<bool> showMissingMapId{"SHOW_MISSING_MAPID", false};
         NamedConfig<bool> showUnsavedChanges{"SHOW_UNSAVED_CHANGES", false};
         NamedConfig<bool> showUnmappedExits{"SHOW_UNMAPPED_EXITS", false};
+        NamedConfig<bool> enableMazeVisuals{"ENABLE_MAZE_VISUALS", true};
+        NamedConfig<bool> showMiniMap{"SHOW_MINI_MAP", true};
+        NamedConfig<int> miniMapOpacity{"MINI_MAP_OPACITY", 85};
+        NamedConfig<bool> showBubblePeeking{"SHOW_BUBBLE_PEEKING", true};
         NamedConfig<QString> mapFontFamily{"MAP_FONT_FAMILY", QStringLiteral("Cantarell")};
         NamedConfig<int> mapFontPointSize{"MAP_FONT_POINT_SIZE", platformPointSize(11)};
         bool drawUpperLayersTextured = false;

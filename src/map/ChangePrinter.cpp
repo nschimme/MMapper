@@ -245,6 +245,20 @@ void ChangePrinter::print(const ChangeTypeEnum type)
 #undef X_CASE
 }
 
+void ChangePrinter::print(const SubAreaFlagEnum flag)
+{
+#define X_CASE(UPPER_CASE, lower_case, CamelCase, friendly) \
+    case SubAreaFlagEnum::UPPER_CASE: \
+        m_os.writeWithColor(const_color, #UPPER_CASE); \
+        return;
+
+    switch (flag) {
+        XFOREACH_SUB_AREA_FLAG(X_CASE)
+    }
+    error();
+#undef X_CASE
+}
+
 void ChangePrinter::print(const DirectSunlightEnum type)
 {
     // use "saner" strings
@@ -515,6 +529,16 @@ void ChangePrinter::print(const ConnectedRoomFlagsType flags)
     }
 }
 
+void ChangePrinter::print(const SubAreaFlags subAreaFlags)
+{
+    BEGIN_FLAGS_HELPER("SubAreaFlags")
+    {
+        for (const SubAreaFlagEnum flag : subAreaFlags) {
+            HELPER_ADD_FLAG(flag);
+        }
+    }
+}
+
 void ChangePrinter::print(const ExitsFlagsType flags)
 {
     BEGIN_STRUCT_HELPER("ExitsFlags")
@@ -773,6 +797,17 @@ void ChangePrinter::virt_accept(const SetServerId &change)
     {
         HELPER_ADD_MEMBER(room);
         HELPER_ADD_MEMBER(server_id);
+    }
+}
+
+void ChangePrinter::virt_accept(const SetSubArea &change)
+{
+    BEGIN_STRUCT_HELPER("SetSubArea")
+    {
+        HELPER_ADD_MEMBER(room);
+        HELPER_ADD_MEMBER(parent_id);
+        HELPER_ADD_MEMBER(sub_area_name);
+        HELPER_ADD_MEMBER(sub_area_flags);
     }
 }
 

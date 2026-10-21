@@ -10,6 +10,7 @@
 #include "../map/RoomHandle.h"
 #include "../map/coordinate.h"
 #include "../map/roomid.h"
+#include "../mapdata/SubAreaDetector.h"
 #include "../opengl/Font.h"
 #include "../opengl/OpenGLTypes.h"
 
@@ -127,12 +128,15 @@ private:
         ConnectionDrawerBuffers &m_buffers;
         ConnectionDrawerColorBuffer *m_currentBuffer = nullptr;
         glm::vec3 m_offset{0.f};
+        std::optional<Color> m_overrideColor = std::nullopt;
 
     public:
         explicit ConnectionFakeGL(ConnectionDrawerBuffers &buffers)
             : m_buffers{buffers}
             , m_currentBuffer{&m_buffers.normal}
         {}
+
+        void setOverrideColor(const std::optional<Color> &color) { m_overrideColor = color; }
 
         ~ConnectionFakeGL() = default;
         DELETE_CTORS_AND_ASSIGN_OPS(ConnectionFakeGL);
@@ -157,17 +161,26 @@ private:
     RoomNameBatch &m_roomNameBatch;
     const OptBounds &m_bounds;
     const int m_currentLayer;
+    const MazeInfo *m_mazeInfo = nullptr;
+    std::optional<RoomId> m_currentRoomId = std::nullopt;
+    bool m_enableMazeVisuals = true;
 
 public:
     explicit ConnectionDrawer(ConnectionDrawerBuffers &buffers,
                               RoomNameBatch &roomNameBatch,
                               const int currentLayer,
-                              const OptBounds &bounds)
+                              const OptBounds &bounds,
+                              const MazeInfo *mazeInfo = nullptr,
+                              std::optional<RoomId> currentRoomId = std::nullopt,
+                              bool enableMazeVisuals = true)
         : m_fake{buffers}
         , m_buffers{buffers}
         , m_roomNameBatch{roomNameBatch}
         , m_bounds{bounds}
         , m_currentLayer{currentLayer}
+        , m_mazeInfo{mazeInfo}
+        , m_currentRoomId{currentRoomId}
+        , m_enableMazeVisuals{enableMazeVisuals}
     {
         assert(m_buffers.empty());
         assert(m_roomNameBatch.empty());
@@ -194,6 +207,11 @@ public:
                         ExitDirEnum endDir,
                         bool oneway,
                         bool inExitFlags = true);
+
+    void drawSelfLoopArc(const RoomHandle &room,
+                         ExitDirEnum startDir,
+                         ExitDirEnum endDir,
+                         float srcZ);
 
     void drawConnEndTriUpDownUnknown(float dX, float dY, float dstZ);
 

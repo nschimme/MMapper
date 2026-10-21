@@ -184,7 +184,6 @@ set(mainwindow_SRCS
     ../src/mainwindow/AudioVolumeSlider.h
     ../src/mainwindow/UpdateChecker.cpp
     ../src/mainwindow/UpdateChecker.h
-    ../src/mainwindow/findroomsdlg.ui
     )
 set(TestMainWindow_SRCS TestMainWindow.cpp)
 add_executable(TestMainWindow ${TestMainWindow_SRCS} ${mainwindow_SRCS} ${map_scroller_SRCS})

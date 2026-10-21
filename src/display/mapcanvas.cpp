@@ -10,6 +10,7 @@
 #include "../global/parserutils.h"
 #include "../global/progresscounter.h"
 #include "../global/utils.h"
+#include "../group/mmapper2group.h"
 #include "../map/ExitDirection.h"
 #include "../map/coordinate.h"
 #include "../map/exit.h"
@@ -77,6 +78,7 @@ MapCanvas::MapCanvas(MapData &mapData,
     , m_observer{observer}
     , m_opengl{}
     , m_glFont{m_opengl}
+    , m_terminalGlFont{m_opengl}
     , m_data{mapData}
     , m_groupManager{groupManager}
     , m_host{host}
@@ -95,6 +97,22 @@ MapCanvas::MapCanvas(MapData &mapData,
     m_frameManager.registerCallback(m_lifetime, [this]() {
         return m_batches.remeshCookie.isPending() ? FrameManager::AnimationStatusEnum::Continue
                                                   : FrameManager::AnimationStatusEnum::Stop;
+    });
+
+    connect(&m_groupManager, &Mmapper2Group::sig_characterAdded, this, [this]() {
+        m_frameManager.requestUpdate();
+    });
+    connect(&m_groupManager, &Mmapper2Group::sig_characterRemoved, this, [this]() {
+        m_frameManager.requestUpdate();
+    });
+    connect(&m_groupManager, &Mmapper2Group::sig_characterUpdated, this, [this]() {
+        m_frameManager.requestUpdate();
+    });
+    connect(&m_groupManager, &Mmapper2Group::sig_groupReset, this, [this]() {
+        m_frameManager.requestUpdate();
+    });
+    connect(&m_groupManager, &Mmapper2Group::sig_updateMapCanvas, this, [this]() {
+        m_frameManager.requestUpdate();
     });
 
     applyCursor(Qt::OpenHandCursor);
@@ -120,19 +138,9 @@ void MapCanvas::slot_layerReset()
     layerChanged();
 }
 
-void MapCanvas::slot_setCanvasMouseMode(const CanvasMouseModeEnum mode)
+void MapCanvas::restoreCursorForMouseMode()
 {
-    // FIXME: This probably isn't what you actually want here,
-    // since it clears selections when re-choosing the same mode,
-    // or when changing to a compatible mode.
-    //
-    // e.g. RAYPICK_ROOMS vs SELECT_CONNECTIONS,
-    // or if you're trying to use MOVE to pan to reach more rooms
-    // (granted, the latter isn't "necessary" because you can use
-    // scrollbars or use the new zoom-recenter feature).
-    slot_clearAllSelections();
-
-    switch (mode) {
+    switch (m_canvasMouseMode) {
     case CanvasMouseModeEnum::MOVE:
         applyCursor(Qt::OpenHandCursor);
         break;
@@ -153,9 +161,23 @@ void MapCanvas::slot_setCanvasMouseMode(const CanvasMouseModeEnum mode)
         applyCursor(Qt::ArrowCursor);
         break;
     }
+}
+
+void MapCanvas::slot_setCanvasMouseMode(const CanvasMouseModeEnum mode)
+{
+    // FIXME: This probably isn't what you actually want here,
+    // since it clears selections when re-choosing the same mode,
+    // or when changing to a compatible mode.
+    //
+    // e.g. RAYPICK_ROOMS vs SELECT_CONNECTIONS,
+    // or if you're trying to use MOVE to pan to reach more rooms
+    // (granted, the latter isn't "necessary" because you can use
+    // scrollbars or use the new zoom-recenter feature).
+    slot_clearAllSelections();
 
     m_canvasMouseMode = mode;
     m_activeInteraction.reset();
+    restoreCursorForMouseMode();
     selectionChanged();
 }
 
@@ -214,9 +236,47 @@ NODISCARD static uint32_t operator&(const Qt::KeyboardModifiers left, const Qt::
     return static_cast<uint32_t>(left) & static_cast<uint32_t>(right);
 }
 
+int MapCanvas::computeGroupPanelHeight() const
+{
+    if (!m_groupPanelEnabled) {
+        return 0;
+    }
+    const float dpr = static_cast<float>(currentDpr());
+    if (dpr <= 0.0f) {
+        return 0;
+    }
+    const float fontHeightLog = static_cast<float>(m_terminalGlFont.getFontHeight()) / dpr;
+    const float headerHeightLog = fontHeightLog + 8.0f;
+    const auto &chars = m_groupManager.selectAll();
+    if (chars.empty()) {
+        return static_cast<int>(std::ceil(headerHeightLog + 4.0f));
+    }
+    const float rowHeightLog = fontHeightLog + 8.0f;
+    return static_cast<int>(
+        std::ceil(headerHeightLog + static_cast<float>(chars.size()) * rowHeightLog + 4.0f));
+}
+
 void MapCanvas::handleWheel(QWheelEvent *const event)
 {
     stopFlick();
+
+    const float groupH = static_cast<float>(computeGroupPanelHeight());
+    const QPointF pos = event->position();
+
+    if (m_terminalOverlayEnabled && pos.y() >= static_cast<qreal>(groupH)) {
+        const float logicalW = static_cast<float>(currentHostSize().width());
+        const int consoleW = static_cast<int>(logicalW * m_terminalSplitRatio);
+        if (pos.x() <= static_cast<qreal>(consoleW)) {
+            const int angleDelta = event->angleDelta().y();
+            if (angleDelta != 0) {
+                const int steps = angleDelta / 120;
+                m_terminalBuffer.scroll(steps != 0 ? steps * 3 : (angleDelta > 0 ? 3 : -3));
+                m_frameManager.requestUpdate();
+            }
+            event->accept();
+            return;
+        }
+    }
     const bool hasCtrl = (event->modifiers() & Qt::CTRL) != 0u;
 
     switch (m_canvasMouseMode) {
@@ -568,6 +628,85 @@ void MapCanvas::onFlickTick()
 
 void MapCanvas::handleMousePress(QMouseEvent *const event)
 {
+    const QPointF pos = event->position();
+    const float dpr = static_cast<float>(currentDpr());
+    const float logicalW = static_cast<float>(currentHostSize().width());
+    const float logicalH = static_cast<float>(currentHostSize().height());
+    const float groupH = static_cast<float>(computeGroupPanelHeight());
+
+    // 1. Group Panel hit test
+    if (m_groupPanelEnabled && pos.y() < static_cast<qreal>(groupH)) {
+        const float fontH = static_cast<float>(getTerminalGLFont().getFontHeight()) / dpr;
+        const float headerH = fontH + 8.0f;
+        const float rowH = fontH + 8.0f;
+        const auto &chars = m_groupManager.selectAll();
+
+        if (pos.y() >= static_cast<qreal>(headerH) && !chars.empty()) {
+            const int rowIdx = static_cast<int>((pos.y() - static_cast<qreal>(headerH))
+                                                / static_cast<qreal>(rowH));
+            if (rowIdx >= 0 && rowIdx < static_cast<int>(chars.size())) {
+                m_glGroupSelectedIndex = rowIdx;
+                const auto &selectedChar = chars[static_cast<size_t>(rowIdx)];
+                if (selectedChar && event->type() == QEvent::MouseButtonDblClick) {
+                    const ServerRoomId srvId = selectedChar->getServerId();
+                    if (srvId != INVALID_SERVER_ROOMID) {
+                        if (const auto r = m_data.findRoomHandle(srvId)) {
+                            const auto vec2 = r.getPosition().to_vec2() + glm::vec2{0.5f, 0.5f};
+                            slot_setScroll(vec2);
+                        }
+                    }
+                }
+                m_frameManager.requestUpdate();
+            }
+        }
+        event->accept();
+        return;
+    }
+
+    // 2. Terminal left region hit test
+    if (m_terminalOverlayEnabled && pos.y() >= static_cast<qreal>(groupH)) {
+        const int consoleW = static_cast<int>(logicalW * m_terminalSplitRatio);
+        const float splitHitTol = 6.0f;
+
+        if (std::abs(static_cast<float>(pos.x()) - static_cast<float>(consoleW)) <= splitHitTol) {
+            m_terminalDraggingSplit = true;
+            applyCursor(Qt::SplitHCursor);
+            event->accept();
+            return;
+        }
+
+        const float logicalFontHeight = static_cast<float>(getTerminalGLFont().getFontHeight())
+                                        / dpr;
+        const float logicalCharWidth = static_cast<float>(
+                                           getTerminalGLFont().getGlyphAdvance(' ').value_or(10))
+                                       / dpr;
+        const float promptHeight = logicalFontHeight + 8.0f;
+        const float availableTextHeight = std::max(groupH, logicalH - promptHeight);
+
+        if (pos.x() <= static_cast<qreal>(consoleW)) {
+            if (pos.y() < static_cast<qreal>(availableTextHeight)) {
+                const float posX = static_cast<float>(pos.x());
+                const float posY = static_cast<float>(pos.y()) - groupH;
+                const int col = std::max(0, static_cast<int>((posX - 4.0f) / logicalCharWidth));
+                const int row = std::max(0, static_cast<int>((posY - 4.0f) / logicalFontHeight));
+
+                const size_t totalLines = m_terminalBuffer.getLineCount();
+                const int scrollOffset = m_terminalBuffer.getScrollOffset();
+                const int rows = m_terminalBuffer.getRows();
+                const int topVisibleLineIdx = std::max(0,
+                                                       static_cast<int>(totalLines) - rows
+                                                           - scrollOffset);
+                const int lineIdx = topVisibleLineIdx + row;
+
+                m_terminalSelectingText = true;
+                m_terminalBuffer.startSelection(col, lineIdx);
+                m_frameManager.requestUpdate();
+            }
+            event->accept();
+            return;
+        }
+    }
+
     if (event->button() != Qt::RightButton) {
         emit sig_dismissContextMenu();
     }
@@ -672,9 +811,9 @@ void MapCanvas::handleMousePress(QMouseEvent *const event)
             for (int z = hiz; z >= loz; --z) {
                 const float t = (static_cast<float>(z) - near.z) * inv_denom;
                 assert(isClamped(t, 0.f, 1.f));
-                const auto pos = glm::mix(near, far, t);
-                assert(static_cast<int>(std::lround(pos.z)) == z);
-                const Coordinate c2 = MouseSel{Coordinate2f{pos.x, pos.y}, z}.getCoordinate();
+                const auto rayPos = glm::mix(near, far, t);
+                assert(static_cast<int>(std::lround(rayPos.z)) == z);
+                const Coordinate c2 = MouseSel{Coordinate2f{rayPos.x, rayPos.y}, z}.getCoordinate();
                 if (const auto r = m_data.findRoomHandle(c2)) {
                     tmpSel.insert(r.getId());
                 }
@@ -769,8 +908,120 @@ void MapCanvas::handleMousePress(QMouseEvent *const event)
     }
 }
 
-void MapCanvas::handleMouseMove(QMouseEvent *const event)
+void MapCanvas::handleKeyPress(QKeyEvent *const event)
 {
+    if (!event) {
+        return;
+    }
+
+    if (m_terminalOverlayEnabled) {
+        const auto promptRes = m_inputPrompt.handleKeyPress(event);
+        if (promptRes.submitted.has_value()) {
+            QString cmdStr = *promptRes.submitted;
+            if (!cmdStr.endsWith('\n')) {
+                cmdStr += "\n";
+            }
+            emit sig_sendUserInput(cmdStr);
+            m_terminalBuffer.scrollToBottom();
+            m_frameManager.requestUpdate();
+            return;
+        }
+
+        if (promptRes.handled) {
+            m_terminalBuffer.scrollToBottom();
+            m_frameManager.requestUpdate();
+            return;
+        }
+
+        if (m_hotkeyManager != nullptr) {
+            const Hotkey hk(static_cast<Qt::Key>(event->key()), event->modifiers());
+            if (hk.isValid()) {
+                if (const auto cmd = m_hotkeyManager->getCommand(hk)) {
+                    QString cmdStr = mmqt::toQStringUtf8(*cmd);
+                    if (!cmdStr.endsWith('\n')) {
+                        cmdStr += "\n";
+                    }
+                    emit sig_sendUserInput(cmdStr);
+                    m_terminalBuffer.scrollToBottom();
+                    m_frameManager.requestUpdate();
+                    return;
+                }
+            }
+        }
+
+        m_frameManager.requestUpdate();
+    }
+}
+
+void MapCanvas::handleMouseMove(QMouseEvent *event)
+{
+    const float logicalW = static_cast<float>(currentHostSize().width());
+
+    if (m_terminalDraggingSplit) {
+        if (logicalW > 0.0f) {
+            m_terminalSplitRatio = std::clamp(static_cast<float>(event->position().x()) / logicalW,
+                                              0.15f,
+                                              0.85f);
+            markViewProjDirty();
+            m_frameManager.requestUpdate();
+        }
+        applyCursor(Qt::SplitHCursor);
+        event->accept();
+        return;
+    }
+
+    if (m_terminalOverlayEnabled) {
+        const QPointF pos = event->position();
+        const float dpr = static_cast<float>(currentDpr());
+        const float logicalH = static_cast<float>(currentHostSize().height());
+        const float groupH = static_cast<float>(computeGroupPanelHeight());
+        const float consoleW = logicalW * m_terminalSplitRatio;
+        const float splitHitTol = 6.0f;
+
+        if (pos.y() >= static_cast<qreal>(groupH)
+            && std::abs(static_cast<float>(pos.x()) - consoleW) <= splitHitTol) {
+            applyCursor(Qt::SplitHCursor);
+            event->accept();
+            return;
+        } else if (m_currentCursor == Qt::SplitHCursor) {
+            restoreCursorForMouseMode();
+        }
+
+        if (pos.x() <= static_cast<qreal>(consoleW) && pos.y() >= static_cast<qreal>(groupH)) {
+            if (m_terminalSelectingText) {
+                const float logicalFontHeight = static_cast<float>(
+                                                    getTerminalGLFont().getFontHeight())
+                                                / dpr;
+                const float logicalCharWidth
+                    = static_cast<float>(getTerminalGLFont().getGlyphAdvance(' ').value_or(10))
+                      / dpr;
+                const float promptHeight = logicalFontHeight + 8.0f;
+                const float availableTextHeight = std::max(groupH, logicalH - promptHeight);
+                const float clampedY = std::clamp(static_cast<float>(pos.y()),
+                                                  groupH,
+                                                  availableTextHeight - 1.0f);
+
+                const float posX = static_cast<float>(pos.x());
+                const float posY = clampedY - groupH;
+                const int col = std::max(0, static_cast<int>((posX - 4.0f) / logicalCharWidth));
+                const int row = std::max(0, static_cast<int>((posY - 4.0f) / logicalFontHeight));
+
+                const size_t totalLines = m_terminalBuffer.getLineCount();
+                const int scrollOffset = m_terminalBuffer.getScrollOffset();
+                const int rows = m_terminalBuffer.getRows();
+                const int topVisibleLineIdx = std::max(0,
+                                                       static_cast<int>(totalLines) - rows
+                                                           - scrollOffset);
+                const int lineIdx = topVisibleLineIdx + row;
+
+                m_terminalBuffer.updateSelection(col, lineIdx);
+                m_frameManager.requestUpdate();
+            }
+            event->accept();
+            return;
+        }
+    }
+
     if (m_longPressPos
         && (event->position() - *m_longPressPos).manhattanLength()
                > QGuiApplication::styleHints()->startDragDistance()) {
@@ -975,6 +1226,22 @@ void MapCanvas::handlePointerMove(const glm::vec2 xy,
 
 void MapCanvas::handleMouseRelease(QMouseEvent *const event)
 {
+    if (m_terminalDraggingSplit) {
+        m_terminalDraggingSplit = false;
+        restoreCursorForMouseMode();
+        m_frameManager.requestUpdate();
+        event->accept();
+        return;
+    }
+
+    if (m_terminalOverlayEnabled && m_terminalSelectingText) {
+        m_terminalSelectingText = false;
+        m_terminalBuffer.copySelectionToClipboard();
+        m_frameManager.requestUpdate();
+        event->accept();
+        return;
+    }
+
     cancelLongPress();
     if (std::exchange(m_longPressFired, false) && event->button() == Qt::LeftButton) {
         // onLongPress() already abandoned the press and opened the context

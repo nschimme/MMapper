@@ -2,8 +2,6 @@ add_compile_definitions(MM_TESTING)
 
 include_directories(
     ${CMAKE_CURRENT_SOURCE_DIR}/../src
-    ${CMAKE_BINARY_DIR}/src/mmapper_autogen/include
-    ${CMAKE_BINARY_DIR}/src
 )
 
 include_directories(SYSTEM ${GLM_INCLUDE_DIR})
@@ -186,6 +184,7 @@ set(mainwindow_SRCS
     ../src/mainwindow/AudioVolumeSlider.h
     ../src/mainwindow/UpdateChecker.cpp
     ../src/mainwindow/UpdateChecker.h
+    ../src/mainwindow/findroomsdlg.ui
     )
 set(TestMainWindow_SRCS TestMainWindow.cpp)
 add_executable(TestMainWindow ${TestMainWindow_SRCS} ${mainwindow_SRCS} ${map_scroller_SRCS})

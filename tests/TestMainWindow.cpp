@@ -8,8 +8,8 @@
 #include "../src/display/MapScroller.h"
 #include "../src/mainwindow/AudioVolumeSlider.h"
 #include "../src/mainwindow/CompactLayout.h"
-#include "../src/mainwindow/UpdateChecker.h"
 #include "../src/mainwindow/FindRoomTreeWidgetItem.h"
+#include "../src/mainwindow/UpdateChecker.h"
 #include "../src/map/coordinate.h"
 
 #include <QDebug>

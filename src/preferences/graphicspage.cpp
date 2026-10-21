@@ -92,6 +92,10 @@ GraphicsPage::GraphicsPage(QWidget *parent)
             &QCheckBox::stateChanged,
             this,
             &GraphicsPage::slot_drawNotMappedExitsStateChanged);
+    connect(ui->enableMazeVisuals,
+            &QCheckBox::stateChanged,
+            this,
+            &GraphicsPage::slot_enableMazeVisualsStateChanged);
     connect(ui->drawDoorNames,
             &QCheckBox::stateChanged,
             this,
@@ -186,6 +190,7 @@ void GraphicsPage::slot_loadConfig()
     ui->drawUnsavedChanges->setChecked(settings.showUnsavedChanges.get());
     ui->drawNeedsUpdate->setChecked(settings.showMissingMapId.get());
     ui->drawNotMappedExits->setChecked(settings.showUnmappedExits.get());
+    ui->enableMazeVisuals->setChecked(settings.enableMazeVisuals.get());
     ui->drawDoorNames->setChecked(settings.drawDoorNames);
 
     syncMapFontButton();
@@ -239,6 +244,12 @@ void GraphicsPage::slot_drawNeedsUpdateStateChanged(int /*unused*/)
 void GraphicsPage::slot_drawNotMappedExitsStateChanged(int /*unused*/)
 {
     setConfig().canvas.showUnmappedExits.set(ui->drawNotMappedExits->isChecked());
+    graphicsSettingsChanged();
+}
+
+void GraphicsPage::slot_enableMazeVisualsStateChanged(int /*unused*/)
+{
+    setConfig().canvas.enableMazeVisuals.set(ui->enableMazeVisuals->isChecked());
     graphicsSettingsChanged();
 }
 

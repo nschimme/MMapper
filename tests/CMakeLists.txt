@@ -2,6 +2,8 @@ add_compile_definitions(MM_TESTING)
 
 include_directories(
     ${CMAKE_CURRENT_SOURCE_DIR}/../src
+    ${CMAKE_BINARY_DIR}/src/mmapper_autogen/include
+    ${CMAKE_BINARY_DIR}/src
 )
 
 include_directories(SYSTEM ${GLM_INCLUDE_DIR})

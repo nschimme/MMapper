@@ -18,6 +18,7 @@ private:
 private Q_SLOTS:
     void updaterTest();
     void audioToolbarTest();
+    void audioVolumeSliderWheelTest();
     void mapScrollerScrollMath();
     void compactLayoutPolicy();
 };

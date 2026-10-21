@@ -91,6 +91,28 @@ void TestMainWindow::audioToolbarTest()
     QCOMPARE(getConfig().audio.getSoundVolume(), 10);
 }
 
+void TestMainWindow::audioVolumeSliderWheelTest()
+{
+    setEnteredMain();
+
+    AudioVolumeSlider musicSlider(AudioVolumeSlider::AudioType::Music);
+    musicSlider.setValue(50);
+
+    QWheelEvent wheelEvent(QPointF(10, 10),
+                           QPointF(10, 10),
+                           QPoint(0, 0),
+                           QPoint(0, 120),
+                           Qt::NoButton,
+                           Qt::NoModifier,
+                           Qt::ScrollPhase::NoScrollPhase,
+                           false);
+
+    QCoreApplication::sendEvent(&musicSlider, &wheelEvent);
+
+    QCOMPARE(musicSlider.value(), 50);
+    QVERIFY(!wheelEvent.isAccepted());
+}
+
 void TestMainWindow::mapScrollerScrollMath()
 {
     // Regression test for MapScroller's world<->scroll-unit conversion

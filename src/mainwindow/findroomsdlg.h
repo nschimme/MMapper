@@ -4,10 +4,14 @@
 // Author: Kalev Lember <kalev@smartlink.ee> (Kalev)
 // Author: Nils Schimmelmann <nschimme@gmail.com> (Jahara)
 
+#include "../global/AsyncTasks.h"
 #include "../mapdata/roomselection.h"
 #include "../parser/abstractparser.h"
+#include "FindRoomTreeWidgetItem.h"
 
+#include <atomic>
 #include <memory>
+#include <optional>
 
 #include <QDialog>
 #include <QString>
@@ -38,8 +42,9 @@ class NODISCARD_QOBJECT FindRoomsDlg final : public QDialog, private Ui::FindRoo
 
 private:
     MapData &m_mapData;
-    QTreeWidgetItem *item = nullptr;
     std::unique_ptr<QShortcut> m_showSelectedRoom;
+    std::optional<async_tasks::AsyncTaskHandle> m_currentTask;
+    std::atomic<uint64_t> m_searchGeneration{0};
 
 private:
     void closeEvent(QCloseEvent *event) final;

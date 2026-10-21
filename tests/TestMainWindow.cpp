@@ -8,6 +8,7 @@
 #include "../src/display/MapScroller.h"
 #include "../src/mainwindow/AudioVolumeSlider.h"
 #include "../src/mainwindow/CompactLayout.h"
+#include "../src/mainwindow/FindRoomTreeWidgetItem.h"
 #include "../src/mainwindow/UpdateChecker.h"
 #include "../src/map/coordinate.h"
 
@@ -166,6 +167,39 @@ void TestMainWindow::compactLayoutPolicy()
     QCOMPARE(probeSize(QSize(600, 420), QSize(1920, 1080)), QSize(600, 420));
     // No screen: the window size stands.
     QCOMPARE(probeSize(QSize(1080, 900), QSize()), QSize(1080, 900));
+}
+
+void TestMainWindow::findRoomsTest()
+{
+    QTreeWidget treeWidget;
+    treeWidget.setColumnCount(3);
+
+    auto *item1 = new FindRoomTreeWidgetItem(&treeWidget);
+    item1->setText(0, "10");
+    item1->setText(1, "Room B");
+    item1->setText(2, "12.5");
+
+    auto *item2 = new FindRoomTreeWidgetItem(&treeWidget);
+    item2->setText(0, "2");
+    item2->setText(1, "Room A");
+    item2->setText(2, "2.0");
+
+    auto *item3 = new FindRoomTreeWidgetItem(&treeWidget);
+    item3->setText(0, "100");
+    item3->setText(1, "Room C");
+    item3->setText(2, "N/A");
+
+    // Sort column 0 (Room ID) ascending -> 2, 10, 100
+    treeWidget.sortItems(0, Qt::AscendingOrder);
+    QCOMPARE(treeWidget.topLevelItem(0)->text(0), QString("2"));
+    QCOMPARE(treeWidget.topLevelItem(1)->text(0), QString("10"));
+    QCOMPARE(treeWidget.topLevelItem(2)->text(0), QString("100"));
+
+    // Sort column 2 (Distance) ascending -> 2.0, 12.5, N/A
+    treeWidget.sortItems(2, Qt::AscendingOrder);
+    QCOMPARE(treeWidget.topLevelItem(0)->text(2), QString("2.0"));
+    QCOMPARE(treeWidget.topLevelItem(1)->text(2), QString("12.5"));
+    QCOMPARE(treeWidget.topLevelItem(2)->text(2), QString("N/A"));
 }
 
 QTEST_MAIN(TestMainWindow)

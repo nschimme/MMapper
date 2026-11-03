@@ -22,6 +22,7 @@
 #include <QSpinBox>
 #include <QVBoxLayout>
 #include <QVector>
+#include <QWheelEvent>
 #include <QWidget>
 
 SliderSpinboxButton::~SliderSpinboxButton() = default;
@@ -66,6 +67,9 @@ public:
         setSingleStep(m_fraction);
     }
     ~FpSpinBox() final = default;
+
+protected:
+    void wheelEvent(QWheelEvent *const event) override { event->ignore(); }
 
 public:
     NODISCARD int getIntValue() const

@@ -41,6 +41,24 @@ QString getSearchableText(const QWidget *widget)
 }
 
 enum StackPage { Preferences = 0, SearchResults = 1, NoResults = 2 };
+
+class PreferenceWheelFilter final : public QObject
+{
+public:
+    explicit PreferenceWheelFilter(QObject *parent = nullptr)
+        : QObject(parent)
+    {}
+
+    bool eventFilter(QObject *obj, QEvent *event) override
+    {
+        if (event->type() == QEvent::Wheel) {
+            event->ignore();
+            return true;
+        }
+        return QObject::eventFilter(obj, event);
+    }
+};
+
 } // namespace
 
 ConfigDialog::ConfigDialog(QWidget *const parent)
@@ -164,6 +182,12 @@ ConfigDialog::ConfigDialog(QWidget *const parent)
             &GraphicsPage::sig_graphicsSettingsChanged,
             this,
             &ConfigDialog::sig_graphicsSettingsChanged);
+
+    auto *const wheelFilter = new PreferenceWheelFilter(this);
+    const auto spinBoxes = findChildren<QAbstractSpinBox *>();
+    for (auto *const spinBox : spinBoxes) {
+        spinBox->installEventFilter(wheelFilter);
+    }
 }
 
 ConfigDialog::~ConfigDialog()

@@ -74,6 +74,13 @@
         </property>
        </widget>
       </item>
+      <item row="2" column="1">
+       <widget class="QCheckBox" name="enableMazeVisuals">
+        <property name="text">
+         <string>Enable maze visual de-cluttering</string>
+        </property>
+       </widget>
+      </item>
       <item row="1" column="2">
        <widget class="QComboBox" name="antialiasingSamplesComboBox">
         <property name="focusPolicy">

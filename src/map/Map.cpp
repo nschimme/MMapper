@@ -13,6 +13,7 @@
 #include "../global/progresscounter.h"
 #include "../global/tests.h"
 #include "../global/thread_utils.h"
+#include "../mapstorage/XmlMapStorage.h"
 #include "Changes.h"
 #include "Diff.h"
 #include "ParseTree.h"
@@ -20,7 +21,6 @@
 #include "WorldBuilder.h"
 #include "enums.h"
 
-#include <chrono>
 #include <map>
 #include <memory>
 #include <mutex>
@@ -30,6 +30,8 @@
 #include <sstream>
 #include <tuple>
 #include <vector>
+
+#include <QBuffer>
 
 using namespace char_consts;
 
@@ -2017,6 +2019,79 @@ void testDoorVsExitFlags()
 } // namespace
 
 namespace test {
+void testSubAreas()
+{
+    ProgressCounter pc;
+    Map map;
+
+    const auto res1 = map.applySingleChange(pc,
+                                            Change{room_change_types::AddPermanentRoom{
+                                                Coordinate{0, 0, 0}}});
+    map = res1.map;
+    const RoomId parentId = map.getRooms().first();
+
+    const auto res2 = map.applySingleChange(pc,
+                                            Change{room_change_types::AddPermanentRoom{
+                                                Coordinate{1, 0, 0}}});
+    map = res2.map;
+    const RoomId childId = *(std::next(map.getRooms().begin()));
+
+    TEST_ASSERT(parentId != INVALID_ROOMID);
+    TEST_ASSERT(childId != INVALID_ROOMID);
+
+    const RoomArea areaName = mmqt::makeRoomArea("Bree Town");
+    const auto res3 = map.applySingleChange(pc,
+                                            Change{room_change_types::SetSubArea{parentId,
+                                                                                 parentId,
+                                                                                 areaName}});
+    map = res3.map;
+
+    const auto res4 = map.applySingleChange(pc,
+                                            Change{room_change_types::SetSubArea{childId,
+                                                                                 parentId,
+                                                                                 RoomArea{}}});
+    map = res4.map;
+
+    auto parentRoom = map.getRoomHandle(parentId);
+    auto childRoom = map.getRoomHandle(childId);
+
+    TEST_ASSERT(parentRoom.isSubAreaParent());
+    TEST_ASSERT(parentRoom.isSubAreaChild());
+    TEST_ASSERT(parentRoom.getSubAreaName() == areaName);
+
+    TEST_ASSERT(!childRoom.isSubAreaParent());
+    TEST_ASSERT(childRoom.isSubAreaChild());
+    TEST_ASSERT(childRoom.getSubAreaParentId() == parentId);
+
+    const auto res5 = map.applySingleChange(pc,
+                                            Change{room_change_types::SetSubArea{childId,
+                                                                                 INVALID_ROOMID,
+                                                                                 RoomArea{}}});
+    map = res5.map;
+    childRoom = map.getRoomHandle(childId);
+
+    TEST_ASSERT(!childRoom.isSubAreaChild());
+    TEST_ASSERT(childRoom.getSubAreaParentId() == INVALID_ROOMID);
+
+    // Test ChangePrinter with SetSubArea
+    std::ostringstream oss;
+    map.printChange(oss, Change{room_change_types::SetSubArea{parentId, parentId, areaName}});
+    TEST_ASSERT(!oss.str().empty());
+
+    // Test parent room removal un-nesting child rooms
+    const auto res6 = map.applySingleChange(pc,
+                                            Change{room_change_types::SetSubArea{childId,
+                                                                                 parentId,
+                                                                                 RoomArea{}}});
+    map = res6.map;
+    TEST_ASSERT(map.getRoomHandle(childId).isSubAreaChild());
+
+    const auto res7 = map.applySingleChange(pc, Change{room_change_types::RemoveRoom{parentId}});
+    map = res7.map;
+    TEST_ASSERT(!map.getRoomHandle(childId).isSubAreaChild());
+    TEST_ASSERT(map.getRoomHandle(childId).getSubAreaParentId() == INVALID_ROOMID);
+}
+
 void testMap()
 {
     Map::enableExtraSanityChecks(true);
@@ -2027,6 +2102,7 @@ void testMap()
     testAddingInvalidEnums();
     testConstructingInvalidEnums();
     testDoorVsExitFlags();
+    testSubAreas();
     test::test_mmapper2room();
 }
 } // namespace test

@@ -942,6 +942,13 @@ void World::removeFromWorld(const RoomId id, const bool removeLinks)
         nukeAllExits(id, WaysEnum::TwoWay);
     }
 
+    // Un-nest any child rooms that referenced this room as their sub-area parent
+    getRoomSet().for_each([this, id](const RoomId childId) {
+        if (m_rooms.getRoomSubAreaParentId(childId) == id) {
+            m_rooms.setRoomSubAreaParentId(childId, INVALID_ROOMID);
+        }
+    });
+
     m_remapping.removeAt(id);
     m_rooms.removeAt(id);
     m_areaInfos.remove(area, id);
@@ -1648,6 +1655,13 @@ void World::apply(ProgressCounter & /*pc*/, const room_change_types::SetServerId
 {
     //
     setServerId(change.room, change.server_id);
+}
+
+void World::apply(ProgressCounter & /*pc*/, const room_change_types::SetSubArea &change)
+{
+    requireValidRoom(change.room);
+    m_rooms.setRoomSubAreaParentId(change.room, change.parent_id);
+    m_rooms.setRoomSubAreaName(change.room, change.sub_area_name);
 }
 
 void World::apply(ProgressCounter & /*pc*/, const room_change_types::MoveRelative &change)
@@ -2457,6 +2471,18 @@ bool World::isTemporary(const RoomId id) const
     }
 XFOREACH_ROOM_PROPERTY(X_DEFINE_GETTER)
 #undef X_DEFINE_GETTER
+
+RoomId World::getRoomSubAreaParentId(RoomId id) const
+{
+    requireValidRoom(id);
+    return m_rooms.getRoomSubAreaParentId(id);
+}
+
+const RoomArea &World::getRoomSubAreaName(RoomId id) const
+{
+    requireValidRoom(id);
+    return m_rooms.getRoomSubAreaName(id);
+}
 
 bool World::containsRoomsNotIn(const World &other) const
 {

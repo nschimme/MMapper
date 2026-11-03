@@ -776,6 +776,16 @@ void ChangePrinter::virt_accept(const SetServerId &change)
     }
 }
 
+void ChangePrinter::virt_accept(const SetSubArea &change)
+{
+    BEGIN_STRUCT_HELPER("SetSubArea")
+    {
+        HELPER_ADD_MEMBER(room);
+        HELPER_ADD_MEMBER(parent_id);
+        HELPER_ADD_MEMBER(sub_area_name);
+    }
+}
+
 void ChangePrinter::virt_accept(const MakePermanent &change)
 {
     BEGIN_STRUCT_HELPER("MakePermanent")

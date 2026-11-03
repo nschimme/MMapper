@@ -35,6 +35,11 @@ MapCanvasWindow::MapCanvasWindow(MapData &mapData,
     // Forward the core's public signal surface as our own, so that callers
     // (MainWindow, MapWindow, ...) can connect to `MapCanvasWindow::sig_*`
     // without knowing MapCanvas exists.
+    connect(&m_core, &MapCanvas::sig_sendUserInput, this, &MapCanvasWindow::sig_sendUserInput);
+    connect(&m_core,
+            &MapCanvas::sig_windowSizeChanged,
+            this,
+            &MapCanvasWindow::sig_windowSizeChanged);
     connect(&m_core, &MapCanvas::sig_onCenter, this, &MapCanvasWindow::sig_onCenter);
     connect(&m_core, &MapCanvas::sig_mapMove, this, &MapCanvasWindow::sig_mapMove);
     connect(&m_core, &MapCanvas::sig_setScrollBars, this, &MapCanvasWindow::sig_setScrollBars);

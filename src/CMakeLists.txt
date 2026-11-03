@@ -85,6 +85,10 @@ set(mmapper_SRCS
     display/MapCanvasData.h
     display/MapCanvasRoomDrawer.cpp
     display/MapCanvasRoomDrawer.h
+    display/GlInputPrompt.cpp
+    display/GlInputPrompt.h
+    display/GlTerminalBuffer.cpp
+    display/GlTerminalBuffer.h
     display/MapCanvasWindow.cpp
     display/MapCanvasWindow.h
     display/MapCanvasWindow_gl.cpp
@@ -254,8 +258,6 @@ set(mmapper_SRCS
     group/GroupManagerApi.h
     group/GroupModel.cpp
     group/GroupModel.h
-    group/groupwidget.cpp
-    group/groupwidget.h
     group/enums.cpp
     group/enums.h
     group/mmapper2character.cpp

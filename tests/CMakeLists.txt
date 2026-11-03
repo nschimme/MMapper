@@ -450,6 +450,10 @@ set(TestClient_SRCS
     TestClient.h
     ../src/client/InputHistory.cpp
     ../src/client/InputHistory.h
+    ../src/display/GlInputPrompt.cpp
+    ../src/display/GlInputPrompt.h
+    ../src/display/GlTerminalBuffer.cpp
+    ../src/display/GlTerminalBuffer.h
     ../src/mpi/RemoteEditDocumentOps.cpp
     ../src/mpi/RemoteEditDocumentOps.h
 )

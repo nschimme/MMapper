@@ -5,6 +5,7 @@
 // Author: Marek Krejza <krejza@gmail.com> (Caligor)
 // Author: Nils Schimmelmann <nschimme@gmail.com> (Jahara)
 
+#include "../client/HotkeyManager.h"
 #include "../clock/mumemoment.h"
 #include "../global/ChangeMonitor.h"
 #include "../global/Signal2.h"
@@ -15,6 +16,8 @@
 #include "../opengl/OpenGL.h"
 #include "../opengl/Weather.h"
 #include "FrameManager.h"
+#include "GlInputPrompt.h"
+#include "GlTerminalBuffer.h"
 #include "Infomarks.h"
 #include "MapCanvasConfig.h"
 #include "MapCanvasData.h"
@@ -184,6 +187,7 @@ private:
     GameObserver &m_observer;
     mutable OpenGL m_opengl;
     GLFont m_glFont;
+    GLFont m_terminalGlFont;
     Batches m_batches;
     MapCanvasTextures m_textures;
     MapData &m_data;
@@ -232,7 +236,24 @@ private:
     QTimer m_flickTimer;
     glm::vec2 m_flickVelocity{0.f};
 
+    // MUD Client GL Overlay State
+    mmgl::GlTerminalBuffer m_terminalBuffer;
+    mmgl::GlInputPrompt m_inputPrompt;
+    HotkeyManager *m_hotkeyManager = nullptr;
+    bool m_terminalOverlayEnabled = true;
+    float m_terminalSplitRatio = 0.35f;
+    bool m_terminalDraggingSplit = false;
+    bool m_terminalSelectingText = false;
+    bool m_groupPanelEnabled = true;
+    int m_glGroupSelectedIndex = -1;
+
 public:
+    NODISCARD mmgl::GlTerminalBuffer &getTerminalBuffer() { return m_terminalBuffer; }
+    NODISCARD mmgl::GlInputPrompt &getInputPrompt() { return m_inputPrompt; }
+    void setHotkeyManager(HotkeyManager *hm) { m_hotkeyManager = hm; }
+    NODISCARD int computeGroupPanelHeight() const;
+    void setGroupPanelEnabled(bool enabled) { m_groupPanelEnabled = enabled; }
+
     explicit MapCanvas(MapData &mapData,
                        GameObserver &observer,
                        PrespammedPath &prespammedPath,
@@ -256,10 +277,12 @@ private:
         m_host.setHostCursor(shape);
     }
     NODISCARD QCursor currentCursor() const { return QCursor(m_currentCursor); }
+    void restoreCursorForMouseMode();
 
 private:
     NODISCARD inline auto &getOpenGL() { return m_opengl; }
     NODISCARD inline auto &getGLFont() { return m_glFont; }
+    NODISCARD inline auto &getTerminalGLFont() { return m_terminalGlFont; }
 
 public:
     // Called by the host with a current GL context. Idempotent: cleanup state
@@ -306,6 +329,7 @@ public:
     void handleMouseRelease(QMouseEvent *event);
     void handleMouseMove(QMouseEvent *event);
     void handlePointerMove(glm::vec2 pos, Qt::KeyboardModifiers modifiers, Qt::MouseButtons buttons);
+    void handleKeyPress(QKeyEvent *event);
     void handleWheel(QWheelEvent *event);
     void handleTouch(QTouchEvent *event);
     void handleNativeGesture(QNativeGestureEvent *event);
@@ -357,6 +381,8 @@ public:
     void paintSelectedInfomarks();
     void paintCharacters();
     void paintDifferences();
+    void paintMudClientConsole();
+    void paintGroupPanel();
 
     // Immediately drops all cached meshes (must run with a current GL context).
     void forceUpdateMeshes();
@@ -400,6 +426,8 @@ private:
     void log(const QString &msg) { emit sig_log("MapCanvas", msg); }
 
 signals:
+    void sig_sendUserInput(const QString &msg);
+    void sig_windowSizeChanged(int cols, int rows);
     void sig_onCenter(glm::vec2 worldCoord);
     void sig_mapMove(int dx, int dy);
     void sig_setScrollBars(Coordinate min, Coordinate max);
@@ -431,6 +459,9 @@ signals:
     void sig_glFatalError(const QString &message);
 
 public slots:
+    void slot_displayText(const QStringView str);
+    void slot_displayText(const QString &str) { slot_displayText(QStringView{str}); }
+    void slot_setTerminalOverlayEnabled(bool enabled);
     void slot_onForcedPositionChange();
     void slot_createRoom();
 

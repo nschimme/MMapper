@@ -134,6 +134,7 @@ MapWindow::MapWindow(MapData &mapData,
     m_canvasContainer = QWidget::createWindowContainer(m_canvas, this);
     assert(m_canvasContainer);
     assert(m_canvasContainer->parent() == this);
+    m_canvasContainer->setFocusPolicy(Qt::StrongFocus);
 
     m_gridLayout->addWidget(m_canvasContainer, 0, 0, 1, 1);
 

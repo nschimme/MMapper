@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // Copyright (C) 2021 The MMapper Authors
 
+#include "SubAreaFlags.h"
 #include "exit.h"
 #include "room.h"
 
@@ -125,6 +126,15 @@ public:
     NODISCARD const _Type &get##_Prop() const { return crtp_get_fields()._Prop; }
     XFOREACH_ROOM_PROPERTY(X_IMPL_GETTER)
 #undef X_IMPL_GETTER
+
+    NODISCARD RoomId getSubAreaParentId() const { return crtp_get_fields().subAreaParentId; }
+    NODISCARD const RoomArea &getSubAreaName() const { return crtp_get_fields().subAreaName; }
+    NODISCARD const SubAreaFlags &getSubAreaFlags() const { return crtp_get_fields().subAreaFlags; }
+    NODISCARD bool isSubAreaParent() const { return !crtp_get_fields().subAreaName.isEmpty(); }
+    NODISCARD bool isSubAreaChild() const
+    {
+        return crtp_get_fields().subAreaParentId != INVALID_ROOMID;
+    }
 };
 
 template<typename CRTP>
@@ -158,6 +168,10 @@ public:
     }
     XFOREACH_ROOM_FLAG_PROPERTY(X_IMPL_SETTER)
 #undef X_IMPL_SETTER
+
+    void setSubAreaParentId(RoomId id) { crtp_get_fields().subAreaParentId = id; }
+    void setSubAreaName(RoomArea areaName) { crtp_get_fields().subAreaName = std::move(areaName); }
+    void setSubAreaFlags(SubAreaFlags flags) { crtp_get_fields().subAreaFlags = flags; }
 };
 
 template<typename CRTP>

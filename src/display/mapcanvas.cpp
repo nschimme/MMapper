@@ -842,6 +842,27 @@ void MapCanvas::handlePointerMove(const glm::vec2 xy,
 {
     const bool hasLeftButton = (buttons & Qt::LeftButton) != 0u;
 
+    const float vpW = static_cast<float>(width());
+    const float vpH = static_cast<float>(height());
+    const float clickX = xy.x;
+    const float screenY = vpH - xy.y;
+
+    if (hasLeftButton && getConfig().canvas.showMiniMap.get() && clickX >= vpW - 190.f
+        && clickX <= vpW - 10.f && screenY >= 10.f && screenY <= 190.f) {
+        auto optBounds = m_data.getCurrentMap().getBounds();
+        Bounds bounds = optBounds.value_or(Bounds{Coordinate{-50, -50, 0}, Coordinate{50, 50, 0}});
+        float normX = (clickX - (vpW - 190.f)) / 180.f;
+        float normY = (screenY - 10.f) / 180.f;
+        float worldX = static_cast<float>(bounds.min.x)
+                       + normX * static_cast<float>(bounds.max.x - bounds.min.x);
+        float worldY = static_cast<float>(bounds.max.y)
+                       - normY * static_cast<float>(bounds.max.y - bounds.min.y);
+        setScroll(glm::vec2{worldX, worldY});
+        emit sig_onCenter(glm::vec2{worldX, worldY});
+        m_frameManager.requestUpdate();
+        return;
+    }
+
     if (m_canvasMouseMode != CanvasMouseModeEnum::MOVE) {
         // NOTE: Y is opposite of what you might expect here.
         const int vScroll = std::invoke([this, &xy]() -> int {

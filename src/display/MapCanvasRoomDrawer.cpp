@@ -55,6 +55,7 @@ struct NODISCARD VisitRoomOptions final
     SharedCanvasNamedColorOptions canvasColors;
     SharedNamedColorOptions colorSettings;
     bool drawNotMappedExits = false;
+    bool enableMazeVisuals = true;
 };
 
 enum class NODISCARD StreamTypeEnum { OutFlow, InFlow };
@@ -73,6 +74,7 @@ NODISCARD static VisitRoomOptions getVisitRoomOptions()
     result.canvasColors = canvas.clone();
     result.colorSettings = config.colorSettings.clone();
     result.drawNotMappedExits = canvas.showUnmappedExits.get();
+    result.enableMazeVisuals = canvas.enableMazeVisuals.get();
     return result;
 }
 
@@ -898,7 +900,9 @@ static void generateAllLayerMeshes(InternalData &internalData,
                                    const FontMetrics &font,
                                    const LayerToRooms &layerToRooms,
                                    const mctp::MapCanvasTexturesProxy &textures,
-                                   const VisitRoomOptions &visitRoomOptions)
+                                   const VisitRoomOptions &visitRoomOptions,
+                                   const Map &map,
+                                   std::optional<RoomId> currentRoomId)
 
 {
     // This feature has been removed, but it's passed to a lot of functions,
@@ -910,6 +914,10 @@ static void generateAllLayerMeshes(InternalData &internalData,
     auto &batchedMeshes = internalData.batchedMeshes;
     auto &connectionDrawerBuffers = internalData.connectionDrawerBuffers;
     auto &roomNameBatches = internalData.roomNameBatches;
+
+    const bool enableMazeVisuals = visitRoomOptions.enableMazeVisuals;
+    const SubAreaInfo mazeInfo = enableMazeVisuals ? SubAreaDetector::detectSubAreas(map)
+                                                   : SubAreaInfo{};
 
     for (const auto &layer : layerToRooms) {
         DECL_TIMER(t2, "generateAllLayerMeshes.loop");
@@ -931,7 +939,8 @@ static void generateAllLayerMeshes(InternalData &internalData,
             cdb.clear();
             rnb.clear();
 
-            ConnectionDrawer cd{cdb, rnb, thisLayer, bounds};
+            ConnectionDrawer
+                cd{cdb, rnb, thisLayer, bounds, &mazeInfo, currentRoomId, enableMazeVisuals};
             {
                 DECL_TIMER(t7, "generateAllLayerMeshes.loop.part3b");
                 // pass 2: add to buffers
@@ -1115,12 +1124,14 @@ void InternalData::virt_finish(MapBatches &output, OpenGL &gl, GLFont &font) con
 // NOTE: All of the lamda captures are copied, including the texture data!
 FutureSharedMapBatchFinisher generateMapDataFinisher(const mctp::MapCanvasTexturesProxy &textures,
                                                      const std::shared_ptr<const FontMetrics> &font,
-                                                     const Map &map)
+                                                     const Map &map,
+                                                     std::optional<RoomId> currentRoomId)
 {
     const auto visitRoomOptions = getVisitRoomOptions();
 
     return std::async(std::launch::async,
-                      [textures, font, map, visitRoomOptions]() -> SharedMapBatchFinisher {
+                      [textures, font, map, visitRoomOptions, currentRoomId]()
+                          -> SharedMapBatchFinisher {
                           ThreadLocalNamedColorRaii tlRaii{visitRoomOptions.canvasColors,
                                                            visitRoomOptions.colorSettings};
                           DECL_TIMER(t, "[ASYNC] generateAllLayerMeshes");
@@ -1146,7 +1157,9 @@ FutureSharedMapBatchFinisher generateMapDataFinisher(const mctp::MapCanvasTextur
                                                  deref(font),
                                                  layerToRooms,
                                                  textures,
-                                                 visitRoomOptions);
+                                                 visitRoomOptions,
+                                                 map,
+                                                 currentRoomId);
                           return SharedMapBatchFinisher{result};
                       });
 }

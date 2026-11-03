@@ -10,6 +10,7 @@
 #include "ExitFlags.h"
 #include "Map.h"
 #include "RoomHandle.h"
+#include "SubAreaFlags.h"
 #include "infomark.h"
 #include "mmapper2room.h"
 #include "roomid.h"
@@ -69,6 +70,7 @@ private:
     void print(RoomLightEnum type);
     void print(RoomLoadFlagEnum flag);
     void print(RoomMobFlagEnum flag);
+    void print(SubAreaFlagEnum flag);
     void print(RoomPortableEnum type);
     void print(RoomRidableEnum type);
     void print(RoomSundeathEnum type);
@@ -83,6 +85,7 @@ private:
     void print(PromptFlagsType flags);
     void print(RoomLoadFlags loadFlags);
     void print(RoomMobFlags mobFlags);
+    void print(SubAreaFlags subAreaFlags);
 
 private:
     void print(const ExitFieldVariant &var);

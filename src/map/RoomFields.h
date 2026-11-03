@@ -4,6 +4,7 @@
 
 #include "../global/macros.h"
 #include "Crtp.h"
+#include "SubAreaFlags.h"
 
 #include <array>
 
@@ -14,6 +15,9 @@ public:
 #define X_DECL_FIELD(_Type, _Prop, _OptInit) _Type _Prop{_OptInit};
     XFOREACH_ROOM_PROPERTY(X_DECL_FIELD)
 #undef X_DECL_FIELD
+    RoomId subAreaParentId{INVALID_ROOMID};
+    RoomArea subAreaName{};
+    SubAreaFlags subAreaFlags{};
 
 public:
     NODISCARD bool operator==(const RoomFields &rhs) const
@@ -24,6 +28,10 @@ public:
     }
         XFOREACH_ROOM_PROPERTY(X_CHECK)
 #undef X_CHECK
+        if (subAreaParentId != rhs.subAreaParentId || subAreaName != rhs.subAreaName
+            || subAreaFlags != rhs.subAreaFlags) {
+            return false;
+        }
         return true;
     }
     NODISCARD bool operator!=(const RoomFields &rhs) const { return !(rhs == *this); }

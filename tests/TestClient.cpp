@@ -5,6 +5,7 @@
 
 #include "../src/client/InputHistory.h"
 #include "../src/configuration/configuration.h"
+#include "../src/mpi/MumeEditOptions.h"
 #include "../src/mpi/RemoteEditDocumentOps.h"
 
 #include <QTextCursor>
@@ -365,6 +366,59 @@ void TestClient::remoteEditStatusReportsTabsLongLinesAndTrailingSpace()
     QVERIFY(info.hasTabs);
     QVERIFY(info.hasLongLines);
     QVERIFY(info.hasTrailingSpace);
+}
+
+void TestClient::defaultCharacterEncodingIsUtf8()
+{
+    QCOMPARE(getConfig().general.characterEncoding, CharacterEncodingEnum::UTF8);
+}
+
+void TestClient::mumeEditOptionsAllowedRangesValidation()
+{
+    MumeEditOptions opts;
+    // Unrestricted by default
+    QVERIFY(opts.isCodepointAllowed(U'A'));
+    QVERIFY(opts.isCodepointAllowed(U'é'));
+    QVERIFY(opts.isCodepointAllowed(U'界'));
+    QVERIFY(opts.isCodepointAllowed(0x1F600)); // emoji
+
+    // Restricted ranges
+    opts.hasAllowedRanges = true;
+    opts.ranges.push_back({32, 126}); // ASCII printable
+
+    QVERIFY(opts.isCodepointAllowed(U'A'));
+    QVERIFY(opts.isCodepointAllowed(U' '));
+    QVERIFY(!opts.isCodepointAllowed(U'é')); // 0xE9 = 233
+    QVERIFY(!opts.isCodepointAllowed(0x1F600));
+
+    // GMCP emoji permission includes the components of multi-codepoint emoji.
+    QVERIFY(!opts.isCodepointAllowed(0x200D));
+    QVERIFY(!opts.isCodepointAllowed(0xFE0F));
+    opts.allowEmoji = true;
+    for (const auto cp :
+         QString::fromUtf8("❤️ 👩‍💻 1️⃣ 🏳️‍🌈 🏴").toUcs4()) {
+        QVERIFY(opts.isCodepointAllowed(cp));
+    }
+    QVERIFY(opts.isCodepointAllowed(0x1F3FD)); // skin tone
+    QVERIFY(opts.isCodepointAllowed(0xE0067)); // subdivision flag tag
+    QVERIFY(opts.isCodepointAllowed(0xE007F)); // cancel tag
+    QVERIFY(!opts.isCodepointAllowed(U'é'));
+
+    // Multiple ranges
+    opts.ranges.push_back({160, 255}); // Latin-1 supplement
+    QVERIFY(opts.isCodepointAllowed(U'é'));
+
+    // Ranges as advertised by MUME in MUME.Client.Edit (subset): the lightning cloud
+    // U+1F329 is inside [127744,128511], so the editor must not flag it.
+    MumeEditOptions mume;
+    mume.hasAllowedRanges = true;
+    mume.allowAnsiSgr = true;
+    mume.ranges = {{9, 13}, {32, 126}, {160, 172}, {174, 591}, {127744, 128511}};
+    // emoji token off: the numeric range alone must allow it.
+    QVERIFY(mume.isCodepointAllowed(0x1F329));
+    QVERIFY(!mume.isCodepointAllowed(0x1F600)); // outside the numeric ranges
+    QVERIFY(mume.isCodepointAllowed(U'A'));
+    QVERIFY(!mume.isCodepointAllowed(U'界'));
 }
 
 QTEST_MAIN(TestClient)

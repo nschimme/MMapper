@@ -44,14 +44,15 @@ RemoteEditInternalSession::RemoteEditInternalSession(const RemoteInternalId inte
                                                      const RemoteSessionId sessionId,
                                                      const QString &title,
                                                      const QString &body,
+                                                     const MumeEditOptions &options,
                                                      RemoteEdit *const parent)
     : RemoteEditSession(internalId, sessionId, parent)
     , m_widget(
           new RemoteEditWidget(isEditSession(),
                                title,
                                body,
-                               checked_dynamic_downcast<QWidget *>(parent->parent()) // MainWindow
-                               ))
+                               checked_dynamic_downcast<QWidget *>(parent->parent()), // MainWindow
+                               options))
 {
     const auto widget = m_widget.data();
     connect(widget, &RemoteEditWidget::sig_save, this, &RemoteEditSession::slot_onSave);

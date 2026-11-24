@@ -11,6 +11,7 @@
 #include "../global/TextUtils.h"
 #include "../global/Version.h"
 #include "../global/emojis.h"
+#include "../mpi/MumeEditOptions.h"
 #include "../opengl/OpenGLConfig.h"
 #include "GmcpUtils.h"
 
@@ -468,9 +469,42 @@ void MudTelnet::virt_receiveGmcpMessage(const GmcpMessage &msg)
             m_outputs.onMumeClientView(optTitle.value_or("View text..."), optText.value_or(""));
         } else if (msg.isMumeClientEdit()) {
             if (auto optId = obj.getInt("id")) {
+                MumeEditOptions options;
+                if (auto optMaxSize = obj.getInt("max-size")) {
+                    options.maxSize = optMaxSize.value();
+                } else if (auto optMaxSize2 = obj.getInt("max_size")) {
+                    options.maxSize = optMaxSize2.value();
+                }
+
+                if (auto optAllowed = obj.getArray("allowed-ranges")) {
+                    options.hasAllowedRanges = true;
+                    for (const auto &elem : optAllowed.value()) {
+                        if (auto optArr = elem.getArray()) {
+                            const auto &arr = optArr.value();
+                            if (arr.size() >= 2) {
+                                if (auto startOpt = arr[0].getInt()) {
+                                    if (auto endOpt = arr[1].getInt()) {
+                                        options.ranges.push_back(
+                                            {static_cast<char32_t>(startOpt.value()),
+                                             static_cast<char32_t>(endOpt.value())});
+                                    }
+                                }
+                            }
+                        } else if (auto optStr = elem.getString()) {
+                            const QString str = optStr.value();
+                            if (str == QStringLiteral("ansi-sgr")) {
+                                options.allowAnsiSgr = true;
+                            } else if (str == QStringLiteral("emoji")) {
+                                options.allowEmoji = true;
+                            }
+                        }
+                    }
+                }
+
                 m_outputs.onMumeClientEdit(RemoteSessionId{optId.value()},
                                            optTitle.value_or("Edit text..."),
-                                           optText.value_or(""));
+                                           optText.value_or(""),
+                                           options);
             }
         }
         return;

@@ -11,6 +11,9 @@
 #include "Abbrev.h"
 #include "DoorAction.h"
 
+#include <string>
+#include <vector>
+
 #include <QByteArray>
 
 extern const Abbrev cmdBack;
@@ -24,6 +27,24 @@ extern const Abbrev cmdSet;
 extern const Abbrev cmdTime;
 extern const Abbrev cmdTrollExit;
 extern const Abbrev cmdVote;
+
+// One entry per special command (the ones typed with the parser prefix, e.g. "_search").
+// This table drives each command's own help ("_help <command>"), and lets anything that needs to
+// list the commands (e.g. tool discovery) read their names and summaries without a parser
+// instance. AbstractParser binds a handler to each entry when it registers the commands.
+// TODO: the one-line overview in AbstractParser::parseHelp() still keeps its own list of
+// descriptions; merging it into this table would change the user-visible text.
+struct NODISCARD SpecialCommandInfo final
+{
+    Abbrev abbrev;
+    std::string summary;      // one line, shown by "help <command>" unless detailedHelp is set
+    std::string detailedHelp; // optional long help that replaces the one-line summary
+};
+
+NODISCARD const std::vector<SpecialCommandInfo> &getSpecialCommandInfos();
+
+// Throws std::logic_error if the command is not in the table.
+NODISCARD const SpecialCommandInfo &getSpecialCommandInfo(Abbrev abbrev);
 
 NODISCARD QByteArray getCommandName(DoorActionEnum action);
 

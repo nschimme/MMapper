@@ -789,7 +789,6 @@ if(WITH_MCP)
         mcp/McpSession.h
         mcp/McpToolsCommands.cpp
         mcp/McpToolsDrive.cpp
-        mcp/McpToolsEvents.cpp
         mcp/McpToolsInject.cpp
         mcp/McpToolsMap.cpp
         mcp/McpToolsRooms.cpp
@@ -833,6 +832,7 @@ if(WITH_MCP)
         mcp/McpServer.h
         mcp/McpToolRegistry.cpp
         mcp/McpToolRegistry.h
+        mcp/McpToolsEvents.cpp
         mcp/McpWaiters.cpp
         mcp/McpWaiters.h
     )

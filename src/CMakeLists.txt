@@ -790,6 +790,31 @@ message("mmapper_map_SRCS=[${mmapper_map_SRCS}]")
 add_library(mm_global STATIC ${mmapper_global_SRCS})
 add_library(mm_map STATIC ${mmapper_map_SRCS})
 
+# The parts of the MCP server that know nothing about the rest of MMapper (JSON-RPC handling,
+# the tool registry, the HTTP framing and the event log), so they can be unit tested on their own.
+if(WITH_MCP)
+    set(mm_mcp_SRCS
+        mcp/McpDispatcher.cpp
+        mcp/McpDispatcher.h
+        mcp/McpEventLog.cpp
+        mcp/McpEventLog.h
+        mcp/McpHttp.cpp
+        mcp/McpHttp.h
+        mcp/McpToolRegistry.cpp
+        mcp/McpToolRegistry.h
+    )
+    add_library(mm_mcp STATIC ${mm_mcp_SRCS})
+    set_target_properties(
+      mm_mcp PROPERTIES
+      CXX_STANDARD 20
+      CXX_STANDARD_REQUIRED ON
+      CXX_EXTENSIONS OFF
+      COMPILE_FLAGS "${WARNING_FLAGS}"
+    )
+    target_include_directories(mm_mcp SYSTEM PUBLIC ${Qt6Core_INCLUDE_DIRS})
+    target_link_libraries(mm_mcp PUBLIC Qt6::Core coverage_config)
+endif()
+
 # Build the executable
 set(mmapper_EXECUTABLE_ARGS
     ${mmapper_SRCS}

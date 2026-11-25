@@ -68,3 +68,6 @@ void mcpRegisterCommandTools(McpToolRegistry &registry,
 
 // get_room
 void mcpRegisterRoomTools(McpToolRegistry &registry, const McpHost &host);
+
+// map_summary, list_rooms, dump_map
+void mcpRegisterMapInspectionTools(McpToolRegistry &registry, const McpHost &host);

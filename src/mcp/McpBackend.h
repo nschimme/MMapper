@@ -9,6 +9,7 @@
 
 class ConnectionListener;
 class MapData;
+class Mmapper2PathMachine;
 class McpEventLog;
 class McpToolRegistry;
 class McpWaiters;
@@ -18,6 +19,7 @@ struct NODISCARD McpHost final
 {
     MapData &mapData;
     ConnectionListener &listener;
+    Mmapper2PathMachine &pathMachine;
     QString settingsPath; // looked up once at start-up; see McpService
 };
 

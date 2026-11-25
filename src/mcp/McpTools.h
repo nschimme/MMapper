@@ -28,3 +28,6 @@ void mcpRegisterDriveTools(McpToolRegistry &registry,
                            const McpHost &host,
                            McpEventLog &events,
                            McpWaiters &waiters);
+
+// inject_mud, inject_gmcp
+void mcpRegisterInjectTools(McpToolRegistry &registry, const McpHost &host);

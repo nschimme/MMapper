@@ -452,6 +452,7 @@ MainWindow::MainWindow()
     // Looked up once: asking for it opens the settings again, which is not free.
     m_mcpService = std::make_unique<McpService>(McpHost{deref(m_mapData),
                                                         deref(m_listener),
+                                                        deref(m_pathMachine),
                                                         getSettingsFilePath()},
                                                 deref(m_gameObserver));
     connect(m_mcpService.get(), &McpService::sig_log, this, &MainWindow::slot_log);

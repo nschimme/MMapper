@@ -5,7 +5,9 @@
 
 #include "../configuration/configuration.h"
 #include "../global/Version.h"
+#include "../mapdata/mapdata.h"
 #include "../observer/gameobserver.h"
+#include "../pathmachine/mmapper2pathmachine.h"
 #include "../proxy/GmcpMessage.h"
 
 #include <QJsonObject>
@@ -13,6 +15,7 @@
 McpService::McpService(const McpHost &host, GameObserver &observer)
     : QObject{nullptr}
     , m_host{host}
+    , m_observer{observer}
     , m_waiters{this}
     , m_backend{m_host, m_events, m_waiters, m_registry}
     , m_dispatcher{m_registry,
@@ -24,26 +27,6 @@ McpService::McpService(const McpHost &host, GameObserver &observer)
 {
     connect(&m_server, &McpServer::sig_log, this, &McpService::sig_log);
 
-    // Everything that happens goes into the event log. Nothing here costs anything while the
-    // service does not exist, i.e. when the MCP feature is compiled out.
-    observer.sig2_sentToMudString.connect(m_lifetime, [this](const QString &text) {
-        std::ignore = m_events.append(QStringLiteral("mud_text"), text);
-    });
-    observer.sig2_sentToUserString.connect(m_lifetime, [this](const QString &text) {
-        std::ignore = m_events.append(QStringLiteral("user_text"), text);
-    });
-    observer.sig2_sentToUserPrompt.connect(m_lifetime, [this](const QString &text) {
-        std::ignore = m_events.append(QStringLiteral("prompt"), text);
-    });
-    observer.sig2_sentToUserGmcp.connect(m_lifetime, [this](const GmcpMessage &msg) {
-        QJsonObject data;
-        data[QStringLiteral("package")] = msg.getName().toQString();
-        if (const auto &json = msg.getJson()) {
-            data[QStringLiteral("json")] = json->toQString();
-        }
-        std::ignore = m_events.append(QStringLiteral("gmcp"), msg.getName().toQString(), data);
-    });
-
     // Anything waiting for an event hears about each new one.
     m_events.setOnAppend([this](const McpEvent &event) { m_waiters.onEvent(event); });
 
@@ -53,12 +36,79 @@ McpService::McpService(const McpHost &host, GameObserver &observer)
 
 McpService::~McpService()
 {
+    setCollecting(false);
     // Closing first drops connections that may be waiting for a reply from a tool.
     m_server.close();
     // Whatever was still waiting can no longer be answered; finish it before the objects it
     // refers to go away.
     m_waiters.cancelAll(QStringLiteral("MMapper is shutting down"));
     setConfig().mcp.setStatus(QStringLiteral("Stopped"));
+}
+
+void McpService::setCollecting(const bool collect)
+{
+    if (collect == (m_observing != nullptr)) {
+        return;
+    }
+    if (!collect) {
+        m_observing.reset(); // expires the Signal2 callbacks
+        for (const auto &connection : m_qtConnections) {
+            QObject::disconnect(connection);
+        }
+        m_qtConnections.clear();
+        return;
+    }
+
+    m_observing = std::make_unique<Signal2Lifetime>();
+    auto &lifetime = *m_observing;
+
+    // Text the user is shown (the MUD's and MMapper's own), prompts, GMCP from the MUD, and what
+    // was sent to the MUD.
+    m_observer.sig2_sentToMudString.connect(lifetime, [this](const QString &text) {
+        std::ignore = m_events.append(QStringLiteral("sent_to_mud"), text);
+    });
+    m_observer.sig2_sentToUserString.connect(lifetime, [this](const QString &text) {
+        std::ignore = m_events.append(QStringLiteral("user_text"), text);
+    });
+    m_observer.sig2_sentToUserPrompt.connect(lifetime, [this](const QString &text) {
+        std::ignore = m_events.append(QStringLiteral("prompt"), text);
+    });
+    m_observer.sig2_sentToUserGmcp.connect(lifetime, [this](const GmcpMessage &msg) {
+        QJsonObject data;
+        data[QStringLiteral("package")] = msg.getName().toQString();
+        if (const auto &json = msg.getJson()) {
+            data[QStringLiteral("json")] = json->toQString();
+        }
+        std::ignore = m_events.append(QStringLiteral("gmcp"), msg.getName().toQString(), data);
+    });
+
+    // Where the player is, and what the path machine and the map are doing about it.
+    auto position = [this](const bool forced) {
+        QJsonObject data;
+        const auto id = m_host.mapData.getCurrentRoomId();
+        data[QStringLiteral("roomId")] = id ? QJsonValue{static_cast<double>(id->asUint32())}
+                                            : QJsonValue{QJsonValue::Null};
+        data[QStringLiteral("forced")] = forced;
+        std::ignore = m_events.append(QStringLiteral("position"), {}, data);
+    };
+    m_qtConnections.push_back(
+        connect(&m_host.mapData, &MapData::sig_onPositionChange, this, [position]() {
+            position(false);
+        }));
+    m_qtConnections.push_back(
+        connect(&m_host.mapData, &MapData::sig_onForcedPositionChange, this, [position]() {
+            position(true);
+        }));
+    m_qtConnections.push_back(connect(&m_host.mapData, &MapData::sig_onDataChanged, this, [this]() {
+        std::ignore = m_events.append(QStringLiteral("map_changed"), {});
+    }));
+    m_qtConnections.push_back(
+        connect(&m_host.pathMachine,
+                &Mmapper2PathMachine::sig_state,
+                this,
+                [this](const QString &state) {
+                    std::ignore = m_events.append(QStringLiteral("pathmachine"), state);
+                }));
 }
 
 void McpService::applyConfig()
@@ -74,6 +124,7 @@ void McpService::applyConfig()
     }
 
     m_server.close();
+    setCollecting(false);
     if (!enabled) {
         m_appliedEnabled = false;
         m_hasApplied = true;
@@ -92,6 +143,7 @@ void McpService::applyConfig()
         return;
     }
 
+    setCollecting(true);
     m_appliedEnabled = enabled;
     m_appliedPort = port;
     m_appliedToken = token;

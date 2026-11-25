@@ -77,13 +77,14 @@ void mcpRegisterDriveTools(McpToolRegistry &registry,
 {
     registry.add(McpTool{
         QStringLiteral("send"),
-        QStringLiteral("Send one line as if the user typed it and pressed Enter: a game command, "
-                       "or an MMapper command starting with the command prefix (usually '_'). "
-                       "Needs a session (see open_session). Returns the events that happened "
-                       "because of it. Pass wait_for to wait until something happens: \"prompt\" "
-                       "for the next prompt, anything else is a regular expression matched "
-                       "against new MUD text and MMapper text. On a timeout the result is an "
-                       "error that still contains the events so far."),
+        QStringLiteral(
+            "Send one line as if the user typed it and pressed Enter: a game command, "
+            "or an MMapper command starting with the command prefix (usually '_'). "
+            "Needs a session (see open_session). Returns the events that happened "
+            "because of it. Pass wait_for to wait until something happens: \"prompt\" "
+            "for the next prompt, anything else is a regular expression matched "
+            "against new text shown to the user (MUD and MMapper text). On a timeout the result is an "
+            "error that still contains the events so far."),
         mcpObjectSchema({{QStringLiteral("line"),
                           mcpStringProperty(QStringLiteral("The line to send, without a newline."))},
                          {QStringLiteral("wait_for"),
@@ -125,9 +126,7 @@ void mcpRegisterDriveTools(McpToolRegistry &registry,
                     return;
                 }
                 predicate = [re](const McpEvent &e) {
-                    return (e.kind == QStringLiteral("mud_text")
-                            || e.kind == QStringLiteral("user_text"))
-                           && re.match(e.text).hasMatch();
+                    return e.kind == QStringLiteral("user_text") && re.match(e.text).hasMatch();
                 };
             }
 

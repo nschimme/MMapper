@@ -12,7 +12,10 @@
 #include "McpWaiters.h"
 
 #include <cstdint>
+#include <memory>
+#include <vector>
 
+#include <QMetaObject>
 #include <QObject>
 #include <QString>
 
@@ -27,13 +30,19 @@ class NODISCARD_QOBJECT McpService final : public QObject
 
 private:
     McpHost m_host;
+    GameObserver &m_observer;
     McpEventLog m_events;
     McpWaiters m_waiters;
     McpToolRegistry m_registry;
     McpBackend m_backend;
     McpDispatcher m_dispatcher;
     McpServer m_server;
-    Signal2Lifetime m_lifetime;
+    Signal2Lifetime m_lifetime; // the service's own config subscription
+
+    // Subscriptions that feed the event log. They exist only while the server is listening, so
+    // a disabled MCP server costs nothing per event.
+    std::unique_ptr<Signal2Lifetime> m_observing;
+    std::vector<QMetaObject::Connection> m_qtConnections;
 
     // What the server was last started with, so unrelated settings changes do nothing.
     bool m_appliedEnabled = false;
@@ -51,4 +60,5 @@ signals:
 
 private:
     void applyConfig();
+    void setCollecting(bool collect);
 };

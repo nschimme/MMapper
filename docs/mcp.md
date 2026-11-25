@@ -37,8 +37,29 @@ Use `127.0.0.1` in URLs rather than `localhost`: some systems resolve `localhost
 
 | Tool | What it does |
 |------|--------------|
-| `get_status` | Effective map mode, MUD host and port, update-check setting, settings file in use, whether a client session is attached, current room. **Call this first.** |
-| `read_events` | Events since a cursor: `mud_text`, `user_text` and `gmcp`. Returns `nextSeq` to pass as `since` next time, and `truncated` if older events were dropped. |
+| `get_status` | Effective map mode, MUD host and port, update-check setting, settings file in use, the session (attached? who owns it? connected to the MUD?) and current room. **Call this first.** |
+| `open_session` / `close_session` | Start (or attach to) the client session that the map, parser and MUD connection hang off, without needing a telnet client. A session that belongs to a real client is never replaced or closed. In PLAY/MAP mode a new session connects to the configured MUD host at once, so it is refused unless that host is this computer; OFFLINE mode never connects. |
+| `send` | Type one line as the user would (a game command, or an MMapper command such as `_search`). Optionally wait for the next `prompt` or for text matching a regular expression. Returns the events that followed; a timeout is an error that still carries them. |
+| `inject_mud` | Feed text to MMapper as if the MUD had sent it (MUME's XML stream); `prompt: true` marks a prompt. |
+| `inject_gmcp` | Feed a GMCP message as if the MUD had sent it. |
+| `read_events` | Events since a cursor. Kinds: `user_text` (everything shown to the user, MUD text and MMapper's own), `prompt`, `gmcp`, `sent_to_mud`, `position` (`data.roomId`), `pathmachine`, `map_changed`. Pass the returned `nextSeq` as `since` next time; `truncated` means older events were dropped before you read them. |
+
+### What creates rooms
+
+MMapper builds room events from GMCP, not from the XML text: to make it see a room, inject a
+`Room.Info` message and then a prompt, for example
+
+```
+inject_gmcp  Room.Info  {"id":1,"name":"The Cottage","area":"The Shire","desc":"A small cottage.",
+                         "environment":"building","exits":{"n":{"id":2}}}
+inject_mud   "<prompt>!&gt;</prompt>"   (prompt: true)
+```
+
+and `Event.Moved` with `{"dir":"north"}` before the next `Room.Info` to walk. In **MAP** mode this
+builds the map. In **OFFLINE** mode the position is tracked against the map you have loaded but
+rooms are never added or changed, so use MAP mode (with the MUD host set to this computer) to test
+map building and OFFLINE to test navigating an existing map. Injected XML text only affects what is
+displayed; it must be well-formed (a malformed stream can trip an assertion in a debug build).
 
 ## Running MMapper for tests
 

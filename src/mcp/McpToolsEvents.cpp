@@ -32,10 +32,13 @@ void mcpRegisterEventTools(McpToolRegistry &registry, McpEventLog &events)
 {
     registry.addSync(
         QStringLiteral("read_events"),
-        QStringLiteral("Read what happened since a cursor: text from the MUD, text MMapper "
-                       "showed the user, and GMCP messages. Pass the returned nextSeq as `since` "
-                       "next time. `truncated` is true if older events were dropped before you "
-                       "read them."),
+        QStringLiteral(
+            "Read what happened since a cursor. Kinds: user_text (everything shown to "
+            "the user: MUD text and MMapper's own), prompt (a prompt was shown; fires "
+            "even for a repeated one), gmcp (GMCP from the MUD) and sent_to_mud (what "
+            "was sent to the MUD), position (the current room changed; data.roomId), "
+            "pathmachine (its state), and map_changed. Pass the returned nextSeq as `since` next time. "
+            "`truncated` is true if older events were dropped before you read them."),
         mcpObjectSchema(
             {{QStringLiteral("since"),
               mcpIntegerProperty(QStringLiteral("Return events after this sequence number "
@@ -44,8 +47,7 @@ void mcpRegisterEventTools(McpToolRegistry &registry, McpEventLog &events)
               QJsonObject{{QStringLiteral("type"), QStringLiteral("array")},
                           {QStringLiteral("items"),
                            QJsonObject{{QStringLiteral("type"), QStringLiteral("string")}}},
-                          {QStringLiteral("description"),
-                           QStringLiteral("Only these kinds: mud_text, user_text, gmcp.")}}},
+                          {QStringLiteral("description"), QStringLiteral("Only these kinds.")}}},
              {QStringLiteral("max"),
               mcpIntegerProperty(QStringLiteral("At most this many events (default 100, "
                                                 "limit 1000)."))}}),

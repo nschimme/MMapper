@@ -69,7 +69,7 @@ private:
 
         // A client that keeps sending while it waits must not make us buffer without limit.
         constexpr size_t slack = 2;
-        const auto limits = McpHttpParser::Limits{};
+        const auto &limits = m_parser.limits();
         if (m_parser.bufferedBytes() > slack * (limits.maxBodyBytes + limits.maxHeaderBytes)) {
             closeNow();
             return;

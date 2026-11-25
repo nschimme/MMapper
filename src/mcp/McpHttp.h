@@ -66,6 +66,7 @@ public:
     NODISCARD std::optional<Result> next();
 
     NODISCARD size_t bufferedBytes() const { return static_cast<size_t>(m_buffer.size()); }
+    NODISCARD const Limits &limits() const { return m_limits; }
 };
 
 NODISCARD QByteArray mcpHttpReasonPhrase(int status);

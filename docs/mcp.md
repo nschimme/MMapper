@@ -131,5 +131,16 @@ Token=choose-a-long-random-string
 different `Local port number` and MCP `Port` per parallel run. Keep `Auto load` off: it is **on**
 by default, and an autoloaded map races with anything your test loads.
 
-Not every Qt build has the `offscreen` platform plugin; where it does,
-`QT_QPA_PLATFORM=offscreen` runs MMapper without a window (the CI does this).
+Running without a display: MMapper needs an OpenGL context at start-up. With no usable GL backend
+it shows a modal "Fatal Error" box and never starts the MCP server, which looks like a hang. The
+`offscreen` Qt platform cannot create GL contexts, so it only works on a machine with working GL
+(the CI's unit tests do not start the full application). In a container, run under a virtual
+display with Mesa's software renderer instead (packages: `xvfb`, `libgl1-mesa-dri`,
+`libxcb-cursor0` and Qt's xcb dependencies, `gstreamer1.0-plugins-base` and `-good`; without the
+GStreamer plugins Qt's media player crashes the start-up):
+
+```
+Xvfb :99 -screen 0 1280x800x24 &
+DISPLAY=:99 LIBGL_ALWAYS_SOFTWARE=1 QT_QPA_PLATFORM=xcb \
+    MMAPPER_PROFILE_PATH=/path/to/profile.ini mmapper
+```

@@ -640,6 +640,8 @@ void TestMcp::registryValidationTest()
     QVERIFY(throwsInvalidArgument([&]() { tryAdd(QString(129, 'a'), objectSchema, handler); }));
     QVERIFY(throwsInvalidArgument([&]() { tryAdd("ok", stringSchema, handler); }));
     QVERIFY(throwsInvalidArgument([&]() { tryAdd("ok", objectSchema, nullptr); }));
+    QVERIFY(throwsInvalidArgument(
+        [&]() { reg.add(McpTool{"no_description", "  ", objectSchema, handler}); }));
     QVERIFY(reg.tools().empty());
 
     tryAdd("valid_name-1.x", objectSchema, handler);

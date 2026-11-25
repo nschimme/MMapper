@@ -31,6 +31,10 @@ void McpToolRegistry::add(McpTool tool)
     if (!tool.handler) {
         throw std::invalid_argument("MCP tool has no handler: " + tool.name.toStdString());
     }
+    // The description is all a model has to go on when choosing a tool.
+    if (tool.description.trimmed().isEmpty()) {
+        throw std::invalid_argument("MCP tool has no description: " + tool.name.toStdString());
+    }
 
     const auto it = std::find_if(m_tools.begin(), m_tools.end(), [&tool](const McpTool &t) {
         return t.name == tool.name;

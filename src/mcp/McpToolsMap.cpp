@@ -70,8 +70,15 @@ void mcpRegisterMapTools(McpToolRegistry &registry, const McpHost &host, McpWait
             }
 
             // The load runs in the background; its end shows up in the event log.
+            // Only the load we started: one begun from the GUI at the same time must not count.
+            const QString requested = QFileInfo{path}.canonicalFilePath();
             std::ignore = waiters.add(
-                [](const McpEvent &e) { return e.kind == QStringLiteral("map_load"); },
+                [requested](const McpEvent &e) {
+                    return e.kind == QStringLiteral("map_load")
+                           && QFileInfo{e.data.value(QStringLiteral("file")).toString()}
+                                      .canonicalFilePath()
+                                  == requested;
+                },
                 timeoutMs,
                 [&host, path, reply](const McpWaiters::Outcome &outcome) {
                     using Kind = McpWaiters::Outcome::KindEnum;

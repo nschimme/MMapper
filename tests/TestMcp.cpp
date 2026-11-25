@@ -190,12 +190,11 @@ public:
     QByteArray buffer;
     std::vector<HttpReply> replies;
 
-    bool connectTo(const uint16_t port)
+    bool connectTo(const uint16_t port, const int timeoutMs = 2000)
     {
         socket.connectToHost(QHostAddress::LocalHost, port);
-        return socket.waitForConnected(2000) || QTest::qWaitFor([this]() {
-                   return socket.state() == QAbstractSocket::ConnectedState;
-               });
+        return QTest::qWaitFor([this]() { return socket.state() == QAbstractSocket::ConnectedState; },
+                               timeoutMs);
     }
 
     void send(const QByteArray &bytes) { socket.write(bytes); }
@@ -660,7 +659,7 @@ void TestMcp::serverRequestTest()
     server.close();
     QVERIFY(!server.isListening());
     TestClient after;
-    QVERIFY(!after.connectTo(server.port())); // nothing is listening any more
+    QVERIFY(!after.connectTo(server.port(), 300)); // nothing is listening any more
 }
 
 void TestMcp::serverRejectsBadRequestsTest()

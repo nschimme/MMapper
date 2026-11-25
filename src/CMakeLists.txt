@@ -785,6 +785,12 @@ if(WITH_MCP)
         mcp/McpBackend.h
         mcp/McpService.cpp
         mcp/McpService.h
+        mcp/McpSession.cpp
+        mcp/McpSession.h
+        mcp/McpToolsEvents.cpp
+        mcp/McpToolsSession.cpp
+        mcp/McpToolsStatus.cpp
+        mcp/McpTools.h
         preferences/mcppage.cpp
         preferences/mcppage.h
     )

@@ -10,8 +10,8 @@
 
 #include <QJsonObject>
 
-McpService::McpService(const McpHost &host, GameObserver &observer, QObject *const parent)
-    : QObject{parent}
+McpService::McpService(const McpHost &host, GameObserver &observer)
+    : QObject{nullptr}
     , m_host{host}
     , m_backend{m_host, m_events, m_registry}
     , m_dispatcher{m_registry,

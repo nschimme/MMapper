@@ -3,6 +3,9 @@
 // Copyright (C) 2019 The MMapper Authors
 
 #include "../global/macros.h"
+#include "McpSession.h"
+
+#include <QString>
 
 class ConnectionListener;
 class MapData;
@@ -14,13 +17,16 @@ struct NODISCARD McpHost final
 {
     MapData &mapData;
     ConnectionListener &listener;
+    QString settingsPath; // looked up once at start-up; see McpService
 };
 
-// Registers MMapper's tools (state, events, ...) in a registry. This is the only place that
-// knows about both the MCP layer and the rest of MMapper; each tool is a small function that
-// asks the application for something and formats the answer.
+// Registers MMapper's tools in a registry. Each area of tools lives in its own file (see
+// McpTools.h), so this stays a short list however many tools there are.
 class NODISCARD McpBackend final
 {
+private:
+    McpSession m_session;
+
 public:
     McpBackend(const McpHost &host, McpEventLog &events, McpToolRegistry &registry);
 };

@@ -40,7 +40,8 @@ private:
     bool m_hasApplied = false;
 
 public:
-    explicit McpService(const McpHost &host, GameObserver &observer, QObject *parent);
+    // Owned by whoever creates it (not parented), so it can be destroyed at a chosen moment.
+    explicit McpService(const McpHost &host, GameObserver &observer);
     ~McpService() final;
 
 signals:

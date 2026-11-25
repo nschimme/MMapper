@@ -60,7 +60,7 @@ void mcpRegisterEventTools(McpToolRegistry &registry, McpEventLog &events)
             const size_t max = static_cast<size_t>(std::clamp(maxArg, 1, 1000));
 
             std::set<QString> kinds;
-            for (const QJsonValue &v : args.value(QStringLiteral("kinds")).toArray()) {
+            for (const QJsonValue v : args.value(QStringLiteral("kinds")).toArray()) {
                 kinds.insert(v.toString());
             }
 

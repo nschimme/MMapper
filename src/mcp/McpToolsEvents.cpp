@@ -3,7 +3,9 @@
 
 #include "McpEventLog.h"
 #include "McpToolRegistry.h"
+#include "McpToolSupport.h"
 #include "McpTools.h"
+#include "McpWaiters.h"
 
 #include <algorithm>
 #include <set>
@@ -11,10 +13,11 @@
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QRegularExpression>
 
 namespace {} // namespace
 
-void mcpRegisterEventTools(McpToolRegistry &registry, McpEventLog &events)
+void mcpRegisterEventTools(McpToolRegistry &registry, McpEventLog &events, McpWaiters &waiters)
 {
     registry.addSync(
         QStringLiteral("read_events"),
@@ -61,4 +64,118 @@ void mcpRegisterEventTools(McpToolRegistry &registry, McpEventLog &events)
             result[QStringLiteral("truncated")] = read.truncated;
             return McpToolResult::json(result);
         });
+
+    registry.add(McpTool{
+        QStringLiteral("wait_for_event"),
+        QStringLiteral(
+            "Wait for the first event that matches, then return it. Events already logged after "
+            "`since` count too, so there is no race between acting and waiting: take "
+            "`lastEventSeq` from get_status (or nextSeq from read_events) before you act, then "
+            "pass it as `since`. All the conditions you give must hold: `kinds` (any of these "
+            "kinds), `text_regex` (matches the event's text), and `data` (an object; every key "
+            "must equal that key of the event's data, for example {\"success\": true}). Returns "
+            "status \"matched\" with the event, or \"timeout\"; either way nextSeq continues "
+            "from where this stopped. Does not need a session."),
+        mcpObjectSchema(
+            {{QStringLiteral("since"),
+              mcpIntegerProperty(QStringLiteral("Only events after this sequence number "
+                                                "(default: only events from now on)."))},
+             {QStringLiteral("kinds"),
+              QJsonObject{{QStringLiteral("type"), QStringLiteral("array")},
+                          {QStringLiteral("items"),
+                           QJsonObject{{QStringLiteral("type"), QStringLiteral("string")}}},
+                          {QStringLiteral("description"), QStringLiteral("Only these kinds.")}}},
+             {QStringLiteral("text_regex"),
+              mcpStringProperty(QStringLiteral("Regular expression the event's text must "
+                                               "match."))},
+             {QStringLiteral("data"),
+              QJsonObject{{QStringLiteral("type"), QStringLiteral("object")},
+                          {QStringLiteral("description"),
+                           QStringLiteral("Keys that must equal the event's data.")}}},
+             {QStringLiteral("timeout_ms"),
+              mcpIntegerProperty(QStringLiteral("How long to wait (default 10000, at most "
+                                                "100000)."))}}),
+        [&events, &waiters](const QJsonObject &args, McpReply reply) {
+            const double sinceArg = args.value(QStringLiteral("since")).toDouble(-1);
+            const uint64_t since = sinceArg < 0 ? events.lastSeq()
+                                                : static_cast<uint64_t>(sinceArg);
+
+            std::set<QString> kinds;
+            for (const QJsonValue v : args.value(QStringLiteral("kinds")).toArray()) {
+                kinds.insert(v.toString());
+            }
+
+            QRegularExpression regex;
+            const bool hasRegex = args.contains(QStringLiteral("text_regex"));
+            if (hasRegex) {
+                regex.setPattern(args.value(QStringLiteral("text_regex")).toString());
+                if (!regex.isValid()) {
+                    reply(McpToolResult::error(QStringLiteral("`text_regex` is not valid: ")
+                                               + regex.errorString()));
+                    return;
+                }
+            }
+            const QJsonObject wanted = args.value(QStringLiteral("data")).toObject();
+
+            auto matches = [kinds, hasRegex, regex, wanted](const McpEvent &e) {
+                if (!kinds.empty() && kinds.count(e.kind) == 0) {
+                    return false;
+                }
+                if (hasRegex && !regex.match(e.text).hasMatch()) {
+                    return false;
+                }
+                for (auto it = wanted.begin(); it != wanted.end(); ++it) {
+                    if (e.data.value(it.key()) != it.value()) {
+                        return false;
+                    }
+                }
+                return true;
+            };
+
+            auto matchedReply = [](const McpEvent &e) {
+                return McpToolResult::json(
+                    QJsonObject{{QStringLiteral("status"), QStringLiteral("matched")},
+                                {QStringLiteral("event"), mcpEventToJson(e)},
+                                {QStringLiteral("nextSeq"), static_cast<double>(e.seq)}});
+            };
+
+            // Already happened?
+            const auto read = events.readSince(since, kinds);
+            for (const McpEvent &e : read.events) {
+                if (matches(e)) {
+                    reply(matchedReply(e));
+                    return;
+                }
+            }
+
+            const int timeoutMs
+                = std::clamp(args.value(QStringLiteral("timeout_ms")).toInt(MCP_DEFAULT_WAIT_MS),
+                             100,
+                             MCP_MAX_WAIT_MS);
+            // Events that arrive between the read above and the waiter are not possible: this
+            // all runs on the main thread, and nothing is appended in between.
+            std::ignore
+                = waiters.add(matches,
+                              timeoutMs,
+                              [&events, matchedReply, truncated = read.truncated, reply](
+                                  const McpWaiters::Outcome &outcome) {
+                                  using Kind = McpWaiters::Outcome::KindEnum;
+                                  switch (outcome.kind) {
+                                  case Kind::Matched:
+                                      reply(matchedReply(*outcome.event));
+                                      break;
+                                  case Kind::TimedOut:
+                                      reply(McpToolResult::json(
+                                          QJsonObject{{QStringLiteral("status"),
+                                                       QStringLiteral("timeout")},
+                                                      {QStringLiteral("nextSeq"),
+                                                       static_cast<double>(events.lastSeq())},
+                                                      {QStringLiteral("truncated"), truncated}}));
+                                      break;
+                                  case Kind::Cancelled:
+                                      reply(McpToolResult::error(outcome.reason));
+                                      break;
+                                  }
+                              });
+        }});
 }

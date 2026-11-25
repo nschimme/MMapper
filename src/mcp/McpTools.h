@@ -22,8 +22,8 @@ void mcpRegisterStatusTools(McpToolRegistry &registry,
                             McpEventLog &events,
                             McpSession &session);
 
-// read_events
-void mcpRegisterEventTools(McpToolRegistry &registry, McpEventLog &events);
+// read_events, wait_for_event
+void mcpRegisterEventTools(McpToolRegistry &registry, McpEventLog &events, McpWaiters &waiters);
 
 // open_session, close_session
 void mcpRegisterSessionTools(McpToolRegistry &registry,

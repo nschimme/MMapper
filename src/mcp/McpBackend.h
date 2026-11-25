@@ -3,6 +3,7 @@
 // Copyright (C) 2019 The MMapper Authors
 
 #include "../global/macros.h"
+#include "../mapstorage/MapDestination.h"
 #include "McpSession.h"
 
 #include <functional>
@@ -26,6 +27,10 @@ struct NODISCARD McpHost final
     // Starts loading a map file in the background. Returns why it could not start, or an empty
     // string; the McpService hears how it went through slot_onMapLoadFinished.
     std::function<QString(const QString &path)> loadMap;
+    // Starts saving an independent copy of the map in the background (the map's own file name
+    // and saved baseline are left alone). Returns why it could not start, or an empty string;
+    // the McpService hears how it went through slot_onMapSaveFinished.
+    std::function<QString(const QString &path, SaveModeEnum mode, SaveFormatEnum format)> saveMap;
 };
 
 // Registers MMapper's tools in a registry. Each area of tools lives in its own file (see

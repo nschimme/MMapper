@@ -44,11 +44,15 @@ NODISCARD QJsonArray flagNames(const Flags &flags, const All &all)
     return names;
 }
 
-NODISCARD QJsonObject roomToJson(const Map &map, const RoomHandle &room)
+NODISCARD QJsonObject roomToJson(const Map &map,
+                                 const RoomHandle &room,
+                                 const bool includeInternalId = true)
 {
     QJsonObject obj;
     obj[QStringLiteral("id")] = static_cast<double>(room.getIdExternal().asUint32());
-    obj[QStringLiteral("internalId")] = static_cast<double>(room.getId().asUint32());
+    if (includeInternalId) {
+        obj[QStringLiteral("internalId")] = static_cast<double>(room.getId().asUint32());
+    }
     if (const auto server = room.getServerId(); server != INVALID_SERVER_ROOMID) {
         obj[QStringLiteral("serverId")] = static_cast<double>(server.asUint32());
     }
@@ -213,15 +217,14 @@ void mcpRegisterMapInspectionTools(McpToolRegistry &registry, const McpHost &hos
                                                                       *map.getBounds())}
                                                                 : QJsonValue{QJsonValue::Null};
                          result[QStringLiteral("areas")] = areaJson;
+                         // Same names as get_status: currentRoomId is the internal id.
+                         result[QStringLiteral("currentRoomId")] = QJsonValue::Null;
+                         result[QStringLiteral("currentRoomExternalId")] = QJsonValue::Null;
                          if (const auto id = host.mapData.getCurrentRoomId()) {
                              result[QStringLiteral("currentRoomId")] = static_cast<double>(
-                                 map.getExternalRoomId(*id).asUint32());
-                         } else {
-                             result[QStringLiteral("currentRoomId")] = QJsonValue::Null;
-                         }
-                         if (const auto id = host.mapData.getCurrentRoomId()) {
-                             result[QStringLiteral("currentRoomInternalId")] = static_cast<double>(
                                  id->asUint32());
+                             result[QStringLiteral("currentRoomExternalId")] = static_cast<double>(
+                                 map.getExternalRoomId(*id).asUint32());
                          }
                          result[QStringLiteral("fileName")] = host.mapData.getFileName();
                          result[QStringLiteral("modified")] = host.mapData.dataChanged();
@@ -295,8 +298,9 @@ void mcpRegisterMapInspectionTools(McpToolRegistry &registry, const McpHost &hos
         QStringLiteral("dump_map"),
         QStringLiteral(
             "Write the current map's rooms as JSON to a file: every room (as get_room "
-            "describes it, including flags) in ascending id order, with sorted keys, so "
-            "two dumps can be compared with diff. Infomarks are not included. Refuses to replace an existing file unless "
+            "describes it, including flags but not the internal id, which a save and "
+            "reload renumbers) in ascending id order, with sorted keys, so two dumps can be "
+            "compared with diff. Infomarks are not included. Refuses to replace an existing file unless "
             "`overwrite` is true. Does not need a session."),
         mcpObjectSchema({{QStringLiteral("path"),
                           mcpStringProperty(QStringLiteral("Absolute path of the file to write."))},
@@ -319,7 +323,9 @@ void mcpRegisterMapInspectionTools(McpToolRegistry &registry, const McpHost &hos
             const Map map = host.mapData.getCurrentMap();
             QJsonArray rooms;
             for (const RoomHandle &room : sortedRooms(map)) {
-                rooms.append(roomToJson(map, room));
+                // Internal ids are renumbered by a save and reload; leaving them out keeps dumps of
+                // the same map comparable.
+                rooms.append(roomToJson(map, room, false));
             }
             QJsonObject doc;
             doc[QStringLiteral("rooms")] = rooms;

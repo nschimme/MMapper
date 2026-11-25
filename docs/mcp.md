@@ -60,6 +60,14 @@ they cannot go out of date. This is what the groups are for.
 * **Map**: `load_map` replaces the map with a file and waits for it, and `get_room` describes a
   room. `map_summary`, `list_rooms` (filter by area, name or bounding box, paged) and `dump_map`
   (every room as sorted JSON in a file, for diffing) inspect the whole map and need no session.
+  `save_map` writes an independent copy (mm2, xml, mmp or web, or just the base map); unlike File →
+  Save it does not change the map's file name, what `_map diff` compares against, or the last-used
+  directory. A save or load finishing shows up in `read_events` as `map_save` / `map_load`. Room
+  ids: `currentRoomId` is MMapper's internal id, which a save and reload renumbers; the external
+  id (`currentRoomExternalId`, `id` in room JSON) is what `get_room` and `list_rooms` take; the
+  server id is the MUD's own and is not always present. `dump_map` leaves out the internal id so
+  two dumps of the same map compare equal across a save and reload. Rooms the game has only
+  reported once are temporary and are not saved; walk back through them first.
 * **MMapper commands**: one `mmapper_<command>` tool for every command typed with the command
   prefix (for example `mmapper_search`, `mmapper_dirs`, `mmapper_room`). They are generated from the
   parser's command table, so the list is complete before a session exists and follows the parser
@@ -132,10 +140,10 @@ different `Local port number` and MCP `Port` per parallel run. Keep `Auto load` 
 by default, and an autoloaded map races with anything your test loads.
 
 Running without a display: MMapper needs an OpenGL context at start-up. With no usable GL backend
-it shows a modal "Fatal Error" box and never starts the MCP server, which looks like a hang. The
-`offscreen` Qt platform cannot create GL contexts, so it only works on a machine with working GL
-(the CI's unit tests do not start the full application). In a container, run under a virtual
-display with Mesa's software renderer instead (packages: `xvfb`, `libgl1-mesa-dri`,
+it shows a modal "Fatal Error" box and never starts the MCP server, which looks like a hang. In a
+container without a GPU we saw Qt 6.4's `offscreen` platform find no GL backend, so there it cannot
+start the application (the unit tests the CI runs under `offscreen` do not start it). What worked there was a virtual
+display with Mesa's software renderer (packages: `xvfb`, `libgl1-mesa-dri`,
 `libxcb-cursor0` and Qt's xcb dependencies, `gstreamer1.0-plugins-base` and `-good`; without the
 GStreamer plugins Qt's media player crashes the start-up):
 

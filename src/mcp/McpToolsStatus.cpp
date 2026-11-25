@@ -43,11 +43,15 @@ void mcpRegisterStatusTools(McpToolRegistry &registry,
     // once left an "offline" test run connected to the live game.
     registry.addSync(
         QStringLiteral("get_status"),
-        QStringLiteral("Report the effective MMapper configuration and session state: map mode "
-                       "(PLAY, MAP or OFFLINE), the MUD host and port a session would connect "
-                       "to, whether update checks are on, which settings file is in use, and "
-                       "the session: whether one exists, who owns it (mcp or a real client) "
-                       "and whether it is connected to the MUD."),
+        QStringLiteral(
+            "Report the effective MMapper configuration and session state: map mode "
+            "(PLAY, MAP or OFFLINE), the MUD host and port a session would connect "
+            "to, whether update checks are on, which settings file is in use, and "
+            "the session: whether one exists, who owns it (mcp or a real client) "
+            "and whether it is connected to the MUD. The current room is given as currentRoomId "
+            "(MMapper's internal id), currentRoomExternalId (the id get_room and "
+            "list_rooms use) and, when the room has one, currentRoomServerId (the "
+            "MUD's own id)."),
         mcpObjectSchema(),
         [&host, &events, &session](const QJsonObject &) {
             const auto &config = getConfig();

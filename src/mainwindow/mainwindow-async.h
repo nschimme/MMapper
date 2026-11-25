@@ -74,6 +74,11 @@ public:
     explicit AsyncIO(MainWindow *mainWindow);
     ~AsyncIO() final;
 
+public:
+    // True from the moment a file operation starts until it has been fully released, which is
+    // slightly longer than isRunningOnBackgroundThread().
+    NODISCARD bool isBusy() const { return hasCurrentTask(); }
+
 private:
     NODISCARD MainWindow &getMainWindow() const { return m_mainWindow; }
     NODISCARD bool hasCurrentTask() const { return m_asyncData.has_value(); }

@@ -56,7 +56,7 @@ void mcpRegisterDriveTools(McpToolRegistry &registry,
 // inject_mud, inject_gmcp
 void mcpRegisterInjectTools(McpToolRegistry &registry, const McpHost &host);
 
-// load_map
+// load_map, save_map
 void mcpRegisterMapTools(McpToolRegistry &registry, const McpHost &host, McpWaiters &waiters);
 
 // One tool per MMapper command (the ones typed with the command prefix, e.g. _search), built

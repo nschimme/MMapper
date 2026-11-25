@@ -450,19 +450,25 @@ MainWindow::MainWindow()
 
 #ifndef MMAPPER_NO_MCP
     // Looked up once: asking for it opens the settings again, which is not free.
-    m_mcpService = std::make_unique<McpService>(McpHost{deref(m_mapData),
-                                                        deref(m_listener),
-                                                        deref(m_pathMachine),
-                                                        getSettingsFilePath(),
-                                                        [this](const QString &path) {
-                                                            return tryStartLoadingMap(path);
-                                                        }},
-                                                deref(m_gameObserver));
+    m_mcpService = std::make_unique<McpService>(
+        McpHost{deref(m_mapData),
+                deref(m_listener),
+                deref(m_pathMachine),
+                getSettingsFilePath(),
+                [this](const QString &path) { return tryStartLoadingMap(path); },
+                [this](const QString &path, const SaveModeEnum mode, const SaveFormatEnum format) {
+                    return tryStartSavingMap(path, mode, format);
+                }},
+        deref(m_gameObserver));
     connect(m_mcpService.get(), &McpService::sig_log, this, &MainWindow::slot_log);
     connect(this,
             &MainWindow::sig_mapLoadFinished,
             m_mcpService.get(),
             &McpService::slot_onMapLoadFinished);
+    connect(this,
+            &MainWindow::sig_mapSaveFinished,
+            m_mcpService.get(),
+            &McpService::slot_onMapSaveFinished);
 #endif
 
     g_mainWindow = this;
@@ -2082,13 +2088,13 @@ void MainWindow::showAsyncFailure(const QString &fileName,
                                         : "Failed to %1 file %2";
     showWarning(tr(msg).arg(modeName, fileName));
     if (mode == AsyncIOTypeEnum::Load) {
-        emit sig_mapLoadFinished(fileName, false);
+        afterAsyncTaskEnds([this, fileName]() { emit sig_mapLoadFinished(fileName, false); });
     }
 }
 
 QString MainWindow::tryStartLoadingMap(const QString &path)
 {
-    if (getAsyncIO().isRunningOnBackgroundThread()) {
+    if (getAsyncIO().isBusy()) {
         return tr("another file operation is still running");
     }
     try {
@@ -2515,7 +2521,8 @@ void MainWindow::onSuccessfulLoad(const MapLoadData &mapLoadData)
 
     setCurrentFile(mapData.getFileName());
     showStatusShort(tr("File loaded"));
-    emit sig_mapLoadFinished(mapData.getFileName(), true);
+    afterAsyncTaskEnds(
+        [this, fileName = mapData.getFileName()]() { emit sig_mapLoadFinished(fileName, true); });
 }
 
 void MainWindow::onSuccessfulMerge(const Map &map)

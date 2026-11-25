@@ -61,3 +61,6 @@ void mcpRegisterCommandTools(McpToolRegistry &registry,
                              const McpHost &host,
                              McpEventLog &events,
                              McpWaiters &waiters);
+
+// get_room
+void mcpRegisterRoomTools(McpToolRegistry &registry, const McpHost &host);

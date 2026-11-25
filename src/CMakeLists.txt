@@ -792,6 +792,7 @@ if(WITH_MCP)
         mcp/McpToolsEvents.cpp
         mcp/McpToolsInject.cpp
         mcp/McpToolsMap.cpp
+        mcp/McpToolsRooms.cpp
         mcp/McpToolsSession.cpp
         mcp/McpToolsStatus.cpp
         mcp/McpTools.h

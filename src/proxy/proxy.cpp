@@ -585,13 +585,6 @@ void Proxy::allocParser()
             bool isTwiddler = false;
             bool isPrompt = false;
 
-            // Tell observers about every prompt, including one that is about to be dropped as a
-            // repeat below: something waiting for "the prompt" must not hang because the game
-            // sent the same prompt twice in a row.
-            if (goAhead && source != SendToUserSourceEnum::NoLongerPrompted) {
-                getGameObserver().observeSentToUserPrompt(s);
-            }
-
             switch (source) {
             case SendToUserSourceEnum::NoLongerPrompted:
                 assert(s.isEmpty());
@@ -614,6 +607,14 @@ void Proxy::allocParser()
             case SendToUserSourceEnum::SimulatedOutput:
             case SendToUserSourceEnum::FromMMapper:
                 break;
+            }
+
+            // Tell observers about every real prompt, including one that is about to be dropped as
+            // a repeat below: something waiting for "the prompt" must not hang because the game
+            // sent the same prompt twice in a row. A twiddler (a spinner character overwritten
+            // with a backspace) also arrives with a go-ahead but is not a prompt.
+            if (isPrompt) {
+                getGameObserver().observeSentToUserPrompt(s);
             }
 
             if (!goAhead && s.isEmpty()) {

@@ -826,7 +826,8 @@ void Configuration::AdventurePanelSettings::read(const QSettings &conf)
 void Configuration::McpSettings::read(const QSettings &conf)
 {
     m_enabled = conf.value(KEY_MCP_ENABLED, false).toBool();
-    m_port = sanitizeUint16(conf.value(KEY_MCP_PORT, DEFAULT_PORT).toInt(), DEFAULT_PORT);
+    m_port = sanitizeUint16(conf.value(KEY_MCP_PORT, static_cast<int>(DEFAULT_PORT)).toInt(),
+                            DEFAULT_PORT);
     m_token = conf.value(KEY_MCP_TOKEN, QString{}).toString();
 }
 

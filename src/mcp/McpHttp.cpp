@@ -17,7 +17,7 @@ namespace {
 
 NODISCARD McpHttpError makeError(const int status, const char *const reason)
 {
-    return McpHttpError{status, QByteArray{reason}};
+    return McpHttpError{status, QByteArray{reason}, {}};
 }
 
 NODISCARD bool isTokenChar(const char c)

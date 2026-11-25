@@ -230,7 +230,8 @@ QByteArray postTo(const uint16_t port,
                   const QByteArray &token = "secret",
                   const QByteArray &extra = {})
 {
-    QByteArray req = "POST /mcp HTTP/1.1\r\nHost: 127.0.0.1:" + QByteArray::number(port)
+    QByteArray req = "POST /mcp HTTP/1.1\r\nHost: 127.0.0.1:"
+                     + QByteArray::number(static_cast<int>(port))
                      + "\r\nContent-Type: application/json\r\n";
     if (!token.isEmpty()) {
         req += "Authorization: Bearer " + token + "\r\n";
@@ -848,10 +849,12 @@ void TestMcp::serverRejectsBadRequestsTest()
     QCOMPARE(statusFor("POST /mcp HTTP/1.1\r\nHost: evil.com\r\nAuthorization: Bearer secret\r\n"
                        "Content-Length: 0\r\n\r\n"),
              403);
-    QCOMPARE(statusFor("GET /mcp HTTP/1.1\r\nHost: 127.0.0.1:" + QByteArray::number(port)
+    QCOMPARE(statusFor("GET /mcp HTTP/1.1\r\nHost: 127.0.0.1:"
+                       + QByteArray::number(static_cast<int>(port))
                        + "\r\nAuthorization: Bearer secret\r\n\r\n"),
              405);
-    QCOMPARE(statusFor("POST /elsewhere HTTP/1.1\r\nHost: 127.0.0.1:" + QByteArray::number(port)
+    QCOMPARE(statusFor("POST /elsewhere HTTP/1.1\r\nHost: 127.0.0.1:"
+                       + QByteArray::number(static_cast<int>(port))
                        + "\r\nContent-Length: 0\r\n\r\n"),
              404);
     QCOMPARE(statusFor(

@@ -31,9 +31,15 @@ Use `127.0.0.1` in URLs rather than `localhost`: some systems resolve `localhost
 * Requests must carry a `Host` of `localhost`, `127.0.0.1` or `[::1]` with the server's port, and
   an `Origin` (if present) that is a loopback web origin. This stops web pages, including ones
   using DNS rebinding, from talking to the server even if they could guess the port.
-* A session never connects to a MUD host that is not this computer unless MMapper is in OFFLINE
-  mode. `open_session` and any `_connect` command (through `send` or `mmapper_connect`) are refused
-  otherwise, so a test cannot reach the live game by accident.
+* MMapper only ever starts a connection to the MUD in two places: when a session is created, and
+  when the `_connect` command runs. Both are checked here: unless MMapper is in OFFLINE mode,
+  `open_session` and any `_connect` line (through `send` or `mmapper_connect`) are refused when the
+  configured MUD host is not this computer. Switching mode with `_config mode` does not connect by
+  itself, and the check uses the mode and host at that moment, so a later `_connect` is still
+  refused. No MMapper command sets the MUD host; it only comes from the settings file (or the
+  Preferences window), which is why a test profile must set it, and why `get_status` reports it.
+  This protects against accidents in a test setup; it is not a sandbox against someone who can
+  already change MMapper's settings.
 * `GET` is not supported (there are no server-initiated messages); JSON-RPC batches are rejected.
 
 ## Tools

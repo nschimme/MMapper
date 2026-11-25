@@ -49,7 +49,7 @@ they cannot go out of date. This is what the groups are for.
 
 * **State**: `get_status` (call it first; it reports what MMapper is actually configured to do and
   which session exists) and `read_events` (what happened since a cursor: text shown to the user,
-  prompts, GMCP, what was sent to the MUD, connection changes, position changes and map loads)), and `wait_for_event` (block until an event matches a kind, a text regular expression and/or
+  prompts, GMCP, what was sent to the MUD, connection changes, position changes and map loads) and `wait_for_event` (block until an event matches a kind, a text regular expression and/or
   data values; events already logged after `since` count, so acting then waiting has no race).
 * **Session**: `open_session` and `close_session` start and end a client session without a telnet
   client, because the map, parser and MUD connection hang off one. A session that belongs to a real

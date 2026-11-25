@@ -31,6 +31,9 @@ Use `127.0.0.1` in URLs rather than `localhost`: some systems resolve `localhost
 * Requests must carry a `Host` of `localhost`, `127.0.0.1` or `[::1]` with the server's port, and
   an `Origin` (if present) that is a loopback web origin. This stops web pages, including ones
   using DNS rebinding, from talking to the server even if they could guess the port.
+* A session never connects to a MUD host that is not this computer unless MMapper is in OFFLINE
+  mode. `open_session` and any `_connect` command (through `send` or `mmapper_connect`) are refused
+  otherwise, so a test cannot reach the live game by accident.
 * `GET` is not supported (there are no server-initiated messages); JSON-RPC batches are rejected.
 
 ## Tools
@@ -41,6 +44,7 @@ Use `127.0.0.1` in URLs rather than `localhost`: some systems resolve `localhost
 | `open_session` / `close_session` | Start (or attach to) the client session that the map, parser and MUD connection hang off, without needing a telnet client. A session that belongs to a real client is never replaced or closed. In PLAY/MAP mode a new session connects to the configured MUD host at once, so it is refused unless that host is this computer; OFFLINE mode never connects. |
 | `send` | Type one line as the user would (a game command, or an MMapper command such as `_search`). Optionally wait for the next `prompt` or for text matching a regular expression. Returns the events that followed; a timeout is an error that still carries them. |
 | `load_map` | Replace the current map with a map file (an absolute path) and wait until it has loaded; reports the room count. The old map is discarded first. |
+| `mmapper_<command>` | One tool per MMapper command (the ones typed with the command prefix, e.g. `mmapper_search`, `mmapper_dirs`, `mmapper_room`, `mmapper_help`), generated from the parser's command table, so the list is complete even before a session exists. Takes `args` (everything after the command name; `??` asks for syntax help) and returns the events it caused. Same as `send` with the line `_<command> <args>`. Output a command produces later (offline moves, background tasks) shows up in `read_events`. |
 | `inject_mud` | Feed text to MMapper as if the MUD had sent it (MUME's XML stream); `prompt: true` marks a prompt. |
 | `inject_gmcp` | Feed a GMCP message as if the MUD had sent it. |
 | `read_events` | Events since a cursor. Kinds: `user_text` (everything shown to the user, MUD text and MMapper's own), `prompt`, `gmcp`, `sent_to_mud`, `position` (`data.roomId`), `pathmachine`, `map_changed`, `map_load`. Pass the returned `nextSeq` as `since` next time; `truncated` means older events were dropped before you read them. |

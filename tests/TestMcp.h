@@ -45,6 +45,7 @@ private Q_SLOTS:
     // McpAccess
     static void accessTokenCompareTest();
     static void accessCheckTest();
+    static void connectGuardTest();
 
     // McpServer (real loopback sockets)
     static void serverRequestTest();

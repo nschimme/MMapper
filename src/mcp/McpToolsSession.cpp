@@ -3,25 +3,16 @@
 
 #include "../configuration/configuration.h"
 #include "../proxy/connectionlistener.h"
+#include "McpAccess.h"
 #include "McpBackend.h"
 #include "McpSession.h"
 #include "McpToolRegistry.h"
 #include "McpTools.h"
 
-#include <QHostAddress>
 #include <QJsonDocument>
 #include <QJsonObject>
 
 namespace {
-
-NODISCARD bool isLoopbackHost(const QString &host)
-{
-    QHostAddress address;
-    if (address.setAddress(host)) {
-        return address.isLoopback();
-    }
-    return host.compare(QStringLiteral("localhost"), Qt::CaseInsensitive) == 0;
-}
 
 NODISCARD McpToolResult describe(const McpSession &session, const bool created)
 {
@@ -33,6 +24,14 @@ NODISCARD McpToolResult describe(const McpSession &session, const bool created)
 }
 
 } // namespace
+
+QString mcpRefuseToConnect()
+{
+    const auto &config = getConfig();
+    return mcpConnectRefusal(config.general.mapMode == MapModeEnum::OFFLINE,
+                             config.connection.remoteServerName,
+                             config.connection.remotePort);
+}
 
 void mcpRegisterSessionTools(McpToolRegistry &registry,
                              const McpHost & /*host*/,
@@ -47,18 +46,10 @@ void mcpRegisterSessionTools(McpToolRegistry &registry,
                          "unless that host is this computer; OFFLINE mode never connects."),
                      mcpObjectSchema(),
                      [&session](const QJsonObject &) {
-                         const auto &connection = getConfig().connection;
-                         const bool online = getConfig().general.mapMode != MapModeEnum::OFFLINE;
-                         if (session.owner() == McpSession::OwnerEnum::None && online
-                             && !isLoopbackHost(connection.remoteServerName)) {
-                             return McpToolResult::error(
-                                 QStringLiteral(
-                                     "refusing to start a session: map mode is not OFFLINE and it "
-                                     "would connect to %1:%2. Use OFFLINE mode, or point the MUD "
-                                     "host at this computer, in the settings file. (get_status "
-                                     "shows what is configured.)")
-                                     .arg(connection.remoteServerName)
-                                     .arg(connection.remotePort));
+                         if (session.owner() == McpSession::OwnerEnum::None) {
+                             if (const QString refusal = mcpRefuseToConnect(); !refusal.isEmpty()) {
+                                 return McpToolResult::error(refusal);
+                             }
                          }
                          const auto result = session.open();
                          if (!result.error.isEmpty()) {

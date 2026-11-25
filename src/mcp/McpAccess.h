@@ -9,6 +9,7 @@
 #include <optional>
 
 #include <QByteArray>
+#include <QString>
 
 // Who may talk to the server, decided from the request alone (no sockets), so it can be tested.
 //
@@ -28,3 +29,12 @@ NODISCARD bool mcpTokensEqual(const QByteArray &expected, const QByteArray &give
 // The endpoint is POST /mcp; anything else is a transport-level error, never a JSON-RPC one.
 NODISCARD std::optional<McpHttpError> mcpCheckRequest(const McpHttpRequest &request,
                                                       const McpAccessPolicy &policy);
+
+// Whether MMapper may connect to its MUD host. A test must never reach the live game by
+// accident: outside OFFLINE mode only a MUD host on this computer is allowed. Returns an
+// empty string if connecting is fine, otherwise why not.
+NODISCARD QString mcpConnectRefusal(bool offlineMode, const QString &host, uint16_t port);
+
+// True for the MMapper command that connects to the MUD: the command prefix followed by
+// "connect", or by an abbreviation of it down to four letters ("_conn").
+NODISCARD bool mcpIsConnectCommand(const QString &line, char prefix);

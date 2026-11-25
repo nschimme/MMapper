@@ -7,6 +7,7 @@
 
 #include <algorithm>
 
+#include <QHostAddress>
 #include <QString>
 #include <QUrl>
 
@@ -110,4 +111,33 @@ std::optional<McpHttpError> mcpCheckRequest(const McpHttpRequest &request,
     }
 
     return std::nullopt;
+}
+
+QString mcpConnectRefusal(const bool offlineMode, const QString &host, const uint16_t port)
+{
+    if (offlineMode) {
+        return {};
+    }
+    QHostAddress address;
+    const bool isLocal = address.setAddress(host)
+                             ? address.isLoopback()
+                             : host.compare(QStringLiteral("localhost"), Qt::CaseInsensitive) == 0;
+    if (isLocal) {
+        return {};
+    }
+    return QStringLiteral("refusing to connect: map mode is not OFFLINE and the MUD host is %1:%2. "
+                          "Use OFFLINE mode, or point the MUD host at this computer, in the "
+                          "settings file. (get_status shows what is configured.)")
+        .arg(host)
+        .arg(port);
+}
+
+bool mcpIsConnectCommand(const QString &line, const char prefix)
+{
+    const QString trimmed = line.trimmed();
+    if (trimmed.isEmpty() || trimmed.front() != QLatin1Char{prefix}) {
+        return false;
+    }
+    const QString word = trimmed.mid(1).split(QLatin1Char(' ')).front().toLower();
+    return word.size() >= 4 && QStringLiteral("connect").startsWith(word);
 }

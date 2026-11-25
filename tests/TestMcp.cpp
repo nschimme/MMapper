@@ -751,6 +751,34 @@ void TestMcp::accessCheckTest()
     QCOMPARE(statusOf(make("POST", "/mcp", {{"accept", "text/html"}})), 0);
 }
 
+void TestMcp::connectGuardTest()
+{
+    // OFFLINE never connects anywhere, so any host is fine.
+    QVERIFY(mcpConnectRefusal(true, "mume.org", 4242).isEmpty());
+    // Otherwise only this computer is allowed.
+    for (const char *host : {"127.0.0.1", "localhost", "LOCALHOST", "::1", "127.1.2.3"}) {
+        QVERIFY2(mcpConnectRefusal(false, host, 4242).isEmpty(), host);
+    }
+    for (const char *host : {"mume.org", "192.168.1.5", "10.0.0.1", "localhost.evil.com", ""}) {
+        const QString why = mcpConnectRefusal(false, host, 4242);
+        QVERIFY2(!why.isEmpty(), host);
+        QVERIFY(why.contains("OFFLINE"));
+    }
+    QVERIFY(mcpConnectRefusal(false, "mume.org", 4242).contains("mume.org:4242"));
+
+    // The command that connects, however it is abbreviated, but nothing else.
+    QVERIFY(mcpIsConnectCommand("_connect", '_'));
+    QVERIFY(mcpIsConnectCommand("_conn", '_'));
+    QVERIFY(mcpIsConnectCommand("  _CONNECT now", '_'));
+    QVERIFY(mcpIsConnectCommand("/connect", '/')); // the prefix is configurable
+    QVERIFY(!mcpIsConnectCommand("_con", '_'));    // "_config" starts this way; four letters needed
+    QVERIFY(!mcpIsConnectCommand("_config", '_'));
+    QVERIFY(!mcpIsConnectCommand("_disconnect", '_'));
+    QVERIFY(!mcpIsConnectCommand("connect", '_')); // no prefix: plain game input
+    QVERIFY(!mcpIsConnectCommand("_connectx", '_'));
+    QVERIFY(!mcpIsConnectCommand("", '_'));
+}
+
 // ================================ McpServer ================================
 
 void TestMcp::serverRequestTest()

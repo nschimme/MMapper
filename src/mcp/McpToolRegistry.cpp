@@ -5,6 +5,7 @@
 
 #include <algorithm>
 #include <stdexcept>
+#include <string>
 #include <utility>
 
 #include <QJsonArray>
@@ -13,6 +14,14 @@
 #include <QStringList>
 
 namespace {
+
+// Not QString::toStdString(), which MMapper bans because it silently assumes UTF-8.
+NODISCARD std::string utf8(const QString &s)
+{
+    const QByteArray bytes = s.toUtf8();
+    return std::string{bytes.constData(), static_cast<size_t>(bytes.size())};
+}
+
 NODISCARD bool isValidToolName(const QString &name)
 {
     // MCP: 1-128 characters from [A-Za-z0-9_.-]
@@ -24,17 +33,17 @@ NODISCARD bool isValidToolName(const QString &name)
 void McpToolRegistry::add(McpTool tool)
 {
     if (!isValidToolName(tool.name)) {
-        throw std::invalid_argument("invalid MCP tool name: " + tool.name.toStdString());
+        throw std::invalid_argument("invalid MCP tool name: " + utf8(tool.name));
     }
     if (tool.inputSchema.value(QStringLiteral("type")).toString() != QStringLiteral("object")) {
-        throw std::invalid_argument("MCP tool schema must be an object: " + tool.name.toStdString());
+        throw std::invalid_argument("MCP tool schema must be an object: " + utf8(tool.name));
     }
     if (!tool.handler) {
-        throw std::invalid_argument("MCP tool has no handler: " + tool.name.toStdString());
+        throw std::invalid_argument("MCP tool has no handler: " + utf8(tool.name));
     }
     // The description is all a model has to go on when choosing a tool.
     if (tool.description.trimmed().isEmpty()) {
-        throw std::invalid_argument("MCP tool has no description: " + tool.name.toStdString());
+        throw std::invalid_argument("MCP tool has no description: " + utf8(tool.name));
     }
 
     const auto it = std::find_if(m_tools.begin(), m_tools.end(), [&tool](const McpTool &t) {

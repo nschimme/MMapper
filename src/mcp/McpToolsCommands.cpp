@@ -2,6 +2,7 @@
 // Copyright (C) 2019 The MMapper Authors
 
 #include "../configuration/configuration.h"
+#include "../global/TextUtils.h"
 #include "../parser/AbstractParser-Commands.h"
 #include "McpBackend.h"
 #include "McpToolRegistry.h"
@@ -19,7 +20,7 @@ void mcpRegisterCommandTools(McpToolRegistry &registry,
     // session exists (tool lists are normally read once, when a client connects).
     for (const SpecialCommandInfo &info : getSpecialCommandInfos()) {
         const QString command = QString::fromLatin1(info.abbrev.getCommand());
-        const QString summary = QString::fromStdString(info.summary);
+        const QString summary = mmqt::toQStringUtf8(info.summary);
 
         // The commands are not ours: one whose name cannot be a tool name must cost us that one
         // tool, not stop MMapper from starting (this runs even when MCP is switched off).

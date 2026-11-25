@@ -44,18 +44,26 @@ Use `127.0.0.1` in URLs rather than `localhost`: some systems resolve `localhost
 
 ## Tools
 
-| Tool | What it does |
-|------|--------------|
-| `get_status` | Effective map mode, MUD host and port, update-check setting, settings file in use, the session (attached? who owns it? connected to the MUD?) and current room. **Call this first.** |
-| `open_session` / `close_session` | Start (or attach to) the client session that the map, parser and MUD connection hang off, without needing a telnet client. A session that belongs to a real client is never replaced or closed. In PLAY/MAP mode a new session connects to the configured MUD host at once, so it is refused unless that host is this computer; OFFLINE mode never connects. `wait_for_mud: true` waits until the MUD connection is up. |
-| `send` | Type one line as the user would (a game command, or an MMapper command such as `_search`). Optionally wait for the next `prompt` or for text matching a regular expression. Returns the events that followed; a timeout is an error that still carries them. |
-| `load_map` | Replace the current map with a map file (an absolute path) and wait until it has loaded; reports the room count. The old map is discarded first. |
-| `mmapper_<command>` | One tool per MMapper command (the ones typed with the command prefix, e.g. `mmapper_search`, `mmapper_dirs`, `mmapper_room`, `mmapper_help`), generated from the parser's command table, so the list is complete even before a session exists. Takes `args` (everything after the command name; `??` asks for syntax help) and returns the events it caused. Same as `send` with the line `_<command> <args>`. Output a command produces later (offline moves, background tasks) shows up in `read_events`. |
-| `get_room` | A room as structured data: name, area, description, contents, terrain, position and exits with the rooms they lead to. Without `id` it describes the room the player is in. For searching and directions use the `mmapper_search` and `mmapper_dirs` tools. |
-| `inject_mud` | Feed text to MMapper as if the MUD had sent it (MUME's XML stream); `prompt: true` marks a prompt. |
-| `inject_gmcp` | Feed a GMCP message as if the MUD had sent it. |
-| `send_gmcp` | Send a GMCP message to the MUD. An error if there is no MUD connection or the MUD has not agreed to use GMCP yet (MUME offers it right after connecting, so this is normally only seen in the first moments or when something is wrong); MMapper would otherwise drop the message without a word. |
-| `read_events` | Events since a cursor. Kinds: `user_text` (everything shown to the user, MUD text and MMapper's own), `prompt`, `gmcp`, `sent_to_mud`, `mud_connected`, `mud_disconnected`, `position` (`data.roomId`), `pathmachine`, `map_changed`, `map_load`. Pass the returned `nextSeq` as `since` next time; `truncated` means older events were dropped before you read them. |
+`tools/list` is the exact reference: every tool's description and arguments come from the code, so
+they cannot go out of date. This is what the groups are for.
+
+* **State**: `get_status` (call it first; it reports what MMapper is actually configured to do and
+  which session exists) and `read_events` (what happened since a cursor: text shown to the user,
+  prompts, GMCP, what was sent to the MUD, connection changes, position changes and map loads).
+* **Session**: `open_session` and `close_session` start and end a client session without a telnet
+  client, because the map, parser and MUD connection hang off one. A session that belongs to a real
+  client is never replaced or closed.
+* **Driving it**: `send` types a line as the user would and can wait for the next prompt or for
+  matching text; `send_gmcp` sends GMCP to the MUD.
+* **Replaying a MUD**: `inject_mud` and `inject_gmcp` feed MMapper bytes and GMCP as if the MUD had
+  sent them, so recorded sessions can be replayed without one.
+* **Map**: `load_map` replaces the map with a file and waits for it, and `get_room` describes a
+  room.
+* **MMapper commands**: one `mmapper_<command>` tool for every command typed with the command
+  prefix (for example `mmapper_search`, `mmapper_dirs`, `mmapper_room`). They are generated from the
+  parser's command table, so the list is complete before a session exists and follows the parser
+  when commands are added. Each is the same as `send` with the line `_<command> <args>`; output a
+  command produces later shows up in `read_events`.
 
 ### What creates rooms
 

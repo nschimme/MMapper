@@ -611,6 +611,15 @@ private:
 
         m_mainWindow.getAsyncIO().resetExtraBlockers();
 
+        if (independent) {
+            // There is no dialog and no "File saved" for a copy, so say how it went here.
+            const QString message = success ? tr("Saved a copy of the map to %1").arg(m_fileName)
+                                            : tr("Could not save a copy of the map to %1")
+                                                  .arg(m_fileName);
+            m_mainWindow.showStatusShort(message);
+            m_mainWindow.slot_log("MapSaver", message);
+        }
+
         if (!success) {
             if (independent) {
                 notifySaveFinished(false);

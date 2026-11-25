@@ -15,6 +15,7 @@
 #include <optional>
 #include <set>
 #include <stdexcept>
+#include <tuple>
 #include <vector>
 
 #include <QJsonArray>
@@ -149,14 +150,16 @@ ToolReply callTool(const McpToolRegistry &reg,
         reply->text = r.text;
         reply->data = r.structured ? r.structured->toObject() : QJsonObject{};
     });
-    QTest::qWaitFor([&reply]() { return reply->done; }, waitMs);
+    std::ignore = QTest::qWaitFor([&reply]() { return reply->done; }, waitMs);
     return *reply;
 }
 
-McpEvent makeEvent(McpEventLog &log, const QString &kind, const QString &text, QJsonObject data = {})
+void makeEvent(McpEventLog &log,
+               const QString &kind,
+               const QString &text,
+               const QJsonObject &data = {})
 {
-    const uint64_t seq = log.append(kind, text, data);
-    return McpEvent{seq, kind, text, std::move(data)};
+    std::ignore = log.append(kind, text, data);
 }
 
 McpToolRegistry makeRegistry()

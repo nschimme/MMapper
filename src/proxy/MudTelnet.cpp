@@ -395,6 +395,11 @@ void MudTelnet::onGmcpToMud(const GmcpMessage &msg)
     sendGmcpMessage(msg);
 }
 
+bool MudTelnet::isGmcpNegotiated() const
+{
+    return getOptions().hisOptionState[OPT_GMCP];
+}
+
 void MudTelnet::onRelayNaws(const int width, const int height)
 {
     // remember the size - we'll need it if NAWS is currently disabled but will

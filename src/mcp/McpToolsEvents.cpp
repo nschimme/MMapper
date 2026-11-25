@@ -36,7 +36,7 @@ void mcpRegisterEventTools(McpToolRegistry &registry, McpEventLog &events)
             "Read what happened since a cursor. Kinds: user_text (everything shown to "
             "the user: MUD text and MMapper's own), prompt (a prompt was shown; fires "
             "even for a repeated one), gmcp (GMCP from the MUD) and sent_to_mud (what "
-            "was sent to the MUD), position (the current room changed; data.roomId), "
+            "was sent to the MUD), mud_connected / mud_disconnected (the connection to the MUD), position (the current room changed; data.roomId), "
             "pathmachine (its state), and map_changed. Pass the returned nextSeq as `since` next time. "
             "`truncated` is true if older events were dropped before you read them."),
         mcpObjectSchema(

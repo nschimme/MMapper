@@ -798,6 +798,11 @@ void Proxy::injectMudGmcp(const GmcpMessage &msg)
     deref(getPipeline().outputs.mud.mudTelnetOutputs).onRelayGmcpFromMudToUser(msg);
 }
 
+bool Proxy::isMudGmcpNegotiated() const
+{
+    return getMudTelnet().isGmcpNegotiated();
+}
+
 void Proxy::gmcpToMud(const GmcpMessage &msg)
 {
     getMudTelnet().onGmcpToMud(msg);

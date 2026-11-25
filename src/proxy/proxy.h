@@ -219,6 +219,7 @@ private:
     void sendUserInput(const QByteArray &line);
     void injectMudBytes(const QByteArray &bytes, bool goAhead);
     void injectMudGmcp(const GmcpMessage &msg);
+    NODISCARD bool isMudGmcpNegotiated() const;
 
 private:
     friend ProxyMudGmcpApi;

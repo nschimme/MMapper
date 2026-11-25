@@ -13,7 +13,7 @@ McpBackend::McpBackend(const McpHost &host,
 {
     mcpRegisterStatusTools(registry, host, events, m_session);
     mcpRegisterEventTools(registry, events);
-    mcpRegisterSessionTools(registry, host, m_session);
+    mcpRegisterSessionTools(registry, host, m_session, events, waiters);
     mcpRegisterDriveTools(registry, host, events, waiters);
     mcpRegisterInjectTools(registry, host);
     mcpRegisterMapTools(registry, host, waiters);

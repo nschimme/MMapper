@@ -26,7 +26,11 @@ void mcpRegisterStatusTools(McpToolRegistry &registry,
 void mcpRegisterEventTools(McpToolRegistry &registry, McpEventLog &events);
 
 // open_session, close_session
-void mcpRegisterSessionTools(McpToolRegistry &registry, const McpHost &host, McpSession &session);
+void mcpRegisterSessionTools(McpToolRegistry &registry,
+                             const McpHost &host,
+                             McpSession &session,
+                             McpEventLog &events,
+                             McpWaiters &waiters);
 
 // Types one line as the user would and answers with the events it caused, optionally after
 // waiting for "prompt" or for text matching a regular expression (see the send tool). Shared by

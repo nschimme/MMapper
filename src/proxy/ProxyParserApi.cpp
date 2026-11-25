@@ -57,3 +57,8 @@ void ProxyControlApi::injectMudGmcp(const GmcpMessage &msg)
 {
     m_proxy.injectMudGmcp(msg);
 }
+
+bool ProxyControlApi::isMudGmcpNegotiated() const
+{
+    return m_proxy.isMudGmcpNegotiated();
+}

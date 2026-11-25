@@ -78,6 +78,12 @@ void McpService::setCollecting(const bool collect)
     m_observer.sig2_sentToMudString.connect(lifetime, [this](const QString &text) {
         std::ignore = m_events.append(QStringLiteral("sent_to_mud"), text);
     });
+    m_observer.sig2_connected.connect(lifetime, [this]() {
+        std::ignore = m_events.append(QStringLiteral("mud_connected"), {});
+    });
+    m_observer.sig2_disconnected.connect(lifetime, [this]() {
+        std::ignore = m_events.append(QStringLiteral("mud_disconnected"), {});
+    });
     m_observer.sig2_sentToUserString.connect(lifetime, [this](const QString &text) {
         std::ignore = m_events.append(QStringLiteral("user_text"), text);
     });

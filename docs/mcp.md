@@ -47,14 +47,15 @@ Use `127.0.0.1` in URLs rather than `localhost`: some systems resolve `localhost
 | Tool | What it does |
 |------|--------------|
 | `get_status` | Effective map mode, MUD host and port, update-check setting, settings file in use, the session (attached? who owns it? connected to the MUD?) and current room. **Call this first.** |
-| `open_session` / `close_session` | Start (or attach to) the client session that the map, parser and MUD connection hang off, without needing a telnet client. A session that belongs to a real client is never replaced or closed. In PLAY/MAP mode a new session connects to the configured MUD host at once, so it is refused unless that host is this computer; OFFLINE mode never connects. |
+| `open_session` / `close_session` | Start (or attach to) the client session that the map, parser and MUD connection hang off, without needing a telnet client. A session that belongs to a real client is never replaced or closed. In PLAY/MAP mode a new session connects to the configured MUD host at once, so it is refused unless that host is this computer; OFFLINE mode never connects. `wait_for_mud: true` waits until the MUD connection is up. |
 | `send` | Type one line as the user would (a game command, or an MMapper command such as `_search`). Optionally wait for the next `prompt` or for text matching a regular expression. Returns the events that followed; a timeout is an error that still carries them. |
 | `load_map` | Replace the current map with a map file (an absolute path) and wait until it has loaded; reports the room count. The old map is discarded first. |
 | `mmapper_<command>` | One tool per MMapper command (the ones typed with the command prefix, e.g. `mmapper_search`, `mmapper_dirs`, `mmapper_room`, `mmapper_help`), generated from the parser's command table, so the list is complete even before a session exists. Takes `args` (everything after the command name; `??` asks for syntax help) and returns the events it caused. Same as `send` with the line `_<command> <args>`. Output a command produces later (offline moves, background tasks) shows up in `read_events`. |
 | `get_room` | A room as structured data: name, area, description, contents, terrain, position and exits with the rooms they lead to. Without `id` it describes the room the player is in. For searching and directions use the `mmapper_search` and `mmapper_dirs` tools. |
 | `inject_mud` | Feed text to MMapper as if the MUD had sent it (MUME's XML stream); `prompt: true` marks a prompt. |
 | `inject_gmcp` | Feed a GMCP message as if the MUD had sent it. |
-| `read_events` | Events since a cursor. Kinds: `user_text` (everything shown to the user, MUD text and MMapper's own), `prompt`, `gmcp`, `sent_to_mud`, `position` (`data.roomId`), `pathmachine`, `map_changed`, `map_load`. Pass the returned `nextSeq` as `since` next time; `truncated` means older events were dropped before you read them. |
+| `send_gmcp` | Send a GMCP message to the MUD. An error if there is no MUD connection or the MUD has not agreed to use GMCP (MMapper would otherwise drop the message without a word). |
+| `read_events` | Events since a cursor. Kinds: `user_text` (everything shown to the user, MUD text and MMapper's own), `prompt`, `gmcp`, `sent_to_mud`, `mud_connected`, `mud_disconnected`, `position` (`data.roomId`), `pathmachine`, `map_changed`, `map_load`. Pass the returned `nextSeq` as `since` next time; `truncated` means older events were dropped before you read them. |
 
 ### What creates rooms
 
@@ -72,6 +73,19 @@ builds the map. In **OFFLINE** mode the position is tracked against the map you 
 rooms are never added or changed, so use MAP mode (with the MUD host set to this computer) to test
 map building and OFFLINE to test navigating an existing map. Injected XML text only affects what is
 displayed; it must be well-formed (a malformed stream can trip an assertion in a debug build).
+
+## Testing against a MUD server of your own
+
+When Qt has SSL support (the usual case) MMapper only ever connects to a MUD over **TLS**; the
+plain-TCP fallback exists only for builds without SSL. So a local test MUD must speak TLS. A
+self-signed certificate is fine (MMapper does not abort on a certificate it cannot verify). For a
+telnet server to work as a MUD for MMapper it should negotiate GMCP (`IAC WILL GMCP`) if you want
+`send_gmcp`, and end each prompt with `IAC GA`, which is what `send` with `wait_for: "prompt"`
+waits for.
+
+Set the profile's `Server name` and `Remote port number` (in `[Connection]`) to the test server,
+use PLAY or MAP mode, and call `open_session` with `wait_for_mud: true`. Only a MUD host on this
+computer is accepted outside OFFLINE mode.
 
 ## Running MMapper for tests
 

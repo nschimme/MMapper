@@ -74,4 +74,6 @@ public:
     void injectMudBytes(const QByteArray &bytes, bool goAhead);
     // As if the MUD sent this GMCP message.
     void injectMudGmcp(const GmcpMessage &msg);
+    // Whether the MUD has agreed to use GMCP; until it has, GMCP sent to it is silently dropped.
+    NODISCARD bool isMudGmcpNegotiated() const;
 };

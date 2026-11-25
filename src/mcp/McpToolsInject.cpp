@@ -13,6 +13,47 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 
+namespace {
+
+struct NODISCARD GmcpArgs final
+{
+    QByteArray raw; // "Package {json}", as it goes over the wire
+    QString package;
+    QString error;
+};
+
+// Reads the `package` and `json` arguments shared by inject_gmcp and send_gmcp.
+NODISCARD GmcpArgs parseGmcpArgs(const QJsonObject &args)
+{
+    GmcpArgs result;
+    result.package = args.value(QStringLiteral("package")).toString().trimmed();
+    if (result.package.isEmpty() || result.package.contains(QLatin1Char(' '))) {
+        result.error = QStringLiteral("`package` must be a name without spaces, e.g. Char.Vitals");
+        return result;
+    }
+
+    QByteArray payload;
+    const QJsonValue json = args.value(QStringLiteral("json"));
+    if (json.isObject()) {
+        payload = QJsonDocument{json.toObject()}.toJson(QJsonDocument::Compact);
+    } else if (json.isArray()) {
+        payload = QJsonDocument{json.toArray()}.toJson(QJsonDocument::Compact);
+    } else if (json.isString()) {
+        payload = json.toString().toUtf8();
+    } else if (!json.isUndefined() && !json.isNull()) {
+        result.error = QStringLiteral("`json` must be an object, an array or a string");
+        return result;
+    }
+
+    result.raw = result.package.toUtf8();
+    if (!payload.isEmpty()) {
+        result.raw += ' ' + payload;
+    }
+    return result;
+}
+
+} // namespace
+
 void mcpRegisterInjectTools(McpToolRegistry &registry, const McpHost &host)
 {
     registry.addSync(
@@ -51,14 +92,46 @@ void mcpRegisterInjectTools(McpToolRegistry &registry, const McpHost &host)
             return McpToolResult::ok(QStringLiteral("injected %1 characters").arg(text.size()));
         });
 
+    registry.addSync(QStringLiteral("inject_gmcp"),
+                     QStringLiteral(
+                         "Feed a GMCP message to MMapper as if the MUD had sent it, for example "
+                         "package \"Room.Info\" with the JSON the MUD would send. Needs a session "
+                         "(see open_session)."),
+                     mcpObjectSchema({{QStringLiteral("package"),
+                                       mcpStringProperty(QStringLiteral(
+                                           "The GMCP package name, e.g. Char.Vitals."))},
+                                      {QStringLiteral("json"),
+                                       QJsonObject{
+                                           {QStringLiteral("description"),
+                                            QStringLiteral(
+                                                "The payload: a JSON object or array, or a string "
+                                                "holding JSON text. Omit for a message without a "
+                                                "payload.")}}}},
+                                     {QStringLiteral("package")}),
+                     [&host](const QJsonObject &args) {
+                         Proxy *const proxy = host.listener.getProxy();
+                         if (proxy == nullptr) {
+                             return McpToolResult::error(
+                                 QStringLiteral("there is no session; call open_session first"));
+                         }
+                         const GmcpArgs gmcp = parseGmcpArgs(args);
+                         if (!gmcp.error.isEmpty()) {
+                             return McpToolResult::error(gmcp.error);
+                         }
+                         ProxyControlApi{*proxy}.injectMudGmcp(GmcpMessage::fromRawBytes(gmcp.raw));
+                         const QString package = gmcp.package;
+                         return McpToolResult::ok(QStringLiteral("injected ") + package);
+                     });
+
     registry.addSync(
-        QStringLiteral("inject_gmcp"),
-        QStringLiteral("Feed a GMCP message to MMapper as if the MUD had sent it, for example "
-                       "package \"Room.Info\" with the JSON the MUD would send. Needs a session "
-                       "(see open_session)."),
+        QStringLiteral("send_gmcp"),
+        QStringLiteral("Send a GMCP message to the MUD, for example package \"Core.Hello\" with the "
+                       "JSON a client would send. Needs a session connected to a MUD that has "
+                       "agreed to use GMCP; otherwise this is an error (MMapper would silently "
+                       "drop the message)."),
         mcpObjectSchema({{QStringLiteral("package"),
                           mcpStringProperty(
-                              QStringLiteral("The GMCP package name, e.g. Char.Vitals."))},
+                              QStringLiteral("The GMCP package name, e.g. Core.Supports.Set."))},
                          {QStringLiteral("json"),
                           QJsonObject{
                               {QStringLiteral("description"),
@@ -72,30 +145,19 @@ void mcpRegisterInjectTools(McpToolRegistry &registry, const McpHost &host)
                 return McpToolResult::error(
                     QStringLiteral("there is no session; call open_session first"));
             }
-            const QString package = args.value(QStringLiteral("package")).toString().trimmed();
-            if (package.isEmpty() || package.contains(QLatin1Char(' '))) {
+            const GmcpArgs gmcp = parseGmcpArgs(args);
+            if (!gmcp.error.isEmpty()) {
+                return McpToolResult::error(gmcp.error);
+            }
+            if (!ProxyMudConnectionApi{*proxy}.isConnected()) {
+                return McpToolResult::error(QStringLiteral("not connected to the MUD"));
+            }
+            if (!ProxyControlApi{*proxy}.isMudGmcpNegotiated()) {
                 return McpToolResult::error(
-                    QStringLiteral("`package` must be a name without spaces, e.g. Char.Vitals"));
+                    QStringLiteral("the MUD has not agreed to use GMCP, so the message would be "
+                                   "dropped"));
             }
-
-            QByteArray payload;
-            const QJsonValue json = args.value(QStringLiteral("json"));
-            if (json.isObject()) {
-                payload = QJsonDocument{json.toObject()}.toJson(QJsonDocument::Compact);
-            } else if (json.isArray()) {
-                payload = QJsonDocument{json.toArray()}.toJson(QJsonDocument::Compact);
-            } else if (json.isString()) {
-                payload = json.toString().toUtf8();
-            } else if (!json.isUndefined() && !json.isNull()) {
-                return McpToolResult::error(
-                    QStringLiteral("`json` must be an object, an array or a string"));
-            }
-
-            QByteArray raw = package.toUtf8();
-            if (!payload.isEmpty()) {
-                raw += ' ' + payload;
-            }
-            ProxyControlApi{*proxy}.injectMudGmcp(GmcpMessage::fromRawBytes(raw));
-            return McpToolResult::ok(QStringLiteral("injected ") + package);
+            ProxyMudGmcpApi{*proxy}.gmcpToMud(GmcpMessage::fromRawBytes(gmcp.raw));
+            return McpToolResult::ok(QStringLiteral("sent ") + gmcp.package);
         });
 }

@@ -32,6 +32,7 @@ class AutoLogger;
 class ClientWidget;
 class ConfigDialog;
 class ConnectionListener;
+class McpService;
 class ConnectionSelection;
 class FindRoomsDlg;
 class GameObserver;
@@ -97,6 +98,11 @@ private:
     std::unique_ptr<GameObserver> m_gameObserver;
     AutoLogger *m_logger = nullptr;
     ConnectionListener *m_listener = nullptr;
+#ifndef MMAPPER_NO_MCP
+    // Declared after m_listener's owner objects but destroyed first (see ~MainWindow): it holds
+    // references to the map data, the observer and the listener.
+    std::unique_ptr<McpService> m_mcpService;
+#endif
     Mmapper2PathMachine *m_pathMachine = nullptr;
     MapData *m_mapData = nullptr;
     PrespammedPath *m_prespammedPath = nullptr;
@@ -403,8 +409,15 @@ private:
     void updateDescriptionRoom(const RoomHandle &room);
     void applyGroupAction(const std::function<Change(const RawRoom &)> &getChange);
     void onSuccessfulLoad(const MapLoadData &mapLoadData);
+    // Starts loading a map file in the background. Returns why it could not start, or an empty
+    // string; sig_mapLoadFinished says how the load went.
+    NODISCARD QString tryStartLoadingMap(const QString &path);
     void onSuccessfulMerge(const Map &map);
     void onSuccessfulSave(SaveModeEnum mode, SaveFormatEnum format, const QString &fileName);
+
+signals:
+    // A map load finished, successfully or not (including being canceled).
+    void sig_mapLoadFinished(const QString &fileName, bool success);
 
 public slots:
     void slot_newFile();

@@ -37,10 +37,13 @@
 #include <functional>
 #include <iostream>
 #include <ostream>
+#include <set>
 #include <sstream>
 #include <stdexcept>
 #include <string>
+#include <string_view>
 #include <utility>
+#include <vector>
 
 namespace {
 
@@ -1117,243 +1120,252 @@ void AbstractParser::doMapCommand(StringView input)
     eval("map", mapSyntax, input);
 }
 
+namespace {
+
+// The long help for `_set`; the other commands only have a one-line summary.
+constexpr const char SET_COMMAND_HELP[]
+    = "Subcommands:\n"
+      "\tprefix              # Displays the current prefix.\n"
+      "\tprefix <punct-char> # Changes the current prefix.\n"
+      "\n"
+      // REVISIT: Does it actually support LATIN-1 punctuation like the degree symbol?
+      "Note: <punct-char> may be any ASCII punctuation character,\n"
+      "      which can be optionally single- or double-quoted.\n"
+      "\n"
+      "Examples to set prefix:\n"
+      "\tprefix /   # slash character\n"
+      "\tprefix '/' # single-quoted slash character\n"
+      "\tprefix \"/\" # double-quoted slash character\n"
+      "\tprefix '   # bare single-quote character\n"
+      "\tprefix \"'\" # double-quoted single-quote character\n"
+      "\tprefix \"   # bare double-quote character\n"
+      "\tprefix '\"' # single-quoted double-quote character\n"
+      "\n"
+      "Note: Quoted versions do not allow escape codes,\n"
+      "so you cannot do ''', '\\'', \"\"\", or \"\\\"\".";
+
+NODISCARD std::vector<SpecialCommandInfo> buildSpecialCommandInfos()
+{
+    std::vector<SpecialCommandInfo> result;
+    auto add = [&result](const Abbrev abbrev, std::string summary, std::string detailedHelp = {}) {
+        result.push_back(SpecialCommandInfo{abbrev, std::move(summary), std::move(detailedHelp)});
+    };
+
+    // NOTE: The order here is the order the commands are registered in, which decides
+    // which command wins when two abbreviations collide.
+
+    // help is important, so it comes first
+    // TODO: create a parse tree, and show all of the help topics.
+    add(cmdHelp, "Provides help.");
+
+    // door actions
+    for (const DoorActionEnum x : ALL_DOOR_ACTION_TYPES) {
+        if (auto cmd = getParserCommandName(x)) {
+            add(cmd, "Sets door action: " + std::string{cmd.getCommand()});
+        }
+    }
+
+    // misc commands
+    add(cmdTasks, "List or manage background tasks.");
+    add(cmdEdits, "List or manage remote (MPI) edit/view sessions.");
+    add(cmdBack, "Delete prespammed commands from queue.");
+    add(cmdConfig, "Configuration commands.");
+    add(cmdConnect, "Connect to the MUD.");
+    add(cmdDirections, "Prints directions to matching rooms.");
+    add(cmdDisconnect, "Disconnect from the MUD.");
+    add(cmdRemoveDoorNames, "Remove hidden door names.");
+    add(cmdGenerateBaseMap, "Generate the base map.");
+    add(cmdMap, "Print the changes changes since the last save");
+    add(cmdSearch, "Highlight matching rooms on the map.");
+    add(cmdSet, "Change parser settings, such as the command prefix.", SET_COMMAND_HELP);
+    add(cmdTime, "Displays the current MUME time.");
+    add(cmdVote, "Launches a web browser so you can vote for MUME on TMC!");
+    add(cmdMark, "Perform actions on the current marks.");
+    add(cmdRoom, "View or modify properties of the current room.");
+    add(cmdGroup, "Perform actions on the group manager.");
+    add(cmdHotkey, "View or modify hotkeys for the integrated client.");
+    add(cmdTimer, "Add or remove simple timers and countdown timers.");
+    return result;
+}
+
+} // namespace
+
+const std::vector<SpecialCommandInfo> &getSpecialCommandInfos()
+{
+    static const std::vector<SpecialCommandInfo> g_infos = buildSpecialCommandInfos();
+    return g_infos;
+}
+
+const SpecialCommandInfo &getSpecialCommandInfo(const Abbrev abbrev)
+{
+    const std::string_view command = abbrev.getCommand();
+    for (const SpecialCommandInfo &info : getSpecialCommandInfos()) {
+        if (std::string_view{info.abbrev.getCommand()} == command) {
+            return info;
+        }
+    }
+    throw std::logic_error("special command is missing from the command table: "
+                           + std::string{command});
+}
+
+void AbstractParser::sendCommandHelp(const SpecialCommandInfo &info, const std::string &name)
+{
+    // Commands with a long help text show it as-is; the rest show their summary, indented.
+    const bool isDetailed = !info.detailedHelp.empty();
+    const QString text = QString("Help for %1%2:\n%3%4\n\n")
+                             .arg(getPrefixChar())
+                             .arg(mmqt::toQStringUtf8(name))
+                             .arg(isDetailed ? QString{} : QString{"  "})
+                             .arg(mmqt::toQStringUtf8(isDetailed ? info.detailedHelp
+                                                                 : info.summary));
+    sendToUser(SendToUserSourceEnum::FromMMapper, text);
+}
+
 void AbstractParser::initSpecialCommandMap()
 {
     auto &map = m_specialCommandMap;
     map.clear();
 
-    auto add = [this](Abbrev abb, const ParserCallback &callback, const HelpCallback &help) {
-        addSpecialCommand(abb.getCommand(), abb.getMinAbbrev(), callback, help);
-    };
-
-    const auto makeSimpleHelp = [this](const std::string &help) {
-        return [this, help](const std::string &name) {
-            sendToUser(SendToUserSourceEnum::FromMMapper,
-                       QString("Help for %1%2:\n"
-                               "  %3\n"
-                               "\n")
-                           .arg(getPrefixChar())
-                           .arg(mmqt::toQStringUtf8(name))
-                           .arg(mmqt::toQStringUtf8(help)));
-        };
+    std::set<std::string> bound;
+    auto add = [this, &bound](const Abbrev abb, const ParserCallback &callback) {
+        const SpecialCommandInfo &info = getSpecialCommandInfo(abb);
+        bound.insert(info.abbrev.getCommand());
+        addSpecialCommand(abb.getCommand(),
+                          abb.getMinAbbrev(),
+                          callback,
+                          [this, &info](const std::string &name) { sendCommandHelp(info, name); });
     };
 
     qInfo() << "Adding special commands to the map...";
 
     // help is important, so it comes first
 
-    add(
-        cmdHelp,
-        [this](const View<StringView> /*s*/, StringView rest) {
-            this->parseHelp(rest);
-            return true;
-        },
-        // TODO: create a parse tree, and show all of the help topics.
-        makeSimpleHelp("Provides help."));
+    add(cmdHelp, [this](const View<StringView> /*s*/, StringView rest) {
+        this->parseHelp(rest);
+        return true;
+    });
 
     // door actions
     for (const DoorActionEnum x : ALL_DOOR_ACTION_TYPES) {
         if (auto cmd = getParserCommandName(x)) {
-            add(
-                cmd,
-                [this, x](const View<StringView> /*s*/, StringView rest) {
-                    return parseDoorAction(x, rest);
-                },
-                makeSimpleHelp("Sets door action: " + std::string{cmd.getCommand()}));
+            add(cmd, [this, x](const View<StringView> /*s*/, StringView rest) {
+                return parseDoorAction(x, rest);
+            });
         }
     }
 
     // misc commands
 
-    add(
-        cmdTasks,
-        [this](const View<StringView> /*s*/, StringView rest) -> bool {
-            this->doTasksCommand(rest);
-            return true;
-        },
-        makeSimpleHelp("List or manage background tasks."));
+    add(cmdTasks, [this](const View<StringView> /*s*/, StringView rest) -> bool {
+        this->doTasksCommand(rest);
+        return true;
+    });
 
-    add(
-        cmdEdits,
-        [this](const View<StringView> /*s*/, StringView rest) -> bool {
-            this->doEditsCommand(rest);
-            return true;
-        },
-        makeSimpleHelp("List or manage remote (MPI) edit/view sessions."));
+    add(cmdEdits, [this](const View<StringView> /*s*/, StringView rest) -> bool {
+        this->doEditsCommand(rest);
+        return true;
+    });
 
-    add(
-        cmdBack,
-        [this](const View<StringView> /*s*/, StringView rest) {
-            if (!rest.isEmpty()) {
-                return false;
-            }
-            this->doBackCommand();
-            return true;
-        },
-        makeSimpleHelp("Delete prespammed commands from queue."));
-    add(
-        cmdConfig,
-        [this](const View<StringView> /*s*/, StringView rest) {
-            this->doConfig(rest);
-            return true;
-        },
-        makeSimpleHelp("Configuration commands."));
-    add(
-        cmdConnect,
-        [this](const View<StringView> /*s*/, StringView /*rest*/) {
-            this->doConnectToHost();
-            return true;
-        },
-        makeSimpleHelp("Connect to the MUD."));
-    add(
-        cmdDirections,
-        [this](const View<StringView> /*s*/, StringView rest) {
-            this->parseDirections(rest);
-            return true;
-        },
-        makeSimpleHelp("Prints directions to matching rooms."));
-    add(
-        cmdDisconnect,
-        [this](const View<StringView> /*s*/, StringView /*rest*/) {
-            this->doDisconnectFromHost();
-            return true;
-        },
-        makeSimpleHelp("Disconnect from the MUD."));
-    add(
-        cmdRemoveDoorNames,
-        [this](const View<StringView> /*s*/, StringView rest) {
-            if (!rest.isEmpty()) {
-                return false;
-            }
-            this->doRemoveDoorNamesCommand();
-            return true;
-        },
-        makeSimpleHelp("Remove hidden door names."));
-    add(
-        cmdGenerateBaseMap,
-        [this](const View<StringView> /*s*/, StringView rest) {
-            if (!rest.isEmpty()) {
-                return false;
-            }
-            this->doGenerateBaseMap();
-            return true;
-        },
-        makeSimpleHelp("Generate the base map."));
-    add(
-        cmdMap,
-        [this](const View<StringView> /*s*/, StringView rest) {
-            doMapCommand(rest);
-            return true;
-        },
-        makeSimpleHelp("Print the changes changes since the last save"));
-    add(
-        cmdSearch,
-        [this](const View<StringView> /*s*/, StringView rest) {
-            this->parseSearch(rest);
-            return true;
-        },
-        makeSimpleHelp("Highlight matching rooms on the map."));
-    add(
-        cmdSet,
-        [this](const View<StringView> /*s*/, StringView rest) {
-            this->parseSetCommand(rest);
-            return true;
-        },
-        [this](const std::string &name) {
-            const char help[]
-                = "Subcommands:\n"
-                  "\tprefix              # Displays the current prefix.\n"
-                  "\tprefix <punct-char> # Changes the current prefix.\n"
-                  "\n"
-                  // REVISIT: Does it actually support LATIN-1 punctuation like the degree symbol?
-                  "Note: <punct-char> may be any ASCII punctuation character,\n"
-                  "      which can be optionally single- or double-quoted.\n"
-                  "\n"
-                  "Examples to set prefix:\n"
-                  "\tprefix /   # slash character\n"
-                  "\tprefix '/' # single-quoted slash character\n"
-                  "\tprefix \"/\" # double-quoted slash character\n"
-                  "\tprefix '   # bare single-quote character\n"
-                  "\tprefix \"'\" # double-quoted single-quote character\n"
-                  "\tprefix \"   # bare double-quote character\n"
-                  "\tprefix '\"' # single-quoted double-quote character\n"
-                  "\n"
-                  "Note: Quoted versions do not allow escape codes,\n"
-                  "so you cannot do ''', '\\'', \"\"\", or \"\\\"\".";
-
-            sendToUser(SendToUserSourceEnum::FromMMapper,
-                       QString("Help for %1%2:\n"
-                               "%3\n"
-                               "\n")
-                           .arg(getPrefixChar())
-                           .arg(mmqt::toQStringUtf8(name))
-                           .arg(mmqt::toQStringUtf8(help)));
-        });
-    add(
-        cmdTime,
-        [this](const View<StringView> /*s*/, StringView rest) {
-            if (!rest.isEmpty()) {
-                return false;
-            }
-            this->showMumeTime();
-            return true;
-        },
-        makeSimpleHelp("Displays the current MUME time."));
-    add(
-        cmdVote,
-        [this](const View<StringView> /*s*/, StringView rest) {
-            if (!rest.isEmpty()) {
-                return false;
-            }
-            this->openVoteURL();
-            return true;
-        },
-        makeSimpleHelp("Launches a web browser so you can vote for MUME on TMC!"));
+    add(cmdBack, [this](const View<StringView> /*s*/, StringView rest) {
+        if (!rest.isEmpty()) {
+            return false;
+        }
+        this->doBackCommand();
+        return true;
+    });
+    add(cmdConfig, [this](const View<StringView> /*s*/, StringView rest) {
+        this->doConfig(rest);
+        return true;
+    });
+    add(cmdConnect, [this](const View<StringView> /*s*/, StringView /*rest*/) {
+        this->doConnectToHost();
+        return true;
+    });
+    add(cmdDirections, [this](const View<StringView> /*s*/, StringView rest) {
+        this->parseDirections(rest);
+        return true;
+    });
+    add(cmdDisconnect, [this](const View<StringView> /*s*/, StringView /*rest*/) {
+        this->doDisconnectFromHost();
+        return true;
+    });
+    add(cmdRemoveDoorNames, [this](const View<StringView> /*s*/, StringView rest) {
+        if (!rest.isEmpty()) {
+            return false;
+        }
+        this->doRemoveDoorNamesCommand();
+        return true;
+    });
+    add(cmdGenerateBaseMap, [this](const View<StringView> /*s*/, StringView rest) {
+        if (!rest.isEmpty()) {
+            return false;
+        }
+        this->doGenerateBaseMap();
+        return true;
+    });
+    add(cmdMap, [this](const View<StringView> /*s*/, StringView rest) {
+        doMapCommand(rest);
+        return true;
+    });
+    add(cmdSearch, [this](const View<StringView> /*s*/, StringView rest) {
+        this->parseSearch(rest);
+        return true;
+    });
+    add(cmdSet, [this](const View<StringView> /*s*/, StringView rest) {
+        this->parseSetCommand(rest);
+        return true;
+    });
+    add(cmdTime, [this](const View<StringView> /*s*/, StringView rest) {
+        if (!rest.isEmpty()) {
+            return false;
+        }
+        this->showMumeTime();
+        return true;
+    });
+    add(cmdVote, [this](const View<StringView> /*s*/, StringView rest) {
+        if (!rest.isEmpty()) {
+            return false;
+        }
+        this->openVoteURL();
+        return true;
+    });
 
     /* mark commands */
-    add(
-        cmdMark,
-        [this](const View<StringView> /*s*/, StringView rest) {
-            parseMark(rest);
-            return true;
-        },
-        makeSimpleHelp("Perform actions on the current marks."));
+    add(cmdMark, [this](const View<StringView> /*s*/, StringView rest) {
+        parseMark(rest);
+        return true;
+    });
 
     /* room commands */
-    add(
-        cmdRoom,
-        [this](const View<StringView> /*s*/, StringView rest) {
-            parseRoom(rest);
-            return true;
-        },
-        makeSimpleHelp("View or modify properties of the current room."));
+    add(cmdRoom, [this](const View<StringView> /*s*/, StringView rest) {
+        parseRoom(rest);
+        return true;
+    });
 
     /* group commands */
-    add(
-        cmdGroup,
-        [this](const View<StringView> /*s*/, StringView rest) {
-            parseGroup(rest);
-            return true;
-        },
-        makeSimpleHelp("Perform actions on the group manager."));
+    add(cmdGroup, [this](const View<StringView> /*s*/, StringView rest) {
+        parseGroup(rest);
+        return true;
+    });
 
     /* hpotkey commands */
-    add(
-        cmdHotkey,
-        [this](const View<StringView> /*s*/, StringView rest) {
-            parseHotkey(rest);
-            return true;
-        },
-        makeSimpleHelp("View or modify hotkeys for the integrated client."));
+    add(cmdHotkey, [this](const View<StringView> /*s*/, StringView rest) {
+        parseHotkey(rest);
+        return true;
+    });
 
     /* timers command */
-    add(
-        cmdTimer,
-        [this](const View<StringView> /*s*/, StringView rest) {
-            parseTimer(rest);
-            return true;
-        },
-        makeSimpleHelp("Add or remove simple timers and countdown timers."));
+    add(cmdTimer, [this](const View<StringView> /*s*/, StringView rest) {
+        parseTimer(rest);
+        return true;
+    });
+
+    for (const SpecialCommandInfo &info : getSpecialCommandInfos()) {
+        if (bound.count(info.abbrev.getCommand()) == 0) {
+            throw std::logic_error(std::string{"special command has no handler: "}
+                                   + info.abbrev.getCommand());
+        }
+    }
 
     qInfo() << "Total commands + abbreviations: " << map.size();
 }

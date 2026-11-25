@@ -30,6 +30,13 @@ void GameObserver::observeSentToUser(const QString &input)
     sig2_sentToUserString.invoke(str);
 }
 
+void GameObserver::observeSentToUserPrompt(const QString &input)
+{
+    auto str = input;
+    ParserUtils::removeAnsiMarksInPlace(str);
+    sig2_sentToUserPrompt.invoke(str);
+}
+
 void GameObserver::observeSentToUserGmcp(const GmcpMessage &m)
 {
     sig2_sentToUserGmcp.invoke(m);

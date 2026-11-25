@@ -730,6 +730,9 @@ set(mmapper_UIS
     preferences/parserpage.ui
     preferences/pathmachinepage.ui
 )
+if(WITH_MCP)
+    list(APPEND mmapper_UIS preferences/mcppage.ui)
+endif()
 
 if(MMAPPER_IS_DEBUG)
     if(NOT DEFINED CHECK_ODR)
@@ -776,6 +779,30 @@ set(mmapper_DATA
     MacOSXBundleInfo.plist.in
     global/Version.cpp.in)
 
+if(WITH_MCP)
+    list(APPEND mmapper_SRCS
+        mcp/McpBackend.cpp
+        mcp/McpBackend.h
+        mcp/McpService.cpp
+        mcp/McpService.h
+        mcp/McpSession.cpp
+        mcp/McpSession.h
+        mcp/McpToolsCommands.cpp
+        mcp/McpToolsDrive.cpp
+        mcp/McpToolsEvents.cpp
+        mcp/McpToolsInject.cpp
+        mcp/McpToolsMap.cpp
+        mcp/McpToolsRooms.cpp
+        mcp/McpToolsSession.cpp
+        mcp/McpToolsStatus.cpp
+        mcp/McpToolSupport.cpp
+        mcp/McpToolSupport.h
+        mcp/McpTools.h
+        preferences/mcppage.cpp
+        preferences/mcppage.h
+    )
+endif()
+
 set(mmapper_map_SRCS ${mmapper_SRCS})
 set(mmapper_global_SRCS ${mmapper_SRCS})
 list(FILTER mmapper_map_SRCS INCLUDE REGEX "map/")
@@ -789,6 +816,37 @@ message("mmapper_map_SRCS=[${mmapper_map_SRCS}]")
 
 add_library(mm_global STATIC ${mmapper_global_SRCS})
 add_library(mm_map STATIC ${mmapper_map_SRCS})
+
+# The parts of the MCP server that know nothing about the rest of MMapper (JSON-RPC handling,
+# the tool registry, the HTTP framing and the event log), so they can be unit tested on their own.
+if(WITH_MCP)
+    set(mm_mcp_SRCS
+        mcp/McpAccess.cpp
+        mcp/McpAccess.h
+        mcp/McpDispatcher.cpp
+        mcp/McpDispatcher.h
+        mcp/McpEventLog.cpp
+        mcp/McpEventLog.h
+        mcp/McpHttp.cpp
+        mcp/McpHttp.h
+        mcp/McpServer.cpp
+        mcp/McpServer.h
+        mcp/McpToolRegistry.cpp
+        mcp/McpToolRegistry.h
+        mcp/McpWaiters.cpp
+        mcp/McpWaiters.h
+    )
+    add_library(mm_mcp STATIC ${mm_mcp_SRCS})
+    set_target_properties(
+      mm_mcp PROPERTIES
+      CXX_STANDARD 20
+      CXX_STANDARD_REQUIRED ON
+      CXX_EXTENSIONS OFF
+      COMPILE_FLAGS "${WARNING_FLAGS}"
+    )
+    target_include_directories(mm_mcp SYSTEM PUBLIC ${Qt6Core_INCLUDE_DIRS})
+    target_link_libraries(mm_mcp PUBLIC Qt6::Core Qt6::Network coverage_config)
+endif()
 
 # Build the executable
 set(mmapper_EXECUTABLE_ARGS
@@ -813,6 +871,9 @@ else()
 endif()
 
 set(mm_libs mm_map mm_global)
+if(WITH_MCP)
+    list(PREPEND mm_libs mm_mcp)
+endif()
 
 target_link_libraries(mmapper PUBLIC
     Qt6::Core

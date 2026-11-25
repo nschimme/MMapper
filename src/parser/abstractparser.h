@@ -54,6 +54,7 @@ class MapData;
 class MumeClock;
 class RoomFieldVariant;
 class RoomFilter;
+struct SpecialCommandInfo;
 
 namespace syntax {
 class Sublist;
@@ -430,6 +431,7 @@ private:
     void doGetDirectionsCommand(StringView view);
 
     void initSpecialCommandMap();
+    void sendCommandHelp(const SpecialCommandInfo &info, const std::string &name);
     void addSpecialCommand(const char *s,
                            int minLen,
                            const ParserCallback &callback,

@@ -147,6 +147,21 @@ set_target_properties(
 )
 add_test(NAME TestParser COMMAND TestParser)
 
+# MCP server (the parts that don't depend on the rest of MMapper)
+if(WITH_MCP)
+    add_executable(TestMcp TestMcp.cpp TestMcp.h)
+    add_dependencies(TestMcp mm_mcp)
+    target_link_libraries(TestMcp mm_mcp Qt6::Core Qt6::Network Qt6::Test coverage_config)
+    set_target_properties(
+      TestMcp PROPERTIES
+      CXX_STANDARD 20
+      CXX_STANDARD_REQUIRED ON
+      CXX_EXTENSIONS OFF
+      COMPILE_FLAGS "${WARNING_FLAGS}"
+    )
+    add_test(NAME TestMcp COMMAND TestMcp)
+endif()
+
 # Proxy
 set(proxy_SRCS
     ../src/proxy/GmcpModule.cpp

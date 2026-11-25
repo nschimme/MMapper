@@ -363,6 +363,64 @@ public:
         SUBGROUP();
     } adventurePanel;
 
+    // Settings for the MCP server that lets tools and tests drive MMapper (see docs/mcp.md).
+    struct NODISCARD McpSettings final
+    {
+    public:
+        static constexpr const uint16_t DEFAULT_PORT = 4280;
+
+    private:
+        ChangeMonitor m_changeMonitor;
+        bool m_enabled = false;
+        uint16_t m_port = DEFAULT_PORT;
+        QString m_token; // bearer token clients must send
+
+        // Not saved: what the server is doing right now ("Listening on ...", why it could not
+        // listen, ...). Lives here so the preferences page can show it without a pointer to the
+        // server.
+        ChangeMonitor m_statusMonitor;
+        QString m_status;
+
+    public:
+        explicit McpSettings() = default;
+        ~McpSettings() = default;
+        DELETE_CTORS_AND_ASSIGN_OPS(McpSettings);
+
+    public:
+        NODISCARD bool isEnabled() const { return m_enabled; }
+        NODISCARD uint16_t getPort() const { return m_port; }
+        NODISCARD const QString &getToken() const { return m_token; }
+
+        // Enabling for the first time also creates the token.
+        void setEnabled(bool enabled);
+        void setPort(uint16_t port);
+        void regenerateToken();
+
+        NODISCARD const QString &getStatus() const { return m_status; }
+        void setStatus(const QString &status)
+        {
+            if (m_status == status) {
+                return;
+            }
+            m_status = status;
+            m_statusMonitor.notifyAll();
+        }
+
+        void registerChangeCallback(const ChangeMonitor::Lifetime &lifetime,
+                                    const ChangeMonitor::Function &callback)
+        {
+            return m_changeMonitor.registerChangeCallback(lifetime, callback);
+        }
+        void registerStatusCallback(const ChangeMonitor::Lifetime &lifetime,
+                                    const ChangeMonitor::Function &callback)
+        {
+            return m_statusMonitor.registerChangeCallback(lifetime, callback);
+        }
+
+    private:
+        SUBGROUP();
+    } mcp;
+
     struct NODISCARD AudioSettings final
     {
     public:
@@ -491,6 +549,9 @@ private:
 void setEnteredMain();
 /// Returns a reference to the application configuration object.
 NODISCARD Configuration &setConfig();
+
+/// The settings file in use (the default location, or the one named by MMAPPER_PROFILE_PATH).
+NODISCARD QString getSettingsFilePath();
 NODISCARD const Configuration &getConfig();
 
 using SharedCanvasNamedColorOptions

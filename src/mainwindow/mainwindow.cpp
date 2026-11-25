@@ -33,6 +33,9 @@
 #include "../pathmachine/mmapper2pathmachine.h"
 #include "../preferences/configdialog.h"
 #include "../proxy/connectionlistener.h"
+#ifndef MMAPPER_NO_MCP
+#include "../mcp/McpService.h"
+#endif
 #include "../roompanel/RoomManager.h"
 #include "../roompanel/RoomWidget.h"
 #include "../timers/CTimers.h"
@@ -117,6 +120,10 @@ MainWindow::~MainWindow()
     g_mainWindow = nullptr;
     mmqt::rdisconnect(this);
     async_tasks::cleanup();
+#ifndef MMAPPER_NO_MCP
+    // First: it may be answering a request that is waiting on the objects destroyed below.
+    m_mcpService.reset();
+#endif
     delete m_listener;
     destroyTopLevelWindows();
 }
@@ -440,6 +447,24 @@ MainWindow::MainWindow()
 
     m_defaultExpandedState = saveState();
     readSettings();
+
+#ifndef MMAPPER_NO_MCP
+    // Looked up once: asking for it opens the settings again, which is not free.
+    m_mcpService = std::make_unique<McpService>(McpHost{deref(m_mapData),
+                                                        deref(m_listener),
+                                                        deref(m_pathMachine),
+                                                        getSettingsFilePath(),
+                                                        [this](const QString &path) {
+                                                            return tryStartLoadingMap(path);
+                                                        }},
+                                                deref(m_gameObserver));
+    connect(m_mcpService.get(), &McpService::sig_log, this, &MainWindow::slot_log);
+    connect(this,
+            &MainWindow::sig_mapLoadFinished,
+            m_mcpService.get(),
+            &McpService::slot_onMapLoadFinished);
+#endif
+
     g_mainWindow = this;
 }
 
@@ -2056,6 +2081,22 @@ void MainWindow::showAsyncFailure(const QString &fileName,
     const char *const msg = wasCanceled ? "User canceled the %1 of file %2"
                                         : "Failed to %1 file %2";
     showWarning(tr(msg).arg(modeName, fileName));
+    if (mode == AsyncIOTypeEnum::Load) {
+        emit sig_mapLoadFinished(fileName, false);
+    }
+}
+
+QString MainWindow::tryStartLoadingMap(const QString &path)
+{
+    if (getAsyncIO().isRunningOnBackgroundThread()) {
+        return tr("another file operation is still running");
+    }
+    try {
+        loadFile(MapSource::alloc(path, std::nullopt));
+    } catch (const std::exception &ex) {
+        return QString::fromUtf8(ex.what());
+    }
+    return {}; // the load runs in the background; sig_mapLoadFinished says how it went
 }
 
 void MainWindow::slot_onFindRoom()
@@ -2474,6 +2515,7 @@ void MainWindow::onSuccessfulLoad(const MapLoadData &mapLoadData)
 
     setCurrentFile(mapData.getFileName());
     showStatusShort(tr("File loaded"));
+    emit sig_mapLoadFinished(mapData.getFileName(), true);
 }
 
 void MainWindow::onSuccessfulMerge(const Map &map)

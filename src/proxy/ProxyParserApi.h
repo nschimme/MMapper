@@ -4,6 +4,8 @@
 
 #include "GmcpModule.h"
 
+#include <QByteArray>
+
 class GmcpMessage;
 class Proxy;
 
@@ -51,4 +53,27 @@ public:
 public:
     NODISCARD bool isMudGmcpModuleEnabled(const GmcpModuleTypeEnum &mod) const;
     void gmcpToMud(const GmcpMessage &msg);
+};
+
+// Drives a proxy from the outside, at the same points where real input arrives: what the user
+// types, and what the MUD sends once its telnet stream has been decoded. For tests and tools.
+class NODISCARD ProxyControlApi final
+{
+private:
+    Proxy &m_proxy;
+
+public:
+    explicit ProxyControlApi(Proxy &proxy)
+        : m_proxy{proxy}
+    {}
+
+public:
+    // As if the user typed `line` and pressed Enter (so "_" commands and game input both work).
+    void sendUserInput(const QByteArray &line);
+    // As if the MUD sent these bytes; goAhead marks the end of a prompt.
+    void injectMudBytes(const QByteArray &bytes, bool goAhead);
+    // As if the MUD sent this GMCP message.
+    void injectMudGmcp(const GmcpMessage &msg);
+    // Whether the MUD has agreed to use GMCP; until it has, GMCP sent to it is silently dropped.
+    NODISCARD bool isMudGmcpNegotiated() const;
 };

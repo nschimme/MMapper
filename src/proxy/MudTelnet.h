@@ -85,5 +85,7 @@ public:
     void onRelayNaws(int, int);
     void onRelayTermType(const TelnetTermTypeBytes &);
     void onGmcpToMud(const GmcpMessage &);
+    // Whether the MUD has agreed to use GMCP; until it has, onGmcpToMud() drops messages.
+    NODISCARD bool isGmcpNegotiated() const;
     void onLoginCredentials(const QString &, const QString &);
 };

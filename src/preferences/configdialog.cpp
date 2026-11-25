@@ -16,6 +16,9 @@
 #include "mumeprotocolpage.h"
 #include "parserpage.h"
 #include "pathmachinepage.h"
+#ifndef MMAPPER_NO_MCP
+#include "mcppage.h"
+#endif
 #include "ui_configdialog.h"
 
 #include <QIcon>
@@ -60,6 +63,9 @@ ConfigDialog::ConfigDialog(QWidget *const parent)
     auto audioPage = new AudioPage(this);
     auto mumeProtocolPage = new MumeProtocolPage(this);
     auto pathmachinePage = new PathmachinePage(this);
+#ifndef MMAPPER_NO_MCP
+    auto mcpPage = new McpPage(this);
+#endif
 
     const auto makeSectionHeader = [](const QString &name,
                                       QWidget *const headerParent) -> QWidget * {
@@ -106,6 +112,9 @@ ConfigDialog::ConfigDialog(QWidget *const parent)
     addPage(audioPage, tr("Audio"), ":/icons/audiocfg.png");
     addPage(mumeProtocolPage, tr("Mume Protocol"), ":/icons/mumeprotocolcfg.png");
     addPage(pathmachinePage, tr("Path Machine"), ":/icons/pathmachinecfg.png");
+#ifndef MMAPPER_NO_MCP
+    addPage(mcpPage, tr("MCP Server"), ":/icons/terminal.png");
+#endif
 
     connect(ui->backToTopBtn, &QPushButton::clicked, this, [this]() {
         if (!m_pages.isEmpty()) {
@@ -160,6 +169,9 @@ ConfigDialog::ConfigDialog(QWidget *const parent)
             mumeProtocolPage,
             &MumeProtocolPage::slot_loadConfig);
     connect(this, &ConfigDialog::sig_loadConfig, pathmachinePage, &PathmachinePage::slot_loadConfig);
+#ifndef MMAPPER_NO_MCP
+    connect(this, &ConfigDialog::sig_loadConfig, mcpPage, &McpPage::slot_loadConfig);
+#endif
     connect(graphicsPage,
             &GraphicsPage::sig_graphicsSettingsChanged,
             this,

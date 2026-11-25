@@ -41,6 +41,7 @@ class MumeFallbackSocket;
 class MumeXmlParser;
 class PasswordConfig;
 class PrespammedPath;
+class ProxyControlApi;
 class ProxyMudConnectionApi;
 class ProxyUserGmcpApi;
 class QTcpSocket;
@@ -212,6 +213,13 @@ private:
     NODISCARD bool isConnected() const;
     void connectToMud();
     void disconnectFromMud();
+
+private:
+    friend ProxyControlApi;
+    void sendUserInput(const QByteArray &line);
+    void injectMudBytes(const QByteArray &bytes, bool goAhead);
+    void injectMudGmcp(const GmcpMessage &msg);
+    NODISCARD bool isMudGmcpNegotiated() const;
 
 private:
     friend ProxyMudGmcpApi;

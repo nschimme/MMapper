@@ -8,6 +8,7 @@
 
 #include "../global/utils.h"
 
+#include <array>
 #include <cassert>
 #include <mutex>
 #include <optional>
@@ -17,6 +18,7 @@
 #include <QChar>
 #include <QDir>
 #include <QHostInfo>
+#include <QRandomGenerator>
 #include <QSslSocket>
 #include <QString>
 #include <QStringList>
@@ -198,6 +200,7 @@ ConstString GRP_GROUP_MANAGER = "Group Manager";
 ConstString GRP_HOTKEYS = "Hotkeys";
 ConstString GRP_INFOMARKS_DIALOG = "InfoMarks Dialog";
 ConstString GRP_INTEGRATED_MUD_CLIENT = "Integrated Mud Client";
+ConstString GRP_MCP = "MCP";
 ConstString GRP_MUME_CLIENT_PROTOCOL = "Mume client protocol";
 ConstString GRP_MUME_CLOCK = "Mume Clock";
 ConstString GRP_MUME_NATIVE = "Mume native";
@@ -268,6 +271,9 @@ ConstString KEY_LINES_OF_PEEK_PREVIEW = "Lines of peek preview";
 ConstString KEY_LINES_OF_SCROLLBACK = "Lines of scrollback";
 ConstString KEY_PROXY_LOCAL_PORT = "Local port number";
 ConstString KEY_MAP_MODE = "Map Mode";
+ConstString KEY_MCP_ENABLED = "Enabled";
+ConstString KEY_MCP_PORT = "Port";
+ConstString KEY_MCP_TOKEN = "Token";
 ConstString KEY_GAME_CLIENT = "Game Client";
 ConstString KEY_MUSIC_VOLUME = "Music volume";
 ConstString KEY_SOUND_VOLUME = "Sound volume";
@@ -519,6 +525,7 @@ NODISCARD static uint16_t sanitizeUint16(const int input, const uint16_t default
         GROUP_CALLBACK(callback, GRP_MUME_CLOCK, mumeClock); \
         GROUP_CALLBACK(callback, GRP_ADVENTURE_PANEL, adventurePanel); \
         GROUP_CALLBACK(callback, GRP_AUDIO, audio); \
+        GROUP_CALLBACK(callback, GRP_MCP, mcp); \
         GROUP_CALLBACK(callback, GRP_INTEGRATED_MUD_CLIENT, integratedClient); \
         GROUP_CALLBACK(callback, GRP_INFOMARKS_DIALOG, infomarksDialog); \
         GROUP_CALLBACK(callback, GRP_ROOMEDIT_DIALOG, roomEditDialog); \
@@ -816,6 +823,14 @@ void Configuration::AdventurePanelSettings::read(const QSettings &conf)
     m_displayXPStatus = conf.value(KEY_DISPLAY_XP_STATUS, true).toBool();
 }
 
+void Configuration::McpSettings::read(const QSettings &conf)
+{
+    m_enabled = conf.value(KEY_MCP_ENABLED, false).toBool();
+    m_port = sanitizeUint16(conf.value(KEY_MCP_PORT, static_cast<int>(DEFAULT_PORT)).toInt(),
+                            DEFAULT_PORT);
+    m_token = conf.value(KEY_MCP_TOKEN, QString{}).toString();
+}
+
 void Configuration::AudioSettings::read(const QSettings &conf)
 {
     m_unlocked = (CURRENT_PLATFORM == PlatformEnum::Wasm)
@@ -1009,6 +1024,46 @@ void Configuration::AdventurePanelSettings::write(QSettings &conf) const
     conf.setValue(KEY_DISPLAY_XP_STATUS, m_displayXPStatus);
 }
 
+void Configuration::McpSettings::write(QSettings &conf) const
+{
+    conf.setValue(KEY_MCP_ENABLED, m_enabled);
+    conf.setValue(KEY_MCP_PORT, static_cast<int>(m_port));
+    conf.setValue(KEY_MCP_TOKEN, m_token);
+}
+
+void Configuration::McpSettings::setEnabled(const bool enabled)
+{
+    if (enabled && m_token.isEmpty()) {
+        regenerateToken(); // also notifies
+    }
+    if (m_enabled == enabled) {
+        return;
+    }
+    m_enabled = enabled;
+    m_changeMonitor.notifyAll();
+}
+
+void Configuration::McpSettings::setPort(const uint16_t port)
+{
+    if (m_port == port) {
+        return;
+    }
+    m_port = port;
+    m_changeMonitor.notifyAll();
+}
+
+void Configuration::McpSettings::regenerateToken()
+{
+    // 24 random bytes from the system generator, URL-safe so it is easy to paste into headers.
+    std::array<quint32, 6> words{};
+    QRandomGenerator::system()->fillRange(words.data(), words.size());
+    const QByteArray raw{reinterpret_cast<const char *>(words.data()),
+                         static_cast<qsizetype>(words.size() * sizeof(quint32))};
+    m_token = QString::fromLatin1(
+        raw.toBase64(QByteArray::Base64UrlEncoding | QByteArray::OmitTrailingEquals));
+    m_changeMonitor.notifyAll();
+}
+
 void Configuration::AudioSettings::write(QSettings &conf) const
 {
     if constexpr (CURRENT_PLATFORM != PlatformEnum::Wasm) {
@@ -1064,6 +1119,12 @@ Configuration &setConfig()
     assert(g_thread == std::this_thread::get_id());
     static Configuration conf;
     return conf;
+}
+
+QString getSettingsFilePath()
+{
+    SETTINGS(conf);
+    return conf.fileName();
 }
 
 const Configuration &getConfig()

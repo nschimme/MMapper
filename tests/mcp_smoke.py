@@ -11,8 +11,11 @@ profile (MAP mode, MCP enabled, auto load off, MUD host set to this computer).
 
 It builds a three-room map from injected GMCP, then checks the map tools (map_summary,
 list_rooms, dump_map), the room ids, save_map in every format and loading the copies back,
-wait_for_event, load failures that must not hang, and screenshot. It replaces the map and writes
-only into --workdir (a fresh temporary directory by default). Exits non-zero on any failure.
+wait_for_event, load failures that must not hang, and screenshot. It starts from an empty map,
+replaces the map, and writes its files into --workdir (a fresh temporary directory by default).
+It also changes MMapper's own state: it turns the debug timing overlay off (`_config map
+perf-stats`, which rewrites the settings file) and leaves the canvas on the player's layer. Run it
+against a test profile, never your real settings. Exits non-zero on any failure.
 """
 
 import argparse
@@ -176,6 +179,31 @@ def main():
         r = m.call("load_map", path=p(name), timeout_ms=20000)
         check(f"load_map {name} fails fast", r.get("isError") is True and time.time() - t < 15,
               r["content"][0]["text"][:100])
+    # --- internal and external ids that really differ. A load discards the map first, so the map
+    # is empty now. Leave the first room temporary (visited once): a save does not keep temporary
+    # rooms, so after a reload the surviving rooms are renumbered and the two kinds of id differ.
+    check("the failed loads left an empty map", m.data("map_summary")["rooms"] == 0)
+    for room_id, move in ((1, None), (2, "north"), (3, "east"), (2, "west"), (3, "east")):
+        visit(m, room_id, move)
+    m.data("save_map", path=p("ids.mm2"), overwrite=True)
+    check("the reloaded map dropped the temporary room",
+          m.data("load_map", path=p("ids.mm2"))["rooms"] == 2)
+    st = m.data("get_status")
+    check("internal and external ids differ for the current room",
+          st["currentRoomId"] != st["currentRoomExternalId"], str(st))
+    summ = m.data("map_summary")
+    cur = m.data("get_room")
+    by_ext = m.data("get_room", id=st["currentRoomExternalId"])
+    check("get_status, map_summary and get_room agree on both ids",
+          summ["currentRoomId"] == st["currentRoomId"]
+          and summ["currentRoomExternalId"] == st["currentRoomExternalId"]
+          and cur["internalId"] == st["currentRoomId"] and cur["id"] == st["currentRoomExternalId"]
+          and by_ext["name"] == cur["name"] == "The Mill" and by_ext["internalId"] == st["currentRoomId"],
+          str((st, summ, cur["id"], cur["internalId"])))
+    check("list_rooms uses external ids",
+          sorted(r["id"] for r in m.data("list_rooms")["rooms"]) == sorted(
+              [st["currentRoomExternalId"], st["currentRoomExternalId"] - 1]))
+
     check("a good load works after failed ones", m.data("load_map", path=p("copy.mm2"))["rooms"] == 3)
     events = m.data("read_events", kinds=["map_load"], max=1000)["events"]
     check("map_load events include failures", any(not e["data"]["success"] for e in events))

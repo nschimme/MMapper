@@ -146,6 +146,11 @@ Token=choose-a-long-random-string
 different `Local port number` and MCP `Port` per parallel run. Keep `Auto load` off: it is **on**
 by default, and an autoloaded map races with anything your test loads.
 
+`tests/mcp_smoke.py --port <port> --token <token>` checks the map, save, load, event and
+screenshot tools against a running MMapper with such a profile (MAP mode, MCP on, auto load off). It
+is run by hand, under Xvfb as described below: CI cannot start the application, so it is not part
+of `ctest`.
+
 Running without a display: MMapper needs an OpenGL context at start-up. With no usable GL backend
 it shows a modal "Fatal Error" box and never starts the MCP server, which looks like a hang. In a
 container without a GPU we saw Qt 6.4's `offscreen` platform find no GL backend, so there it cannot

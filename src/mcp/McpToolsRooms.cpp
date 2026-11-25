@@ -192,44 +192,47 @@ void mcpRegisterRoomTools(McpToolRegistry &registry, const McpHost &host)
 
 void mcpRegisterMapInspectionTools(McpToolRegistry &registry, const McpHost &host)
 {
-    registry.addSync(QStringLiteral("map_summary"),
-                     QStringLiteral(
-                         "Summarize the current map: room and marker counts, bounds, rooms per area, "
-                         "the current room, the map file name and whether it has unsaved changes. "
-                         "Does not need a session."),
-                     mcpObjectSchema(),
-                     [&host](const QJsonObject &) {
-                         const Map map = host.mapData.getCurrentMap();
-                         std::map<QString, int> areas;
-                         for (const RoomHandle &room : sortedRooms(map)) {
-                             ++areas[room.getArea().toQString()];
-                         }
-                         QJsonObject areaJson;
-                         for (const auto &[name, count] : areas) {
-                             areaJson[name] = count;
-                         }
+    registry.addSync(
+        QStringLiteral("map_summary"),
+        QStringLiteral("Summarize the current map: room and marker counts, bounds, rooms per area, "
+                       "the current room, the map file name and whether it has unsaved changes. "
+                       "Does not need a session."),
+        mcpObjectSchema(),
+        [&host](const QJsonObject &) {
+            const Map map = host.mapData.getCurrentMap();
+            std::map<QString, int> areas;
+            for (const RoomHandle &room : sortedRooms(map)) {
+                ++areas[room.getArea().toQString()];
+            }
+            QJsonObject areaJson;
+            for (const auto &[name, count] : areas) {
+                areaJson[name] = count;
+            }
 
-                         QJsonObject result;
-                         result[QStringLiteral("rooms")] = static_cast<double>(map.getRoomsCount());
-                         result[QStringLiteral("marks")] = static_cast<double>(map.getMarksCount());
-                         result[QStringLiteral("bounds")] = map.getBounds()
-                                                                ? QJsonValue{boundsToJson(
-                                                                      *map.getBounds())}
-                                                                : QJsonValue{QJsonValue::Null};
-                         result[QStringLiteral("areas")] = areaJson;
-                         // Same names as get_status: currentRoomId is the internal id.
-                         result[QStringLiteral("currentRoomId")] = QJsonValue::Null;
-                         result[QStringLiteral("currentRoomExternalId")] = QJsonValue::Null;
-                         if (const auto id = host.mapData.getCurrentRoomId()) {
-                             result[QStringLiteral("currentRoomId")] = static_cast<double>(
-                                 id->asUint32());
-                             result[QStringLiteral("currentRoomExternalId")] = static_cast<double>(
-                                 map.getExternalRoomId(*id).asUint32());
-                         }
-                         result[QStringLiteral("fileName")] = host.mapData.getFileName();
-                         result[QStringLiteral("modified")] = host.mapData.dataChanged();
-                         return McpToolResult::json(result);
-                     });
+            QJsonObject result;
+            result[QStringLiteral("rooms")] = static_cast<double>(map.getRoomsCount());
+            result[QStringLiteral("marks")] = static_cast<double>(map.getMarksCount());
+            result[QStringLiteral("bounds")] = map.getBounds()
+                                                   ? QJsonValue{boundsToJson(*map.getBounds())}
+                                                   : QJsonValue{QJsonValue::Null};
+            result[QStringLiteral("areas")] = areaJson;
+            // Same names as get_status: currentRoomId is the internal id.
+            result[QStringLiteral("currentRoomId")] = QJsonValue::Null;
+            result[QStringLiteral("currentRoomExternalId")] = QJsonValue::Null;
+            if (const auto id = host.mapData.getCurrentRoomId()) {
+                result[QStringLiteral("currentRoomId")] = static_cast<double>(id->asUint32());
+                result[QStringLiteral("currentRoomExternalId")] = static_cast<double>(
+                    map.getExternalRoomId(*id).asUint32());
+                if (const RoomHandle room = map.findRoomHandle(*id);
+                    room.exists() && room.getServerId() != INVALID_SERVER_ROOMID) {
+                    result[QStringLiteral("currentRoomServerId")] = static_cast<double>(
+                        room.getServerId().asUint32());
+                }
+            }
+            result[QStringLiteral("fileName")] = host.mapData.getFileName();
+            result[QStringLiteral("modified")] = host.mapData.dataChanged();
+            return McpToolResult::json(result);
+        });
 
     registry.addSync(
         QStringLiteral("list_rooms"),
@@ -331,9 +334,9 @@ void mcpRegisterMapInspectionTools(McpToolRegistry &registry, const McpHost &hos
             doc[QStringLiteral("rooms")] = rooms;
             doc[QStringLiteral("roomCount")] = rooms.size();
 
+            const QByteArray bytes = QJsonDocument{doc}.toJson(QJsonDocument::Indented);
             QSaveFile file{path};
-            if (!file.open(QIODevice::WriteOnly)
-                || file.write(QJsonDocument{doc}.toJson(QJsonDocument::Indented)) < 0
+            if (!file.open(QIODevice::WriteOnly) || file.write(bytes) != bytes.size()
                 || !file.commit()) {
                 return McpToolResult::error(QStringLiteral("cannot write the file: ") + path);
             }

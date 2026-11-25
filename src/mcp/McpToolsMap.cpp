@@ -112,8 +112,8 @@ void mcpRegisterMapTools(McpToolRegistry &registry, const McpHost &host, McpWait
             "own file name, its saved baseline (what `_map diff` compares against) and MMapper's "
             "last-used directory are not changed, so it is safe to call in a test. `format` is "
             "mm2 (the default), xml, mmp or web (web writes a directory). With `base_map` only "
-            "the base map is saved. Refuses to replace an existing file or directory unless "
-            "`overwrite` is true. Does not need a session."),
+            "the base map is saved. Refuses to replace an existing file unless `overwrite` is true; a web "
+            "export goes into a new or empty directory. Does not need a session."),
         mcpObjectSchema(
             {{QStringLiteral("path"),
               mcpStringProperty(QStringLiteral("Absolute path of the file (or directory, for "
@@ -159,7 +159,15 @@ void mcpRegisterMapTools(McpToolRegistry &registry, const McpHost &host, McpWait
                                           ? SaveModeEnum::BASEMAP
                                           : SaveModeEnum::FULL;
 
-            if (info.exists()) {
+            // A web export is a directory of files; overwriting would leave the old ones behind, so
+            // it only goes into a new or empty directory.
+            const bool emptyWebDir = isWeb && info.isDir() && QDir{path}.isEmpty();
+            if (isWeb && info.isDir() && !emptyWebDir) {
+                reply(McpToolResult::error(
+                    QStringLiteral("a web export needs a new or empty directory: ") + path));
+                return;
+            }
+            if (info.exists() && !emptyWebDir) {
                 if (!args.value(QStringLiteral("overwrite")).toBool()) {
                     reply(McpToolResult::error(
                         QStringLiteral("it exists; pass overwrite=true to replace it: ") + path));

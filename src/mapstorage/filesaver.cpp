@@ -12,6 +12,7 @@
 #include <stdexcept>
 #include <tuple>
 
+#include <QFile>
 #include <QIODevice>
 
 static constexpr const bool USE_TMP_SUFFIX = CURRENT_PLATFORM != PlatformEnum::Windows;
@@ -54,6 +55,18 @@ void FileSaver::open(const QString &filename) CAN_THROW
 
     if (!file.open(QFile::WriteOnly)) {
         throw std::runtime_error(mmqt::toStdStringUtf8(file.errorString()));
+    }
+}
+
+void FileSaver::discard()
+{
+    auto &file = deref(m_file);
+    if (!file.isOpen()) {
+        return;
+    }
+    file.close();
+    if (USE_TMP_SUFFIX) {
+        std::ignore = QFile::remove(maybe_add_suffix(m_filename));
     }
 }
 

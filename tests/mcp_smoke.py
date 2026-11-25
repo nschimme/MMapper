@@ -22,6 +22,7 @@ import argparse
 import hashlib
 import json
 import os
+import shutil
 import tempfile
 import threading
 import time
@@ -96,7 +97,7 @@ def main():
     ap.add_argument("--token", required=True)
     ap.add_argument("--workdir", help="directory for files the test writes (default: a new temp dir)")
     args = ap.parse_args()
-    work = args.workdir or tempfile.mkdtemp(prefix="mmapper-mcp-smoke-")
+    work = os.path.abspath(args.workdir or tempfile.mkdtemp(prefix="mmapper-mcp-smoke-"))
     os.makedirs(work, exist_ok=True)
     p = lambda name: os.path.join(work, name)  # noqa: E731
     m = Mcp(args.port, args.token)
@@ -110,6 +111,11 @@ def main():
               "screenshot", "mmapper_map", "mmapper_config"):
         check(f"tool {t} is listed", t in tools)
     m.data("open_session", timeout_ms=10000)
+
+    # Start from an empty map even if an earlier run left one loaded: a load that fails still
+    # discards the current map first (see load_map).
+    open(p("empty-start.mm2"), "w").close()
+    m.call("load_map", path=p("empty-start.mm2"), timeout_ms=20000)
 
     # --- build a map: walk the loop so every room is revisited (and so becomes permanent)
     for room_id, move in ((1, None), (2, "north"), (3, "east"), (2, "west"), (1, "south"),
@@ -149,9 +155,12 @@ def main():
               r["content"][0]["text"][:100])
     r = m.call("save_map", path=p("copy.base.mm2"), base_map=True, overwrite=True)
     check("save_map base map", not r.get("isError"), r["content"][0]["text"][:100])
-    r = m.call("save_map", path=p("copy.web"), format="web", overwrite=True)
+    shutil.rmtree(p("copy.web"), ignore_errors=True)  # a web export needs a new or empty directory
+    r = m.call("save_map", path=p("copy.web"), format="web")
     check("save_map web", not r.get("isError") and os.path.isdir(p("copy.web")),
           r["content"][0]["text"][:100])
+    check("save_map refuses a web export into a non-empty directory",
+          m.call("save_map", path=p("copy.web"), format="web", overwrite=True).get("isError") is True)
     check("save_map refuses to overwrite", m.call("save_map", path=p("copy.mm2")).get("isError") is True)
     after = m.data("map_summary")
     check("save_map leaves the map's file name and modified flag alone",
@@ -197,6 +206,7 @@ def main():
     check("get_status, map_summary and get_room agree on both ids",
           summ["currentRoomId"] == st["currentRoomId"]
           and summ["currentRoomExternalId"] == st["currentRoomExternalId"]
+          and summ.get("currentRoomServerId") == st.get("currentRoomServerId") == 3
           and cur["internalId"] == st["currentRoomId"] and cur["id"] == st["currentRoomExternalId"]
           and by_ext["name"] == cur["name"] == "The Mill" and by_ext["internalId"] == st["currentRoomId"],
           str((st, summ, cur["id"], cur["internalId"])))
@@ -212,6 +222,10 @@ def main():
     status = m.data("get_status")
     check("ids still agree after a reload",
           m.data("get_room", id=status["currentRoomExternalId"])["internalId"] == status["currentRoomId"])
+    future = m.data("get_status")["lastEventSeq"] + 1000
+    m.data("inject_mud", text="a line\r\n")
+    check("wait_for_event with a cursor in the future ignores earlier events",
+          m.data("wait_for_event", since=future, kinds=["user_text"], timeout_ms=300)["status"] == "timeout")
     check("wait_for_event times out", m.data("wait_for_event", kinds=["map_save"], timeout_ms=300)["status"] == "timeout")
     check("wait_for_event sees a logged event",
           m.data("wait_for_event", since=0, kinds=["map_load"], data={"success": True})["status"] == "matched")

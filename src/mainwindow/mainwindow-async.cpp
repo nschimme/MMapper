@@ -53,15 +53,23 @@ NODISCARD PollResultEnum wait_for(std::future<T> &future, const std::chrono::mil
                                                               : PollResultEnum::Finished;
 }
 
+// With `silent` (a load started by the MCP server) a storage error is logged instead of shown in a
+// dialog; the caller reports the failure.
 template<typename T>
-NODISCARD std::optional<T> extract(std::future<std::optional<T>> &future, MainWindow &mainWindow)
+NODISCARD std::optional<T> extract(std::future<std::optional<T>> &future,
+                                   MainWindow &mainWindow,
+                                   const bool silent = false)
 {
     try {
         return future.get();
     } catch (const MapStorageError &ex) {
-        mmqt::showCritical(&mainWindow,
-                           MainWindow::tr("MapStorage Error"),
-                           mmqt::toQStringUtf8(ex.what()));
+        if (silent) {
+            mainWindow.slot_log("AbstractMapStorage", mmqt::toQStringUtf8(ex.what()));
+        } else {
+            mmqt::showCritical(&mainWindow,
+                               MainWindow::tr("MapStorage Error"),
+                               mmqt::toQStringUtf8(ex.what()));
+        }
     } catch (const ProgressCanceledException &) {
         const auto msg = "IO operation canceled.";
         mainWindow.slot_log("AbstractMapStorage", msg);
@@ -438,7 +446,7 @@ private:
     void virt_finish(const std::shared_ptr<ProgressCounter> &sharedPc) final
     {
         const bool wasCanceled = deref(sharedPc).hasRequestedCancel();
-        const Result result = mwa_detail::extract(m_future, m_mainWindow);
+        const Result result = mwa_detail::extract(m_future, m_mainWindow, m_headless);
 
         // REVISIT: what if you just wanted to load markers?
         if (wasCanceled || !result || result->mapPair.modified.getRoomsCount() == 0) {
@@ -600,7 +608,12 @@ private:
 
     void finish_saving(const bool success)
     {
-        pMapDestination->finalize();
+        if (independent && !success) {
+            // Do not put a partial file where a good one may be.
+            pMapDestination->discard();
+        } else {
+            pMapDestination->finalize();
+        }
         if constexpr (CURRENT_PLATFORM == PlatformEnum::Wasm) {
             if (success) {
                 assert(pMapDestination->isFileWasm());
@@ -815,18 +828,30 @@ QString MainWindow::startSaving(const QString &fileName,
         return storage;
     });
 
+    // A save that never starts must not replace an existing file with an empty one.
+    const auto giveUp = [&pDest, independent](QString message) {
+        if (independent) {
+            pDest->discard();
+        }
+        return message;
+    };
+
     if (!pStorage || !pStorage->canSave()) {
-        return tr("Selected format cannot save.");
+        return giveUp(tr("Selected format cannot save."));
     }
 
-    getAsyncIO().beginAsyncIO(std::make_unique<AsyncSaver>(*this,
-                                                           pDest,
-                                                           std::move(pStorage),
-                                                           mode,
-                                                           format,
-                                                           independent),
-                              "Saving map...",
-                              AsyncIOTypeEnum::Save);
+    try {
+        getAsyncIO().beginAsyncIO(std::make_unique<AsyncSaver>(*this,
+                                                               pDest,
+                                                               std::move(pStorage),
+                                                               mode,
+                                                               format,
+                                                               independent),
+                                  "Saving map...",
+                                  AsyncIOTypeEnum::Save);
+    } catch (const std::exception &e) {
+        return giveUp(tr("Cannot save %1:\n%2.").arg(fileName, e.what()));
+    }
     return {}; // the save runs in the background; sig_mapSaveFinished says how it went
 }
 

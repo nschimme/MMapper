@@ -117,7 +117,11 @@ void mcpRegisterEventTools(McpToolRegistry &registry, McpEventLog &events, McpWa
             }
             const QJsonObject wanted = args.value(QStringLiteral("data")).toObject();
 
-            auto matches = [kinds, hasRegex, regex, wanted](const McpEvent &e) {
+            auto matches = [since, kinds, hasRegex, regex, wanted](const McpEvent &e) {
+                // A cursor in the future must not match the events that come before it.
+                if (e.seq <= since) {
+                    return false;
+                }
                 if (!kinds.empty() && kinds.count(e.kind) == 0) {
                     return false;
                 }
@@ -132,18 +136,21 @@ void mcpRegisterEventTools(McpToolRegistry &registry, McpEventLog &events, McpWa
                 return true;
             };
 
-            auto matchedReply = [](const McpEvent &e) {
+            // `truncated`: events after `since` were dropped before they could be read, so the
+            // match may not be the first one there was.
+            auto matchedReply = [](const McpEvent &e, const bool truncated) {
                 return McpToolResult::json(
                     QJsonObject{{QStringLiteral("status"), QStringLiteral("matched")},
                                 {QStringLiteral("event"), mcpEventToJson(e)},
-                                {QStringLiteral("nextSeq"), static_cast<double>(e.seq)}});
+                                {QStringLiteral("nextSeq"), static_cast<double>(e.seq)},
+                                {QStringLiteral("truncated"), truncated}});
             };
 
             // Already happened?
             const auto read = events.readSince(since, kinds);
             for (const McpEvent &e : read.events) {
                 if (matches(e)) {
-                    reply(matchedReply(e));
+                    reply(matchedReply(e, read.truncated));
                     return;
                 }
             }
@@ -157,21 +164,25 @@ void mcpRegisterEventTools(McpToolRegistry &registry, McpEventLog &events, McpWa
             std::ignore
                 = waiters.add(matches,
                               timeoutMs,
-                              [&events, matchedReply, truncated = read.truncated, reply](
+                              [&events, since, matchedReply, truncated = read.truncated, reply](
                                   const McpWaiters::Outcome &outcome) {
                                   using Kind = McpWaiters::Outcome::KindEnum;
                                   switch (outcome.kind) {
                                   case Kind::Matched:
-                                      reply(matchedReply(*outcome.event));
+                                      reply(matchedReply(*outcome.event, truncated));
                                       break;
-                                  case Kind::TimedOut:
+                                  case Kind::TimedOut: {
+                                      // Events may have been dropped while we waited.
+                                      const bool lost = truncated
+                                                        || events.readSince(since, {}, 1).truncated;
                                       reply(McpToolResult::json(
                                           QJsonObject{{QStringLiteral("status"),
                                                        QStringLiteral("timeout")},
                                                       {QStringLiteral("nextSeq"),
                                                        static_cast<double>(events.lastSeq())},
-                                                      {QStringLiteral("truncated"), truncated}}));
+                                                      {QStringLiteral("truncated"), lost}}));
                                       break;
+                                  }
                                   case Kind::Cancelled:
                                       reply(McpToolResult::error(outcome.reason));
                                       break;

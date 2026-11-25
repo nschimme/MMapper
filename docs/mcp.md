@@ -58,7 +58,8 @@ they cannot go out of date. This is what the groups are for.
 * **Replaying a MUD**: `inject_mud` and `inject_gmcp` feed MMapper bytes and GMCP as if the MUD had
   sent them, so recorded sessions can be replayed without one.
 * **Map**: `load_map` replaces the map with a file and waits for it, and `get_room` describes a
-  room.
+  room. `map_summary`, `list_rooms` (filter by area, name or bounding box, paged) and `dump_map`
+  (every room as sorted JSON in a file, for diffing) inspect the whole map and need no session.
 * **MMapper commands**: one `mmapper_<command>` tool for every command typed with the command
   prefix (for example `mmapper_search`, `mmapper_dirs`, `mmapper_room`). They are generated from the
   parser's command table, so the list is complete before a session exists and follows the parser

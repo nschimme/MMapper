@@ -1,9 +1,12 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // Copyright (C) 2019 The MMapper Authors
 
+#include "../map/DoorFlags.h"
 #include "../map/ExitDirection.h"
+#include "../map/ExitFlags.h"
 #include "../map/Map.h"
 #include "../map/RoomHandle.h"
+#include "../map/enums.h"
 #include "../map/mmapper2room.h"
 #include "../mapdata/mapdata.h"
 #include "McpBackend.h"
@@ -29,6 +32,18 @@ NODISCARD QString fromView(const std::string_view sv)
     return QString::fromUtf8(sv.data(), static_cast<qsizetype>(sv.size()));
 }
 
+template<typename Enum, typename Flags, typename All>
+NODISCARD QJsonArray flagNames(const Flags &flags, const All &all)
+{
+    QJsonArray names;
+    for (const Enum flag : all) {
+        if (flags.contains(flag)) {
+            names.append(fromView(to_string_view(flag)));
+        }
+    }
+    return names;
+}
+
 NODISCARD QJsonObject roomToJson(const Map &map, const RoomHandle &room)
 {
     QJsonObject obj;
@@ -43,6 +58,13 @@ NODISCARD QJsonObject roomToJson(const Map &map, const RoomHandle &room)
     obj[QStringLiteral("note")] = room.getNote().toQString();
     obj[QStringLiteral("terrain")] = fromView(to_string_view(room.getTerrainType()));
     obj[QStringLiteral("light")] = fromView(to_string_view(room.getLightType()));
+    obj[QStringLiteral("align")] = fromView(to_string_view(room.getAlignType()));
+    obj[QStringLiteral("portable")] = fromView(to_string_view(room.getPortableType()));
+    obj[QStringLiteral("ridable")] = fromView(to_string_view(room.getRidableType()));
+    obj[QStringLiteral("sundeath")] = fromView(to_string_view(room.getSundeathType()));
+    obj[QStringLiteral("mobFlags")] = flagNames<RoomMobFlagEnum>(room.getMobFlags(), ALL_MOB_FLAGS);
+    obj[QStringLiteral("loadFlags")] = flagNames<RoomLoadFlagEnum>(room.getLoadFlags(),
+                                                                   ALL_LOAD_FLAGS);
     obj[QStringLiteral("temporary")] = room.isTemporary();
 
     const Coordinate position = room.getPosition();
@@ -57,12 +79,24 @@ NODISCARD QJsonObject roomToJson(const Map &map, const RoomHandle &room)
         if (!exit.exitIsExit()) {
             continue;
         }
-        QJsonArray targets;
+        // Sorted by external id: the set iterates in internal-id order, which is not stable.
+        std::vector<uint32_t> ids;
         for (const RoomId target : exit.getOutgoingSet()) {
-            targets.append(static_cast<double>(map.getExternalRoomId(target).asUint32()));
+            ids.push_back(map.getExternalRoomId(target).asUint32());
+        }
+        std::sort(ids.begin(), ids.end());
+        QJsonArray targets;
+        for (const uint32_t id : ids) {
+            targets.append(static_cast<double>(id));
         }
         QJsonObject e;
         e[QStringLiteral("to")] = targets;
+        const auto &fields = exit.getExitFields();
+        e[QStringLiteral("exitFlags")] = flagNames<ExitFlagEnum>(fields.exitFlags, ALL_EXIT_FLAGS);
+        if (exit.exitIsDoor()) {
+            e[QStringLiteral("doorFlags")] = flagNames<DoorFlagEnum>(fields.doorFlags,
+                                                                     ALL_DOOR_FLAGS);
+        }
         if (exit.exitIsDoor()) {
             e[QStringLiteral("door")] = exit.getDoorName().toQString();
         }
@@ -254,10 +288,11 @@ void mcpRegisterMapInspectionTools(McpToolRegistry &registry, const McpHost &hos
 
     registry.addSync(
         QStringLiteral("dump_map"),
-        QStringLiteral("Write the whole current map as JSON to a file: every room (as get_room "
-                       "describes it) in ascending id order, with sorted keys, so two dumps can be "
-                       "compared with diff. Refuses to replace an existing file unless "
-                       "`overwrite` is true. Does not need a session."),
+        QStringLiteral(
+            "Write the current map's rooms as JSON to a file: every room (as get_room "
+            "describes it, including flags) in ascending id order, with sorted keys, so "
+            "two dumps can be compared with diff. Infomarks are not included. Refuses to replace an existing file unless "
+            "`overwrite` is true. Does not need a session."),
         mcpObjectSchema({{QStringLiteral("path"),
                           mcpStringProperty(QStringLiteral("Absolute path of the file to write."))},
                          {QStringLiteral("overwrite"),

@@ -42,6 +42,15 @@ private Q_SLOTS:
     static void registryValidationTest();
     static void registryOverrideTest();
 
+    // MCP tools that need nothing from the rest of MMapper
+    static void readEventsToolTest();
+    static void waitForEventLoggedTest();
+    static void waitForEventNewEventTest();
+    static void waitForEventFutureCursorTest();
+    static void waitForEventValidationTest();
+    static void waitForEventTruncationTest();
+    static void toolResultImageTest();
+
     // McpAccess
     static void accessTokenCompareTest();
     static void accessCheckTest();

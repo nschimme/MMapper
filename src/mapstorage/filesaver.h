@@ -44,4 +44,8 @@ public:
     /*! \exception std::runtime_error if the file can't be safely closed.
      */
     void close() CAN_THROW;
+    // Gives up on the file: closes it and, where a temporary file is used, deletes it instead of
+    // renaming it into place, so an existing file at the destination is left as it was. (Where no
+    // temporary file is used the destination was already truncated when it was opened.)
+    void discard();
 };

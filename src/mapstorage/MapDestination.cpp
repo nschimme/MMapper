@@ -114,3 +114,10 @@ void MapDestination::finalize()
         assert(isDirectory());
     }
 }
+
+void MapDestination::discard()
+{
+    if (CURRENT_PLATFORM != PlatformEnum::Wasm && isFileNative()) {
+        deref(m_fileSaver).discard();
+    }
+}

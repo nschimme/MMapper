@@ -15,6 +15,7 @@
 #include "./opengl/OpenGLConfig.h"
 #include "./opengl/OpenGLProber.h"
 
+#include <cstdio>
 #include <cstring>
 #include <memory>
 #include <optional>
@@ -151,6 +152,14 @@ static bool setSurfaceFormat()
             }
         }
         msg += " support to run.";
+        // Always say it on stderr too: a window nobody sees is a hang, to a test.
+        std::fprintf(stderr, "MMapper: %s\n", msg.toUtf8().constData());
+#ifndef MMAPPER_NO_MCP
+        // With the MCP server on, a tool is driving MMapper and nobody is there to close a dialog.
+        if (getConfig().mcp.isEnabled()) {
+            return false;
+        }
+#endif
         QMessageBox::critical(nullptr, "Fatal Error", msg);
         return false;
     }

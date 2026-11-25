@@ -58,6 +58,8 @@ public:
 public slots:
     // A map load finished; tools that started one are waiting to hear.
     void slot_onMapLoadFinished(const QString &fileName, bool success);
+    // A map save finished (only saves started with save_map report here).
+    void slot_onMapSaveFinished(const QString &fileName, bool success);
 
 signals:
     void sig_log(const QString &module, const QString &message);

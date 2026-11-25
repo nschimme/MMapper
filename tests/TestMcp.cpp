@@ -9,11 +9,13 @@
 #include "../src/mcp/McpHttp.h"
 #include "../src/mcp/McpServer.h"
 #include "../src/mcp/McpToolRegistry.h"
+#include "../src/mcp/McpTools.h"
 #include "../src/mcp/McpWaiters.h"
 
 #include <optional>
 #include <set>
 #include <stdexcept>
+#include <tuple>
 #include <vector>
 
 #include <QJsonArray>
@@ -118,6 +120,46 @@ bool throwsInvalidArgument(Fn &&fn)
         return true;
     }
     return false;
+}
+
+// ---- tool helpers ----
+
+struct NODISCARD ToolReply final
+{
+    bool done = false;
+    bool isError = false;
+    QString text;
+    QJsonObject data;
+};
+
+// Runs a tool and waits (with the event loop running) until it has answered.
+ToolReply callTool(const McpToolRegistry &reg,
+                   const QString &name,
+                   const QJsonObject &args,
+                   const int waitMs = 2000)
+{
+    const McpTool *const tool = reg.find(name);
+    ToolReply out;
+    if (tool == nullptr) {
+        return out;
+    }
+    auto reply = std::make_shared<ToolReply>();
+    tool->handler(args, [reply](McpToolResult r) {
+        reply->done = true;
+        reply->isError = r.isError;
+        reply->text = r.text;
+        reply->data = r.structured ? r.structured->toObject() : QJsonObject{};
+    });
+    std::ignore = QTest::qWaitFor([&reply]() { return reply->done; }, waitMs);
+    return *reply;
+}
+
+void makeEvent(McpEventLog &log,
+               const QString &kind,
+               const QString &text,
+               const QJsonObject &data = {})
+{
+    std::ignore = log.append(kind, text, data);
 }
 
 McpToolRegistry makeRegistry()
@@ -1172,6 +1214,198 @@ void TestMcp::dispatcherMalformedInputTest()
     // String ids are valid and are echoed back unchanged.
     const auto r = call(d, R"({"jsonrpc":"2.0","id":"abc","method":"ping"})");
     QCOMPARE(toObject(*r->body).value("id").toString(), QString("abc"));
+}
+
+// ============================= tools without MMapper =============================
+
+void TestMcp::readEventsToolTest()
+{
+    McpEventLog log;
+    McpWaiters waiters;
+    McpToolRegistry reg;
+    mcpRegisterEventTools(reg, log, waiters);
+
+    makeEvent(log, "user_text", "one");
+    makeEvent(log, "prompt", "");
+    makeEvent(log, "user_text", "two");
+
+    const auto all = callTool(reg, "read_events", {});
+    QVERIFY(all.done && !all.isError);
+    QCOMPARE(all.data.value("events").toArray().size(), 3);
+    QCOMPARE(all.data.value("nextSeq").toInt(), 3);
+    QCOMPARE(all.data.value("truncated").toBool(true), false);
+
+    const auto texts = callTool(reg,
+                                "read_events",
+                                {{"kinds", QJsonArray{"user_text"}}, {"max", 1}});
+    QCOMPARE(texts.data.value("events").toArray().size(), 1);
+
+    const auto later = callTool(reg, "read_events", {{"since", 2}});
+    QCOMPARE(later.data.value("events").toArray().size(), 1);
+
+    QVERIFY(callTool(reg, "read_events", {{"since", -1}}).isError);
+}
+
+void TestMcp::waitForEventLoggedTest()
+{
+    McpEventLog log;
+    McpWaiters waiters;
+    log.setOnAppend([&waiters](const McpEvent &e) { waiters.onEvent(e); });
+    McpToolRegistry reg;
+    mcpRegisterEventTools(reg, log, waiters);
+
+    makeEvent(log, "map_load", "a", {{"success", false}});
+    makeEvent(log, "map_load", "b", {{"success", true}});
+    makeEvent(log, "user_text", "hello   world");
+
+    // Events that are already logged count, in order, and the answer carries the cursor.
+    const auto hit = callTool(reg,
+                              "wait_for_event",
+                              {{"since", 0},
+                               {"kinds", QJsonArray{"map_load"}},
+                               {"data", QJsonObject{{"success", true}}}});
+    QVERIFY(hit.done && !hit.isError);
+    QCOMPARE(hit.data.value("status").toString(), QString("matched"));
+    QCOMPARE(hit.data.value("event").toObject().value("text").toString(), QString("b"));
+    QCOMPARE(hit.data.value("nextSeq").toInt(), 2);
+    QCOMPARE(hit.data.value("truncated").toBool(true), false);
+
+    const auto regex = callTool(reg,
+                                "wait_for_event",
+                                {{"since", 0}, {"text_regex", "hello\\s+world"}});
+    QCOMPARE(regex.data.value("status").toString(), QString("matched"));
+    QCOMPARE(regex.data.value("event").toObject().value("kind").toString(), QString("user_text"));
+
+    // Nothing matches: it times out, and says where to continue from.
+    const auto miss = callTool(reg,
+                               "wait_for_event",
+                               {{"since", 0},
+                                {"kinds", QJsonArray{"map_load"}},
+                                {"data", QJsonObject{{"success", 5}}},
+                                {"timeout_ms", 100}});
+    QVERIFY(miss.done && !miss.isError);
+    QCOMPARE(miss.data.value("status").toString(), QString("timeout"));
+    QCOMPARE(miss.data.value("nextSeq").toInt(), 3);
+    QCOMPARE(waiters.pending(), size_t{0});
+}
+
+void TestMcp::waitForEventNewEventTest()
+{
+    McpEventLog log;
+    McpWaiters waiters;
+    log.setOnAppend([&waiters](const McpEvent &e) { waiters.onEvent(e); });
+    McpToolRegistry reg;
+    mcpRegisterEventTools(reg, log, waiters);
+
+    makeEvent(log, "user_text", "already there");
+
+    // Without `since` only events from now on count, so the one above must not match.
+    QTimer::singleShot(30, [&log]() {
+        makeEvent(log, "prompt", "");
+        makeEvent(log, "user_text", "fresh");
+    });
+    const auto r = callTool(reg, "wait_for_event", {{"kinds", QJsonArray{"user_text"}}});
+    QVERIFY(r.done && !r.isError);
+    QCOMPARE(r.data.value("status").toString(), QString("matched"));
+    QCOMPARE(r.data.value("event").toObject().value("text").toString(), QString("fresh"));
+    QCOMPARE(r.data.value("nextSeq").toInt(), 3);
+}
+
+void TestMcp::waitForEventFutureCursorTest()
+{
+    McpEventLog log;
+    McpWaiters waiters;
+    log.setOnAppend([&waiters](const McpEvent &e) { waiters.onEvent(e); });
+    McpToolRegistry reg;
+    mcpRegisterEventTools(reg, log, waiters);
+
+    makeEvent(log, "user_text", "one");
+
+    // A cursor ahead of the log must not match the events that come before it.
+    QTimer::singleShot(20, [&log]() { makeEvent(log, "user_text", "two"); });
+    const auto r = callTool(reg,
+                            "wait_for_event",
+                            {{"since", 1000},
+                             {"kinds", QJsonArray{"user_text"}},
+                             {"timeout_ms", 150}});
+    QVERIFY(r.done && !r.isError);
+    QCOMPARE(r.data.value("status").toString(), QString("timeout"));
+}
+
+void TestMcp::waitForEventValidationTest()
+{
+    McpEventLog log;
+    McpWaiters waiters;
+    McpToolRegistry reg;
+    mcpRegisterEventTools(reg, log, waiters);
+
+    const auto bad = callTool(reg, "wait_for_event", {{"text_regex", "(["}});
+    QVERIFY(bad.done);
+    QVERIFY(bad.isError);
+    QVERIFY(bad.text.contains("text_regex"));
+    QCOMPARE(waiters.pending(), size_t{0});
+}
+
+void TestMcp::waitForEventTruncationTest()
+{
+    McpEventLog log{3, 1024 * 1024}; // keeps only the last three events
+    McpWaiters waiters;
+    log.setOnAppend([&waiters](const McpEvent &e) { waiters.onEvent(e); });
+    McpToolRegistry reg;
+    mcpRegisterEventTools(reg, log, waiters);
+
+    for (int i = 0; i < 10; ++i) {
+        makeEvent(log, "user_text", QString::number(i));
+    }
+
+    // The first events after the cursor are gone: a match is still found, but the caller is told.
+    const auto matched = callTool(reg, "wait_for_event", {{"since", 0}});
+    QCOMPARE(matched.data.value("status").toString(), QString("matched"));
+    QCOMPARE(matched.data.value("truncated").toBool(false), true);
+
+    // Events dropped while waiting are reported when the wait times out.
+    McpEventLog log2{3, 1024 * 1024};
+    McpWaiters waiters2;
+    log2.setOnAppend([&waiters2](const McpEvent &e) { waiters2.onEvent(e); });
+    McpToolRegistry reg2;
+    mcpRegisterEventTools(reg2, log2, waiters2);
+    makeEvent(log2, "user_text", "x");
+    QTimer::singleShot(20, [&log2]() {
+        for (int i = 0; i < 6; ++i) {
+            makeEvent(log2, "other", "y");
+        }
+    });
+    const auto timedOut = callTool(reg2,
+                                   "wait_for_event",
+                                   {{"since", 1},
+                                    {"kinds", QJsonArray{"nothing"}},
+                                    {"timeout_ms", 150}});
+    QCOMPARE(timedOut.data.value("status").toString(), QString("timeout"));
+    QCOMPARE(timedOut.data.value("truncated").toBool(false), true);
+    QCOMPARE(timedOut.data.value("nextSeq").toInt(), 7);
+}
+
+void TestMcp::toolResultImageTest()
+{
+    McpToolRegistry reg;
+    const QByteArray png = QByteArray::fromHex("89504e470d0a1a0a0102");
+    reg.addSync("pic", "Returns an image.", mcpObjectSchema(), [png](const QJsonObject &) {
+        return McpToolResult::image("2x2 PNG", png);
+    });
+    const McpDispatcher d{reg, "MMapper", "1"};
+
+    const auto r = call(d, rpc("tools/call", {{"name", "pic"}}));
+    QVERIFY(r->body);
+    const auto result = toObject(*r->body).value("result").toObject();
+    QCOMPARE(result.value("isError").toBool(true), false);
+    const auto content = result.value("content").toArray();
+    QCOMPARE(content.size(), 2);
+    QCOMPARE(content[0].toObject().value("type").toString(), QString("text"));
+    QCOMPARE(content[0].toObject().value("text").toString(), QString("2x2 PNG"));
+    QCOMPARE(content[1].toObject().value("type").toString(), QString("image"));
+    QCOMPARE(content[1].toObject().value("mimeType").toString(), QString("image/png"));
+    QCOMPARE(QByteArray::fromBase64(content[1].toObject().value("data").toString().toLatin1()), png);
+    QVERIFY(!result.contains("structuredContent"));
 }
 
 QTEST_MAIN(TestMcp)

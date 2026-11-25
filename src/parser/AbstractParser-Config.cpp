@@ -283,6 +283,17 @@ void AbstractParser::doConfig(const StringView cmd)
                        std::move(help)));
     };
 
+    // Runs a view action on the map canvas, or says there is none (e.g. no window).
+    const auto onCanvas = [](User &user, const std::function<void(MapCanvasWindow &)> &action) {
+        auto &os = user.getOstream();
+        if (auto primary = MapCanvasWindow::getPrimary()) {
+            action(*primary);
+            send_ok(os);
+        } else {
+            os << "There is no map window.\n";
+        }
+    };
+
     const auto configSyntax = syn(
         syn("mode",
             syn("play",
@@ -439,6 +450,33 @@ void AbstractParser::doConfig(const StringView cmd)
             syn("perf-stats",
                 syn("set", opt("enabled", advanced.printPerfStats, "enable/disable stats"))),
             zoomSyntax,
+            syn("layer",
+                syn("up",
+                    Accept(
+                        [this, onCanvas](User &user, auto) {
+                            onCanvas(user, [](MapCanvasWindow &canvas) { canvas.slot_layerUp(); });
+                        },
+                        "show the layer above")),
+                syn("down",
+                    Accept(
+                        [this, onCanvas](User &user, auto) {
+                            onCanvas(user, [](MapCanvasWindow &canvas) { canvas.slot_layerDown(); });
+                        },
+                        "show the layer below")),
+                syn("reset",
+                    Accept(
+                        [this, onCanvas](User &user, auto) {
+                            onCanvas(user,
+                                     [](MapCanvasWindow &canvas) { canvas.slot_layerReset(); });
+                        },
+                        "go back to the player's layer"))),
+            syn("center",
+                Accept(
+                    [this, onCanvas](User &user, auto) {
+                        onCanvas(user,
+                                 [](MapCanvasWindow &canvas) { canvas.slot_centerOnPlayer(); });
+                    },
+                    "center the map on the player's room")),
             syn("3d-camera",
                 syn("set",
                     opt("enabled", advanced.use3D, "enable/disable 3d camera"),

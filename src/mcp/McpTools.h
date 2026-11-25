@@ -22,8 +22,8 @@ void mcpRegisterStatusTools(McpToolRegistry &registry,
                             McpEventLog &events,
                             McpSession &session);
 
-// read_events
-void mcpRegisterEventTools(McpToolRegistry &registry, McpEventLog &events);
+// read_events, wait_for_event
+void mcpRegisterEventTools(McpToolRegistry &registry, McpEventLog &events, McpWaiters &waiters);
 
 // open_session, close_session
 void mcpRegisterSessionTools(McpToolRegistry &registry,
@@ -56,7 +56,7 @@ void mcpRegisterDriveTools(McpToolRegistry &registry,
 // inject_mud, inject_gmcp
 void mcpRegisterInjectTools(McpToolRegistry &registry, const McpHost &host);
 
-// load_map
+// load_map, save_map
 void mcpRegisterMapTools(McpToolRegistry &registry, const McpHost &host, McpWaiters &waiters);
 
 // One tool per MMapper command (the ones typed with the command prefix, e.g. _search), built
@@ -68,3 +68,6 @@ void mcpRegisterCommandTools(McpToolRegistry &registry,
 
 // get_room
 void mcpRegisterRoomTools(McpToolRegistry &registry, const McpHost &host);
+
+// map_summary, list_rooms, dump_map
+void mcpRegisterMapInspectionTools(McpToolRegistry &registry, const McpHost &host);

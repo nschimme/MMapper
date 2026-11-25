@@ -72,7 +72,13 @@ NODISCARD QJsonObject toolResultToJson(const McpToolResult &r)
     textItem[QStringLiteral("text")] = r.text;
 
     QJsonObject obj;
-    obj[QStringLiteral("content")] = QJsonArray{textItem};
+    QJsonArray content{textItem};
+    if (r.png) {
+        content.append(QJsonObject{{QStringLiteral("type"), QStringLiteral("image")},
+                                   {QStringLiteral("data"), QString::fromLatin1(r.png->toBase64())},
+                                   {QStringLiteral("mimeType"), QStringLiteral("image/png")}});
+    }
+    obj[QStringLiteral("content")] = content;
     obj[QStringLiteral("isError")] = r.isError;
     if (r.structured && r.structured->isObject()) {
         // structuredContent must be an object

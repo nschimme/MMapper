@@ -5,6 +5,8 @@
 
 #include "../configuration/configuration.h"
 #include "../global/Version.h"
+#include "../map/Map.h"
+#include "../map/RoomHandle.h"
 #include "../mapdata/mapdata.h"
 #include "../observer/gameobserver.h"
 #include "../pathmachine/mmapper2pathmachine.h"
@@ -56,6 +58,17 @@ void McpService::slot_onMapLoadFinished(const QString &fileName, const bool succ
     std::ignore = m_events.append(QStringLiteral("map_load"), fileName, data);
 }
 
+void McpService::slot_onMapSaveFinished(const QString &fileName, const bool success)
+{
+    if (m_observing == nullptr) {
+        return;
+    }
+    QJsonObject data;
+    data[QStringLiteral("file")] = fileName;
+    data[QStringLiteral("success")] = success;
+    std::ignore = m_events.append(QStringLiteral("map_save"), fileName, data);
+}
+
 void McpService::setCollecting(const bool collect)
 {
     if (collect == (m_observing != nullptr)) {
@@ -105,6 +118,14 @@ void McpService::setCollecting(const bool collect)
         const auto id = m_host.mapData.getCurrentRoomId();
         data[QStringLiteral("roomId")] = id ? QJsonValue{static_cast<double>(id->asUint32())}
                                             : QJsonValue{QJsonValue::Null};
+        data[QStringLiteral("externalRoomId")] = QJsonValue::Null;
+        if (id) {
+            const Map map = m_host.mapData.getCurrentMap();
+            if (const RoomHandle room = map.findRoomHandle(*id); room.exists()) {
+                data[QStringLiteral("externalRoomId")] = static_cast<double>(
+                    room.getIdExternal().asUint32());
+            }
+        }
         data[QStringLiteral("forced")] = forced;
         std::ignore = m_events.append(QStringLiteral("position"), {}, data);
     };

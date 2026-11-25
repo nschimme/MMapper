@@ -49,4 +49,6 @@ public:
     NODISCARD QByteArray getWasmBufferData() const;
 
     void finalize();
+    // Abandons a save that failed or never started: see FileSaver::discard().
+    void discard();
 };

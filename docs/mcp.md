@@ -49,7 +49,8 @@ they cannot go out of date. This is what the groups are for.
 
 * **State**: `get_status` (call it first; it reports what MMapper is actually configured to do and
   which session exists) and `read_events` (what happened since a cursor: text shown to the user,
-  prompts, GMCP, what was sent to the MUD, connection changes, position changes and map loads).
+  prompts, GMCP, what was sent to the MUD, connection changes, position changes and map loads) and `wait_for_event` (block until an event matches a kind, a text regular expression and/or
+  data values; events already logged after `since` count, so acting then waiting has no race).
 * **Session**: `open_session` and `close_session` start and end a client session without a telnet
   client, because the map, parser and MUD connection hang off one. A session that belongs to a real
   client is never replaced or closed.
@@ -58,7 +59,22 @@ they cannot go out of date. This is what the groups are for.
 * **Replaying a MUD**: `inject_mud` and `inject_gmcp` feed MMapper bytes and GMCP as if the MUD had
   sent them, so recorded sessions can be replayed without one.
 * **Map**: `load_map` replaces the map with a file and waits for it, and `get_room` describes a
-  room.
+  room. `map_summary`, `list_rooms` (filter by area, name or bounding box, paged) and `dump_map`
+  (every room as sorted JSON in a file, for diffing) inspect the whole map and need no session.
+  `save_map` writes an independent copy (mm2, xml, mmp or web, or just the base map); unlike File →
+  Save it does not change the map's file name, what `_map diff` compares against, or the last-used
+  directory. A save or load finishing shows up in `read_events` as `map_save` / `map_load`. Room
+  ids: `currentRoomId` is MMapper's internal id, which a save and reload renumbers; the external
+  id (`currentRoomExternalId`, `id` in room JSON) is what `get_room` and `list_rooms` take; the
+  server id is the MUD's own and is not always present. `dump_map` leaves out the internal id so
+  two dumps of the same map compare equal across a save and reload. The same thing as a player command is `_map save-copy <name>` (a plain
+  file name, saved next to the maps the file dialogs use, never over an existing file), which
+  `mmapper_map` also reaches. Rooms the game has only
+  reported once are temporary and are not saved; walk back through them first. `screenshot` returns
+  MMapper's own rendering of the map canvas as a PNG (needs a GL context, see below); right after a
+  load it can still say "the map isn't ready yet", so take another one a moment later. Debug builds draw a timing overlay
+  (`_config map perf-stats set enabled false` turns it off); `_config map layer up|down|reset`,
+  `_config map center` and `_config map zoom set <n>` choose what is shown.
 * **MMapper commands**: one `mmapper_<command>` tool for every command typed with the command
   prefix (for example `mmapper_search`, `mmapper_dirs`, `mmapper_room`). They are generated from the
   parser's command table, so the list is complete before a session exists and follows the parser
@@ -130,5 +146,21 @@ Token=choose-a-long-random-string
 different `Local port number` and MCP `Port` per parallel run. Keep `Auto load` off: it is **on**
 by default, and an autoloaded map races with anything your test loads.
 
-Not every Qt build has the `offscreen` platform plugin; where it does,
-`QT_QPA_PLATFORM=offscreen` runs MMapper without a window (the CI does this).
+`tests/mcp_smoke.py --port <port> --token <token>` checks the map, save, load, event and
+screenshot tools against a running MMapper with such a profile (MAP mode, MCP on, auto load off). It
+is run by hand, under Xvfb as described below: CI cannot start the application, so it is not part
+of `ctest`.
+
+Running without a display: MMapper needs an OpenGL context at start-up. With no usable GL backend
+it shows a modal "Fatal Error" box and never starts the MCP server, which looks like a hang. In a
+container without a GPU we saw Qt 6.4's `offscreen` platform find no GL backend, so there it cannot
+start the application (the unit tests the CI runs under `offscreen` do not start it). What worked there was a virtual
+display with Mesa's software renderer (packages: `xvfb`, `libgl1-mesa-dri`,
+`libxcb-cursor0` and Qt's xcb dependencies, `gstreamer1.0-plugins-base` and `-good`; without the
+GStreamer plugins Qt's media player crashes the start-up):
+
+```
+Xvfb :99 -screen 0 1280x800x24 &
+DISPLAY=:99 LIBGL_ALWAYS_SOFTWARE=1 QT_QPA_PLATFORM=xcb \
+    MMAPPER_PROFILE_PATH=/path/to/profile.ini mmapper
+```

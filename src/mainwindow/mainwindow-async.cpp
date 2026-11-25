@@ -53,15 +53,23 @@ NODISCARD PollResultEnum wait_for(std::future<T> &future, const std::chrono::mil
                                                               : PollResultEnum::Finished;
 }
 
+// With `silent` (a load started by the MCP server) a storage error is logged instead of shown in a
+// dialog; the caller reports the failure.
 template<typename T>
-NODISCARD std::optional<T> extract(std::future<std::optional<T>> &future, MainWindow &mainWindow)
+NODISCARD std::optional<T> extract(std::future<std::optional<T>> &future,
+                                   MainWindow &mainWindow,
+                                   const bool silent = false)
 {
     try {
         return future.get();
     } catch (const MapStorageError &ex) {
-        mmqt::showCritical(&mainWindow,
-                           MainWindow::tr("MapStorage Error"),
-                           mmqt::toQStringUtf8(ex.what()));
+        if (silent) {
+            mainWindow.slot_log("AbstractMapStorage", mmqt::toQStringUtf8(ex.what()));
+        } else {
+            mmqt::showCritical(&mainWindow,
+                               MainWindow::tr("MapStorage Error"),
+                               mmqt::toQStringUtf8(ex.what()));
+        }
     } catch (const ProgressCanceledException &) {
         const auto msg = "IO operation canceled.";
         mainWindow.slot_log("AbstractMapStorage", msg);
@@ -366,8 +374,22 @@ void MainWindow::AsyncIO::reset(const NotifyEnum notify)
     }
 }
 
+void MainWindow::afterAsyncTaskEnds(std::function<void()> notice)
+{
+    if (!getAsyncIO().isBusy()) {
+        notice(); // nothing to wait for; a queued notice would otherwise fire at some later task
+        return;
+    }
+    m_afterAsyncTask.push_back(std::move(notice));
+}
+
 void MainWindow::asyncTaskEnded(const QString &taskName)
 {
+    auto notices = std::exchange(m_afterAsyncTask, {});
+    for (const auto &notice : notices) {
+        notice();
+    }
+
     if (getAsyncIO().isWaitingForSaveAtShutdown()) {
         qInfo() << "async task" << taskName << "ended; closing mmapper.";
         show();
@@ -383,12 +405,17 @@ private:
     using Future = std::future<Result>;
 
 private:
+    // A load started by the MCP server reports failure through sig_mapLoadFinished instead of a
+    // modal dialog, which nobody is there to close.
+    const bool m_headless;
     Promise m_promise;
     Future m_future = m_promise.get_future();
 
 public:
-    explicit AsyncLoader(MainWindow &mw, const QString &name, SharedDevice pd, UniqueStorage ps)
+    explicit AsyncLoader(
+        MainWindow &mw, const QString &name, SharedDevice pd, UniqueStorage ps, const bool headless)
         : AsyncBase{"Map Loader", mw, name, std::move(pd), std::move(ps)}
+        , m_headless{headless}
     {}
     ~AsyncLoader() final;
 
@@ -419,11 +446,18 @@ private:
     void virt_finish(const std::shared_ptr<ProgressCounter> &sharedPc) final
     {
         const bool wasCanceled = deref(sharedPc).hasRequestedCancel();
-        const Result result = mwa_detail::extract(m_future, m_mainWindow);
+        const Result result = mwa_detail::extract(m_future, m_mainWindow, m_headless);
 
         // REVISIT: what if you just wanted to load markers?
         if (wasCanceled || !result || result->mapPair.modified.getRoomsCount() == 0) {
-            m_mainWindow.showAsyncFailure(m_fileName, AsyncIOTypeEnum::Load, wasCanceled);
+            if (m_headless) {
+                MainWindow *const mw = &m_mainWindow;
+                mw->afterAsyncTaskEnds([mw, fileName = m_fileName]() {
+                    emit mw->sig_mapLoadFinished(fileName, false);
+                });
+            } else {
+                m_mainWindow.showAsyncFailure(m_fileName, AsyncIOTypeEnum::Load, wasCanceled);
+            }
             return;
         }
 
@@ -510,6 +544,9 @@ private:
 private:
     const SaveModeEnum mode;
     const SaveFormatEnum format;
+    // An independent copy (made for the MCP server) does not become "the" file: it leaves the
+    // file name, the saved baseline and the last-used directory alone, and never shows a dialog.
+    const bool independent;
     const SharedMapDestination pMapDestination;
 
     Promise m_promise;
@@ -520,10 +557,12 @@ public:
                         SharedMapDestination pDest,
                         UniqueStorage ps,
                         const SaveModeEnum _mode,
-                        const SaveFormatEnum _format)
+                        const SaveFormatEnum _format,
+                        const bool _independent)
         : AsyncBase{"Map Saver", mw, pDest->getFileName(), pDest->getIODevice(), std::move(ps)}
         , mode{_mode}
         , format{_format}
+        , independent{_independent}
         , pMapDestination(std::move(pDest))
     {
         if (!pMapDestination) {
@@ -569,7 +608,12 @@ private:
 
     void finish_saving(const bool success)
     {
-        pMapDestination->finalize();
+        if (independent && !success) {
+            // Do not put a partial file where a good one may be.
+            pMapDestination->discard();
+        } else {
+            pMapDestination->finalize();
+        }
         if constexpr (CURRENT_PLATFORM == PlatformEnum::Wasm) {
             if (success) {
                 assert(pMapDestination->isFileWasm());
@@ -580,12 +624,39 @@ private:
 
         m_mainWindow.getAsyncIO().resetExtraBlockers();
 
+        if (independent) {
+            // There is no dialog and no "File saved" for a copy, so say how it went here.
+            const QString message = success ? tr("Saved a copy of the map to %1").arg(m_fileName)
+                                            : tr("Could not save a copy of the map to %1")
+                                                  .arg(m_fileName);
+            m_mainWindow.showStatusShort(message);
+            m_mainWindow.slot_log("MapSaver", message);
+        }
+
         if (!success) {
-            m_mainWindow.showAsyncFailure(m_fileName, AsyncIOTypeEnum::Save, false);
+            if (independent) {
+                notifySaveFinished(false);
+            } else {
+                m_mainWindow.showAsyncFailure(m_fileName, AsyncIOTypeEnum::Save, false);
+            }
             return;
         }
 
-        m_mainWindow.onSuccessfulSave(mode, format, m_fileName);
+        if (!independent) {
+            m_mainWindow.onSuccessfulSave(mode, format, m_fileName);
+        }
+        notifySaveFinished(true);
+    }
+
+    // This runs inside the task's own finish step, and the task is only released after it
+    // returns. A listener (the MCP server) that starts the next file operation as soon as it
+    // hears about this one must not find the old task still there.
+    void notifySaveFinished(const bool success)
+    {
+        MainWindow *const mw = &m_mainWindow;
+        mw->afterAsyncTaskEnds([mw, fileName = m_fileName, success]() {
+            emit mw->sig_mapSaveFinished(fileName, success);
+        });
     }
 };
 
@@ -632,13 +703,20 @@ void MainWindow::loadFile(std::shared_ptr<MapSource> pSource)
         getAsyncIO().beginAsyncIO(std::make_unique<AsyncLoader>(*this,
                                                                 source.getFileName(),
                                                                 source.getIODevice(),
-                                                                std::move(pStorage)),
+                                                                std::move(pStorage),
+                                                                m_headlessLoad),
                                   "Loading map...",
                                   AsyncIOTypeEnum::Load);
     } catch (const std::exception &ex) {
+        if (m_headlessLoad) {
+            throw; // the caller reports it; there is nobody to read a dialog
+        }
         showWarning(tr("Cannot open file %1:\n%2.").arg(source.getFileName(), ex.what()));
         return;
     } catch (...) {
+        if (m_headlessLoad) {
+            throw std::runtime_error("unknown exception");
+        }
         showWarning(tr("Cannot open file %1:\n%2.").arg(source.getFileName(), "Unknown exception"));
         return;
     }
@@ -701,12 +779,33 @@ bool MainWindow::saveFile(const QString &fileName,
         return false;
     }
 
+    if (const QString error = startSaving(fileName, mode, format, false); !error.isEmpty()) {
+        showWarning(error);
+        return false;
+    }
+    return true;
+}
+
+QString MainWindow::tryStartSavingMap(const QString &fileName,
+                                      const SaveModeEnum mode,
+                                      const SaveFormatEnum format)
+{
+    if (getAsyncIO().isBusy()) {
+        return tr("another file operation is still running");
+    }
+    return startSaving(fileName, mode, format, true);
+}
+
+QString MainWindow::startSaving(const QString &fileName,
+                                const SaveModeEnum mode,
+                                const SaveFormatEnum format,
+                                const bool independent)
+{
     std::shared_ptr<MapDestination> pDest = nullptr;
     try {
         pDest = MapDestination::alloc(fileName, format);
     } catch (const std::exception &e) {
-        showWarning(tr("Cannot set up save destination %1:\n%2.").arg(fileName, e.what()));
-        return false;
+        return tr("Cannot set up save destination %1:\n%2.").arg(fileName, e.what());
     }
 
     auto pStorage = std::invoke([this, format, pDest]() -> std::unique_ptr<AbstractMapStorage> {
@@ -729,16 +828,31 @@ bool MainWindow::saveFile(const QString &fileName,
         return storage;
     });
 
+    // A save that never starts must not replace an existing file with an empty one.
+    const auto giveUp = [&pDest, independent](QString message) {
+        if (independent) {
+            pDest->discard();
+        }
+        return message;
+    };
+
     if (!pStorage || !pStorage->canSave()) {
-        showWarning(tr("Selected format cannot save."));
-        return false;
+        return giveUp(tr("Selected format cannot save."));
     }
 
-    getAsyncIO()
-        .beginAsyncIO(std::make_unique<AsyncSaver>(*this, pDest, std::move(pStorage), mode, format),
-                      "Saving map...",
-                      AsyncIOTypeEnum::Save);
-    return true;
+    try {
+        getAsyncIO().beginAsyncIO(std::make_unique<AsyncSaver>(*this,
+                                                               pDest,
+                                                               std::move(pStorage),
+                                                               mode,
+                                                               format,
+                                                               independent),
+                                  "Saving map...",
+                                  AsyncIOTypeEnum::Save);
+    } catch (const std::exception &e) {
+        return giveUp(tr("Cannot save %1:\n%2.").arg(fileName, e.what()));
+    }
+    return {}; // the save runs in the background; sig_mapSaveFinished says how it went
 }
 
 bool MainWindow::slot_generateBaseMap()

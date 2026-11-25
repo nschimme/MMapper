@@ -17,6 +17,7 @@
 
 #include <functional>
 #include <memory>
+#include <vector>
 
 #include <QPointer>
 #include <QString>
@@ -317,11 +318,20 @@ private:
 
 public:
     NODISCARD bool saveFile(const QString &fileName, SaveModeEnum mode, SaveFormatEnum format);
+    // Starts the save in the background. Returns why it could not start (without showing a
+    // dialog), or an empty string. With `independent` the file does not become the map's file.
+    NODISCARD QString startSaving(const QString &fileName,
+                                  SaveModeEnum mode,
+                                  SaveFormatEnum format,
+                                  bool independent);
     void loadFile(std::shared_ptr<MapSource> source);
     void setCurrentFile(const QString &fileName);
 
 private:
     void asyncTaskEnded(const QString &taskName);
+    // Runs `notice` once the current file operation has been fully released, so a listener that
+    // starts the next operation straight away does not find the old one still there.
+    void afterAsyncTaskEnds(std::function<void()> notice);
     void showAsyncFailure(const QString &fileName, AsyncIOTypeEnum mode, bool wasCanceled);
     NODISCARD std::unique_ptr<AbstractMapStorage> getLoadOrMergeMapStorage(
         std::shared_ptr<MapSource> &source);
@@ -412,12 +422,19 @@ private:
     // Starts loading a map file in the background. Returns why it could not start, or an empty
     // string; sig_mapLoadFinished says how the load went.
     NODISCARD QString tryStartLoadingMap(const QString &path);
+    std::vector<std::function<void()>> m_afterAsyncTask;
+    bool m_headlessLoad = false; // set only while tryStartLoadingMap starts a load
+    // Saves an independent copy of the map; sig_mapSaveFinished says how it went.
+    NODISCARD QString tryStartSavingMap(const QString &fileName,
+                                        SaveModeEnum mode,
+                                        SaveFormatEnum format);
     void onSuccessfulMerge(const Map &map);
     void onSuccessfulSave(SaveModeEnum mode, SaveFormatEnum format, const QString &fileName);
 
 signals:
     // A map load finished, successfully or not (including being canceled).
     void sig_mapLoadFinished(const QString &fileName, bool success);
+    void sig_mapSaveFinished(const QString &fileName, bool success);
 
 public slots:
     void slot_newFile();

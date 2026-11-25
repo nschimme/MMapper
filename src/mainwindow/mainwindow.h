@@ -423,6 +423,7 @@ private:
     // string; sig_mapLoadFinished says how the load went.
     NODISCARD QString tryStartLoadingMap(const QString &path);
     std::vector<std::function<void()>> m_afterAsyncTask;
+    bool m_headlessLoad = false; // set only while tryStartLoadingMap starts a load
     // Saves an independent copy of the map; sig_mapSaveFinished says how it went.
     NODISCARD QString tryStartSavingMap(const QString &fileName,
                                         SaveModeEnum mode,

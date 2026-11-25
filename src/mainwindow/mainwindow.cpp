@@ -2097,11 +2097,14 @@ QString MainWindow::tryStartLoadingMap(const QString &path)
     if (getAsyncIO().isBusy()) {
         return tr("another file operation is still running");
     }
+    m_headlessLoad = true;
     try {
         loadFile(MapSource::alloc(path, std::nullopt));
     } catch (const std::exception &ex) {
+        m_headlessLoad = false;
         return QString::fromUtf8(ex.what());
     }
+    m_headlessLoad = false;
     return {}; // the load runs in the background; sig_mapLoadFinished says how it went
 }
 

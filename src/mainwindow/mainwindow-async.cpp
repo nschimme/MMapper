@@ -368,6 +368,10 @@ void MainWindow::AsyncIO::reset(const NotifyEnum notify)
 
 void MainWindow::afterAsyncTaskEnds(std::function<void()> notice)
 {
+    if (!getAsyncIO().isBusy()) {
+        notice(); // nothing to wait for; a queued notice would otherwise fire at some later task
+        return;
+    }
     m_afterAsyncTask.push_back(std::move(notice));
 }
 
@@ -393,12 +397,17 @@ private:
     using Future = std::future<Result>;
 
 private:
+    // A load started by the MCP server reports failure through sig_mapLoadFinished instead of a
+    // modal dialog, which nobody is there to close.
+    const bool m_headless;
     Promise m_promise;
     Future m_future = m_promise.get_future();
 
 public:
-    explicit AsyncLoader(MainWindow &mw, const QString &name, SharedDevice pd, UniqueStorage ps)
+    explicit AsyncLoader(
+        MainWindow &mw, const QString &name, SharedDevice pd, UniqueStorage ps, const bool headless)
         : AsyncBase{"Map Loader", mw, name, std::move(pd), std::move(ps)}
+        , m_headless{headless}
     {}
     ~AsyncLoader() final;
 
@@ -433,7 +442,14 @@ private:
 
         // REVISIT: what if you just wanted to load markers?
         if (wasCanceled || !result || result->mapPair.modified.getRoomsCount() == 0) {
-            m_mainWindow.showAsyncFailure(m_fileName, AsyncIOTypeEnum::Load, wasCanceled);
+            if (m_headless) {
+                MainWindow *const mw = &m_mainWindow;
+                mw->afterAsyncTaskEnds([mw, fileName = m_fileName]() {
+                    emit mw->sig_mapLoadFinished(fileName, false);
+                });
+            } else {
+                m_mainWindow.showAsyncFailure(m_fileName, AsyncIOTypeEnum::Load, wasCanceled);
+            }
             return;
         }
 
@@ -665,13 +681,20 @@ void MainWindow::loadFile(std::shared_ptr<MapSource> pSource)
         getAsyncIO().beginAsyncIO(std::make_unique<AsyncLoader>(*this,
                                                                 source.getFileName(),
                                                                 source.getIODevice(),
-                                                                std::move(pStorage)),
+                                                                std::move(pStorage),
+                                                                m_headlessLoad),
                                   "Loading map...",
                                   AsyncIOTypeEnum::Load);
     } catch (const std::exception &ex) {
+        if (m_headlessLoad) {
+            throw; // the caller reports it; there is nobody to read a dialog
+        }
         showWarning(tr("Cannot open file %1:\n%2.").arg(source.getFileName(), ex.what()));
         return;
     } catch (...) {
+        if (m_headlessLoad) {
+            throw std::runtime_error("unknown exception");
+        }
         showWarning(tr("Cannot open file %1:\n%2.").arg(source.getFileName(), "Unknown exception"));
         return;
     }

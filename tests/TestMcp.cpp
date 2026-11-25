@@ -9,6 +9,7 @@
 #include "../src/mcp/McpHttp.h"
 #include "../src/mcp/McpServer.h"
 #include "../src/mcp/McpToolRegistry.h"
+#include "../src/mcp/McpWaiters.h"
 
 #include <optional>
 #include <set>
@@ -338,6 +339,139 @@ void TestMcp::eventLogFutureCursorTest()
     McpEventLog empty;
     QVERIFY(empty.readSince(0).events.empty());
     QVERIFY(!empty.readSince(0).truncated);
+}
+
+void TestMcp::eventLogOnAppendTest()
+{
+    McpEventLog log;
+    std::vector<uint64_t> seen;
+    log.setOnAppend([&seen](const McpEvent &e) { seen.push_back(e.seq); });
+    fill(log, 3);
+    QCOMPARE(seen, (std::vector<uint64_t>{1, 2, 3}));
+
+    // By the time the hook runs, the event can already be read back.
+    McpEventLog other;
+    bool readable = false;
+    other.setOnAppend([&other, &readable](const McpEvent &e) {
+        readable = other.readSince(e.seq - 1).events.size() == 1;
+    });
+    fill(other, 1);
+    QVERIFY(readable);
+}
+
+// =============================== McpWaiters ===============================
+
+void TestMcp::waitersMatchTest()
+{
+    McpWaiters waiters;
+    std::vector<McpWaiters::Outcome> outcomes;
+    const auto id = waiters.add([](const McpEvent &e) { return e.kind == "prompt"; },
+                                5000,
+                                [&outcomes](const McpWaiters::Outcome &o) {
+                                    outcomes.push_back(o);
+                                });
+    QVERIFY(id != 0);
+    QCOMPARE(waiters.pending(), size_t{1});
+
+    McpEvent text;
+    text.seq = 1;
+    text.kind = "mud_text";
+    waiters.onEvent(text);
+    QVERIFY(outcomes.empty()); // not the one we wanted
+
+    McpEvent prompt;
+    prompt.seq = 2;
+    prompt.kind = "prompt";
+    waiters.onEvent(prompt);
+    QCOMPARE(outcomes.size(), size_t{1});
+    QVERIFY(outcomes[0].kind == McpWaiters::Outcome::KindEnum::Matched);
+    QCOMPARE(outcomes[0].event->seq, uint64_t{2});
+    QCOMPARE(waiters.pending(), size_t{0});
+
+    // A waiter finishes exactly once, however many matching events follow.
+    waiters.onEvent(prompt);
+    QCOMPARE(outcomes.size(), size_t{1});
+    QVERIFY(!waiters.cancel(id, "late"));
+    QCOMPARE(outcomes.size(), size_t{1});
+}
+
+void TestMcp::waitersTimeoutTest()
+{
+    McpWaiters waiters;
+    std::vector<McpWaiters::Outcome> outcomes;
+    std::ignore = waiters.add([](const McpEvent &) { return false; },
+                              50,
+                              [&outcomes](const McpWaiters::Outcome &o) { outcomes.push_back(o); });
+    QVERIFY(QTest::qWaitFor([&outcomes]() { return !outcomes.empty(); }, 2000));
+    QCOMPARE(outcomes.size(), size_t{1});
+    QVERIFY(outcomes[0].kind == McpWaiters::Outcome::KindEnum::TimedOut);
+    QCOMPARE(waiters.pending(), size_t{0});
+
+    // The timeout must not fire again, and a match after it must not call back again.
+    QTest::qWait(100);
+    McpEvent e;
+    e.seq = 1;
+    waiters.onEvent(e);
+    QCOMPARE(outcomes.size(), size_t{1});
+}
+
+void TestMcp::waitersCancelTest()
+{
+    McpWaiters waiters;
+    std::vector<McpWaiters::Outcome> outcomes;
+    auto record = [&outcomes](const McpWaiters::Outcome &o) { outcomes.push_back(o); };
+    const auto a = waiters.add([](const McpEvent &) { return false; }, 5000, record);
+    std::ignore = waiters.add([](const McpEvent &) { return false; }, 5000, record);
+    std::ignore = waiters.add([](const McpEvent &) { return false; }, 5000, record);
+
+    QVERIFY(waiters.cancel(a, "the session closed"));
+    QCOMPARE(outcomes.size(), size_t{1});
+    QVERIFY(outcomes[0].kind == McpWaiters::Outcome::KindEnum::Cancelled);
+    QCOMPARE(outcomes[0].reason, QString("the session closed"));
+
+    waiters.cancelAll("shutting down");
+    QCOMPARE(outcomes.size(), size_t{3});
+    QCOMPARE(outcomes[2].reason, QString("shutting down"));
+    QCOMPARE(waiters.pending(), size_t{0});
+}
+
+void TestMcp::waitersReentrancyTest()
+{
+    // A callback may add another waiter or cancel one; neither may corrupt the list.
+    McpWaiters waiters;
+    int firstDone = 0;
+    int secondDone = 0;
+    int thirdDone = 0;
+    uint64_t third = 0;
+
+    third = waiters.add([](const McpEvent &) { return false; },
+                        5000,
+                        [&thirdDone](const McpWaiters::Outcome &) { ++thirdDone; });
+    std::ignore = waiters.add([](const McpEvent &) { return true; },
+                              5000,
+                              [&](const McpWaiters::Outcome &) {
+                                  ++firstDone;
+                                  std::ignore = waiters.cancel(third, "from a callback");
+                                  std::ignore = waiters.add([](const McpEvent &) { return true; },
+                                                            5000,
+                                                            [&secondDone](
+                                                                const McpWaiters::Outcome &) {
+                                                                ++secondDone;
+                                                            });
+                              });
+
+    McpEvent e;
+    e.seq = 1;
+    waiters.onEvent(e);
+    QCOMPARE(firstDone, 1);
+    QCOMPARE(thirdDone, 1);  // cancelled from inside the first callback
+    QCOMPARE(secondDone, 0); // added during the event, so it did not see that event
+    QCOMPARE(waiters.pending(), size_t{1});
+
+    e.seq = 2;
+    waiters.onEvent(e);
+    QCOMPARE(secondDone, 1);
+    QCOMPARE(waiters.pending(), size_t{0});
 }
 
 // ================================ McpHttp ================================

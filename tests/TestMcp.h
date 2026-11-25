@@ -21,6 +21,13 @@ private Q_SLOTS:
     static void eventLogFilterAndLimitTest();
     static void eventLogTruncationTest();
     static void eventLogFutureCursorTest();
+    static void eventLogOnAppendTest();
+
+    // McpWaiters
+    static void waitersMatchTest();
+    static void waitersTimeoutTest();
+    static void waitersCancelTest();
+    static void waitersReentrancyTest();
 
     // McpHttp
     static void httpSimplePostTest();

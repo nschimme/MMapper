@@ -5,10 +5,14 @@
 
 #include "McpTools.h"
 
-McpBackend::McpBackend(const McpHost &host, McpEventLog &events, McpToolRegistry &registry)
+McpBackend::McpBackend(const McpHost &host,
+                       McpEventLog &events,
+                       McpWaiters &waiters,
+                       McpToolRegistry &registry)
     : m_session{host.listener}
 {
     mcpRegisterStatusTools(registry, host, events, m_session);
     mcpRegisterEventTools(registry, events);
     mcpRegisterSessionTools(registry, host, m_session);
+    mcpRegisterDriveTools(registry, host, events, waiters);
 }

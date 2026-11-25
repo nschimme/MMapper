@@ -585,6 +585,13 @@ void Proxy::allocParser()
             bool isTwiddler = false;
             bool isPrompt = false;
 
+            // Tell observers about every prompt, including one that is about to be dropped as a
+            // repeat below: something waiting for "the prompt" must not hang because the game
+            // sent the same prompt twice in a row.
+            if (goAhead && source != SendToUserSourceEnum::NoLongerPrompted) {
+                getGameObserver().observeSentToUserPrompt(s);
+            }
+
             switch (source) {
             case SendToUserSourceEnum::NoLongerPrompted:
                 assert(s.isEmpty());
@@ -771,6 +778,24 @@ void Proxy::init()
     sendSyntaxHintToUser("Type", "help", "for help.");
 
     connectToMud();
+}
+
+void Proxy::sendUserInput(const QByteArray &line)
+{
+    // The same entry point the user's telnet connection feeds, so the parser sees exactly what it
+    // would see if the user had typed the line.
+    getUserTelnetFilter().receive(RawBytes{line + "\r\n"}, false);
+}
+
+void Proxy::injectMudBytes(const QByteArray &bytes, const bool goAhead)
+{
+    // The same entry point MudTelnet feeds once it has decoded the telnet stream.
+    getMudTelnetFilter().receive(RawBytes{bytes}, goAhead);
+}
+
+void Proxy::injectMudGmcp(const GmcpMessage &msg)
+{
+    deref(getPipeline().outputs.mud.mudTelnetOutputs).onRelayGmcpFromMudToUser(msg);
 }
 
 void Proxy::gmcpToMud(const GmcpMessage &msg)

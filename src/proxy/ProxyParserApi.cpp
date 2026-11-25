@@ -42,3 +42,18 @@ void ProxyMudGmcpApi::gmcpToMud(const GmcpMessage &msg)
 {
     m_proxy.gmcpToMud(msg);
 }
+
+void ProxyControlApi::sendUserInput(const QByteArray &line)
+{
+    m_proxy.sendUserInput(line);
+}
+
+void ProxyControlApi::injectMudBytes(const QByteArray &bytes, const bool goAhead)
+{
+    m_proxy.injectMudBytes(bytes, goAhead);
+}
+
+void ProxyControlApi::injectMudGmcp(const GmcpMessage &msg)
+{
+    m_proxy.injectMudGmcp(msg);
+}

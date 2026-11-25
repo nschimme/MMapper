@@ -33,8 +33,11 @@ uint64_t McpEventLog::append(const QString &kind, const QString &text, const QJs
     event.text = text;
     event.data = data;
     m_bytes += costOf(event);
-    m_events.push_back(std::move(event));
+    m_events.push_back(event);
     trim();
+    if (m_onAppend) {
+        m_onAppend(event);
+    }
     return m_lastSeq;
 }
 

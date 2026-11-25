@@ -11,6 +11,7 @@ class ConnectionListener;
 class MapData;
 class McpEventLog;
 class McpToolRegistry;
+class McpWaiters;
 
 // The parts of MMapper the tools look at. References only; the owner keeps them alive.
 struct NODISCARD McpHost final
@@ -28,5 +29,8 @@ private:
     McpSession m_session;
 
 public:
-    McpBackend(const McpHost &host, McpEventLog &events, McpToolRegistry &registry);
+    McpBackend(const McpHost &host,
+               McpEventLog &events,
+               McpWaiters &waiters,
+               McpToolRegistry &registry);
 };

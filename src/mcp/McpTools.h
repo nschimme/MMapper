@@ -9,6 +9,7 @@ struct McpHost;
 class McpEventLog;
 class McpSession;
 class McpToolRegistry;
+class McpWaiters;
 
 // get_status
 void mcpRegisterStatusTools(McpToolRegistry &registry,
@@ -21,3 +22,9 @@ void mcpRegisterEventTools(McpToolRegistry &registry, McpEventLog &events);
 
 // open_session, close_session
 void mcpRegisterSessionTools(McpToolRegistry &registry, const McpHost &host, McpSession &session);
+
+// send
+void mcpRegisterDriveTools(McpToolRegistry &registry,
+                           const McpHost &host,
+                           McpEventLog &events,
+                           McpWaiters &waiters);

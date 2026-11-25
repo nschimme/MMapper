@@ -13,7 +13,8 @@
 McpService::McpService(const McpHost &host, GameObserver &observer)
     : QObject{nullptr}
     , m_host{host}
-    , m_backend{m_host, m_events, m_registry}
+    , m_waiters{this}
+    , m_backend{m_host, m_events, m_waiters, m_registry}
     , m_dispatcher{m_registry,
                    QStringLiteral("MMapper"),
                    QString::fromLatin1(getMMapperVersion()),
@@ -31,6 +32,9 @@ McpService::McpService(const McpHost &host, GameObserver &observer)
     observer.sig2_sentToUserString.connect(m_lifetime, [this](const QString &text) {
         std::ignore = m_events.append(QStringLiteral("user_text"), text);
     });
+    observer.sig2_sentToUserPrompt.connect(m_lifetime, [this](const QString &text) {
+        std::ignore = m_events.append(QStringLiteral("prompt"), text);
+    });
     observer.sig2_sentToUserGmcp.connect(m_lifetime, [this](const GmcpMessage &msg) {
         QJsonObject data;
         data[QStringLiteral("package")] = msg.getName().toQString();
@@ -40,6 +44,9 @@ McpService::McpService(const McpHost &host, GameObserver &observer)
         std::ignore = m_events.append(QStringLiteral("gmcp"), msg.getName().toQString(), data);
     });
 
+    // Anything waiting for an event hears about each new one.
+    m_events.setOnAppend([this](const McpEvent &event) { m_waiters.onEvent(event); });
+
     setConfig().mcp.registerChangeCallback(m_lifetime, [this]() { applyConfig(); });
     applyConfig();
 }
@@ -48,6 +55,9 @@ McpService::~McpService()
 {
     // Closing first drops connections that may be waiting for a reply from a tool.
     m_server.close();
+    // Whatever was still waiting can no longer be answered; finish it before the objects it
+    // refers to go away.
+    m_waiters.cancelAll(QStringLiteral("MMapper is shutting down"));
     setConfig().mcp.setStatus(QStringLiteral("Stopped"));
 }
 

@@ -787,6 +787,7 @@ if(WITH_MCP)
         mcp/McpService.h
         mcp/McpSession.cpp
         mcp/McpSession.h
+        mcp/McpToolsDrive.cpp
         mcp/McpToolsEvents.cpp
         mcp/McpToolsSession.cpp
         mcp/McpToolsStatus.cpp
@@ -826,6 +827,8 @@ if(WITH_MCP)
         mcp/McpServer.h
         mcp/McpToolRegistry.cpp
         mcp/McpToolRegistry.h
+        mcp/McpWaiters.cpp
+        mcp/McpWaiters.h
     )
     add_library(mm_mcp STATIC ${mm_mcp_SRCS})
     set_target_properties(

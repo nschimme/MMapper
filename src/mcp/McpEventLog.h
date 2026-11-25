@@ -7,6 +7,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <deque>
+#include <functional>
 #include <set>
 #include <vector>
 
@@ -44,6 +45,7 @@ private:
     size_t m_maxBytes;
     size_t m_bytes = 0;
     uint64_t m_lastSeq = 0;
+    std::function<void(const McpEvent &)> m_onAppend;
 
 public:
     explicit McpEventLog(size_t maxEvents = 10'000, size_t maxBytes = 8 * 1024 * 1024);
@@ -52,6 +54,13 @@ public:
     ALLOW_DISCARD uint64_t append(const QString &kind,
                                   const QString &text,
                                   const QJsonObject &data = {});
+
+    // Called after every append, with the event that was added. At most one; this is how
+    // things waiting for an event (see McpWaiters) find out about it.
+    void setOnAppend(std::function<void(const McpEvent &)> callback)
+    {
+        m_onAppend = std::move(callback);
+    }
 
     NODISCARD uint64_t lastSeq() const { return m_lastSeq; }
     NODISCARD size_t size() const { return m_events.size(); }

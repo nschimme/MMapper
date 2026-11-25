@@ -9,6 +9,7 @@
 #include "McpEventLog.h"
 #include "McpServer.h"
 #include "McpToolRegistry.h"
+#include "McpWaiters.h"
 
 #include <cstdint>
 
@@ -27,6 +28,7 @@ class NODISCARD_QOBJECT McpService final : public QObject
 private:
     McpHost m_host;
     McpEventLog m_events;
+    McpWaiters m_waiters;
     McpToolRegistry m_registry;
     McpBackend m_backend;
     McpDispatcher m_dispatcher;

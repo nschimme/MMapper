@@ -67,7 +67,9 @@ they cannot go out of date. This is what the groups are for.
   ids: `currentRoomId` is MMapper's internal id, which a save and reload renumbers; the external
   id (`currentRoomExternalId`, `id` in room JSON) is what `get_room` and `list_rooms` take; the
   server id is the MUD's own and is not always present. `dump_map` leaves out the internal id so
-  two dumps of the same map compare equal across a save and reload. Rooms the game has only
+  two dumps of the same map compare equal across a save and reload. The same thing as a player command is `_map save-copy <name>` (a plain
+  file name, saved next to the maps the file dialogs use, never over an existing file), which
+  `mmapper_map` also reaches. Rooms the game has only
   reported once are temporary and are not saved; walk back through them first. `screenshot` returns
   MMapper's own rendering of the map canvas as a PNG (needs a GL context, see below); right after a
   load it can still say "the map isn't ready yet", so take another one a moment later.

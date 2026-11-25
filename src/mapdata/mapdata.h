@@ -208,6 +208,8 @@ signals:
     void sig_onPositionChange();
     void sig_onForcedPositionChange();
     void sig_generateBaseMap();
+    // Asks for an independent copy of the map to be saved at this absolute path.
+    void sig_saveMapCopy(const QString &path);
 
 public slots:
     void slot_scheduleAction(const SigMapChangeList &);

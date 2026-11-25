@@ -442,6 +442,19 @@ MainWindow::MainWindow()
     }
 
     connect(m_mapData, &MapData::sig_generateBaseMap, this, &MainWindow::slot_generateBaseMap);
+    connect(m_mapData, &MapData::sig_saveMapCopy, this, [this](const QString &path) {
+        const QString lower = path.toLower();
+        const SaveFormatEnum format = lower.endsWith(QStringLiteral(".xml"))
+                                          ? SaveFormatEnum::MM2XML
+                                      : lower.endsWith(QStringLiteral(".mmp"))
+                                          ? SaveFormatEnum::MMP
+                                          : SaveFormatEnum::MM2;
+        if (const QString error = tryStartSavingMap(path, SaveModeEnum::FULL, format);
+            !error.isEmpty()) {
+            showStatusShort(error);
+            slot_log("MapData", error);
+        }
+    });
 
     applyPanelScrollGesture(false);
 

@@ -4,6 +4,7 @@
 
 #include "AbstractParser-Commands.h"
 
+#include "../configuration/configuration.h"
 #include "../global/CaseUtils.h"
 #include "../global/Consts.h"
 #include "../global/EnumIndexedArray.h"
@@ -44,6 +45,10 @@
 #include <string_view>
 #include <utility>
 #include <vector>
+
+#include <QDir>
+#include <QFileInfo>
+#include <QRegularExpression>
 
 namespace {
 
@@ -1109,7 +1114,48 @@ void AbstractParser::doMapCommand(StringView input)
                                               syntax::Accept(undeleteFn,
                                                              "undelete room # (if possible)"));
 
+    // Saves a copy under a bare file name in the directory the file dialogs use. The copy does not
+    // become the map's file: Ctrl+S and "_map diff" are unaffected.
+    auto saveCopyFn = [this](User &user, const Pair *const args) {
+        auto &os = user.getOstream();
+        const auto v = getAnyVectorReversed(args);
+        // stringToken() does not put the token itself in the arguments, only the rest of the line.
+        const QString name
+            = v.size() == 1 ? mmqt::toQStringUtf8(concatenate_unquoted(v[0].getVector())).trimmed()
+                            : QString{};
+
+        const bool bare = !name.isEmpty() && !name.startsWith(QLatin1Char('.'))
+                          && !name.contains(QRegularExpression{QStringLiteral(R"([/\\:])")});
+        if (!bare) {
+            os << "Give a plain file name (no directories), for example: save-copy mymap\n";
+            return;
+        }
+        const QString dirName = getConfig().autoLoad.lastMapDirectory;
+        if (dirName.isEmpty() || !QDir{dirName}.exists()) {
+            os << "There is no maps directory yet; save a map from the File menu once first.\n";
+            return;
+        }
+        const bool hasKnownSuffix = name.endsWith(QStringLiteral(".mm2"), Qt::CaseInsensitive)
+                                    || name.endsWith(QStringLiteral(".xml"), Qt::CaseInsensitive)
+                                    || name.endsWith(QStringLiteral(".mmp"), Qt::CaseInsensitive);
+        const QString path = QDir{dirName}.filePath(hasKnownSuffix ? name
+                                                                   : name + QStringLiteral(".mm2"));
+        if (QFileInfo::exists(path)) {
+            os << "That file already exists; pick another name.\n";
+            return;
+        }
+        os << "Saving a copy to " << mmqt::toStdStringUtf8(path) << "...\n";
+        emit m_mapData.sig_saveMapCopy(path);
+    };
+    auto saveCopySyntax = syntax::buildSyntax(syntax::stringToken("save-copy"),
+                                              syntax::TokenMatcher::alloc<syntax::ArgRest>(),
+                                              syntax::Accept(saveCopyFn,
+                                                             "save a copy of the map under this "
+                                                             "name (.mm2, .xml or .mmp) next to "
+                                                             "your other maps"));
+
     auto mapSyntax = syntax::buildSyntax(gotoSyntax,
+                                         saveCopySyntax,
                                          diffSyntax,
                                          statsSynax,
                                          showSyntax,

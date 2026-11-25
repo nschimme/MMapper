@@ -32,7 +32,10 @@ uint64_t McpEventLog::append(const QString &kind, const QString &text, const QJs
     event.kind = kind;
     event.text = text;
     event.data = data;
-    m_bytes += costOf(event);
+    // Worked out once: serializing a GMCP payload is not free, and trimming needs the same number.
+    const size_t cost = costOf(event);
+    m_bytes += cost;
+    m_costs.push_back(cost);
     m_events.push_back(event);
     trim();
     if (m_onAppend) {
@@ -45,7 +48,8 @@ void McpEventLog::trim()
 {
     // Always keep the newest event, even if it alone is over the byte limit.
     while (m_events.size() > 1 && (m_events.size() > m_maxEvents || m_bytes > m_maxBytes)) {
-        m_bytes -= costOf(m_events.front());
+        m_bytes -= m_costs.front();
+        m_costs.pop_front();
         m_events.pop_front();
     }
 }

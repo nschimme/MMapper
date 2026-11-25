@@ -41,6 +41,7 @@ public:
 
 private:
     std::deque<McpEvent> m_events;
+    std::deque<size_t> m_costs; // m_costs[i] is what m_events[i] counts for in m_bytes
     size_t m_maxEvents;
     size_t m_maxBytes;
     size_t m_bytes = 0;

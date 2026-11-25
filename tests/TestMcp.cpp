@@ -327,6 +327,21 @@ void TestMcp::eventLogTruncationTest()
     fill(small, 3);
     QCOMPARE(small.size(), size_t{1});
     QCOMPARE(small.readSince(0).events.front().seq, uint64_t{3});
+
+    // The payload counts towards the limit, and trimming stays consistent with appending.
+    McpEventLog withData(1000, /*maxBytes*/ 8000);
+    const QJsonObject big{{"json", QString(1000, 'x')}};
+    for (int i = 0; i < 50; ++i) {
+        std::ignore = withData.append("gmcp", "Char.Vitals", big);
+    }
+    QVERIFY(withData.size() < 50);
+    QVERIFY(withData.size() >= 1);
+    QCOMPARE(withData.readSince(0).events.back().seq, uint64_t{50});
+    // Plain text events fit back in once the large ones have been trimmed away.
+    for (int i = 0; i < 100; ++i) {
+        std::ignore = withData.append("user_text", "short");
+    }
+    QCOMPARE(withData.readSince(0).events.back().seq, uint64_t{150});
 }
 
 void TestMcp::eventLogFutureCursorTest()

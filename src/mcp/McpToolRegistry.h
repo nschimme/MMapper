@@ -8,6 +8,7 @@
 #include <optional>
 #include <vector>
 
+#include <QByteArray>
 #include <QJsonObject>
 #include <QJsonValue>
 #include <QString>
@@ -20,14 +21,20 @@ struct NODISCARD McpToolResult final
     bool isError = false;
     QString text;
     std::optional<QJsonValue> structured;
+    // PNG bytes, sent as an image content item after the text.
+    std::optional<QByteArray> png;
 
     NODISCARD static McpToolResult ok(QString text, std::optional<QJsonValue> structured = {})
     {
-        return McpToolResult{false, std::move(text), std::move(structured)};
+        return McpToolResult{false, std::move(text), std::move(structured), std::nullopt};
     }
     NODISCARD static McpToolResult error(QString text)
     {
-        return McpToolResult{true, std::move(text), std::nullopt};
+        return McpToolResult{true, std::move(text), std::nullopt, std::nullopt};
+    }
+    NODISCARD static McpToolResult image(QString text, QByteArray pngBytes)
+    {
+        return McpToolResult{false, std::move(text), std::nullopt, std::move(pngBytes)};
     }
     // A result that is a JSON object: its compact text for a reader of the text, and the object
     // itself as the structured content.

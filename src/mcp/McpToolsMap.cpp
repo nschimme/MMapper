@@ -11,6 +11,7 @@
 
 #include <algorithm>
 
+#include <QBuffer>
 #include <QDir>
 #include <QFileInfo>
 #include <QJsonDocument>
@@ -227,4 +228,42 @@ void mcpRegisterMapTools(McpToolRegistry &registry, const McpHost &host, McpWait
                     }
                 });
         }});
+
+    registry.addSync(
+        QStringLiteral("screenshot"),
+        QStringLiteral(
+            "Render the map canvas as it is shown now and return it as a PNG image "
+            "(MMapper's own rendering, not a screen capture). With `path` the PNG is "
+            "also written to that absolute path. Right after a load or an edit the canvas may "
+            "still show \"the map isn't ready yet\"; take another one a moment later. Fails if "
+            "the canvas cannot be rendered. Does not need a session."),
+        mcpObjectSchema({{QStringLiteral("path"),
+                          mcpStringProperty(QStringLiteral("Absolute path of a .png file to "
+                                                           "also write (optional)."))}}),
+        [&host](const QJsonObject &args) {
+            const QString path = args.value(QStringLiteral("path")).toString();
+            if (!path.isEmpty() && !QFileInfo{path}.isAbsolute()) {
+                return McpToolResult::error(QStringLiteral("`path` must be an absolute path"));
+            }
+            if (!host.grabCanvas) {
+                return McpToolResult::error(QStringLiteral("screenshots are not available"));
+            }
+            const QImage image = host.grabCanvas();
+            if (image.isNull()) {
+                return McpToolResult::error(QStringLiteral("the map canvas could not be rendered"));
+            }
+            QByteArray png;
+            QBuffer buffer{&png};
+            if (!buffer.open(QIODevice::WriteOnly) || !image.save(&buffer, "PNG")) {
+                return McpToolResult::error(QStringLiteral("could not encode the image"));
+            }
+            if (!path.isEmpty() && !image.save(path, "PNG")) {
+                return McpToolResult::error(QStringLiteral("could not write the file: ") + path);
+            }
+            return McpToolResult::image(QStringLiteral("%1x%2 PNG, %3 bytes")
+                                            .arg(image.width())
+                                            .arg(image.height())
+                                            .arg(png.size()),
+                                        png);
+        });
 }

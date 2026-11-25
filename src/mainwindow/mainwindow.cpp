@@ -458,7 +458,8 @@ MainWindow::MainWindow()
                 [this](const QString &path) { return tryStartLoadingMap(path); },
                 [this](const QString &path, const SaveModeEnum mode, const SaveFormatEnum format) {
                     return tryStartSavingMap(path, mode, format);
-                }},
+                },
+                [this]() { return getCanvas()->grabFramebuffer(); }},
         deref(m_gameObserver));
     connect(m_mcpService.get(), &McpService::sig_log, this, &MainWindow::slot_log);
     connect(this,

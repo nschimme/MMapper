@@ -8,6 +8,7 @@
 
 #include <functional>
 
+#include <QImage>
 #include <QString>
 
 class ConnectionListener;
@@ -31,6 +32,8 @@ struct NODISCARD McpHost final
     // and saved baseline are left alone). Returns why it could not start, or an empty string;
     // the McpService hears how it went through slot_onMapSaveFinished.
     std::function<QString(const QString &path, SaveModeEnum mode, SaveFormatEnum format)> saveMap;
+    // Renders the map canvas into an image (null if it cannot be rendered, e.g. no window yet).
+    std::function<QImage()> grabCanvas;
 };
 
 // Registers MMapper's tools in a registry. Each area of tools lives in its own file (see

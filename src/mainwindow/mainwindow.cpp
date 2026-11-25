@@ -33,6 +33,9 @@
 #include "../pathmachine/mmapper2pathmachine.h"
 #include "../preferences/configdialog.h"
 #include "../proxy/connectionlistener.h"
+#ifndef MMAPPER_NO_MCP
+#include "../mcp/McpService.h"
+#endif
 #include "../roompanel/RoomManager.h"
 #include "../roompanel/RoomWidget.h"
 #include "../timers/CTimers.h"
@@ -117,6 +120,10 @@ MainWindow::~MainWindow()
     g_mainWindow = nullptr;
     mmqt::rdisconnect(this);
     async_tasks::cleanup();
+#ifndef MMAPPER_NO_MCP
+    // First: it may be answering a request that is waiting on the objects destroyed below.
+    m_mcpService.reset();
+#endif
     delete m_listener;
     destroyTopLevelWindows();
 }
@@ -440,6 +447,14 @@ MainWindow::MainWindow()
 
     m_defaultExpandedState = saveState();
     readSettings();
+
+#ifndef MMAPPER_NO_MCP
+    m_mcpService = std::make_unique<McpService>(McpHost{deref(m_mapData), deref(m_listener)},
+                                                deref(m_gameObserver),
+                                                this);
+    connect(m_mcpService.get(), &McpService::sig_log, this, &MainWindow::slot_log);
+#endif
+
     g_mainWindow = this;
 }
 

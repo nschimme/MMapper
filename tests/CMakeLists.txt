@@ -151,7 +151,7 @@ add_test(NAME TestParser COMMAND TestParser)
 if(WITH_MCP)
     add_executable(TestMcp TestMcp.cpp TestMcp.h)
     add_dependencies(TestMcp mm_mcp)
-    target_link_libraries(TestMcp mm_mcp Qt6::Core Qt6::Test coverage_config)
+    target_link_libraries(TestMcp mm_mcp Qt6::Core Qt6::Network Qt6::Test coverage_config)
     set_target_properties(
       TestMcp PROPERTIES
       CXX_STANDARD 20

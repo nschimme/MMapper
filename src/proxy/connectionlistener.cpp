@@ -110,6 +110,11 @@ void ConnectionListener::listen()
     }
 }
 
+Proxy *ConnectionListener::getProxy() const
+{
+    return m_proxy.data();
+}
+
 void ConnectionListener::slot_onIncomingConnection(qintptr socketDescriptor)
 {
     auto socket = std::make_unique<TcpSocket>(socketDescriptor, this);

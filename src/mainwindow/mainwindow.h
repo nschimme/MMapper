@@ -32,6 +32,7 @@ class AutoLogger;
 class ClientWidget;
 class ConfigDialog;
 class ConnectionListener;
+class McpService;
 class ConnectionSelection;
 class FindRoomsDlg;
 class GameObserver;
@@ -97,6 +98,11 @@ private:
     std::unique_ptr<GameObserver> m_gameObserver;
     AutoLogger *m_logger = nullptr;
     ConnectionListener *m_listener = nullptr;
+#ifndef MMAPPER_NO_MCP
+    // Declared after m_listener's owner objects but destroyed first (see ~MainWindow): it holds
+    // references to the map data, the observer and the listener.
+    std::unique_ptr<McpService> m_mcpService;
+#endif
     Mmapper2PathMachine *m_pathMachine = nullptr;
     MapData *m_mapData = nullptr;
     PrespammedPath *m_prespammedPath = nullptr;

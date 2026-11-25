@@ -34,6 +34,7 @@ struct NODISCARD McpHttpError final
 {
     int status = 400;
     QByteArray reason;
+    std::map<QByteArray, QByteArray> headers; // extra response headers, e.g. Allow
 };
 
 class NODISCARD McpHttpParser final

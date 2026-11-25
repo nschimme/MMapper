@@ -6,6 +6,8 @@
 #include <algorithm>
 #include <utility>
 
+#include <QJsonDocument>
+
 McpEventLog::McpEventLog(const size_t maxEvents, const size_t maxBytes)
     : m_maxEvents{std::max<size_t>(1, maxEvents)}
     , m_maxBytes{maxBytes}
@@ -13,8 +15,14 @@ McpEventLog::McpEventLog(const size_t maxEvents, const size_t maxBytes)
 
 size_t McpEventLog::costOf(const McpEvent &event)
 {
-    // Approximate; only used to bound memory.
-    return sizeof(McpEvent) + static_cast<size_t>(event.kind.size() + event.text.size()) * 2;
+    // Approximate; only used to bound memory. The payload is counted by its JSON size, since GMCP
+    // messages can be large.
+    const size_t payload = event.data.isEmpty()
+                               ? 0
+                               : static_cast<size_t>(
+                                     QJsonDocument{event.data}.toJson(QJsonDocument::Compact).size());
+    return sizeof(McpEvent) + static_cast<size_t>(event.kind.size() + event.text.size()) * 2
+           + payload;
 }
 
 uint64_t McpEventLog::append(const QString &kind, const QString &text, const QJsonObject &data)

@@ -182,6 +182,8 @@ QByteArray mcpHttpReasonPhrase(const int status)
         return "Internal Server Error";
     case 501:
         return "Not Implemented";
+    case 504:
+        return "Gateway Timeout";
     case 505:
         return "HTTP Version Not Supported";
     default:

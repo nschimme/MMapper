@@ -3,9 +3,11 @@
 
 #include "TestMcp.h"
 
+#include "../src/mcp/McpAccess.h"
 #include "../src/mcp/McpDispatcher.h"
 #include "../src/mcp/McpEventLog.h"
 #include "../src/mcp/McpHttp.h"
+#include "../src/mcp/McpServer.h"
 #include "../src/mcp/McpToolRegistry.h"
 
 #include <optional>
@@ -16,6 +18,8 @@
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QTcpSocket>
+#include <QTimer>
 #include <QtTest/QtTest>
 
 namespace {
@@ -132,6 +136,107 @@ McpToolRegistry makeRegistry()
         throw std::runtime_error("boom");
     });
     return reg;
+}
+
+// ---- server helpers ----
+
+struct HttpReply final
+{
+    int status = 0;
+    QByteArray head;
+    QByteArray body;
+
+    NODISCARD QByteArray header(const QByteArray &lowerCaseName) const
+    {
+        for (const QByteArray &line : head.split('\n')) {
+            const auto colon = line.indexOf(':');
+            if (colon > 0 && line.left(colon).toLower() == lowerCaseName) {
+                return line.mid(colon + 1).trimmed();
+            }
+        }
+        return {};
+    }
+};
+
+// Pulls every complete HTTP response out of `buffer`.
+std::vector<HttpReply> takeReplies(QByteArray &buffer)
+{
+    std::vector<HttpReply> replies;
+    for (;;) {
+        const auto headEnd = buffer.indexOf("\r\n\r\n");
+        if (headEnd < 0) {
+            break;
+        }
+        HttpReply reply;
+        reply.head = buffer.left(headEnd);
+        reply.status = reply.head.mid(9, 3).toInt(); // "HTTP/1.1 200 OK"
+        const qsizetype length = reply.header("content-length").toInt();
+        if (buffer.size() < headEnd + 4 + length) {
+            break;
+        }
+        reply.body = buffer.mid(headEnd + 4, length);
+        buffer.remove(0, headEnd + 4 + length);
+        replies.push_back(std::move(reply));
+    }
+    return replies;
+}
+
+// A client that talks to a McpServer living on the same thread, so every wait spins the
+// event loop instead of blocking.
+class TestClient final
+{
+public:
+    QTcpSocket socket;
+    QByteArray buffer;
+    std::vector<HttpReply> replies;
+
+    bool connectTo(const uint16_t port)
+    {
+        socket.connectToHost(QHostAddress::LocalHost, port);
+        return socket.waitForConnected(2000) || QTest::qWaitFor([this]() {
+                   return socket.state() == QAbstractSocket::ConnectedState;
+               });
+    }
+
+    void send(const QByteArray &bytes) { socket.write(bytes); }
+
+    // Waits until `count` replies have arrived in total.
+    bool waitForReplies(const size_t count, const int timeoutMs = 3000)
+    {
+        return QTest::qWaitFor(
+            [this, count]() {
+                buffer += socket.readAll();
+                for (auto &r : takeReplies(buffer)) {
+                    replies.push_back(std::move(r));
+                }
+                return replies.size() >= count;
+            },
+            timeoutMs);
+    }
+
+    NODISCARD bool waitForClose(const int timeoutMs = 3000)
+    {
+        return QTest::qWaitFor(
+            [this]() {
+                std::ignore = socket.readAll();
+                return socket.state() == QAbstractSocket::UnconnectedState;
+            },
+            timeoutMs);
+    }
+};
+
+QByteArray postTo(const uint16_t port,
+                  const QByteArray &body,
+                  const QByteArray &token = "secret",
+                  const QByteArray &extra = {})
+{
+    QByteArray req = "POST /mcp HTTP/1.1\r\nHost: 127.0.0.1:" + QByteArray::number(port)
+                     + "\r\nContent-Type: application/json\r\n";
+    if (!token.isEmpty()) {
+        req += "Authorization: Bearer " + token + "\r\n";
+    }
+    req += extra + "Content-Length: " + QByteArray::number(body.size()) + "\r\n\r\n" + body;
+    return req;
 }
 
 } // namespace
@@ -426,6 +531,282 @@ void TestMcp::registryOverrideTest()
     QCOMPARE(reg.tools().size(), size_t{2});
     QCOMPARE(reg.tools()[0].name, QString("t"));
     QCOMPARE(reg.tools()[0].description, QString("hand-written"));
+}
+
+// ================================ McpAccess ================================
+
+void TestMcp::accessTokenCompareTest()
+{
+    QVERIFY(mcpTokensEqual("abc", "abc"));
+    QVERIFY(!mcpTokensEqual("abc", "abd"));
+    QVERIFY(!mcpTokensEqual("abc", "ab"));
+    QVERIFY(!mcpTokensEqual("abc", "abcd"));
+    QVERIFY(!mcpTokensEqual("abc", ""));
+    QVERIFY(mcpTokensEqual("", "")); // callers must separately refuse an empty token
+}
+
+void TestMcp::accessCheckTest()
+{
+    const McpAccessPolicy policy{"secret", 4280};
+
+    auto make = [](const QByteArray &method = "POST",
+                   const QByteArray &target = "/mcp",
+                   std::map<QByteArray, QByteArray> headers = {}) {
+        McpHttpRequest r;
+        r.method = method;
+        r.target = target;
+        r.headers = {{"host", "127.0.0.1:4280"}, {"authorization", "Bearer secret"}};
+        for (auto &[k, v] : headers) {
+            if (v.isEmpty()) {
+                r.headers.erase(k);
+            } else {
+                r.headers[k] = v;
+            }
+        }
+        return r;
+    };
+    auto statusOf = [&policy](const McpHttpRequest &r) {
+        const auto err = mcpCheckRequest(r, policy);
+        return err ? err->status : 0;
+    };
+
+    QCOMPARE(statusOf(make()), 0);
+
+    // Transport-level problems.
+    QCOMPARE(statusOf(make("POST", "/other")), 404);
+    QCOMPARE(statusOf(make("GET")), 405);
+    QCOMPARE(statusOf(make("DELETE")), 405);
+    QCOMPARE(mcpCheckRequest(make("GET"), policy)->headers.at("Allow"), QByteArray("POST"));
+
+    // Token: required, exact, case-insensitive scheme.
+    QCOMPARE(statusOf(make("POST", "/mcp", {{"authorization", ""}})), 401);
+    QCOMPARE(statusOf(make("POST", "/mcp", {{"authorization", "Bearer wrong"}})), 401);
+    QCOMPARE(statusOf(make("POST", "/mcp", {{"authorization", "Basic secret"}})), 401);
+    QCOMPARE(statusOf(make("POST", "/mcp", {{"authorization", "Bearer "}})), 401);
+    QCOMPARE(statusOf(make("POST", "/mcp", {{"authorization", "bearer secret"}})), 0);
+    QCOMPARE(mcpCheckRequest(make("POST", "/mcp", {{"authorization", ""}}), policy)
+                 ->headers.at("WWW-Authenticate"),
+             QByteArray("Bearer"));
+    QCOMPARE(mcpCheckRequest(make(), McpAccessPolicy{"", 4280}).has_value(), true); // no token set
+
+    // Host: must be loopback and our port (blocks DNS rebinding).
+    for (const char *host : {"127.0.0.1:4280", "localhost:4280", "[::1]:4280", "LOCALHOST:4280"}) {
+        QCOMPARE(statusOf(make("POST", "/mcp", {{"host", host}})), 0);
+    }
+    for (const char *host : {"evil.com",
+                             "evil.com:4280",
+                             "127.0.0.1:9999",
+                             "127.0.0.1",
+                             "localhost.evil.com:4280",
+                             "a@127.0.0.1:4280",
+                             ""}) {
+        QCOMPARE(statusOf(make("POST", "/mcp", {{"host", host}})), 403);
+    }
+
+    // Origin: absent is fine; present must be a loopback web origin.
+    QCOMPARE(statusOf(make("POST", "/mcp", {{"origin", "http://localhost:4280"}})), 0);
+    QCOMPARE(statusOf(make("POST", "/mcp", {{"origin", "http://127.0.0.1:3000"}})), 0);
+    QCOMPARE(statusOf(make("POST", "/mcp", {{"origin", "https://evil.com"}})), 403);
+    QCOMPARE(statusOf(make("POST", "/mcp", {{"origin", "null"}})), 403);
+    QCOMPARE(statusOf(make("POST", "/mcp", {{"origin", "http://localhost.evil.com"}})), 403);
+
+    // Protocol version: missing is fine, known is fine, unknown is a 400.
+    QCOMPARE(statusOf(make("POST", "/mcp", {{"mcp-protocol-version", "2025-06-18"}})), 0);
+    QCOMPARE(statusOf(make("POST", "/mcp", {{"mcp-protocol-version", "1999-01-01"}})), 400);
+
+    // Accept is never used to reject.
+    QCOMPARE(statusOf(make("POST", "/mcp", {{"accept", "text/html"}})), 0);
+}
+
+// ================================ McpServer ================================
+
+void TestMcp::serverRequestTest()
+{
+    const auto reg = makeRegistry();
+    const McpDispatcher dispatcher{reg, "MMapper", "1"};
+    McpServer server{dispatcher, nullptr};
+    QVERIFY(server.listen(0, "secret").isEmpty());
+    QVERIFY(server.isListening());
+    QVERIFY(server.port() != 0);
+
+    TestClient c;
+    QVERIFY(c.connectTo(server.port()));
+
+    // A normal request.
+    c.send(postTo(server.port(), rpc("tools/list", {})));
+    QVERIFY(c.waitForReplies(1));
+    QCOMPARE(c.replies[0].status, 200);
+    QCOMPARE(c.replies[0].header("content-type"), QByteArray("application/json"));
+    QCOMPARE(toObject(c.replies[0].body).value("result").toObject().value("tools").toArray().size(),
+             3);
+
+    // The same connection is reused (keep-alive); a notification gets 202 and no body.
+    c.send(postTo(server.port(), R"({"jsonrpc":"2.0","method":"notifications/initialized"})"));
+    QVERIFY(c.waitForReplies(2));
+    QCOMPARE(c.replies[1].status, 202);
+    QVERIFY(c.replies[1].body.isEmpty());
+
+    // A JSON-RPC error is still HTTP 200.
+    c.send(postTo(server.port(), rpc("no/such/method", {})));
+    QVERIFY(c.waitForReplies(3));
+    QCOMPARE(c.replies[2].status, 200);
+    QVERIFY(toObject(c.replies[2].body).contains("error"));
+
+    // Connection: close is honored.
+    c.send(postTo(server.port(), rpc("ping", {}), "secret", "Connection: close\r\n"));
+    QVERIFY(c.waitForReplies(4));
+    QVERIFY(c.waitForClose());
+
+    server.close();
+    QVERIFY(!server.isListening());
+    TestClient after;
+    QVERIFY(!after.connectTo(server.port())); // nothing is listening any more
+}
+
+void TestMcp::serverRejectsBadRequestsTest()
+{
+    const auto reg = makeRegistry();
+    const McpDispatcher dispatcher{reg, "MMapper", "1"};
+    McpServer server{dispatcher, nullptr};
+    QVERIFY(server.listen(0, "secret").isEmpty());
+    const uint16_t port = server.port();
+
+    auto statusFor = [port](const QByteArray &request) {
+        TestClient c;
+        if (!c.connectTo(port)) {
+            return -1;
+        }
+        c.send(request);
+        return c.waitForReplies(1) ? c.replies[0].status : -2;
+    };
+
+    const QByteArray body = rpc("ping", {});
+    QCOMPARE(statusFor(postTo(port, body, "")), 401);
+    QCOMPARE(statusFor(postTo(port, body, "wrong")), 401);
+    QCOMPARE(statusFor(postTo(port, body, "secret", "Origin: https://evil.com\r\n")), 403);
+    QCOMPARE(statusFor("POST /mcp HTTP/1.1\r\nHost: evil.com\r\nAuthorization: Bearer secret\r\n"
+                       "Content-Length: 0\r\n\r\n"),
+             403);
+    QCOMPARE(statusFor("GET /mcp HTTP/1.1\r\nHost: 127.0.0.1:" + QByteArray::number(port)
+                       + "\r\nAuthorization: Bearer secret\r\n\r\n"),
+             405);
+    QCOMPARE(statusFor("POST /elsewhere HTTP/1.1\r\nHost: 127.0.0.1:" + QByteArray::number(port)
+                       + "\r\nContent-Length: 0\r\n\r\n"),
+             404);
+    QCOMPARE(statusFor(
+                 "POST /mcp HTTP/1.1\r\nHost: 127.0.0.1\r\nTransfer-Encoding: chunked\r\n\r\n"),
+             501);
+
+    // After a framing error the server hangs up.
+    TestClient broken;
+    QVERIFY(broken.connectTo(port));
+    broken.send("garbage\r\n\r\n");
+    QVERIFY(broken.waitForReplies(1));
+    QCOMPARE(broken.replies[0].status, 400);
+    QVERIFY(broken.waitForClose());
+}
+
+void TestMcp::serverPipeliningAndDeferredReplyTest()
+{
+    // "slow" replies after a delay; "fast" replies at once. Replies must still come back in
+    // request order.
+    McpToolRegistry reg;
+    reg.add({"slow",
+             "Replies after a delay.",
+             mcpObjectSchema(),
+             [](const QJsonObject &, McpReply reply) {
+                 QTimer::singleShot(150, [reply]() { reply(McpToolResult::ok("slow")); });
+             }});
+    reg.addSync("fast", "Replies at once.", mcpObjectSchema(), [](const QJsonObject &) {
+        return McpToolResult::ok("fast");
+    });
+    const McpDispatcher dispatcher{reg, "MMapper", "1"};
+    McpServer server{dispatcher, nullptr};
+    QVERIFY(server.listen(0, "secret").isEmpty());
+
+    TestClient c;
+    QVERIFY(c.connectTo(server.port()));
+    // Both requests in one write.
+    c.send(postTo(server.port(), rpc("tools/call", {{"name", "slow"}}, 1))
+           + postTo(server.port(), rpc("tools/call", {{"name", "fast"}}, 2)));
+    QVERIFY(c.waitForReplies(2));
+    QCOMPARE(toObject(c.replies[0].body).value("id").toInt(), 1);
+    QCOMPARE(toObject(c.replies[1].body).value("id").toInt(), 2);
+
+    // The server going away while a reply is pending must not crash on the late reply.
+    TestClient d;
+    QVERIFY(d.connectTo(server.port()));
+    d.send(postTo(server.port(), rpc("tools/call", {{"name", "slow"}}, 3)));
+    QTest::qWait(30);
+    server.close();
+    QTest::qWait(250); // the timer fires into a reply closure whose connection is gone
+    QVERIFY(true);
+}
+
+void TestMcp::serverReplyTimeoutTest()
+{
+    McpToolRegistry reg;
+    McpReply stash;
+    reg.add({"never",
+             "Never replies.",
+             mcpObjectSchema(),
+             [&stash](const QJsonObject &, McpReply reply) { stash = std::move(reply); }});
+    const McpDispatcher dispatcher{reg, "MMapper", "1"};
+    McpServer::Options options;
+    options.replyTimeoutMs = 100;
+    McpServer server{dispatcher, nullptr, options};
+    QVERIFY(server.listen(0, "secret").isEmpty());
+
+    TestClient c;
+    QVERIFY(c.connectTo(server.port()));
+    c.send(postTo(server.port(), rpc("tools/call", {{"name", "never"}})));
+    QVERIFY(c.waitForReplies(1));
+    QCOMPARE(c.replies[0].status, 504);
+    QVERIFY(c.waitForClose());
+
+    // A late reply after the timeout is dropped quietly.
+    stash(McpToolResult::ok("too late"));
+}
+
+void TestMcp::serverLimitsAndListenFailureTest()
+{
+    const auto reg = makeRegistry();
+    const McpDispatcher dispatcher{reg, "MMapper", "1"};
+
+    // A busy port is an error message, not an exception, and leaves nothing listening.
+    McpServer first{dispatcher, nullptr};
+    QVERIFY(first.listen(0, "secret").isEmpty());
+    McpServer second{dispatcher, nullptr};
+    QVERIFY(!second.listen(first.port(), "secret").isEmpty());
+    QVERIFY(!second.isListening());
+
+    // No token, no server.
+    QVERIFY(!second.listen(0, "").isEmpty());
+    QVERIFY(!second.isListening());
+
+    // Connections beyond the cap are dropped.
+    McpServer::Options options;
+    options.maxConnections = 2;
+    McpServer capped{dispatcher, nullptr, options};
+    QVERIFY(capped.listen(0, "secret").isEmpty());
+    TestClient a;
+    TestClient b;
+    TestClient extra;
+    QVERIFY(a.connectTo(capped.port()));
+    QVERIFY(b.connectTo(capped.port()));
+    QVERIFY(QTest::qWaitFor([&capped]() { return capped.connectionCount() == 2; }));
+    std::ignore = extra.connectTo(capped.port());
+    QVERIFY(extra.waitForClose());
+    QCOMPARE(capped.connectionCount(), size_t{2});
+
+    // Idle connections are closed.
+    McpServer::Options quick;
+    quick.idleTimeoutMs = 100;
+    McpServer idle{dispatcher, nullptr, quick};
+    QVERIFY(idle.listen(0, "secret").isEmpty());
+    TestClient sleepy;
+    QVERIFY(sleepy.connectTo(idle.port()));
+    QVERIFY(sleepy.waitForClose());
 }
 
 // ============================== McpDispatcher ==============================

@@ -35,6 +35,17 @@ private Q_SLOTS:
     static void registryValidationTest();
     static void registryOverrideTest();
 
+    // McpAccess
+    static void accessTokenCompareTest();
+    static void accessCheckTest();
+
+    // McpServer (real loopback sockets)
+    static void serverRequestTest();
+    static void serverRejectsBadRequestsTest();
+    static void serverPipeliningAndDeferredReplyTest();
+    static void serverReplyTimeoutTest();
+    static void serverLimitsAndListenFailureTest();
+
     // McpDispatcher
     static void dispatcherInitializeTest();
     static void dispatcherPingAndNotificationTest();

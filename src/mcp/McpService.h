@@ -1,0 +1,51 @@
+#pragma once
+// SPDX-License-Identifier: GPL-2.0-or-later
+// Copyright (C) 2019 The MMapper Authors
+
+#include "../global/Signal2.h"
+#include "../global/macros.h"
+#include "McpBackend.h"
+#include "McpDispatcher.h"
+#include "McpEventLog.h"
+#include "McpServer.h"
+#include "McpToolRegistry.h"
+
+#include <cstdint>
+
+#include <QObject>
+#include <QString>
+
+class GameObserver;
+
+// Owns the MCP server and everything it needs, and keeps it in step with the MCP settings:
+// turning it on or off, changing the port or regenerating the token takes effect at once.
+// If it cannot listen (say the port is taken) it reports why in the settings and carries on.
+class NODISCARD_QOBJECT McpService final : public QObject
+{
+    Q_OBJECT
+
+private:
+    McpHost m_host;
+    McpEventLog m_events;
+    McpToolRegistry m_registry;
+    McpBackend m_backend;
+    McpDispatcher m_dispatcher;
+    McpServer m_server;
+    Signal2Lifetime m_lifetime;
+
+    // What the server was last started with, so unrelated settings changes do nothing.
+    bool m_appliedEnabled = false;
+    uint16_t m_appliedPort = 0;
+    QString m_appliedToken;
+    bool m_hasApplied = false;
+
+public:
+    explicit McpService(const McpHost &host, GameObserver &observer, QObject *parent);
+    ~McpService() final;
+
+signals:
+    void sig_log(const QString &module, const QString &message);
+
+private:
+    void applyConfig();
+};

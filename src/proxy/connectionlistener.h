@@ -84,6 +84,9 @@ public:
 public:
     void listen();
 
+    // The connection currently being served, if any.
+    NODISCARD Proxy *getProxy() const;
+
 private:
     void log(const QString &msg) { emit sig_log("Listener", msg); }
 

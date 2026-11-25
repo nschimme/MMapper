@@ -48,6 +48,7 @@ NODISCARD QJsonObject roomToJson(const Map &map, const RoomHandle &room)
 {
     QJsonObject obj;
     obj[QStringLiteral("id")] = static_cast<double>(room.getIdExternal().asUint32());
+    obj[QStringLiteral("internalId")] = static_cast<double>(room.getId().asUint32());
     if (const auto server = room.getServerId(); server != INVALID_SERVER_ROOMID) {
         obj[QStringLiteral("serverId")] = static_cast<double>(server.asUint32());
     }
@@ -217,6 +218,10 @@ void mcpRegisterMapInspectionTools(McpToolRegistry &registry, const McpHost &hos
                                  map.getExternalRoomId(*id).asUint32());
                          } else {
                              result[QStringLiteral("currentRoomId")] = QJsonValue::Null;
+                         }
+                         if (const auto id = host.mapData.getCurrentRoomId()) {
+                             result[QStringLiteral("currentRoomInternalId")] = static_cast<double>(
+                                 id->asUint32());
                          }
                          result[QStringLiteral("fileName")] = host.mapData.getFileName();
                          result[QStringLiteral("modified")] = host.mapData.dataChanged();

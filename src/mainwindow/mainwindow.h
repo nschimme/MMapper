@@ -409,10 +409,9 @@ private:
     void updateDescriptionRoom(const RoomHandle &room);
     void applyGroupAction(const std::function<Change(const RawRoom &)> &getChange);
     void onSuccessfulLoad(const MapLoadData &mapLoadData);
-#ifndef MMAPPER_NO_MCP
-    // Starts loading a map file for MCP; returns why it could not start, or an empty string.
-    NODISCARD QString startLoadingMapForMcp(const QString &path);
-#endif
+    // Starts loading a map file in the background. Returns why it could not start, or an empty
+    // string; sig_mapLoadFinished says how the load went.
+    NODISCARD QString tryStartLoadingMap(const QString &path);
     void onSuccessfulMerge(const Map &map);
     void onSuccessfulSave(SaveModeEnum mode, SaveFormatEnum format, const QString &fileName);
 

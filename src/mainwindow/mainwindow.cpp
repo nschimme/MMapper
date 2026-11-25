@@ -455,7 +455,7 @@ MainWindow::MainWindow()
                                                         deref(m_pathMachine),
                                                         getSettingsFilePath(),
                                                         [this](const QString &path) {
-                                                            return startLoadingMapForMcp(path);
+                                                            return tryStartLoadingMap(path);
                                                         }},
                                                 deref(m_gameObserver));
     connect(m_mcpService.get(), &McpService::sig_log, this, &MainWindow::slot_log);
@@ -2086,8 +2086,7 @@ void MainWindow::showAsyncFailure(const QString &fileName,
     }
 }
 
-#ifndef MMAPPER_NO_MCP
-QString MainWindow::startLoadingMapForMcp(const QString &path)
+QString MainWindow::tryStartLoadingMap(const QString &path)
 {
     if (getAsyncIO().isRunningOnBackgroundThread()) {
         return tr("another file operation is still running");
@@ -2099,7 +2098,6 @@ QString MainWindow::startLoadingMapForMcp(const QString &path)
     }
     return {}; // the load runs in the background; sig_mapLoadFinished says how it went
 }
-#endif
 
 void MainWindow::slot_onFindRoom()
 {

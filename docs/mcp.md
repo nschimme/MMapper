@@ -72,7 +72,9 @@ they cannot go out of date. This is what the groups are for.
   `mmapper_map` also reaches. Rooms the game has only
   reported once are temporary and are not saved; walk back through them first. `screenshot` returns
   MMapper's own rendering of the map canvas as a PNG (needs a GL context, see below); right after a
-  load it can still say "the map isn't ready yet", so take another one a moment later.
+  load it can still say "the map isn't ready yet", so take another one a moment later. Debug builds draw a timing overlay
+  (`_config map perf-stats set enabled false` turns it off); `_config map layer up|down|reset`,
+  `_config map center` and `_config map zoom set <n>` choose what is shown.
 * **MMapper commands**: one `mmapper_<command>` tool for every command typed with the command
   prefix (for example `mmapper_search`, `mmapper_dirs`, `mmapper_room`). They are generated from the
   parser's command table, so the list is complete before a session exists and follows the parser

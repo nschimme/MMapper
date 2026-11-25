@@ -235,8 +235,12 @@ void mcpRegisterMapTools(McpToolRegistry &registry, const McpHost &host, McpWait
             "Render the map canvas as it is shown now and return it as a PNG image "
             "(MMapper's own rendering, not a screen capture). With `path` the PNG is "
             "also written to that absolute path. Right after a load or an edit the canvas may "
-            "still show \"the map isn't ready yet\"; take another one a moment later. Fails if "
-            "the canvas cannot be rendered. Does not need a session."),
+            "still show \"the map isn't ready yet\"; take another one a moment later. Debug "
+            "builds draw a timing overlay, so two shots of the same view only match after "
+            "`_config map perf-stats set enabled false`. Change what is shown with "
+            "`_config map layer up|down|reset`, `_config map center` and `_config map zoom set <n>` "
+            "(the mmapper_config tool). Fails if the canvas cannot be rendered. Does not need a "
+            "session."),
         mcpObjectSchema({{QStringLiteral("path"),
                           mcpStringProperty(QStringLiteral("Absolute path of a .png file to "
                                                            "also write (optional)."))}}),

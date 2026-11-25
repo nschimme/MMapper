@@ -5,6 +5,8 @@
 #include "../global/macros.h"
 #include "McpSession.h"
 
+#include <functional>
+
 #include <QString>
 
 class ConnectionListener;
@@ -21,6 +23,9 @@ struct NODISCARD McpHost final
     ConnectionListener &listener;
     Mmapper2PathMachine &pathMachine;
     QString settingsPath; // looked up once at start-up; see McpService
+    // Starts loading a map file in the background. Returns why it could not start, or an empty
+    // string; the McpService hears how it went through slot_onMapLoadFinished.
+    std::function<QString(const QString &path)> loadMap;
 };
 
 // Registers MMapper's tools in a registry. Each area of tools lives in its own file (see

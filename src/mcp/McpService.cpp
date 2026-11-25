@@ -45,6 +45,17 @@ McpService::~McpService()
     setConfig().mcp.setStatus(QStringLiteral("Stopped"));
 }
 
+void McpService::slot_onMapLoadFinished(const QString &fileName, const bool success)
+{
+    if (m_observing == nullptr) {
+        return; // the server is off, so nobody can be waiting for it
+    }
+    QJsonObject data;
+    data[QStringLiteral("file")] = fileName;
+    data[QStringLiteral("success")] = success;
+    std::ignore = m_events.append(QStringLiteral("map_load"), fileName, data);
+}
+
 void McpService::setCollecting(const bool collect)
 {
     if (collect == (m_observing != nullptr)) {

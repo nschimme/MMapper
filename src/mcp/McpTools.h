@@ -31,3 +31,6 @@ void mcpRegisterDriveTools(McpToolRegistry &registry,
 
 // inject_mud, inject_gmcp
 void mcpRegisterInjectTools(McpToolRegistry &registry, const McpHost &host);
+
+// load_map
+void mcpRegisterMapTools(McpToolRegistry &registry, const McpHost &host, McpWaiters &waiters);

@@ -55,6 +55,10 @@ public:
     explicit McpService(const McpHost &host, GameObserver &observer);
     ~McpService() final;
 
+public slots:
+    // A map load finished; tools that started one are waiting to hear.
+    void slot_onMapLoadFinished(const QString &fileName, bool success);
+
 signals:
     void sig_log(const QString &module, const QString &message);
 

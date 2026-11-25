@@ -12,21 +12,7 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 
-namespace {
-
-NODISCARD QJsonObject eventToJson(const McpEvent &e)
-{
-    QJsonObject obj;
-    obj[QStringLiteral("seq")] = static_cast<double>(e.seq);
-    obj[QStringLiteral("kind")] = e.kind;
-    obj[QStringLiteral("text")] = e.text;
-    if (!e.data.isEmpty()) {
-        obj[QStringLiteral("data")] = e.data;
-    }
-    return obj;
-}
-
-} // namespace
+namespace {} // namespace
 
 void mcpRegisterEventTools(McpToolRegistry &registry, McpEventLog &events)
 {
@@ -67,14 +53,12 @@ void mcpRegisterEventTools(McpToolRegistry &registry, McpEventLog &events)
             const auto read = events.readSince(static_cast<uint64_t>(since), kinds, max);
             QJsonArray list;
             for (const McpEvent &e : read.events) {
-                list.append(eventToJson(e));
+                list.append(mcpEventToJson(e));
             }
             QJsonObject result;
             result[QStringLiteral("events")] = list;
             result[QStringLiteral("nextSeq")] = static_cast<double>(read.nextSeq);
             result[QStringLiteral("truncated")] = read.truncated;
-            return McpToolResult::ok(QString::fromUtf8(
-                                         QJsonDocument{result}.toJson(QJsonDocument::Compact)),
-                                     result);
+            return McpToolResult::json(result);
         });
 }

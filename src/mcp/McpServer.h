@@ -30,11 +30,13 @@ class NODISCARD_QOBJECT McpServer final : public QObject
     Q_OBJECT
 
 public:
+    static constexpr int DEFAULT_REPLY_TIMEOUT_MS = 120'000;
+
     struct NODISCARD Options final
     {
         size_t maxConnections = 16;
-        int idleTimeoutMs = 60'000;   // no bytes from a client that is not waiting for a reply
-        int replyTimeoutMs = 120'000; // upper bound on a deferred reply
+        int idleTimeoutMs = 60'000; // no bytes from a client that is not waiting for a reply
+        int replyTimeoutMs = DEFAULT_REPLY_TIMEOUT_MS; // upper bound on a deferred reply
     };
 
 private:

@@ -7,6 +7,7 @@
 #include "../proxy/proxy.h"
 #include "McpBackend.h"
 #include "McpToolRegistry.h"
+#include "McpToolSupport.h"
 #include "McpTools.h"
 
 #include <QJsonArray>
@@ -80,8 +81,7 @@ void mcpRegisterInjectTools(McpToolRegistry &registry, const McpHost &host)
         [&host](const QJsonObject &args) {
             Proxy *const proxy = host.listener.getProxy();
             if (proxy == nullptr) {
-                return McpToolResult::error(
-                    QStringLiteral("there is no session; call open_session first"));
+                return McpToolResult::error(mcpNoSessionMessage());
             }
             const QString text = args.value(QStringLiteral("text")).toString();
             if (text.isEmpty()) {
@@ -111,8 +111,7 @@ void mcpRegisterInjectTools(McpToolRegistry &registry, const McpHost &host)
                      [&host](const QJsonObject &args) {
                          Proxy *const proxy = host.listener.getProxy();
                          if (proxy == nullptr) {
-                             return McpToolResult::error(
-                                 QStringLiteral("there is no session; call open_session first"));
+                             return McpToolResult::error(mcpNoSessionMessage());
                          }
                          const GmcpArgs gmcp = parseGmcpArgs(args);
                          if (!gmcp.error.isEmpty()) {
@@ -142,8 +141,7 @@ void mcpRegisterInjectTools(McpToolRegistry &registry, const McpHost &host)
         [&host](const QJsonObject &args) {
             Proxy *const proxy = host.listener.getProxy();
             if (proxy == nullptr) {
-                return McpToolResult::error(
-                    QStringLiteral("there is no session; call open_session first"));
+                return McpToolResult::error(mcpNoSessionMessage());
             }
             const GmcpArgs gmcp = parseGmcpArgs(args);
             if (!gmcp.error.isEmpty()) {

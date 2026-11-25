@@ -9,6 +9,7 @@
 #include "McpBackend.h"
 #include "McpEventLog.h"
 #include "McpToolRegistry.h"
+#include "McpToolSupport.h"
 #include "McpTools.h"
 #include "McpWaiters.h"
 
@@ -24,26 +25,7 @@
 
 namespace {
 
-constexpr int DEFAULT_TIMEOUT_MS = 10'000;
-constexpr int MAX_TIMEOUT_MS = 100'000; // below the server's own limit on a deferred reply
 constexpr size_t MAX_EVENTS_IN_REPLY = 1000;
-
-NODISCARD QJsonObject eventJson(const McpEvent &e)
-{
-    QJsonObject obj;
-    obj[QStringLiteral("seq")] = static_cast<double>(e.seq);
-    obj[QStringLiteral("kind")] = e.kind;
-    obj[QStringLiteral("text")] = e.text;
-    if (!e.data.isEmpty()) {
-        obj[QStringLiteral("data")] = e.data;
-    }
-    return obj;
-}
-
-NODISCARD QString compactJson(const QJsonObject &obj)
-{
-    return QString::fromUtf8(QJsonDocument{obj}.toJson(QJsonDocument::Compact));
-}
 
 // The answer to send: everything that happened after `since`, and how the wait ended.
 NODISCARD McpToolResult makeReply(const McpEventLog &events,
@@ -54,7 +36,7 @@ NODISCARD McpToolResult makeReply(const McpEventLog &events,
     const auto read = events.readSince(since, {}, MAX_EVENTS_IN_REPLY);
     QJsonArray list;
     for (const McpEvent &e : read.events) {
-        list.append(eventJson(e));
+        list.append(mcpEventToJson(e));
     }
     QJsonObject result;
     result[QStringLiteral("waited")] = waited;
@@ -63,11 +45,11 @@ NODISCARD McpToolResult makeReply(const McpEventLog &events,
     result[QStringLiteral("truncated")] = read.truncated;
 
     if (problem.isEmpty()) {
-        return McpToolResult::ok(compactJson(result), result);
+        return McpToolResult::ok(mcpCompactJson(result), result);
     }
     // The events so far are still useful when a wait fails, so they travel with the error.
     result[QStringLiteral("error")] = problem;
-    return McpToolResult{true, problem + QStringLiteral("\n") + compactJson(result), result};
+    return McpToolResult{true, problem + QStringLiteral("\n") + mcpCompactJson(result), result};
 }
 
 } // namespace
@@ -87,7 +69,7 @@ void mcpRunLine(const McpHost &host,
     }
     Proxy *const proxy = host.listener.getProxy();
     if (proxy == nullptr) {
-        reply(McpToolResult::error(QStringLiteral("there is no session; call open_session first")));
+        reply(McpToolResult::error(mcpNoSessionMessage()));
         return;
     }
     if (mcpIsConnectCommand(line, getConfig().parser.prefixChar)) {
@@ -129,30 +111,30 @@ void mcpRunLine(const McpHost &host,
     }
 
     // Wait. If the session goes away first, there is nothing left to wait for.
-    auto sessionGone = std::make_shared<QMetaObject::Connection>();
-    const uint64_t id = waiters.add(
-        predicate,
-        timeoutMs,
-        [&events, since, reply, sessionGone](const McpWaiters::Outcome &outcome) {
-            QObject::disconnect(*sessionGone);
-            switch (outcome.kind) {
-            case McpWaiters::Outcome::KindEnum::Matched:
-                reply(makeReply(events, since, QStringLiteral("matched"), {}));
-                break;
-            case McpWaiters::Outcome::KindEnum::TimedOut:
-                reply(makeReply(events,
-                                since,
-                                QStringLiteral("timeout"),
-                                QStringLiteral("timed out waiting for the condition")));
-                break;
-            case McpWaiters::Outcome::KindEnum::Cancelled:
-                reply(makeReply(events, since, QStringLiteral("cancelled"), outcome.reason));
-                break;
-            }
-        });
-    *sessionGone = QObject::connect(proxy, &QObject::destroyed, &waiters, [&waiters, id]() {
-        std::ignore = waiters.cancel(id, QStringLiteral("the session closed"));
-    });
+    mcpWaitWhileSession(waiters,
+                        proxy,
+                        predicate,
+                        timeoutMs,
+                        [&events, since, reply](const McpWaiters::Outcome &outcome) {
+                            switch (outcome.kind) {
+                            case McpWaiters::Outcome::KindEnum::Matched:
+                                reply(makeReply(events, since, QStringLiteral("matched"), {}));
+                                break;
+                            case McpWaiters::Outcome::KindEnum::TimedOut:
+                                reply(makeReply(events,
+                                                since,
+                                                QStringLiteral("timeout"),
+                                                QStringLiteral(
+                                                    "timed out waiting for the condition")));
+                                break;
+                            case McpWaiters::Outcome::KindEnum::Cancelled:
+                                reply(makeReply(events,
+                                                since,
+                                                QStringLiteral("cancelled"),
+                                                outcome.reason));
+                                break;
+                            }
+                        });
 }
 
 void mcpRegisterDriveTools(McpToolRegistry &registry,
@@ -182,9 +164,9 @@ void mcpRegisterDriveTools(McpToolRegistry &registry,
                     {QStringLiteral("line")}),
                 [&host, &events, &waiters](const QJsonObject &args, McpReply reply) {
                     const int timeoutMs = std::clamp(args.value(QStringLiteral("timeout_ms"))
-                                                         .toInt(DEFAULT_TIMEOUT_MS),
+                                                         .toInt(MCP_DEFAULT_WAIT_MS),
                                                      100,
-                                                     MAX_TIMEOUT_MS);
+                                                     MCP_MAX_WAIT_MS);
                     mcpRunLine(host,
                                events,
                                waiters,

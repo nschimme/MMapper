@@ -10,6 +10,7 @@
 #include "McpEventLog.h"
 #include "McpSession.h"
 #include "McpToolRegistry.h"
+#include "McpToolSupport.h"
 #include "McpTools.h"
 #include "McpWaiters.h"
 
@@ -27,8 +28,7 @@ NODISCARD McpToolResult describe(const McpSession &session, const bool created)
     QJsonObject result;
     result[QStringLiteral("owner")] = QString::fromLatin1(mcpOwnerName(session.owner()));
     result[QStringLiteral("created")] = created;
-    return McpToolResult::ok(QString::fromUtf8(QJsonDocument{result}.toJson(QJsonDocument::Compact)),
-                             result);
+    return McpToolResult::json(result);
 }
 
 } // namespace
@@ -109,14 +109,14 @@ void mcpRegisterSessionTools(McpToolRegistry &registry,
 
             const int timeoutMs = std::clamp(args.value(QStringLiteral("timeout_ms")).toInt(30'000),
                                              100,
-                                             100'000);
+                                             MCP_MAX_WAIT_MS);
             const bool created = result.created;
-            auto sessionGone = std::make_shared<QMetaObject::Connection>();
-            const uint64_t id = waiters.add(
+            mcpWaitWhileSession(
+                waiters,
+                proxy,
                 [](const McpEvent &e) { return e.kind == QStringLiteral("mud_connected"); },
                 timeoutMs,
-                [&session, created, reply, sessionGone](const McpWaiters::Outcome &outcome) {
-                    QObject::disconnect(*sessionGone);
+                [&session, created, reply](const McpWaiters::Outcome &outcome) {
                     switch (outcome.kind) {
                     case McpWaiters::Outcome::KindEnum::Matched:
                         reply(describe(session, created));
@@ -131,9 +131,6 @@ void mcpRegisterSessionTools(McpToolRegistry &registry,
                         break;
                     }
                 });
-            *sessionGone = QObject::connect(proxy, &QObject::destroyed, &waiters, [&waiters, id]() {
-                std::ignore = waiters.cancel(id, QStringLiteral("the session closed"));
-            });
         }});
 
     registry.addSync(QStringLiteral("close_session"),

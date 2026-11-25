@@ -29,7 +29,12 @@ struct NODISCARD McpToolResult final
     {
         return McpToolResult{true, std::move(text), std::nullopt};
     }
+    // A result that is a JSON object: its compact text for a reader of the text, and the object
+    // itself as the structured content.
+    NODISCARD static McpToolResult json(const QJsonObject &object);
 };
+
+NODISCARD QString mcpCompactJson(const QJsonObject &object);
 
 // A tool answers by calling this exactly once, now or later (e.g. when an event arrives or a
 // timer fires). Replying later is how "wait for X" tools avoid nested event loops.

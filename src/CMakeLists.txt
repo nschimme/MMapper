@@ -795,6 +795,8 @@ if(WITH_MCP)
         mcp/McpToolsRooms.cpp
         mcp/McpToolsSession.cpp
         mcp/McpToolsStatus.cpp
+        mcp/McpToolSupport.cpp
+        mcp/McpToolSupport.h
         mcp/McpTools.h
         preferences/mcppage.cpp
         preferences/mcppage.h

@@ -8,6 +8,7 @@
 #include <utility>
 
 #include <QJsonArray>
+#include <QJsonDocument>
 #include <QRegularExpression>
 #include <QStringList>
 
@@ -65,6 +66,16 @@ const McpTool *McpToolRegistry::find(const QString &name) const
         return t.name == name;
     });
     return it == m_tools.end() ? nullptr : &*it;
+}
+
+QString mcpCompactJson(const QJsonObject &object)
+{
+    return QString::fromUtf8(QJsonDocument{object}.toJson(QJsonDocument::Compact));
+}
+
+McpToolResult McpToolResult::json(const QJsonObject &object)
+{
+    return ok(mcpCompactJson(object), object);
 }
 
 QJsonObject mcpObjectSchema(const QJsonObject &properties, const QStringList &required)

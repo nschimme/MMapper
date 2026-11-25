@@ -102,8 +102,6 @@ void mcpRegisterRoomTools(McpToolRegistry &registry, const McpHost &host)
                 }
             }
             const QJsonObject json = roomToJson(map, room);
-            return McpToolResult::ok(QString::fromUtf8(
-                                         QJsonDocument{json}.toJson(QJsonDocument::Compact)),
-                                     json);
+            return McpToolResult::json(json);
         });
 }

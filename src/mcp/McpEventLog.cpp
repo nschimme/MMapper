@@ -99,3 +99,15 @@ McpEventLog::ReadResult McpEventLog::readSince(const uint64_t since,
     }
     return result;
 }
+
+QJsonObject mcpEventToJson(const McpEvent &event)
+{
+    QJsonObject obj;
+    obj[QStringLiteral("seq")] = static_cast<double>(event.seq);
+    obj[QStringLiteral("kind")] = event.kind;
+    obj[QStringLiteral("text")] = event.text;
+    if (!event.data.isEmpty()) {
+        obj[QStringLiteral("data")] = event.data;
+    }
+    return obj;
+}

@@ -5,6 +5,7 @@
 #include "../mapdata/mapdata.h"
 #include "McpBackend.h"
 #include "McpToolRegistry.h"
+#include "McpToolSupport.h"
 #include "McpTools.h"
 #include "McpWaiters.h"
 
@@ -17,7 +18,6 @@
 namespace {
 
 constexpr int DEFAULT_LOAD_TIMEOUT_MS = 60'000;
-constexpr int MAX_LOAD_TIMEOUT_MS = 100'000; // below the server's own limit on a deferred reply
 
 NODISCARD McpToolResult loadedResult(const McpHost &host, const QString &file)
 {
@@ -25,8 +25,7 @@ NODISCARD McpToolResult loadedResult(const McpHost &host, const QString &file)
     result[QStringLiteral("file")] = file;
     result[QStringLiteral("rooms")] = static_cast<double>(
         host.mapData.getCurrentMap().getRoomsCount());
-    return McpToolResult::ok(QString::fromUtf8(QJsonDocument{result}.toJson(QJsonDocument::Compact)),
-                             result);
+    return McpToolResult::json(result);
 }
 
 } // namespace
@@ -63,7 +62,7 @@ void mcpRegisterMapTools(McpToolRegistry &registry, const McpHost &host, McpWait
             const int timeoutMs = std::clamp(args.value(QStringLiteral("timeout_ms"))
                                                  .toInt(DEFAULT_LOAD_TIMEOUT_MS),
                                              100,
-                                             MAX_LOAD_TIMEOUT_MS);
+                                             MCP_MAX_WAIT_MS);
 
             if (const QString error = host.loadMap(path); !error.isEmpty()) {
                 reply(McpToolResult::error(error));

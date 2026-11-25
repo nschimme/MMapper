@@ -76,3 +76,6 @@ private:
     NODISCARD static size_t costOf(const McpEvent &event);
     void trim();
 };
+
+// {"seq", "kind", "text"} and, if there is one, "data".
+NODISCARD QJsonObject mcpEventToJson(const McpEvent &event);

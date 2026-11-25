@@ -54,7 +54,7 @@ Use `127.0.0.1` in URLs rather than `localhost`: some systems resolve `localhost
 | `get_room` | A room as structured data: name, area, description, contents, terrain, position and exits with the rooms they lead to. Without `id` it describes the room the player is in. For searching and directions use the `mmapper_search` and `mmapper_dirs` tools. |
 | `inject_mud` | Feed text to MMapper as if the MUD had sent it (MUME's XML stream); `prompt: true` marks a prompt. |
 | `inject_gmcp` | Feed a GMCP message as if the MUD had sent it. |
-| `send_gmcp` | Send a GMCP message to the MUD. An error if there is no MUD connection or the MUD has not agreed to use GMCP (MMapper would otherwise drop the message without a word). |
+| `send_gmcp` | Send a GMCP message to the MUD. An error if there is no MUD connection or the MUD has not agreed to use GMCP yet (MUME offers it right after connecting, so this is normally only seen in the first moments or when something is wrong); MMapper would otherwise drop the message without a word. |
 | `read_events` | Events since a cursor. Kinds: `user_text` (everything shown to the user, MUD text and MMapper's own), `prompt`, `gmcp`, `sent_to_mud`, `mud_connected`, `mud_disconnected`, `position` (`data.roomId`), `pathmachine`, `map_changed`, `map_load`. Pass the returned `nextSeq` as `since` next time; `truncated` means older events were dropped before you read them. |
 
 ### What creates rooms

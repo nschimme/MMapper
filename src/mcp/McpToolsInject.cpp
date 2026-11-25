@@ -127,8 +127,8 @@ void mcpRegisterInjectTools(McpToolRegistry &registry, const McpHost &host)
         QStringLiteral("send_gmcp"),
         QStringLiteral("Send a GMCP message to the MUD, for example package \"Core.Hello\" with the "
                        "JSON a client would send. Needs a session connected to a MUD that has "
-                       "agreed to use GMCP; otherwise this is an error (MMapper would silently "
-                       "drop the message)."),
+                       "agreed to use GMCP (MUME offers it right after connecting); otherwise this "
+                       "is an error (MMapper would silently drop the message)."),
         mcpObjectSchema({{QStringLiteral("package"),
                           mcpStringProperty(
                               QStringLiteral("The GMCP package name, e.g. Core.Supports.Set."))},
@@ -154,8 +154,9 @@ void mcpRegisterInjectTools(McpToolRegistry &registry, const McpHost &host)
             }
             if (!ProxyControlApi{*proxy}.isMudGmcpNegotiated()) {
                 return McpToolResult::error(
-                    QStringLiteral("the MUD has not agreed to use GMCP, so the message would be "
-                                   "dropped"));
+                    QStringLiteral("the MUD has not agreed to use GMCP (yet), so the message "
+                                   "would be dropped. MUME offers it as soon as it connects, so "
+                                   "if the connection is brand new try again in a moment."));
             }
             ProxyMudGmcpApi{*proxy}.gmcpToMud(GmcpMessage::fromRawBytes(gmcp.raw));
             return McpToolResult::ok(QStringLiteral("sent ") + gmcp.package);

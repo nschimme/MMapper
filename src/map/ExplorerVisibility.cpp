@@ -196,6 +196,33 @@ bool exploreExitsOnlyReveal(const std::shared_ptr<const DiscoveredExits> &before
     return std::includes(after->begin(), after->end(), before->begin(), before->end());
 }
 
+bool exploreRoomShown(const RoomIdSet *const visible, const RoomId room)
+{
+    return visible == nullptr || visible->contains(room);
+}
+
+bool exploreConnectionShown(const RoomIdSet *const visible, const RoomId from, const RoomId to)
+{
+    return exploreRoomShown(visible, from) && exploreRoomShown(visible, to);
+}
+
+bool exploreVisibleOnlyGrows(const std::shared_ptr<const RoomIdSet> &before,
+                             const std::shared_ptr<const RoomIdSet> &after)
+{
+    if (!after) {
+        return true; // not exploring (anymore): nothing is hidden
+    }
+    if (!before) {
+        return false; // starting to explore hides rooms
+    }
+    for (const RoomId id : *before) {
+        if (!after->contains(id)) {
+            return false;
+        }
+    }
+    return true;
+}
+
 Map mapForExplorer(const Map &map, const std::shared_ptr<const DiscoveredExits> &discovered)
 {
     return discovered ? hideUndiscoveredExits(map, *discovered) : map;

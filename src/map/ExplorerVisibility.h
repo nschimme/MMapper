@@ -77,6 +77,22 @@ NODISCARD extern Map hideUndiscoveredExits(const Map &map, const DiscoveredExits
 NODISCARD extern bool exploreExitsOnlyReveal(const std::shared_ptr<const DiscoveredExits> &before,
                                              const std::shared_ptr<const DiscoveredExits> &after);
 
+// Whether a room may be meshed in a connection. `visible` is the base visibility of Explore mode
+// (the service's, which never depends on where the player stands). Null means not exploring:
+// nothing is hidden. An empty set means exploring with nothing computed yet: everything is.
+NODISCARD extern bool exploreRoomShown(const RoomIdSet *visible, RoomId room);
+
+// A connection (and its door name) is meshed only when every room it touches is shown. A
+// connection is not hidden by the fog mask, which keeps empty cells shown so that long lines
+// are not cut, so a line between two hidden rooms would otherwise show where they are.
+NODISCARD extern bool exploreConnectionShown(const RoomIdSet *visible, RoomId from, RoomId to);
+
+// Whether replacing the base visibility `before` with `after` can only show more. Same contract
+// as exploreExitsOnlyReveal(): a mesh built from a smaller set only hides more, so it may keep
+// drawing while a new one is built; anything else must drop the meshes at once.
+NODISCARD extern bool exploreVisibleOnlyGrows(const std::shared_ptr<const RoomIdSet> &before,
+                                              const std::shared_ptr<const RoomIdSet> &after);
+
 // The map to mesh: inactive (no snapshot of finds) is the map unchanged.
 NODISCARD extern Map mapForExplorer(const Map &map,
                                     const std::shared_ptr<const DiscoveredExits> &discovered);

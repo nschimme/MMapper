@@ -614,6 +614,92 @@ void testExitsChangeOnlyReveals()
     TEST_ASSERT(!exploreExitsOnlyReveal(set({a}), set({b, c})));    // another character
     TEST_ASSERT(!exploreExitsOnlyReveal(set({a, b}), set({b, c}))); // gained one, lost one
 }
+
+void testConnectionCulling()
+{
+    Fixture f;
+    const RoomId a = f.add(0, 10);
+    const RoomId b = f.add(1, 11);
+    const RoomId c = f.add(2, 12);
+    const RoomId d = f.add(3, 13);
+
+    RoomIdSet visible;
+    visible.insert(a);
+    visible.insert(b);
+
+    // Two shown rooms: the connection is meshed, whichever side it is asked from.
+    TEST_ASSERT(exploreConnectionShown(&visible, a, b));
+    TEST_ASSERT(exploreConnectionShown(&visible, b, a));
+    // Two hidden rooms: nothing may show where they are, even though the fog mask would keep
+    // the empty cells between them shown.
+    TEST_ASSERT(!exploreConnectionShown(&visible, c, d));
+    // One of each: not drawn either, from either side.
+    TEST_ASSERT(!exploreConnectionShown(&visible, a, c));
+    TEST_ASSERT(!exploreConnectionShown(&visible, c, a));
+    // A connection to the room itself (a loop) follows that room.
+    TEST_ASSERT(exploreConnectionShown(&visible, a, a));
+    TEST_ASSERT(!exploreConnectionShown(&visible, c, c));
+
+    // A room, as when an exit has no known target, follows its source.
+    TEST_ASSERT(exploreRoomShown(&visible, a));
+    TEST_ASSERT(!exploreRoomShown(&visible, c));
+
+    // Not exploring (null): nothing is culled.
+    TEST_ASSERT(exploreConnectionShown(nullptr, c, d));
+    TEST_ASSERT(exploreRoomShown(nullptr, c));
+    // Exploring with nothing computed yet (empty): everything is culled.
+    const RoomIdSet none;
+    TEST_ASSERT(!exploreConnectionShown(&none, a, b));
+    TEST_ASSERT(!exploreRoomShown(&none, a));
+
+    // The base visibility of a real computation is what the drawer is given, and undiscovered
+    // base-map rooms are in it, so a line from a discovered to an undiscovered room is drawn.
+    Fixture g;
+    const RoomId seed = g.add(0, COSY_ROOM);
+    const RoomId open = g.add(1, 21);
+    const RoomId secret = g.add(2, 22);
+    const RoomId behind = g.add(3, 23);
+    g.connect(seed, ExitDirEnum::EAST, open);
+    g.connect(open, ExitDirEnum::EAST, secret);
+    g.hide(open, ExitDirEnum::EAST);
+    g.connect(secret, ExitDirEnum::EAST, behind);
+    const auto v = g.compute({21});
+    TEST_ASSERT(exploreConnectionShown(&v.visible, seed, open));
+    TEST_ASSERT(!exploreConnectionShown(&v.visible, open, secret));
+    TEST_ASSERT(!exploreConnectionShown(&v.visible, secret, behind));
+}
+
+void testVisibleOnlyGrows()
+{
+    Fixture f;
+    const RoomId a = f.add(0, 10);
+    const RoomId b = f.add(1, 11);
+    const RoomId c = f.add(2, 12);
+    const auto set = [](std::initializer_list<RoomId> ids) {
+        auto s = std::make_shared<RoomIdSet>();
+        for (const RoomId id : ids) {
+            s->insert(id);
+        }
+        return std::shared_ptr<const RoomIdSet>{s};
+    };
+    const std::shared_ptr<const RoomIdSet> none;
+
+    // More rooms shown: the old meshes only hide more, so they may keep drawing.
+    TEST_ASSERT(exploreVisibleOnlyGrows(set({a}), set({a, b})));
+    TEST_ASSERT(exploreVisibleOnlyGrows(set({}), set({a})));
+    TEST_ASSERT(exploreVisibleOnlyGrows(set({a, b}), set({a, b})));
+    // Leaving Explore shows everything.
+    TEST_ASSERT(exploreVisibleOnlyGrows(set({a}), none));
+    TEST_ASSERT(exploreVisibleOnlyGrows(none, none));
+
+    // Anything that could hide a room must drop the meshes at once.
+    TEST_ASSERT(!exploreVisibleOnlyGrows(none, set({}))); // starting to explore
+    TEST_ASSERT(!exploreVisibleOnlyGrows(none, set({a})));
+    TEST_ASSERT(!exploreVisibleOnlyGrows(set({a, b}), set({a})));    // lost one
+    TEST_ASSERT(!exploreVisibleOnlyGrows(set({a}), set({b, c})));    // another character
+    TEST_ASSERT(!exploreVisibleOnlyGrows(set({a, b}), set({b, c}))); // gained one, lost one
+    TEST_ASSERT(!exploreVisibleOnlyGrows(set({a}), set({})));        // not computed yet
+}
 } // namespace
 
 namespace test {
@@ -636,5 +722,7 @@ void testExplorerVisibility()
     testNoSeedRoomsFallBackToKnownRooms();
     testUndiscoveredBase();
     testExitsChangeOnlyReveals();
+    testConnectionCulling();
+    testVisibleOnlyGrows();
 }
 } // namespace test

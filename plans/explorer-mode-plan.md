@@ -22,6 +22,7 @@ Settled:
 | Mode | New `MapModeEnum::EXPLORE` beside `PLAY`, `MAP`, `OFFLINE`. |
 | Hidden exits | Closed (a plain wall) until discovered. |
 | Server data wins | A live server observation always overrides cached or transient data. |
+| Room.Known negotiation | `Room.Known 1` goes in the first `Core.Supports.Set`, before login, when Explore is the configured mode at connect (as the #566 branch did for everyone, which is the only sequence known to work against mume.org). Outside Explore it is not negotiated. Switching to Explore mid-session adds it on demand; an `Add` that changes nothing is not repeated as a `Set`. |
 | Fail direction | Fail closed: anything whose status is unknown stays fogged. |
 | Visibility default | **Changed (v2.3).** A room that is not hidden is visible without being discovered: reachable from the base map's seed rooms (the rooms "Export Base Map" keeps) through exits that are not secret, or whose secret the character has found. Only what is behind an undiscovered secret stays fogged, plus anything the map cannot reach from a seed. Known rooms (`Room.Known`) and the current room stay visible as before. The walk is the same code as the export (`World::findBaseMapRooms`), with the discovered exits as the one difference. If the map holds none of the seed rooms, Explore falls back to the old rule (known rooms only) and logs it once. |
 | Door reset | Every 60 minutes of **real time**; transient door state expires on that interval (monotonic clock, injectable for tests). |

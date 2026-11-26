@@ -359,6 +359,7 @@ void MudTelnet::onGmcpToMud(const GmcpMessage &msg)
         if (msg.isCoreSupportsSet()) {
             resetGmcpModules();
         }
+        const auto modulesBefore = m_gmcp.size();
         if (const auto optArray = msg.getJsonDocument()->getArray()) {
             for (const auto &e : optArray.value()) {
                 if (auto optString = e.getString()) {
@@ -374,6 +375,11 @@ void MudTelnet::onGmcpToMud(const GmcpMessage &msg)
                     }
                 }
             }
+        }
+
+        // An Add of modules MUME was already told about changes nothing: do not repeat the set.
+        if (msg.isCoreSupportsAdd() && m_gmcp.size() == modulesBefore) {
+            return;
         }
 
         // Send it now if GMCP has been negotiated
@@ -524,6 +530,12 @@ void MudTelnet::resetGmcpModules()
     receiveGmcpModule(GmcpModule{GmcpModuleTypeEnum::ROOM_CHARS, GmcpModuleVersion{1}}, true);
     receiveGmcpModule(GmcpModule{GmcpModuleTypeEnum::ROOM, GmcpModuleVersion{1}}, true);
     receiveGmcpModule(GmcpModule{GmcpModuleTypeEnum::MUME_CLIENT, GmcpModuleVersion{1}}, true);
+
+    // Explore mode needs the known-room list from the first login, so it is negotiated with the
+    // other modules before login, as MUME expects. Otherwise it is added when first requested.
+    if (getConfig().general.mapMode == MapModeEnum::EXPLORE) {
+        receiveGmcpModule(GmcpModule{GmcpModuleTypeEnum::ROOM_KNOWN, GmcpModuleVersion{1}}, true);
+    }
 }
 
 void MudTelnet::sendCoreSupports()

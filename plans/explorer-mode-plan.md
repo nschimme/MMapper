@@ -294,10 +294,13 @@ that Explore is incoherent until the fog exists.
 - **Non-blocking:** Explore reuses `map.png` as its icon, so its
   button looks like Map mode's; and `exploreModePersistenceTest` should snapshot and restore the whole
   configuration through `writeTo`/`readFrom` instead of two fields.
-- **Unverified server assumption.** `recordHiddenExits` assumes MUME lists a secret exit with the
-  `"hidden"` flag in `Room.Info` only after the player has found it. If it lists unfound ones
-  too, every secret door would be recorded as found. This needs a live check (see the report
-  for this round) before release.
+- **Server assumption, verified in the server source** (`add_gmcp_exit` and `can_see_exit` in
+  `commands/act.enviro.c`). A closed hidden exit is sent with the `hidden` flag only if the
+  character knows it (`knows_hidden_exit`); otherwise it is sent as `NOT_SHOWN` with no flags,
+  no keyword and no target id. So `recordHiddenExits` records finds correctly. Two cases to
+  know: an open hidden door is visible to everyone and carries the flag (so seeing it open
+  counts as finding it), and a wizlit god sees every exit. Not yet confirmed against the live
+  mume.org server, which may differ from this source.
 - **Facts for the read-only decision.** There is no map autosave (only remote-edit drafts
   autosave). But the path machine's edits change the map, so `MapData::isModified()` becomes
   true: the window is marked modified, Save is enabled, and `maybeSave` prompts "save changes?"

@@ -331,6 +331,9 @@ set(mmapper_SRCS
     map/ExitFlags.cpp
     map/ExitFlags.h
     map/ExitsFlags.h
+    map/ExplorerVisibility-Test.cpp
+    map/ExplorerVisibility.cpp
+    map/ExplorerVisibility.h
     map/InOutEnum.cpp
     map/InOutEnum.h
     map/InvalidMapOperation.cpp

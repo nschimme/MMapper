@@ -5,6 +5,7 @@
 
 #include "../src/global/HideQDebug.h"
 #include "../src/map/Diff.h"
+#include "../src/map/ExplorerVisibility.h"
 #include "../src/map/Map.h"
 #include "../src/map/TinyRoomIdSet.h"
 #include "../src/map/sanitizer.h"
@@ -50,6 +51,12 @@ void TestMap::roomIdSetTest()
     mmqt::HideQDebug forThisTest;
     test::testRoomIdSet();
     test::testImmRoomIdSet();
+}
+
+void TestMap::explorerVisibilityTest()
+{
+    mmqt::HideQDebug forThisTest;
+    test::testExplorerVisibility();
 }
 
 QTEST_MAIN(TestMap)

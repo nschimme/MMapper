@@ -113,6 +113,17 @@ private:
         const glm::ivec3 fogSize = (fog && bound) ? fog->size : glm::ivec3{0};
         setIVec4("uFogMin", glm::ivec4{fogMin, 0});
         setIVec4("uFogSize", glm::ivec4{fogSize, 0});
+
+        // Found secret exits: without the texture nothing is found (a secret stays a wall).
+        setTexture("uFoundMask", static_cast<int>(GLRenderState::FOUND_TEXTURE_UNIT));
+        const auto &found = uniforms.found;
+        const bool foundBound = uniforms.textures[GLRenderState::FOUND_TEXTURE_UNIT]
+                                != INVALID_MM_TEXTURE_ID;
+        setInt("uFoundEnabled", (found && foundBound) ? 1 : 0);
+        const glm::ivec3 foundMin = found ? found->min : glm::ivec3{0};
+        const glm::ivec3 foundSize = (found && foundBound) ? found->size : glm::ivec3{0};
+        setIVec4("uFoundMin", glm::ivec4{foundMin, 0});
+        setIVec4("uFoundSize", glm::ivec4{foundSize, 0});
     }
 };
 

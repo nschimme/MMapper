@@ -9,6 +9,7 @@
 #include "../global/Signal2.h"
 #include "../global/macros.h"
 #include "../group/mmapper2group.h"
+#include "../map/DiscoveredExit.h"
 #include "../mapdata/roomselection.h"
 #include "../mapstorage/MapDestination.h"
 #include "../mapstorage/MapSource.h"
@@ -386,6 +387,11 @@ private:
     // finds (or null when not exploring) and it remeshes only when they changed.
     void syncCanvasExits();
     void syncCanvasFog();
+    // A secret exit found just now is drawn as a door at once, without waiting for the visibility
+    // service to compute the whole mask again.
+    void patchFoundSecrets();
+    // The finds already patched into the canvas, so only new ones are.
+    DiscoveredExits m_patchedFinds;
 
     struct NODISCARD CanvasHider final
     {

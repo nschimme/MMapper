@@ -13,6 +13,15 @@ uniform ivec4 uFogMin;
 uniform ivec4 uFogSize;
 uniform sampler2DArray uFogMask;
 
+// Secret exits the character has found. A quad tagged in bits 16-20 of aVertTexCol.w (see
+// RoomQuadTag.h) is one form of a secret exit: 1 = door form, 2 = wall form, direction in bits
+// 18-20. The door form is drawn only where the cell's bit for that direction is set, the wall
+// form only where it is not. Without the texture nothing is found, so a secret stays a wall.
+uniform int uFoundEnabled;
+uniform ivec4 uFoundMin;
+uniform ivec4 uFoundSize;
+uniform usampler2DArray uFoundMask;
+
 layout(location = 0) in ivec4 aVertTexCol;
 
 out vec4 vColor;
@@ -50,6 +59,25 @@ void main()
             vColor = vec4(0.0);
             vTexCoord = vec3(0.0);
             // Outside the clip volume and degenerate: no fragments are generated.
+            gl_Position = vec4(2.0, 2.0, 2.0, 1.0);
+            return;
+        }
+    }
+
+    int secretForm = (aVertTexCol.w >> 16) & 3;
+    if (secretForm != 0) {
+        bool found = false;
+        if (uFoundEnabled != 0) {
+            ivec3 fcell = aVertTexCol.xyz - uFoundMin.xyz;
+            if (all(greaterThanEqual(fcell, ivec3(0))) && all(lessThan(fcell, uFoundSize.xyz))) {
+                uint bits = texelFetch(uFoundMask, fcell, 0).r;
+                found = ((bits >> uint((aVertTexCol.w >> 18) & 7)) & 1u) != 0u;
+            }
+        }
+        // 1 is the door form, which is drawn only once the secret is found.
+        if ((secretForm == 1) != found) {
+            vColor = vec4(0.0);
+            vTexCoord = vec3(0.0);
             gl_Position = vec4(2.0, 2.0, 2.0, 1.0);
             return;
         }

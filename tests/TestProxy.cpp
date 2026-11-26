@@ -999,6 +999,17 @@ struct NODISCARD ServiceMap final
                                                              to,
                                                              WaysEnum::TwoWay}});
     }
+    void hide(const RoomId room, const ExitDirEnum dir)
+    {
+        apply(Change{exit_change_types::SetExitFlags{FlagChangeEnum::Set,
+                                                     room,
+                                                     dir,
+                                                     ExitFlags{ExitFlagEnum::DOOR}}});
+        apply(Change{exit_change_types::SetDoorFlags{FlagChangeEnum::Set,
+                                                     room,
+                                                     dir,
+                                                     DoorFlags{DoorFlagEnum::HIDDEN}}});
+    }
 };
 
 ImmUnorderedSet<ServerRoomId> serverIds(const std::vector<uint32_t> &ids)
@@ -1077,6 +1088,47 @@ void TestProxy::explorerServiceViewTest()
     service.setKnown(serverIds({10, 11}), 2, 1);
     QTRY_VERIFY(service.getView().shows(b));
     QCOMPARE(service.getComputeCount(), count + 1);
+}
+
+void TestProxy::explorerServiceFoundMaskTest()
+{
+    mmqt::HideQDebug forThisTest;
+    ServiceMap m;
+    const RoomId a = m.add(0, 10);
+    const RoomId b = m.add(1, 11);
+    m.connect(a, ExitDirEnum::EAST, b);
+    m.hide(a, ExitDirEnum::EAST);
+    m.hide(b, ExitDirEnum::WEST);
+    const Coordinate ca{0, 0, 0};
+    const Coordinate cb{1, 0, 0};
+
+    ExplorerVisibilityService service{nullptr};
+    service.setMap(m.map);
+    service.setDiscoveredExits({}, 1);
+    // Nothing is found before the first computation, and the renderer is told so by a null mask.
+    QVERIFY(service.getFoundMask() == nullptr);
+    service.setActive(true);
+    QVERIFY(service.getFoundMask() == nullptr);
+
+    QTRY_VERIFY(service.getFoundMask() != nullptr);
+    const auto none = service.getFoundMask();
+    QVERIFY(!none->empty());
+    QVERIFY(!none->isFound(ca, ExitDirEnum::EAST));
+    QVERIFY(!none->isFound(cb, ExitDirEnum::WEST));
+    // The fog and the found-secret mask describe the same cells.
+    QCOMPARE(none->width, service.getFogMask()->width);
+    QCOMPARE(none->height, service.getFogMask()->height);
+    QCOMPARE(none->depth, service.getFogMask()->depth);
+
+    // A find sets both sides of the door once the coalesced computation finishes.
+    service.setDiscoveredExits(exitSet({{10, ExitDirEnum::EAST}}), 2);
+    QTRY_VERIFY(service.getFoundMask() != none);
+    QVERIFY(service.getFoundMask()->isFound(ca, ExitDirEnum::EAST));
+    QVERIFY(service.getFoundMask()->isFound(cb, ExitDirEnum::WEST));
+
+    // Another character: nothing found, and no stale mask is left to show.
+    service.onCharacterChanged();
+    QVERIFY(service.getFoundMask() == nullptr);
 }
 
 void TestProxy::explorerServiceCacheKeyTest()

@@ -36,6 +36,7 @@ private Q_SLOTS:
     static void discoveredExitsTrackerTest();
     static void explorerServiceInactiveTest();
     static void explorerServiceViewTest();
+    static void explorerServiceFoundMaskTest();
     static void explorerServiceCacheKeyTest();
     static void explorerServiceCoalescingTest();
     static void explorerServicePlacedRoomsTest();

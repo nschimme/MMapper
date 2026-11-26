@@ -44,6 +44,7 @@ void ExplorerVisibilityService::resetBase()
 {
     m_base.reset();
     m_mask.reset();
+    m_found.reset();
     m_publishedRevision = 0;
     ++m_epoch;
 }
@@ -75,7 +76,9 @@ void ExplorerVisibilityService::launch()
                                                           input.map,
                                                           std::nullopt,
                                                           input.discoveredExits)));
-        return Computed{epoch, revision, std::move(base), std::move(mask)};
+        auto found = std::make_shared<const ExplorerFoundMask>(
+            buildExplorerFoundMask(input.map, input.discoveredExits));
+        return Computed{epoch, revision, std::move(base), std::move(mask), std::move(found)};
     });
 }
 
@@ -102,6 +105,7 @@ void ExplorerVisibilityService::poll()
             m_publishedRevision = result->revision;
             m_base = std::move(result->base);
             m_mask = std::move(result->mask);
+            m_found = std::move(result->found);
             if (!m_base->baseMapFound && !m_loggedNoBaseMap) {
                 m_loggedNoBaseMap = true;
                 MMLOG_INFO() << "[explore] The map has none of the base map's seed rooms; only "

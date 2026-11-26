@@ -696,6 +696,7 @@ void MainWindow::wireConnections()
     connect(m_knownRooms, &KnownRoomsTracker::sig_exitsChanged, this, [this]() {
         pushExplorerData();
         syncCanvasExits();
+        patchFoundSecrets();
     });
     connect(m_knownRooms, &KnownRoomsTracker::sig_characterChanged, this, [this]() {
         m_explorerVisibility->onCharacterChanged();
@@ -1305,7 +1306,33 @@ void MainWindow::syncCanvasFog()
             }
         }
     }
-    canvas->slot_setExplorerFog(active, m_explorerVisibility->getFogMask(), shown);
+    canvas->slot_setExplorerFog(active,
+                                m_explorerVisibility->getFogMask(),
+                                m_explorerVisibility->getFoundMask(),
+                                shown);
+}
+
+void MainWindow::patchFoundSecrets()
+{
+    MapCanvasWindow *const canvas = getCanvas();
+    if (canvas == nullptr || getConfig().general.mapMode != MapModeEnum::EXPLORE) {
+        m_patchedFinds.clear();
+        return;
+    }
+    const DiscoveredExits &finds = m_knownRooms->getDiscoveredExits();
+    const Map map = m_mapData->getCurrentMap();
+    std::vector<FoundSecretTexel> patches;
+    for (const DiscoveredExit &find : finds) {
+        if (m_patchedFinds.find(find) == m_patchedFinds.end()) {
+            for (const FoundSecretTexel &texel : foundSecretTexels(map, find)) {
+                patches.push_back(texel);
+            }
+        }
+    }
+    m_patchedFinds = finds;
+    if (!patches.empty()) {
+        canvas->slot_patchFoundSecrets(patches);
+    }
 }
 
 void MainWindow::pushExplorerData()

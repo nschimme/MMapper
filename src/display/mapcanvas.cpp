@@ -1391,15 +1391,26 @@ void MapCanvas::slot_setExplorerExits(const std::shared_ptr<const DiscoveredExit
         m_explorerRemeshRequested = true;
         m_frameManager.requestUpdate();
     } else {
+        // Something may be hidden again (another character, or Explore starting): forget the
+        // finds that came in on their own, as they may belong to someone else.
+        m_foundTexture.clearPatches();
         requestForceUpdateMeshes();
     }
 }
 
 void MapCanvas::slot_setExplorerFog(const bool active,
                                     const std::shared_ptr<const ExplorerFogMask> &mask,
+                                    const std::shared_ptr<const ExplorerFoundMask> &found,
                                     const std::optional<Coordinate> shown)
 {
     m_fogTexture.set(active, mask, shown);
+    m_foundTexture.set(active, found);
+    m_frameManager.requestUpdate();
+}
+
+void MapCanvas::slot_patchFoundSecrets(const std::vector<FoundSecretTexel> &patches)
+{
+    m_foundTexture.addPatches(patches);
     m_frameManager.requestUpdate();
 }
 

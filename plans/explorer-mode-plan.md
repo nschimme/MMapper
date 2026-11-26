@@ -245,6 +245,18 @@ Phase 4 (including `DoorTracker`) does not depend on Explore and can ship first.
   stay on the background remesh, which is safe because nothing leaks before the find.
 - `hideUndiscoveredExits` stays for everything that is not a mesh (Find Rooms, path finding,
   the room panel).
+- **Slice A (instant reveal), in order.** (1) The found-secret mask (`ExplorerFoundMask`,
+  `ExplorerSecrets`): one byte per cell with a bit per direction, both sides of a door, built on
+  the visibility worker beside the fog mask; `foundSecretTexels()` gives the texels one new find
+  sets. (2) The tag in bits 16 to 20 of the instance word (`RoomQuadTag.h`: form door/wall and
+  direction) and the colour decode `(w >> 8) & 0xFF`. (3) `ExplorerFoundTexture`: an R8UI 2D
+  array texture on its own unit (`FOUND_TEXTURE_UNIT = 2`), uploaded and patched only with the
+  layer overloads of `QOpenGLTexture`, and the room shader that keeps the door form where the
+  bit is set and the wall form where it is not (an unbound texture means not found). A find is
+  patched into the texture at once (`MainWindow::patchFoundSecrets`), without waiting for the
+  worker; patches only set bits and are re-applied on top of every newer base. (4) The mesher
+  emits both forms for each secret exit. Until (4) lands no quad is tagged, so (3) changes
+  nothing on screen.
 - The rooms behind a found secret appear after the visibility recompute (about 0.85 s on the
   shipped map). An incremental flood from the found exit that patches the fog mask directly is a
   possible later step.

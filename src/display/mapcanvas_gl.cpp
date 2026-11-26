@@ -1147,7 +1147,7 @@ void MapCanvas::renderMapBatches()
     BatchedMeshes &batchedMeshes = batches.batchedMeshes;
 
     // Explore-mode fog applies to the room meshes only (for now); other content is unchanged.
-    const GLRenderState fogState = m_fogTexture.prepare(gl);
+    const GLRenderState fogState = m_foundTexture.prepare(gl, m_fogTexture.prepare(gl));
 
     const auto drawLayer = [&batches,
                             &batchedMeshes,

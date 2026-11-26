@@ -253,7 +253,7 @@ struct NODISCARD GLRenderState final
     // glLineWidth() + { glEnable(LINE_STIPPLE) + glLineStipple() }
     LineParams lineParams;
 
-    static inline constexpr size_t NUM_TEXTURES = 2;
+    static inline constexpr size_t NUM_TEXTURES = 3;
     using Textures = MMapper::Array<MMTextureId, NUM_TEXTURES>;
     // Explore-mode fog for map content: textures[FOG_TEXTURE_UNIT] is an R8 2D array texture
     // with one texel per map cell (one layer per z), see ExplorerFogMask. A cell is drawn only
@@ -265,6 +265,17 @@ struct NODISCARD GLRenderState final
         glm::ivec3 min{0};
         glm::ivec3 size{0};
     };
+    // Explore-mode secret exits found by the character: textures[FOUND_TEXTURE_UNIT] is an R8UI
+    // 2D array texture with one texel per map cell and a bit per direction, see
+    // ExplorerFoundMask. Quads tagged as a secret exit's door form are drawn only where their bit
+    // is set, and the wall form only where it is not. Without the texture nothing is found, so a
+    // secret stays a wall (the fail-closed state).
+    static inline constexpr size_t FOUND_TEXTURE_UNIT = 2;
+    struct NODISCARD FoundUniforms final
+    {
+        glm::ivec3 min{0};
+        glm::ivec3 size{0};
+    };
     struct NODISCARD Uniforms final
     {
         Color color;
@@ -272,6 +283,7 @@ struct NODISCARD GLRenderState final
         Textures textures;
         std::optional<float> pointSize;
         std::optional<FogUniforms> fog;
+        std::optional<FoundUniforms> found;
     };
 
     Uniforms uniforms;
@@ -339,6 +351,15 @@ struct NODISCARD GLRenderState final
         GLRenderState copy = *this;
         copy.uniforms.textures[FOG_TEXTURE_UNIT] = fogTexture;
         copy.uniforms.fog = fog;
+        return copy;
+    }
+
+    NODISCARD GLRenderState withFound(const MMTextureId foundTexture,
+                                      const FoundUniforms &found) const
+    {
+        GLRenderState copy = *this;
+        copy.uniforms.textures[FOUND_TEXTURE_UNIT] = foundTexture;
+        copy.uniforms.found = found;
         return copy;
     }
 

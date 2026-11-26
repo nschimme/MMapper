@@ -67,6 +67,8 @@ set(mmapper_SRCS
     display/Characters.cpp
     display/ExplorerFogTexture.cpp
     display/ExplorerFogTexture.h
+    display/ExplorerFoundTexture.cpp
+    display/ExplorerFoundTexture.h
     display/Characters.h
     display/ConnectionLineBuilder.cpp
     display/ConnectionLineBuilder.h

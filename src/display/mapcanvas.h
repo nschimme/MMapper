@@ -17,6 +17,7 @@
 #include "../opengl/OpenGL.h"
 #include "../opengl/Weather.h"
 #include "ExplorerFogTexture.h"
+#include "ExplorerFoundTexture.h"
 #include "FrameManager.h"
 #include "Infomarks.h"
 #include "MapCanvasConfig.h"
@@ -192,6 +193,7 @@ private:
     bool m_explorerRemeshRequested = false;
     // Explore mode: the fog the room meshes are drawn through.
     ExplorerFogTexture m_fogTexture;
+    ExplorerFoundTexture m_foundTexture;
     mutable OpenGL m_opengl;
     GLFont m_glFont;
     Batches m_batches;
@@ -382,9 +384,13 @@ public:
     void slot_setExplorerExits(const std::shared_ptr<const DiscoveredExits> &exits);
     // `active` without a mask hides every room (nothing is known yet); `shown` is the player's
     // room, which is always visible.
+    // `found` says which secret exits to draw as doors; without it every secret is a wall.
     void slot_setExplorerFog(bool active,
                              const std::shared_ptr<const ExplorerFogMask> &mask,
+                             const std::shared_ptr<const ExplorerFoundMask> &found,
                              std::optional<Coordinate> shown);
+    // Secret exits found since the mask was computed: drawn as doors at once.
+    void slot_patchFoundSecrets(const std::vector<FoundSecretTexel> &patches);
     void infomarksChanged();
     void layerChanged();
     void slot_mapChanged();

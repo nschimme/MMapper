@@ -69,6 +69,7 @@ class DescriptionWidget;
 class MediaLibrary;
 class TimerWidget;
 class MapDestination;
+class KnownRoomsTracker;
 class RemoteEdit;
 
 struct MapLoadData;
@@ -125,6 +126,7 @@ private:
     TimerWidget *m_timerWidget = nullptr;
     std::unique_ptr<HotkeyManager> m_hotkeyManager;
     RemoteEdit *m_remoteEdit = nullptr;
+    KnownRoomsTracker *m_knownRooms = nullptr;
 
     QPointer<QMenu> m_contextMenu;
 

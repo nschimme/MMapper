@@ -456,6 +456,8 @@ set(mmapper_SRCS
     observer/KnownRoomsStore.h
     observer/KnownRooms.cpp
     observer/KnownRooms.h
+    observer/KnownRoomsTracker.cpp
+    observer/KnownRoomsTracker.h
     observer/gameobserver.cpp
     observer/gameobserver.h
     opengl/Font.cpp

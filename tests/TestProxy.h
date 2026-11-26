@@ -27,7 +27,7 @@ private Q_SLOTS:
     static void knownRoomsUnavailableTest();
     static void knownRoomsMalformedTest();
     static void knownRoomsRefreshTest();
-    static void knownRoomsObserverTest();
+    static void knownRoomsTrackerTest();
     static void knownRoomsCacheMissingWarningTest();
     static void knownRoomsCacheRestartTest();
     static void knownRoomsCacheLiveTest();

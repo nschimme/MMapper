@@ -57,6 +57,8 @@ add_library(mm_test STATIC
     ../src/observer/KnownRoomsStore.h
     ../src/observer/KnownRooms.cpp
     ../src/observer/KnownRooms.h
+    ../src/observer/KnownRoomsTracker.cpp
+    ../src/observer/KnownRoomsTracker.h
     ../src/observer/gameobserver.cpp
     ../src/observer/gameobserver.h
     ../src/proxy/GmcpMessage.cpp

@@ -6,13 +6,14 @@
 #include "../src/global/TextUtils.h"
 #include "../src/observer/KnownRooms.h"
 #include "../src/observer/KnownRoomsStore.h"
-#include "../src/observer/gameobserver.h"
+#include "../src/observer/KnownRoomsTracker.h"
 #include "../src/proxy/GmcpMessage.h"
 #include "../src/proxy/GmcpModule.h"
 #include "../src/proxy/GmcpUtils.h"
 #include "../src/proxy/telnetfilter.h"
 
 #include <cstdint>
+#include <optional>
 #include <vector>
 
 #include <QDataStream>
@@ -217,26 +218,55 @@ void TestProxy::knownRoomsRefreshTest()
     QVERIFY(!known.getSnapshot().listComplete);
 }
 
-void TestProxy::knownRoomsObserverTest()
+void TestProxy::knownRoomsTrackerTest()
 {
-    GameObserver observer;
-    Signal2Lifetime lifetime;
-    int requests = 0;
+    const auto gmcp = [](const char *text) { return GmcpMessage::fromRawBytes(text); };
+    const auto none = []() -> std::optional<KnownRoomsTracker::StoreLocation> {
+        return std::nullopt;
+    };
+
+    // Disabled by default: it must not ask the server for anything.
+    {
+        KnownRoomsTracker idle{nullptr, none};
+        QStringList sent;
+        QObject::connect(&idle, &KnownRoomsTracker::sig_sendGmcp, &idle, [&sent](const auto &msg) {
+            sent << QString::fromUtf8(msg.toRawBytes());
+        });
+        idle.onConnected();
+        idle.slot_parseGmcpInput(gmcp(R"(Char.Name {"name":"Bilbo"})"));
+        QVERIFY(sent.isEmpty());
+        QVERIFY(!idle.isEnabled());
+    }
+
+    KnownRoomsTracker tracker{nullptr, none};
+    QStringList sent;
     int changes = 0;
-    observer.sig2_requestKnownRooms.connect(lifetime, [&requests]() { ++requests; });
-    observer.sig2_knownRoomsChanged.connect(lifetime, [&changes]() { ++changes; });
-    observer.enableKnownRooms(true);
-    observer.observeConnected();
-    observer.observeSentToUserGmcp(GmcpMessage::fromRawBytes(R"(Char.Name {"name":"Bilbo"})"));
-    QCOMPARE(requests, 1);
+    QObject::connect(&tracker, &KnownRoomsTracker::sig_sendGmcp, &tracker, [&sent](const auto &msg) {
+        sent << QString::fromUtf8(msg.toRawBytes());
+    });
+    QObject::connect(&tracker, &KnownRoomsTracker::sig_changed, &tracker, [&changes]() {
+        ++changes;
+    });
+    tracker.setEnabled(true);
+    tracker.onConnected();
+    tracker.slot_parseGmcpInput(gmcp(R"(Char.Name {"name":"Bilbo"})"));
+    // The module is negotiated on demand, immediately followed by one list request.
+    QCOMPARE(sent.size(), 2);
+    QVERIFY(sent.at(0).startsWith("Core.Supports.Add"));
+    QVERIFY(sent.at(0).contains("Room.Known 1"));
+    QCOMPARE(sent.at(1), QString("Room.Known.List"));
+
     const auto beforeList = changes;
-    observer.observeSentToUserGmcp(GmcpMessage::fromRawBytes("Room.Known.List [1,2]"));
+    tracker.slot_parseGmcpInput(gmcp("Room.Known.List [1,2]"));
     QCOMPARE(changes, beforeList + 1); // chunks add rooms immediately
-    observer.observeSentToUserGmcp(GmcpMessage::fromRawBytes("Room.Known.List null"));
+    QVERIFY(tracker.getSnapshot().isKnown(ServerRoomId{2}));
+    tracker.slot_parseGmcpInput(gmcp("Room.Known.List null"));
     QCOMPARE(changes, beforeList + 2);
-    QVERIFY(observer.getKnownRooms().listComplete);
-    observer.resetKnownRooms();
-    QVERIFY(!observer.getKnownRooms().listComplete);
+    QVERIFY(tracker.getSnapshot().listComplete);
+    tracker.onDisconnected();
+    QVERIFY(!tracker.getSnapshot().listComplete);
+    QVERIFY(tracker.getSnapshot().rooms.empty());
+    QCOMPARE(sent.size(), 2); // nothing further is requested while disconnected
 }
 
 namespace {
@@ -306,36 +336,40 @@ void TestProxy::knownRoomsCacheMissingWarningTest()
     QTemporaryDir dir;
     QVERIFY(dir.isValid());
     seedKnownRooms(dir.path(), "Bilbo", "[1,2]");
-    GameObserver observer;
+    const auto path = dir.path();
+    KnownRoomsTracker observer{nullptr, [path]() {
+                                   return std::optional<KnownRoomsTracker::StoreLocation>{
+                                       {path, "mume.org:4242"}};
+                               }};
     int warnings = 0;
-    Signal2Lifetime lifetime;
-    observer.sig2_knownRoomsCacheMissing.connect(lifetime, [&warnings]() { ++warnings; });
-    observer.configureKnownRoomsCache(dir.path(), "mume.org:4242");
-    observer.enableKnownRooms(true);
-    observer.observeSentToUserGmcp(GmcpMessage::fromRawBytes(R"(Char.Name {"name":"Bilbo"})"));
-    QVERIFY(observer.getKnownRooms().isKnown(ServerRoomId{1})); // restored from the cache
+    QObject::connect(&observer, &KnownRoomsTracker::sig_cacheMissing, &observer, [&warnings]() {
+        ++warnings;
+    });
+    observer.setEnabled(true);
+    observer.slot_parseGmcpInput(GmcpMessage::fromRawBytes(R"(Char.Name {"name":"Bilbo"})"));
+    QVERIFY(observer.getSnapshot().isKnown(ServerRoomId{1})); // restored from the cache
     QCOMPARE(warnings, 0);
-    observer.observeSentToUserGmcp(GmcpMessage::fromRawBytes(R"(Char.Name {"name":"Frodo"})"));
+    observer.slot_parseGmcpInput(GmcpMessage::fromRawBytes(R"(Char.Name {"name":"Frodo"})"));
     QCOMPARE(warnings, 1);
-    observer.observeSentToUserGmcp(GmcpMessage::fromRawBytes(R"(Char.Name {"name":"Frodo"})"));
+    observer.slot_parseGmcpInput(GmcpMessage::fromRawBytes(R"(Char.Name {"name":"Frodo"})"));
     QCOMPARE(warnings, 1);
     // Reads are synchronous, so a character without a cache warns immediately, once.
-    observer.resetKnownRooms();
-    observer.observeSentToUserGmcp(GmcpMessage::fromRawBytes(R"(Char.Name {"name":"Sam"})"));
+    observer.onDisconnected();
+    observer.slot_parseGmcpInput(GmcpMessage::fromRawBytes(R"(Char.Name {"name":"Sam"})"));
     QCOMPARE(warnings, 2);
-    observer.observeSentToUserGmcp(GmcpMessage::fromRawBytes("Room.Known.List null"));
+    observer.slot_parseGmcpInput(GmcpMessage::fromRawBytes("Room.Known.List null"));
     QCOMPARE(warnings, 2);
-    observer.resetKnownRooms();
-    observer.enableKnownRooms(false);
-    observer.observeSentToUserGmcp(GmcpMessage::fromRawBytes(R"(Char.Name {"name":"Merry"})"));
+    observer.onDisconnected();
+    observer.setEnabled(false);
+    observer.slot_parseGmcpInput(GmcpMessage::fromRawBytes(R"(Char.Name {"name":"Merry"})"));
     QCOMPARE(warnings, 2);
     // Switching to a character that does have a cache never warns for the earlier one.
-    observer.enableKnownRooms(true);
-    observer.resetKnownRooms();
-    observer.observeSentToUserGmcp(GmcpMessage::fromRawBytes(R"(Char.Name {"name":"Pippin"})"));
+    observer.setEnabled(true);
+    observer.onDisconnected();
+    observer.slot_parseGmcpInput(GmcpMessage::fromRawBytes(R"(Char.Name {"name":"Pippin"})"));
     QCOMPARE(warnings, 3);
-    observer.observeSentToUserGmcp(GmcpMessage::fromRawBytes(R"(Char.Name {"name":"Bilbo"})"));
-    QVERIFY(observer.getKnownRooms().isKnown(ServerRoomId{1})); // cache hit
+    observer.slot_parseGmcpInput(GmcpMessage::fromRawBytes(R"(Char.Name {"name":"Bilbo"})"));
+    QVERIFY(observer.getSnapshot().isKnown(ServerRoomId{1})); // cache hit
     QCOMPARE(warnings, 3);
 }
 

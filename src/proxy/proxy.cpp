@@ -20,6 +20,7 @@
 #include "../group/mmapper2group.h"
 #include "../map/parseevent.h"
 #include "../mpi/remoteedit.h"
+#include "../observer/KnownRoomsTracker.h"
 #include "../observer/gameobserver.h"
 #include "../parser/abstractparser.h"
 #include "../parser/mumexmlparser.h"
@@ -149,6 +150,7 @@ QPointer<Proxy> Proxy::allocInit(MapData &md,
                                  PrespammedPath &pp,
                                  Mmapper2Group &gm,
                                  RemoteEdit &re,
+                                 KnownRoomsTracker &kr,
                                  MumeClock &mc,
                                  CTimers &ct,
                                  MapCanvas &mca,
@@ -157,7 +159,7 @@ QPointer<Proxy> Proxy::allocInit(MapData &md,
                                  ConnectionListener &listener)
 {
     auto proxy = makeQPointer<Proxy>(
-        Badge<Proxy>{}, md, pm, pp, gm, re, mc, ct, mca, go, std::move(userSocket), listener);
+        Badge<Proxy>{}, md, pm, pp, gm, re, kr, mc, ct, mca, go, std::move(userSocket), listener);
     deref(proxy).init();
     return proxy;
 }
@@ -168,6 +170,7 @@ Proxy::Proxy(Badge<Proxy>,
              PrespammedPath &pp,
              Mmapper2Group &gm,
              RemoteEdit &re,
+             KnownRoomsTracker &kr,
              MumeClock &mc,
              CTimers &ct,
              MapCanvas &mca,
@@ -180,6 +183,7 @@ Proxy::Proxy(Badge<Proxy>,
     , m_prespammedPath(pp)
     , m_groupManager(gm)
     , m_remoteEdit(re)
+    , m_knownRooms(kr)
     , m_mumeClock(mc)
     , m_timers(ct)
     , m_mapCanvas(mca)
@@ -760,6 +764,11 @@ void Proxy::init()
                          [this](const GmcpMessage &msg) {
                              getMudTelnet().onSubmitGmcpMumeClient(msg);
                          });
+        // Known-room list requests go to MUME over GMCP.
+        QObject::connect(&m_knownRooms,
+                         &KnownRoomsTracker::sig_sendGmcp,
+                         this,
+                         [this](const GmcpMessage &msg) { getMudTelnet().onGmcpToMud(msg); });
     };
 
     allocPipelineObjects();

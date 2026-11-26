@@ -37,6 +37,7 @@ ConnectionListener::ConnectionListener(MapData &md,
                                        PrespammedPath &pp,
                                        Mmapper2Group &gm,
                                        RemoteEdit &re,
+                                       KnownRoomsTracker &kr,
                                        MumeClock &mc,
                                        CTimers &ct,
                                        MapCanvas &mca,
@@ -48,6 +49,7 @@ ConnectionListener::ConnectionListener(MapData &md,
     , m_prespammedPath{pp}
     , m_groupManager{gm}
     , m_remoteEdit{re}
+    , m_knownRooms{kr}
     , m_mumeClock{mc}
     , m_timers{ct}
     , m_mapCanvas{mca}
@@ -126,6 +128,7 @@ void ConnectionListener::startClient(std::unique_ptr<AbstractSocket> socket)
                                    m_prespammedPath,
                                    m_groupManager,
                                    m_remoteEdit,
+                                   m_knownRooms,
                                    m_mumeClock,
                                    m_timers,
                                    m_mapCanvas,

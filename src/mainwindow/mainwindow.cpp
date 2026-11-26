@@ -30,6 +30,7 @@
 #include "../media/MediaLibrary.h"
 #include "../mpi/RemoteEditPanel.h"
 #include "../mpi/remoteedit.h"
+#include "../observer/KnownRoomsTracker.h"
 #include "../pathmachine/mmapper2pathmachine.h"
 #include "../preferences/configdialog.h"
 #include "../proxy/connectionlistener.h"
@@ -144,6 +145,7 @@ MainWindow::MainWindow()
     m_prespammedPath = new PrespammedPath(this);
 
     m_remoteEdit = new RemoteEdit(this);
+    m_knownRooms = new KnownRoomsTracker(this);
 
     m_groupManager = new Mmapper2Group(this);
     m_groupManager->setObjectName("GroupManager");
@@ -367,6 +369,7 @@ MainWindow::MainWindow()
                                                       deref(m_prespammedPath),
                                                       deref(m_groupManager),
                                                       deref(m_remoteEdit),
+                                                      deref(m_knownRooms),
                                                       deref(m_mumeClock),
                                                       deref(m_timers),
                                                       deref(getCanvas()).getCore(),
@@ -668,14 +671,17 @@ void MainWindow::wireConnections()
 
     deref(m_gameObserver).sig2_sentToUserGmcp.connect(m_lifetime, [this](const GmcpMessage &msg) {
         m_remoteEdit->slot_parseGmcpInput(msg);
+        m_knownRooms->slot_parseGmcpInput(msg);
     });
 
     deref(m_gameObserver).sig2_disconnected.connect(m_lifetime, [this]() {
         m_remoteEdit->onDisconnected();
+        m_knownRooms->onDisconnected();
     });
 
     deref(m_gameObserver).sig2_connected.connect(m_lifetime, [this]() {
         m_remoteEdit->announcePendingDrafts();
+        m_knownRooms->onConnected();
     });
 }
 

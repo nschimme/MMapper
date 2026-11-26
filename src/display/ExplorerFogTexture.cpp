@@ -80,12 +80,12 @@ bool ExplorerFogTexture::upload(OpenGL &gl)
             // Rows are width bytes long, not a multiple of four.
             QOpenGLPixelTransferOptions options;
             options.setAlignment(1);
+            // The (x, y, z, width, height, depth) overload writes only layer 0 of an array
+            // texture, which would leave every other z level zero (hidden).
             tex.setData(0,
                         0,
-                        0,
-                        mask.width,
-                        mask.height,
                         mask.depth,
+                        QOpenGLTexture::CubeMapPositiveX,
                         QOpenGLTexture::Red,
                         QOpenGLTexture::UInt8,
                         mask.texels.data(),
@@ -112,12 +112,15 @@ void ExplorerFogTexture::patchCell(const Coordinate cell, const uint8_t value)
     }
     QOpenGLPixelTransferOptions options;
     options.setAlignment(1);
+    // The z offset of this overload is ignored for array textures: the layer selects the level.
     m_texture->get()->setData(cell.x - mask.min.x,
                               cell.y - mask.min.y,
+                              0,
+                              1,
+                              1,
+                              1,
+                              0,
                               cell.z - mask.min.z,
-                              1,
-                              1,
-                              1,
                               QOpenGLTexture::Red,
                               QOpenGLTexture::UInt8,
                               &value,

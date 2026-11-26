@@ -313,6 +313,10 @@ Working notes that cost time before:
   apt (the immer download is blocked by the proxy); the environment setup script installs them.
 - Run the full build and the full suite before every push (`QT_QPA_PLATFORM=offscreen ctest`, otherwise every test aborts). When filtering build output, match
   `error:` (a filter on " error " hides real failures and leaves a stale test binary).
+- A 2D array texture upload with `QOpenGLTexture::setData(x, y, z, w, h, depth, ...)` writes only
+  layer 0, and a one-texel patch lands on layer 0 too (found when Explore showed nothing on a
+  5-layer map). Use the `layer` overloads. `ExplorerFogMask` layers are z levels, so every level
+  but the lowest was hidden.
 - Check tests by deliberately breaking the code and confirming a failure; several first-try
   passes were vacuous. Settings keys live under a `General` group in the settings file.
 - Format with `clang-format-18 -i --style=file` on changed `.h`/`.cpp` files only.

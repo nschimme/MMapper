@@ -6,6 +6,7 @@
 #include "../src/global/HideQDebug.h"
 #include "../src/map/Diff.h"
 #include "../src/map/ExplorerFogMask.h"
+#include "../src/map/ExplorerSecrets.h"
 #include "../src/map/ExplorerVisibility.h"
 #include "../src/map/Map.h"
 #include "../src/map/TinyRoomIdSet.h"
@@ -59,6 +60,7 @@ void TestMap::explorerVisibilityTest()
     mmqt::HideQDebug forThisTest;
     test::testExplorerVisibility();
     test::testExplorerFogMask();
+    test::testExplorerSecrets();
 }
 
 QTEST_MAIN(TestMap)

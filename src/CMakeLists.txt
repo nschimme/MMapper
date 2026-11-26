@@ -337,6 +337,9 @@ set(mmapper_SRCS
     map/ExplorerFogMask-Test.cpp
     map/ExplorerFogMask.cpp
     map/ExplorerFogMask.h
+    map/ExplorerSecrets-Test.cpp
+    map/ExplorerSecrets.cpp
+    map/ExplorerSecrets.h
     map/ExplorerVisibility-Test.cpp
     map/ExplorerVisibility.cpp
     map/ExplorerVisibility.h

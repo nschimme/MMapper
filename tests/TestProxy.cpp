@@ -5,19 +5,20 @@
 
 #include "../src/global/TextUtils.h"
 #include "../src/observer/KnownRooms.h"
-#include "../src/observer/KnownRoomsCache.h"
+#include "../src/observer/KnownRoomsStore.h"
 #include "../src/observer/gameobserver.h"
 #include "../src/proxy/GmcpMessage.h"
 #include "../src/proxy/GmcpModule.h"
 #include "../src/proxy/GmcpUtils.h"
 #include "../src/proxy/telnetfilter.h"
 
+#include <cstdint>
+#include <vector>
+
+#include <QDataStream>
 #include <QDebug>
 #include <QDir>
 #include <QFile>
-#include <QJsonArray>
-#include <QJsonDocument>
-#include <QJsonObject>
 #include <QTemporaryDir>
 #include <QtTest/QtTest>
 
@@ -256,30 +257,30 @@ void TestProxy::knownRoomsCacheMissingWarningTest()
     observer.configureKnownRoomsCache(dir.path(), "mume.org:4242");
     observer.enableKnownRooms(true);
     observer.observeSentToUserGmcp(GmcpMessage::fromRawBytes(R"(Char.Name {"name":"Bilbo"})"));
-    QTRY_VERIFY(observer.getKnownRooms().complete);
+    QVERIFY(observer.getKnownRooms().complete);
     QCOMPARE(warnings, 0);
     observer.observeSentToUserGmcp(GmcpMessage::fromRawBytes(R"(Char.Name {"name":"Frodo"})"));
-    QTRY_COMPARE(warnings, 1);
+    QCOMPARE(warnings, 1);
     observer.observeSentToUserGmcp(GmcpMessage::fromRawBytes(R"(Char.Name {"name":"Frodo"})"));
     QCOMPARE(warnings, 1);
-    // A completed server response beats a late missing-cache result.
+    // Reads are synchronous, so a character without a cache warns immediately, once.
     observer.resetKnownRooms();
     observer.observeSentToUserGmcp(GmcpMessage::fromRawBytes(R"(Char.Name {"name":"Sam"})"));
+    QCOMPARE(warnings, 2);
     observer.observeSentToUserGmcp(GmcpMessage::fromRawBytes("Room.Known.List null"));
-    QTest::qWait(100);
-    QCOMPARE(warnings, 1);
+    QCOMPARE(warnings, 2);
     observer.resetKnownRooms();
     observer.enableKnownRooms(false);
     observer.observeSentToUserGmcp(GmcpMessage::fromRawBytes(R"(Char.Name {"name":"Merry"})"));
-    QTest::qWait(100);
-    QCOMPARE(warnings, 1);
-    // A read for a character that has already changed must not warn.
+    QCOMPARE(warnings, 2);
+    // Switching to a character that does have a cache never warns for the earlier one.
     observer.enableKnownRooms(true);
     observer.resetKnownRooms();
     observer.observeSentToUserGmcp(GmcpMessage::fromRawBytes(R"(Char.Name {"name":"Pippin"})"));
+    QCOMPARE(warnings, 3);
     observer.observeSentToUserGmcp(GmcpMessage::fromRawBytes(R"(Char.Name {"name":"Bilbo"})"));
-    QTRY_VERIFY(observer.getKnownRooms().complete);
-    QCOMPARE(warnings, 1);
+    QVERIFY(observer.getKnownRooms().complete);
+    QCOMPARE(warnings, 3);
 }
 
 void TestProxy::knownRoomsCacheRestartTest()
@@ -393,19 +394,8 @@ void TestProxy::knownRoomsCacheIdentityTest()
     QVERIFY(!known.receive(GmcpMessage::fromRawBytes("Room.Known.List null")));
     known.reset();
     QVERIFY(!known.getSnapshot().complete);
-    bool done = false;
-    bool hit = true;
-    KnownRoomsCache other(dir.path(),
-                          "another-server:4242",
-                          [&done, &hit](const QString &,
-                                        uint64_t,
-                                        const std::optional<KnownRoomsCache::Rooms> &rooms) {
-                              done = true;
-                              hit = rooms.has_value();
-                          });
-    other.load("Bilbo", 1);
-    QTRY_VERIFY(done);
-    QVERIFY(!hit);
+    KnownRoomsStore other(dir.path(), "another-server:4242");
+    QVERIFY(!other.load("Bilbo"));
 }
 
 void TestProxy::knownRoomsCacheServerSwitchTest()
@@ -447,56 +437,73 @@ void TestProxy::knownRoomsCacheCaseFoldTest()
 {
     QTemporaryDir dir;
     QVERIFY(dir.isValid());
-    KnownRoomsCache::Rooms first;
+    KnownRoomsStore::Rooms first;
     first.insert(ServerRoomId{1});
     auto latest = first;
     latest.insert(ServerRoomId{2});
-    bool loaded = false;
-    KnownRoomsCache cache(dir.path(),
-                          "mume.org:4242",
-                          [&loaded, &latest](const QString &,
-                                             uint64_t,
-                                             const std::optional<KnownRoomsCache::Rooms> &rooms) {
-                              QVERIFY(rooms.has_value());
-                              QVERIFY(*rooms == latest);
-                              loaded = true;
-                          });
+    KnownRoomsStore store(dir.path(), "mume.org:4242");
     // Both spellings address the same file and must share the same pending write.
-    cache.save("Bilbo", first);
-    cache.save("bilbo", latest);
-    cache.load("BILBO", 1);
-    QTRY_VERIFY(loaded);
+    store.save("Bilbo", first);
+    store.save("bilbo", latest);
+    const auto loaded = store.load("BILBO");
+    QVERIFY(loaded.has_value());
+    QVERIFY(*loaded == latest);
 }
+
+namespace {
+QByteArray storeBytes(const QByteArray &server,
+                      const QByteArray &character,
+                      const std::vector<uint32_t> &ids,
+                      const uint32_t version = 1,
+                      const uint32_t declaredCount = UINT32_MAX,
+                      const QByteArray &trailing = {})
+{
+    QByteArray bytes;
+    QDataStream out(&bytes, QIODevice::WriteOnly);
+    out.setByteOrder(QDataStream::LittleEndian);
+    out.setVersion(QDataStream::Qt_6_0);
+    out << uint32_t{0x524B4D4D} << version << server << character
+        << (declaredCount == UINT32_MAX ? static_cast<uint32_t>(ids.size()) : declaredCount);
+    for (const auto id : ids) {
+        out << id;
+    }
+    return bytes + trailing;
+}
+} // namespace
 
 void TestProxy::knownRoomsCacheCorruptTest()
 {
     QTemporaryDir dir;
     QVERIFY(dir.isValid());
     seedKnownRooms(dir.path(), "Bilbo", "[1]");
-    const auto files = QDir(dir.path()).entryList({"*.json"}, QDir::Files);
+    const auto files = QDir(dir.path()).entryList({"*.bin"}, QDir::Files);
     QCOMPARE(files.size(), qsizetype{1});
-    for (const auto &contents :
-         {QByteArray("{broken"),
-          QByteArray(R"({"version":2,"server":"mume.org:4242","character":"bilbo","rooms":[1]})"),
-          QByteArray(R"({"version":1,"server":"mume.org:4242","character":"frodo","rooms":[1]})"),
-          QByteArray(R"({"version":1,"server":"mume.org:4242","character":"bilbo","rooms":[-1]})")}) {
-        QFile file(QDir(dir.path()).filePath(files.front()));
-        QVERIFY(file.open(QIODevice::WriteOnly | QIODevice::Truncate));
-        QCOMPARE(file.write(contents), qint64{contents.size()});
-        file.close();
-        bool done = false;
-        bool hit = true;
-        KnownRoomsCache cache(dir.path(),
-                              "mume.org:4242",
-                              [&done, &hit](const QString &,
-                                            uint64_t,
-                                            const std::optional<KnownRoomsCache::Rooms> &rooms) {
-                                  done = true;
-                                  hit = rooms.has_value();
-                              });
-        cache.load("Bilbo", 1);
-        QTRY_VERIFY(done);
-        QVERIFY(!hit);
+
+    const QByteArray server = "mume.org:4242";
+    // A valid record first, so the harness itself is known to work.
+    const auto good = storeBytes(server, "bilbo", {1, 5});
+    for (const auto &contents : {QByteArray("garbage"),
+                                 QByteArray(),
+                                 storeBytes(server, "bilbo", {1}, 2),
+                                 storeBytes(server, "frodo", {1}),
+                                 storeBytes("other:1", "bilbo", {1}),
+                                 storeBytes(server, "bilbo", {0, 1}),       // zero ID
+                                 storeBytes(server, "bilbo", {2, 1}),       // unsorted
+                                 storeBytes(server, "bilbo", {1, 1}),       // duplicate
+                                 storeBytes(server, "bilbo", {1, 2}, 1, 3), // truncated
+                                 storeBytes(server, "bilbo", {1, 2}, 1, 1), // padded count
+                                 storeBytes(server, "bilbo", {1}, 1, 1, "x"),
+                                 storeBytes(server, "bilbo", {}, 1, 4'000'000)}) {
+        const auto path = QDir(dir.path()).filePath(files.front());
+        for (const auto &candidate : {good, contents}) {
+            QFile file(path);
+            QVERIFY(file.open(QIODevice::WriteOnly | QIODevice::Truncate));
+            QCOMPARE(file.write(candidate), qint64{candidate.size()});
+            file.close();
+            KnownRoomsStore store(dir.path(), "mume.org:4242");
+            const auto rooms = store.load("Bilbo");
+            QCOMPARE(rooms.has_value(), candidate == good);
+        }
     }
 }
 
@@ -510,25 +517,17 @@ void TestProxy::knownRoomsCacheTruthWinsTest()
         known.configureCache(dir.path(), "mume.org:4242", []() {});
         QVERIFY(!known.setEnabled(true));
         QVERIFY(known.receive(GmcpMessage::fromRawBytes(R"(Char.Name {"name":"Bilbo"})")));
-        // No event-loop turn yet: the cache read cannot have notified the observer.
+        // The cached view is available at once, and server truth then replaces it.
         QVERIFY(!known.receive(GmcpMessage::fromRawBytes("Room.Known.List [3]")));
         QVERIFY(!known.receive(GmcpMessage::fromRawBytes("Room.Known.List null")));
         QTest::qWait(100);
         QVERIFY(known.getSnapshot().isUndiscovered(ServerRoomId{1}));
         QVERIFY(!known.getSnapshot().isUndiscovered(ServerRoomId{3}));
-        // Check a normal background save before shutdown, not only destructor flushing.
-        const auto files = QDir(dir.path()).entryList({"*.json"}, QDir::Files);
-        QCOMPARE(files.size(), qsizetype{1});
-        const auto containsId = [&dir, &files](const int id) {
-            QFile file(QDir(dir.path()).filePath(files.front()));
-            if (!file.open(QIODevice::ReadOnly)) {
-                return false;
-            }
-            return QJsonDocument::fromJson(file.readAll())
-                .object()
-                .value("rooms")
-                .toArray()
-                .contains(QJsonValue(id));
+        // Check a normal debounced save before shutdown, not only destructor flushing.
+        const auto containsId = [&dir](const uint32_t id) {
+            KnownRoomsStore reader(dir.path(), "mume.org:4242");
+            const auto rooms = reader.load("Bilbo");
+            return rooms && rooms->contains(ServerRoomId{id});
         };
         QTRY_VERIFY(containsId(3));
         QVERIFY(!known.receive(GmcpMessage::fromRawBytes("Room.Known.Add 4")));

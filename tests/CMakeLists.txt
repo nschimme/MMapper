@@ -53,8 +53,8 @@ add_library(mm_test STATIC
     ../src/configuration/configuration.h
     ../src/configuration/GroupConfig.cpp
     ../src/configuration/GroupConfig.h
-    ../src/observer/KnownRoomsCache.cpp
-    ../src/observer/KnownRoomsCache.h
+    ../src/observer/KnownRoomsStore.cpp
+    ../src/observer/KnownRoomsStore.h
     ../src/observer/KnownRooms.cpp
     ../src/observer/KnownRooms.h
     ../src/observer/gameobserver.cpp

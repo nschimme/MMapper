@@ -4,7 +4,7 @@
 #include "KnownRooms.h"
 
 #include "../proxy/GmcpMessage.h"
-#include "KnownRoomsCache.h"
+#include "KnownRoomsStore.h"
 
 #include <algorithm>
 #include <cmath>
@@ -43,45 +43,26 @@ void KnownRooms::configureCache(const QString &directory,
         return;
     }
     reset();
-    std::erase_if(m_retiredCaches, [](const auto &cache) { return cache->isIdle(); });
-    if (m_cache) {
-        m_retiredCaches.push_back(std::move(m_cache));
-    }
+    // Destroying the old store flushes its pending writes before the new server is used.
+    m_cache.reset();
     m_cacheChanged = std::move(changed);
     m_cacheMissing = std::move(missing);
-    const auto existing = std::find_if(m_retiredCaches.begin(),
-                                       m_retiredCaches.end(),
-                                       [&directory, &server](const auto &cache) {
-                                           return cache->matches(directory, server);
-                                       });
-    if (existing != m_retiredCaches.end()) {
-        // Reuse the same queue on a rapid round trip; never race two writers for one server.
-        m_cache = std::move(*existing);
-        m_retiredCaches.erase(existing);
-        return;
-    }
-    m_cache = std::make_unique<KnownRoomsCache>(
-        directory,
-        server,
-        [this](const QString &character,
-               const uint64_t generation,
-               const std::optional<KnownRoomsCache::Rooms> &rooms) {
-            if (rooms) {
-                restoreCache(character, generation, *rooms);
-            } else if (character == m_character && generation == m_snapshot.generation
-                       && !m_snapshot.complete && m_enabled && !m_cacheWarningIssued) {
-                m_cacheWarningIssued = true;
-                if (m_cacheMissing) {
-                    m_cacheMissing();
-                }
-            }
-        });
+    m_cache = std::make_unique<KnownRoomsStore>(directory, server);
 }
 
 void KnownRooms::loadCache()
 {
-    if (m_cache && !m_character.isEmpty()) {
-        m_cache->load(m_character, m_snapshot.generation);
+    if (!m_cache || m_character.isEmpty()) {
+        return;
+    }
+    // Reads are small and synchronous, so a result can never arrive for a stale character.
+    if (const auto rooms = m_cache->load(m_character)) {
+        restoreCache(m_character, m_snapshot.generation, *rooms);
+    } else if (!m_snapshot.complete && m_enabled && !m_cacheWarningIssued) {
+        m_cacheWarningIssued = true;
+        if (m_cacheMissing) {
+            m_cacheMissing();
+        }
     }
 }
 

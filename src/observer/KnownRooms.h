@@ -8,12 +8,11 @@
 #include <cstdint>
 #include <functional>
 #include <memory>
-#include <vector>
 
 #include <QString>
 
 class GmcpMessage;
-class KnownRoomsCache;
+class KnownRoomsStore;
 
 // Per-connection, per-character state. A cache is usable but provisional; only a
 // terminated Room.Known.List is authoritative.
@@ -46,9 +45,7 @@ private:
     bool m_discard = false;
     bool m_refresh = false;
 
-    std::unique_ptr<KnownRoomsCache> m_cache;
-    // Keep old server workers alive until idle; destroying std::async futures can wait.
-    std::vector<std::unique_ptr<KnownRoomsCache>> m_retiredCaches;
+    std::unique_ptr<KnownRoomsStore> m_cache;
     std::function<void()> m_cacheChanged;
     std::function<void()> m_cacheMissing;
     bool m_cacheWarningIssued = false;

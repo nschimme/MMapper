@@ -452,8 +452,8 @@ set(mmapper_SRCS
     mpi/gotowidget.h
     mpi/findreplacewidget.cpp
     mpi/findreplacewidget.h
-    observer/KnownRoomsCache.cpp
-    observer/KnownRoomsCache.h
+    observer/KnownRoomsStore.cpp
+    observer/KnownRoomsStore.h
     observer/KnownRooms.cpp
     observer/KnownRooms.h
     observer/gameobserver.cpp

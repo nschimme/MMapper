@@ -11,8 +11,12 @@
 #include "RawRoom.h"
 #include "RoomHandle.h"
 #include "World.h"
+#include "infomark.h"
 
 #include <algorithm>
+#include <cmath>
+#include <cstdlib>
+#include <set>
 
 namespace {
 NODISCARD bool isFound(const RoomHandle &room, const ExitDirEnum dir, const DiscoveredExits &found)
@@ -204,6 +208,76 @@ bool exploreRoomShown(const RoomIdSet *const visible, const RoomId room)
 bool exploreConnectionShown(const RoomIdSet *const visible, const RoomId from, const RoomId to)
 {
     return exploreRoomShown(visible, from) && exploreRoomShown(visible, to);
+}
+
+namespace {
+NODISCARD int floorDiv(const int a, const int b)
+{
+    int q = a / b;
+    if ((a % b != 0) && ((a < 0) != (b < 0))) {
+        --q;
+    }
+    return q;
+}
+
+NODISCARD Coordinate cellOf(const int x, const int y, const int z)
+{
+    return Coordinate{floorDiv(x, INFOMARK_SCALE), floorDiv(y, INFOMARK_SCALE), z};
+}
+} // namespace
+
+std::optional<std::vector<Coordinate>> infomarkCells(const Coordinate pos1,
+                                                     const Coordinate pos2,
+                                                     const bool isText)
+{
+    if (isText) {
+        return std::vector<Coordinate>{cellOf(pos1.x, pos1.y, pos1.z)};
+    }
+
+    // Sample at most half a cell apart, so no cell the segment passes through is skipped.
+    constexpr long long STEP = INFOMARK_SCALE / 2;
+    constexpr long long MAX_SAMPLES = 100000;
+    const long long dx = static_cast<long long>(pos2.x) - pos1.x;
+    const long long dy = static_cast<long long>(pos2.y) - pos1.y;
+    const long long longest = std::max(std::llabs(dx), std::llabs(dy));
+    const long long n = (longest + STEP - 1) / STEP;
+    if (n > MAX_SAMPLES) {
+        return std::nullopt;
+    }
+
+    std::set<Coordinate> seen;
+    std::vector<Coordinate> cells;
+    for (long long i = 0; i <= n; ++i) {
+        const long long x = pos1.x + (n == 0 ? 0 : dx * i / n);
+        const long long y = pos1.y + (n == 0 ? 0 : dy * i / n);
+        const Coordinate c = cellOf(static_cast<int>(x), static_cast<int>(y), pos1.z);
+        if (seen.insert(c).second) {
+            cells.push_back(c);
+        }
+    }
+    return cells;
+}
+
+bool exploreInfomarkShown(const RoomIdSet *const visible,
+                          const Map &map,
+                          const Coordinate pos1,
+                          const Coordinate pos2,
+                          const bool isText)
+{
+    if (visible == nullptr) {
+        return true; // not exploring
+    }
+    if (visible->empty()) {
+        return false; // exploring, nothing computed yet: fail closed
+    }
+    const auto cells = infomarkCells(pos1, pos2, isText);
+    if (!cells) {
+        return false; // too long to check
+    }
+    return std::all_of(cells->begin(), cells->end(), [&](const Coordinate &c) {
+        const RoomHandle room = map.findRoomHandle(c);
+        return !room.exists() || exploreRoomShown(visible, room.getId());
+    });
 }
 
 bool exploreVisibleOnlyGrows(const std::shared_ptr<const RoomIdSet> &before,

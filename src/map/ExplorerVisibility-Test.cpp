@@ -8,6 +8,8 @@
 #include "ExplorerVisibility.h"
 #include "parseevent.h"
 
+#include <set>
+
 namespace { // anonymous
 
 struct NODISCARD Fixture final
@@ -733,6 +735,81 @@ void testOnlyServerIdBackfill()
     TEST_ASSERT(onlyServerIdBackfill(none).empty());
     TEST_ASSERT(onlyServerIdBackfill(ChangeList{}).empty());
 }
+
+void testInfomarkCells()
+{
+    const auto cells = [](const Coordinate a, const Coordinate b, const bool text) {
+        const auto r = infomarkCells(a, b, text);
+        TEST_ASSERT(r.has_value());
+        return std::set<Coordinate>(r->begin(), r->end());
+    };
+
+    // A label covers its anchor cell only, on its own layer, with floor division for negatives.
+    TEST_ASSERT((cells(Coordinate{250, 130, 2}, Coordinate{0, 0, 0}, true)
+                 == std::set<Coordinate>{Coordinate{2, 1, 2}}));
+    TEST_ASSERT((cells(Coordinate{-1, -100, 0}, Coordinate{0, 0, 0}, true)
+                 == std::set<Coordinate>{Coordinate{-1, -1, 0}}));
+
+    // A line covers every cell along it.
+    TEST_ASSERT((cells(Coordinate{50, 50, 0}, Coordinate{350, 50, 0}, false)
+                 == std::set<Coordinate>{Coordinate{0, 0, 0},
+                                         Coordinate{1, 0, 0},
+                                         Coordinate{2, 0, 0},
+                                         Coordinate{3, 0, 0}}));
+    const auto diagonal = cells(Coordinate{50, 50, 0}, Coordinate{250, 250, 0}, false);
+    for (const Coordinate c : {Coordinate{0, 0, 0}, Coordinate{1, 1, 0}, Coordinate{2, 2, 0}}) {
+        TEST_ASSERT(diagonal.count(c) == 1);
+    }
+    TEST_ASSERT((cells(Coordinate{50, 50, 0}, Coordinate{50, 50, 0}, false).size() == 1));
+    TEST_ASSERT((cells(Coordinate{350, 50, 0}, Coordinate{50, 50, 0}, false).size() == 4));
+
+    // Too long to check: the caller must treat it as hidden.
+    TEST_ASSERT(!infomarkCells(Coordinate{0, 0, 0}, Coordinate{100000000, 0, 0}, false));
+}
+
+void testInfomarkShown()
+{
+    Fixture f;
+    const RoomId shown = f.add(0, 10);
+    const RoomId hidden = f.add(2, 11); // x = 1 is an empty cell
+    RoomIdSet visible;
+    visible.insert(shown);
+    const auto ok =
+        [&](const RoomIdSet *set, const Coordinate a, const Coordinate b, const bool text) {
+            return exploreInfomarkShown(set, f.map, a, b, text);
+        };
+    const Coordinate overShown{50, 50, 0};
+    const Coordinate overEmpty{150, 50, 0};
+    const Coordinate overHidden{250, 50, 0};
+    const Coordinate beyond{350, 50, 0}; // empty cell past the hidden room
+    (void) hidden;
+
+    // A label follows the room under its anchor; an empty cell has nothing to hide.
+    TEST_ASSERT(ok(&visible, overShown, overShown, true));
+    TEST_ASSERT(ok(&visible, overEmpty, overEmpty, true));
+    TEST_ASSERT(!ok(&visible, overHidden, overHidden, true));
+    // Another layer holds no room there.
+    TEST_ASSERT(ok(&visible, Coordinate{250, 50, 1}, Coordinate{250, 50, 1}, true));
+
+    // A line or arrow is dropped when any cell along it holds a hidden room: an endpoint...
+    TEST_ASSERT(ok(&visible, overShown, overEmpty, false));
+    TEST_ASSERT(!ok(&visible, overShown, overHidden, false));
+    TEST_ASSERT(!ok(&visible, overHidden, overShown, false));
+    // ...or a room in the middle, with both ends over empty cells.
+    TEST_ASSERT(!ok(&visible, overEmpty, beyond, false));
+    TEST_ASSERT(ok(&visible, Coordinate{-150, 50, 0}, overEmpty, false));
+
+    // Not exploring (null) hides nothing. Exploring with nothing computed (empty) hides every
+    // mark, even one over an empty cell.
+    const RoomIdSet none;
+    TEST_ASSERT(ok(nullptr, overHidden, overHidden, true));
+    TEST_ASSERT(ok(nullptr, overShown, beyond, false));
+    TEST_ASSERT(!ok(&none, overEmpty, overEmpty, true));
+    TEST_ASSERT(!ok(&none, overShown, overShown, true));
+    // A mark too long to check is hidden while exploring, never when not.
+    TEST_ASSERT(!ok(&visible, Coordinate{0, 0, 0}, Coordinate{100000000, 0, 0}, false));
+    TEST_ASSERT(ok(nullptr, Coordinate{0, 0, 0}, Coordinate{100000000, 0, 0}, false));
+}
 } // namespace
 
 namespace test {
@@ -755,6 +832,8 @@ void testExplorerVisibility()
     testNoSeedRoomsFallBackToKnownRooms();
     testUndiscoveredBase();
     testExitsChangeOnlyReveals();
+    testInfomarkCells();
+    testInfomarkShown();
     testOnlyServerIdBackfill();
     testConnectionCulling();
     testVisibleOnlyGrows();

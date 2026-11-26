@@ -13,6 +13,7 @@
 
 #include <memory>
 #include <optional>
+#include <vector>
 
 // What an Explore-mode player is allowed to see of the map. Pure functions of plain values:
 // nothing here knows about GMCP, the observer, or rendering, so every consumer (canvas mask,
@@ -87,6 +88,21 @@ NODISCARD extern bool exploreRoomShown(const RoomIdSet *visible, RoomId room);
 // connection is not hidden by the fog mask, which keeps empty cells shown so that long lines
 // are not cut, so a line between two hidden rooms would otherwise show where they are.
 NODISCARD extern bool exploreConnectionShown(const RoomIdSet *visible, RoomId from, RoomId to);
+
+// The world cells an infomark covers, in the cell grid that rooms use (a room at (x, y) fills
+// [x, x + 1) by [y, y + 1)). Positions are in infomark units (INFOMARK_SCALE per cell) and the
+// layer is pos1.z. A text label covers the cell of its anchor only (its text may extend beyond
+// it); a line or arrow covers every cell along it, sampled finely enough to skip none. Returns
+// nullopt when the mark is too long to check, which the caller must treat as hidden.
+NODISCARD extern std::optional<std::vector<Coordinate>> infomarkCells(Coordinate pos1,
+                                                                      Coordinate pos2,
+                                                                      bool isText);
+
+// Whether an infomark may be drawn in Explore mode: not when it covers a room that is not shown.
+// Marks over empty cells stay, as the fog mask keeps empty cells shown. Same `visible` contract
+// as exploreRoomShown(), except that an empty set (nothing computed yet) hides every mark.
+NODISCARD extern bool exploreInfomarkShown(
+    const RoomIdSet *visible, const Map &map, Coordinate pos1, Coordinate pos2, bool isText);
 
 // Whether replacing the base visibility `before` with `after` can only show more. Same contract
 // as exploreExitsOnlyReveal(): a mesh built from a smaller set only hides more, so it may keep

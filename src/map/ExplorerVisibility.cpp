@@ -3,6 +3,10 @@
 
 #include "ExplorerVisibility.h"
 
+#include "../global/progresscounter.h"
+#include "Change.h"
+#include "ChangeList.h"
+#include "ChangeTypes.h"
 #include "RawExit.h"
 #include "RoomHandle.h"
 
@@ -135,4 +139,31 @@ bool ExplorerView::isFrontier(const RoomId id) const
         return false;
     }
     return m_currentFrontier.contains(id) || (m_base && m_base->frontier.contains(id));
+}
+
+Map hideUndiscoveredExits(const Map &map, const DiscoveredExits &discovered)
+{
+    // Decide everything against the original map first: whether an exit counts as found can
+    // depend on the other side of the same door.
+    ChangeList changes;
+    map.getRooms().for_each([&](const RoomId id) {
+        const RoomHandle room = map.getRoomHandle(id);
+        for (const ExitDirEnum dir : ALL_EXITS_NESWUD) {
+            const RawExit &exit = room.getExit(dir);
+            if (exit.exitIsExit() && exit.doorIsHidden()
+                && !isEffectiveExit(map, room, dir, discovered)) {
+                changes.add(Change{exit_change_types::NukeExit{id, dir, WaysEnum::OneWay}});
+            }
+        }
+    });
+    if (changes.empty()) {
+        return map;
+    }
+    ProgressCounter pc;
+    return map.apply(pc, changes).map;
+}
+
+Map mapForExplorer(const Map &map, const std::shared_ptr<const DiscoveredExits> &discovered)
+{
+    return discovered ? hideUndiscoveredExits(map, *discovered) : map;
 }

@@ -529,7 +529,8 @@ void MapCanvas::updateMapBatches()
     auto getFuture = [this]() {
         MMLOG() << "[updateMapBatches] calling generateBatches";
         return m_data.generateBatches(mctp::getProxy(m_textures),
-                                      getGLFont().getSharedFontMetrics());
+                                      getGLFont().getSharedFontMetrics(),
+                                      m_explorerExits);
     };
 
     remeshCookie.set(getFuture());

@@ -16,6 +16,7 @@
 #include "../map/DoorFlags.h"
 #include "../map/ExitFieldVariant.h"
 #include "../map/ExitFlags.h"
+#include "../map/ExplorerVisibility.h"
 #include "../map/Map.h"
 #include "../map/coordinate.h"
 #include "../map/enums.h"
@@ -1113,20 +1114,27 @@ void InternalData::virt_finish(MapBatches &output, OpenGL &gl, GLFont &font) con
 }
 
 // NOTE: All of the lamda captures are copied, including the texture data!
-FutureSharedMapBatchFinisher generateMapDataFinisher(const mctp::MapCanvasTexturesProxy &textures,
-                                                     const std::shared_ptr<const FontMetrics> &font,
-                                                     const Map &map)
+FutureSharedMapBatchFinisher generateMapDataFinisher(
+    const mctp::MapCanvasTexturesProxy &textures,
+    const std::shared_ptr<const FontMetrics> &font,
+    const Map &inputMap,
+    const std::shared_ptr<const DiscoveredExits> &explorerExits)
 {
     const auto visitRoomOptions = getVisitRoomOptions();
 
     return std::async(std::launch::async,
-                      [textures, font, map, visitRoomOptions]() -> SharedMapBatchFinisher {
+                      [textures, font, inputMap, explorerExits, visitRoomOptions]()
+                          -> SharedMapBatchFinisher {
                           ThreadLocalNamedColorRaii tlRaii{visitRoomOptions.canvasColors,
                                                            visitRoomOptions.colorSettings};
                           DECL_TIMER(t, "[ASYNC] generateAllLayerMeshes");
 
                           ProgressCounter dummyPc;
-                          map.checkConsistency(dummyPc);
+                          inputMap.checkConsistency(dummyPc);
+
+                          // Single choke point for Explore mode: everything below reads this
+                          // map, in which undiscovered secret exits are already plain walls.
+                          const Map map = mapForExplorer(inputMap, explorerExits);
 
                           const auto layerToRooms = std::invoke([map]() -> LayerToRooms {
                               DECL_TIMER(t2, "[ASYNC] generateBatches.layerToRooms");

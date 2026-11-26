@@ -1376,6 +1376,17 @@ void MapCanvas::forceUpdateMeshes()
     m_frameManager.requestUpdate();
 }
 
+void MapCanvas::slot_setExplorerExits(const std::shared_ptr<const DiscoveredExits> &exits)
+{
+    const bool same = (!exits && !m_explorerExits)
+                      || (exits && m_explorerExits && *exits == *m_explorerExits);
+    if (same) {
+        return;
+    }
+    m_explorerExits = exits;
+    requestForceUpdateMeshes();
+}
+
 void MapCanvas::requestForceUpdateMeshes()
 {
     // Deferred: dropping the cached meshes destroys GL objects (VBOs/VAOs),

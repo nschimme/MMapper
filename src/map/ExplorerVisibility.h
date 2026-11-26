@@ -51,6 +51,17 @@ NODISCARD extern bool isEffectiveExit(const Map &map,
 
 NODISCARD extern ExplorerVisibility computeExplorerVisibility(const ExplorerVisibilityInput &in);
 
+// The map as an Explore-mode player may see it: every hidden exit that has not been discovered
+// is removed (flags, door name and connections, on that side only), so everything that reads
+// the map (walls, connections, flows, door names) sees a plain wall without having to know
+// about secret doors, and a consumer cannot forget one. Returns the same map when there is
+// nothing to hide.
+NODISCARD extern Map hideUndiscoveredExits(const Map &map, const DiscoveredExits &discovered);
+
+// The map to mesh: inactive (no snapshot of finds) is the map unchanged.
+NODISCARD extern Map mapForExplorer(const Map &map,
+                                    const std::shared_ptr<const DiscoveredExits> &discovered);
+
 // What consumers query. The expensive part (`base`, computed without a current room) depends
 // only on slowly changing inputs, so it is computed off the GUI thread and shared immutably.
 // The player's current room changes on every step, so it is a tiny overlay on top: stepping

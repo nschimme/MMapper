@@ -309,6 +309,108 @@ void testViewInactiveAndUncomputed()
     TEST_ASSERT(none.isHidden(a));
     TEST_ASSERT(none.isHidden(b));
 }
+
+NODISCARD bool isBlankExit(const RawExit &exit)
+{
+    return !exit.exitIsExit() && !exit.exitIsDoor() && !exit.doorIsHidden()
+           && exit.getOutgoingSet().empty() && exit.getIncomingSet().empty();
+}
+
+NODISCARD bool isConsistent(const Map &map)
+{
+    try {
+        ProgressCounter pc;
+        map.checkConsistency(pc);
+        return true;
+    } catch (...) {
+        return false;
+    }
+}
+
+void testHideUndiscoveredExits()
+{
+    Fixture f;
+    const RoomId a = f.add(0, 10);
+    const RoomId b = f.add(1, 11);
+    const RoomId c = f.add(2, 12);
+    f.connect(a, ExitDirEnum::EAST, b);
+    f.connect(b, ExitDirEnum::EAST, c);
+    // An ordinary (not hidden) door between a and b must always survive.
+    f.apply(Change{exit_change_types::SetExitFlags{FlagChangeEnum::Add,
+                                                   a,
+                                                   ExitDirEnum::EAST,
+                                                   ExitFlags{ExitFlagEnum::DOOR}}});
+    // The secret door between b and c, hidden from both sides.
+    f.hide(b, ExitDirEnum::EAST);
+    f.hide(c, ExitDirEnum::WEST);
+    TEST_ASSERT(isConsistent(f.map));
+
+    // Nothing found: both sides of the secret door become plain walls, and nothing else changes.
+    const Map hidden = hideUndiscoveredExits(f.map, {});
+    TEST_ASSERT(!hidden.isSamePointer(f.map));
+    TEST_ASSERT(isBlankExit(hidden.getRoomHandle(b).getExit(ExitDirEnum::EAST)));
+    TEST_ASSERT(isBlankExit(hidden.getRoomHandle(c).getExit(ExitDirEnum::WEST)));
+    const RawExit &ordinary = hidden.getRoomHandle(a).getExit(ExitDirEnum::EAST);
+    TEST_ASSERT(ordinary.exitIsExit() && ordinary.exitIsDoor() && !ordinary.doorIsHidden());
+    TEST_ASSERT(ordinary.getOutgoingSet().contains(b));
+    TEST_ASSERT(hidden.getRoomHandle(b).getExit(ExitDirEnum::WEST).getOutgoingSet().contains(a));
+    TEST_ASSERT(isConsistent(hidden));
+    // The input map is immutable: the secret is still there for whoever may see it.
+    TEST_ASSERT(f.map.getRoomHandle(b).getExit(ExitDirEnum::EAST).doorIsHidden());
+
+    // The blanked map agrees with the policy's own definition for every room and direction.
+    for (const RoomId id : {a, b, c}) {
+        for (const ExitDirEnum dir : ALL_EXITS_NESWUD) {
+            const RoomHandle original = f.map.getRoomHandle(id);
+            TEST_ASSERT(hidden.getRoomHandle(id).getExit(dir).exitIsExit()
+                        == isEffectiveExit(f.map, original, dir, {}));
+        }
+    }
+
+    // Found from either side: both sides of the same door come through unchanged, which is
+    // nothing to hide at all.
+    for (const auto &found : {DiscoveredExit{ServerRoomId{11}, ExitDirEnum::EAST},
+                              DiscoveredExit{ServerRoomId{12}, ExitDirEnum::WEST}}) {
+        const Map shown = hideUndiscoveredExits(f.map, {found});
+        TEST_ASSERT(shown.isSamePointer(f.map));
+    }
+
+    // A find in some other room or direction does not open this door.
+    const Map stillHidden
+        = hideUndiscoveredExits(f.map,
+                                {DiscoveredExit{ServerRoomId{11}, ExitDirEnum::NORTH},
+                                 DiscoveredExit{ServerRoomId{99}, ExitDirEnum::EAST}});
+    TEST_ASSERT(isBlankExit(stillHidden.getRoomHandle(b).getExit(ExitDirEnum::EAST)));
+    TEST_ASSERT(isBlankExit(stillHidden.getRoomHandle(c).getExit(ExitDirEnum::WEST)));
+
+    // A map with no secret exits is returned as is.
+    Fixture plain;
+    const RoomId p = plain.add(0, 1);
+    const RoomId q = plain.add(1, 2);
+    plain.connect(p, ExitDirEnum::EAST, q);
+    TEST_ASSERT(hideUndiscoveredExits(plain.map, {}).isSamePointer(plain.map));
+}
+
+void testMapForExplorer()
+{
+    Fixture f;
+    const RoomId a = f.add(0, 10);
+    const RoomId b = f.add(1, 11);
+    f.connect(a, ExitDirEnum::EAST, b);
+    f.hide(a, ExitDirEnum::EAST);
+    f.hide(b, ExitDirEnum::WEST);
+
+    // Inactive (no snapshot of finds): the map is meshed unchanged.
+    TEST_ASSERT(mapForExplorer(f.map, nullptr).isSamePointer(f.map));
+    // Active with no finds: the secret door is a wall.
+    const auto none = std::make_shared<const DiscoveredExits>();
+    const Map hidden = mapForExplorer(f.map, none);
+    TEST_ASSERT(isBlankExit(hidden.getRoomHandle(a).getExit(ExitDirEnum::EAST)));
+    // Active with the find: it comes through.
+    const auto found = std::make_shared<const DiscoveredExits>(
+        DiscoveredExits{DiscoveredExit{ServerRoomId{10}, ExitDirEnum::EAST}});
+    TEST_ASSERT(mapForExplorer(f.map, found).isSamePointer(f.map));
+}
 } // namespace
 
 namespace test {
@@ -324,5 +426,7 @@ void testExplorerVisibility()
     testHiddenExitOnRoomWithoutServerId();
     testViewMatchesFullComputation();
     testViewInactiveAndUncomputed();
+    testHideUndiscoveredExits();
+    testMapForExplorer();
 }
 } // namespace test

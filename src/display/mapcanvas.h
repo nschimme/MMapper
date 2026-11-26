@@ -8,6 +8,7 @@
 #include "../clock/mumemoment.h"
 #include "../global/ChangeMonitor.h"
 #include "../global/Signal2.h"
+#include "../map/DiscoveredExit.h"
 #include "../map/PromptFlags.h"
 #include "../mapdata/roomselection.h"
 #include "../opengl/Font.h"
@@ -182,6 +183,8 @@ private:
 private:
     MapScreen m_mapScreen;
     GameObserver &m_observer;
+    // Explore mode: the secret exits found so far, or null when not exploring.
+    std::shared_ptr<const DiscoveredExits> m_explorerExits;
     mutable OpenGL m_opengl;
     GLFont m_glFont;
     Batches m_batches;
@@ -367,6 +370,9 @@ public:
 
 public:
     void slot_rebuildMeshes() { requestForceUpdateMeshes(); }
+    // Null leaves the map as is. Otherwise hidden exits not in the snapshot are drawn as walls.
+    // Remeshes the whole map, which is fine because finds are rare.
+    void slot_setExplorerExits(const std::shared_ptr<const DiscoveredExits> &exits);
     void infomarksChanged();
     void layerChanged();
     void slot_mapChanged();

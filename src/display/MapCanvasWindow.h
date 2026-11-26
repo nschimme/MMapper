@@ -15,6 +15,7 @@
 // `MapCanvasWindow::sig_*`/`MapCanvasWindow::slot_*`.
 
 #include "../global/Signal2.h"
+#include "../map/DiscoveredExit.h"
 #include "../map/PromptFlags.h"
 #include "../mapdata/roomselection.h"
 #include "CanvasMouseModeEnum.h"
@@ -188,6 +189,10 @@ public slots:
     void slot_moveMarker(RoomId id) { m_core.slot_moveMarker(id); }
 
     void slot_rebuildMeshes() { m_core.slot_rebuildMeshes(); }
+    void slot_setExplorerExits(const std::shared_ptr<const DiscoveredExits> &exits)
+    {
+        m_core.slot_setExplorerExits(exits);
+    }
     void slot_mapChanged() { m_core.slot_mapChanged(); }
     void slot_requestUpdate() { m_core.slot_requestUpdate(); }
 };

@@ -184,7 +184,7 @@ group markers, exports, and **Offline mode's room descriptions and walking** (se
 |---|---|---|
 | 0 | **Landed on this branch.** Unchanged #566 port, then: no default negotiation, `KnownRoomsStore`, fail-closed semantics, `KnownRoomsTracker` (disabled by default). Coordinating with the #566 author is a separate, human step. | none (one parser change, see below) |
 | 1 | **Landed on this branch** (read-only enforcement moved to Phase 2): the tracker behind the flag (toggleable mid-session), `EXPLORE` mode, the visibility policy and effective exit view (`src/map/ExplorerVisibility`), and discovered-exit recording and persistence. The policy has no consumer yet, and its `placedRooms` input is defined but nothing feeds it. | Explore, behind an experimental flag |
-| 2 | Secret exits as walls; surfaces routed through the policy | Explore, behind the flag |
+| 2 | **Started.** Landed: the visibility service and the first consumer, undiscovered secret exits meshed as plain walls (`hideUndiscoveredExits`, applied to the map on the mesh worker thread). Still to do, most-leaking first: names and infomarks, Find Rooms, path finding, and read-only enforcement (decision pending). | Explore, behind the flag |
 | 3 | Fog MVP: mask builder, shaders, preset dropdown. **Remove the flag here.** | Explore |
 | 4 | `DoorTracker` and its GMCP wiring; door animation: door index, state texture, swing | **all modes** |
 | 5 | Frontier, reveal animation, reduce motion, docs | Explore (reduce motion: all) |
@@ -240,3 +240,16 @@ the fog exists.
   `"hidden"` flag in `Room.Info` only after the player has found it. If it lists unfound ones
   too, every secret door would be recorded as found. This needs a live check (see the report
   for this round) before the flag comes off.
+- **Facts for the read-only decision.** There is no map autosave (only remote-edit drafts
+  autosave). But the path machine's edits change the map, so `MapData::isModified()` becomes
+  true: the window is marked modified, Save is enabled, and `maybeSave` prompts "save changes?"
+  on close, new, and open. That already happens in Play today. On a shipped read-only map that
+  would prompt players to overwrite it. Options: block all path-machine edits in Explore;
+  allow only server-ID backfill; or leave Explore behaving like Play. Recommended: block all
+  edits except server-ID backfill, applied to a copy that is never offered for saving, but this
+  needs the user's decision because backfill is what makes rooms without a server ID persistable.
+- **Explore-mode secret exits are removed at one choke point.** Mesh generation reads a map in
+  which undiscovered hidden exits are already removed, instead of patching each exit read in
+  `visitRoom` and `Connections`. This covers walls, connection lines, flows, door names and
+  the other side of the door. It relies on the unverified `"hidden"` assumption above: if the
+  server lists unfound secret exits, nothing is hidden, which is never worse than today.

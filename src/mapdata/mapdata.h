@@ -7,6 +7,7 @@
 
 #include "../display/IMapBatchesFinisher.h"
 #include "../map/Changes.h"
+#include "../map/DiscoveredExit.h"
 #include "../map/DoorFlags.h"
 #include "../map/ExitDirection.h"
 #include "../map/ExitFieldVariant.h"
@@ -71,7 +72,8 @@ public:
 
     NODISCARD FutureSharedMapBatchFinisher
     generateBatches(const mctp::MapCanvasTexturesProxy &textures,
-                    const std::shared_ptr<const FontMetrics> &font);
+                    const std::shared_ptr<const FontMetrics> &font,
+                    const std::shared_ptr<const DiscoveredExits> &explorerExits);
 
     // REVISIT: convert to template, or functionref after it compiles everywhere?
     void applyChangesToList(const RoomSelection &sel,

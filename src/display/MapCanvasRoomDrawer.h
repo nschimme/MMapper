@@ -5,6 +5,7 @@
 
 #include "../global/Array.h"
 #include "../global/Timer.h"
+#include "../map/DiscoveredExit.h"
 #include "../map/ExitDirection.h"
 #include "../map/coordinate.h"
 #include "../map/infomark.h"
@@ -19,6 +20,7 @@
 #include "RoadIndex.h"
 
 #include <map>
+#include <memory>
 #include <optional>
 #include <unordered_map>
 #include <vector>
@@ -177,7 +179,10 @@ struct NODISCARD Batches final
 NODISCARD FutureSharedMapBatchFinisher
 generateMapDataFinisher(const mctp::MapCanvasTexturesProxy &textures,
                         const std::shared_ptr<const FontMetrics> &font,
-                        const Map &map);
+                        const Map &map,
+                        // Explore mode: the secret exits the player has found. Hidden exits
+                        // not in it are meshed as plain walls. Null means not exploring.
+                        const std::shared_ptr<const DiscoveredExits> &explorerExits);
 
 extern void finish(const IMapBatchesFinisher &finisher,
                    std::optional<MapBatches> &batches,

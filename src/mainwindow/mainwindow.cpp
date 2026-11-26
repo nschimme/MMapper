@@ -690,6 +690,7 @@ void MainWindow::wireConnections()
     connect(m_knownRooms, &KnownRoomsTracker::sig_changed, this, [this]() { pushExplorerData(); });
     connect(m_knownRooms, &KnownRoomsTracker::sig_exitsChanged, this, [this]() {
         pushExplorerData();
+        syncCanvasExits();
     });
     connect(m_knownRooms, &KnownRoomsTracker::sig_characterChanged, this, [this]() {
         m_explorerVisibility->onCharacterChanged();
@@ -1267,6 +1268,19 @@ void MainWindow::syncExplorerTracker()
     m_explorerVisibility->setActive(active);
     if (active) {
         pushExplorerData();
+    }
+    syncCanvasExits();
+}
+
+void MainWindow::syncCanvasExits()
+{
+    const auto &general = getConfig().general;
+    std::shared_ptr<const DiscoveredExits> exits;
+    if (isExploreActive(general.mapMode, general.explorerModeEnabled)) {
+        exits = std::make_shared<const DiscoveredExits>(m_knownRooms->getDiscoveredExits());
+    }
+    if (MapCanvasWindow *const canvas = getCanvas()) {
+        canvas->slot_setExplorerExits(exits);
     }
 }
 

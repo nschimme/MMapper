@@ -253,3 +253,32 @@ the fog exists.
   `visitRoom` and `Connections`. This covers walls, connection lines, flows, door names and
   the other side of the door. It relies on the unverified `"hidden"` assumption above: if the
   server lists unfound secret exits, nothing is hidden, which is never worse than today.
+
+## 11. Handoff to the next session
+
+State: branch `claude/affectionate-thompson-b2n9aj`, everything pushed. Phase 0 and Phase 1 are
+landed; Phase 2 has started. Explore mode is behind a hidden flag (`Explorer mode enabled
+(experimental)` under `[General]`, default false), so nothing changes for normal users.
+
+Next slice, in order:
+1. Route consumers through `ExplorerView` (the service's first real reader), most-leaking first:
+   room names and door names, infomarks, Find Rooms, then path finding and speedwalk.
+2. Read-only enforcement, after the user decides between: block all path machine edits in Explore;
+   backfill server IDs only; or behave like Play (see section 10 for the save-prompt facts).
+3. Re-request `Room.Known` after a client `Core.Supports.Set` (after the live check).
+4. Non-blocking: Explore shares Map mode's toolbar icon; `exploreModeFlagTest` restores only two
+   config fields instead of snapshotting the whole config.
+
+Still needed from the user: the live check against real MUME (list chunks arrive; an unfound
+secret door is not in `Room.Info`; after finding it, it is listed with `"hidden"`; in Explore it
+draws as a plain wall until found), and the read-only decision.
+
+Working notes that cost time before:
+- Build per `AGENTS.md`: Debug, ccache, `-DWITH_MAP=OFF -DWITH_IMAGES=OFF -DWITH_AUDIO=OFF
+  -DWITH_UPDATER=OFF -DWITH_WEBSOCKET=OFF -DWITH_OPENSSL=OFF`. Qt 6.4 and `libimmer-dev` come from
+  apt (the immer download is blocked by the proxy); the environment setup script installs them.
+- Run the full build and the full suite before every push. When filtering build output, match
+  `error:` (a filter on " error " hides real failures and leaves a stale test binary).
+- Check tests by deliberately breaking the code and confirming a failure; several first-try
+  passes were vacuous. Settings keys live under a `General` group in the settings file.
+- Format with `clang-format-18 -i --style=file` on changed `.h`/`.cpp` files only.

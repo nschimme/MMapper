@@ -126,9 +126,10 @@ Subtle only softens the look of terrain; it never leaks overlays, marks, or name
   with a `GameObserver&`, subscribed to GMCP signals, exposing state and a change signal.
   `GameObserver` stays a thin signal hub (unlike #566, which put `KnownRooms` in it).
 - Keys use `ServerRoomId` (stable across map edits), plus direction for exits.
-- Profile: one binary file per server and character with a known-room bitset and the
-  discovered-exit list. `QSaveFile` on the GUI thread behind a 2 s single-shot timer. Measure
-  the ID range first (expected tens of KB). This removes #566's worker threads.
+- Profile: one binary file per server and character holding a sorted `uint32` array of known
+  room IDs (a range-independent format, so no assumption about the ID range), later extended
+  with the discovered-exit list. `QSaveFile` on the GUI thread behind a 2 s single-shot timer.
+  This removes #566's worker threads. Implemented as `KnownRoomsStore`.
 - Precedence: live server data overwrites cache and transient state. A completed
   `Room.Known.List` replaces the cache. The server omitting a hidden exit updates the door
   state but never deletes a discovered exit.
@@ -175,8 +176,8 @@ group markers, exports, and **Offline mode's room descriptions and walking** (se
 
 | Phase | Work | Modes affected |
 |---|---|---|
-| 0 | Coordinate on #566, rebase, land GMCP, tracker, and cache first; use the simpler store | none |
-| 1 | Visibility policy, effective exit view, `EXPLORE` mode, read-only, profile store (pure C++ tests) | Explore, behind an experimental flag |
+| 0 | **Landed on this branch.** Unchanged #566 port, then: no default negotiation, `KnownRoomsStore`, fail-closed semantics, `KnownRoomsTracker` (disabled by default). Coordinating with the #566 author is a separate, human step. | none (one parser change, see below) |
+| 1 | Enable the tracker behind the flag (it can be toggled mid-session), visibility policy, effective exit view, `EXPLORE` mode, read-only, profile store (pure C++ tests) | Explore, behind an experimental flag |
 | 2 | Secret exits as walls; surfaces routed through the policy | Explore, behind the flag |
 | 3 | Fog MVP: mask builder, shaders, preset dropdown. **Remove the flag here.** | Explore |
 | 4 | `DoorTracker` and its GMCP wiring; door animation: door index, state texture, swing | **all modes** |
@@ -207,3 +208,16 @@ the fog exists.
 - Browser builds have no durable file store until an IndexedDB layer exists.
 - Fixing a stale map needs Map mode, which reveals everything.
 - Bundled map loaded read-only in Explore, and what happens to a user's custom map.
+
+## 10. Phase 0 notes for Phase 1
+
+- **Core.Supports.Set resets the module.** If the player's own MUD client sends
+  `Core.Supports.Set`, `MudTelnet::resetGmcpModules()` drops `Room.Known`. The tracker re-adds
+  it before each list request, but a set arriving mid-transfer can still interrupt that
+  transfer. Phase 1 should re-request when that happens.
+- **Behaviour change outside Explore.** The ported `JsonDoc.h` change makes top-level `null`,
+  `true`, and `false` parse as scalars for all GMCP, not only `Room.Known`. It is small and the
+  suite passes, but it is not strictly neutral.
+- **Shutdown order.** `~MainWindow` deletes the connection listener (and so the `Proxy`, which
+  fires the disconnect hooks) in its body, while its child objects, including the tracker, are
+  still alive. New MainWindow-owned components hooked to `GameObserver` rely on this.

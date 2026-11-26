@@ -363,14 +363,71 @@ void TestProxy::knownRoomsCacheMissingWarningTest()
     observer.setEnabled(false);
     observer.slot_parseGmcpInput(GmcpMessage::fromRawBytes(R"(Char.Name {"name":"Merry"})"));
     QCOMPARE(warnings, 2);
-    // Switching to a character that does have a cache never warns for the earlier one.
+    // Enabling mid-session for a character without a cache warns, since Merry is logged in.
     observer.setEnabled(true);
+    QCOMPARE(warnings, 3);
     observer.onDisconnected();
     observer.slot_parseGmcpInput(GmcpMessage::fromRawBytes(R"(Char.Name {"name":"Pippin"})"));
-    QCOMPARE(warnings, 3);
+    QCOMPARE(warnings, 4);
+    // Switching to a character that does have a cache never warns.
     observer.slot_parseGmcpInput(GmcpMessage::fromRawBytes(R"(Char.Name {"name":"Bilbo"})"));
     QVERIFY(observer.getSnapshot().isKnown(ServerRoomId{1})); // cache hit
-    QCOMPARE(warnings, 3);
+    QCOMPARE(warnings, 4);
+}
+
+void TestProxy::knownRoomsEnableMidSessionTest()
+{
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    seedKnownRooms(dir.path(), "Bilbo", "[1,2]");
+
+    const auto path = dir.path();
+    KnownRoomsTracker tracker{nullptr, [path]() {
+                                  return std::optional<KnownRoomsTracker::StoreLocation>{
+                                      {path, "mume.org:4242"}};
+                              }};
+    QStringList sent;
+    int warnings = 0;
+    QObject::connect(&tracker, &KnownRoomsTracker::sig_sendGmcp, &tracker, [&sent](const auto &msg) {
+        sent << QString::fromUtf8(msg.toRawBytes());
+    });
+    QObject::connect(&tracker, &KnownRoomsTracker::sig_cacheMissing, &tracker, [&warnings]() {
+        ++warnings;
+    });
+
+    // The player logs in while the feature is off; MUME will not repeat Char.Name.
+    tracker.onConnected();
+    tracker.slot_parseGmcpInput(GmcpMessage::fromRawBytes(R"(Char.Name {"name":"Bilbo"})"));
+    QVERIFY(sent.isEmpty());
+
+    tracker.setEnabled(true);
+    // The saved history is restored and the server list is requested right away.
+    QVERIFY(tracker.getSnapshot().isKnown(ServerRoomId{1}));
+    QVERIFY(tracker.getSnapshot().isKnown(ServerRoomId{2}));
+    QCOMPARE(warnings, 0);
+    QCOMPARE(sent.size(), 2);
+    QVERIFY(sent.at(0).startsWith("Core.Supports.Add"));
+    QCOMPARE(sent.at(1), QString("Room.Known.List"));
+
+    // A character with no saved history warns once, and is still asked for its list.
+    KnownRoomsTracker fresh{nullptr, [path]() {
+                                return std::optional<KnownRoomsTracker::StoreLocation>{
+                                    {path, "mume.org:4242"}};
+                            }};
+    QStringList freshSent;
+    int freshWarnings = 0;
+    QObject::connect(&fresh, &KnownRoomsTracker::sig_sendGmcp, &fresh, [&freshSent](const auto &m) {
+        freshSent << QString::fromUtf8(m.toRawBytes());
+    });
+    QObject::connect(&fresh, &KnownRoomsTracker::sig_cacheMissing, &fresh, [&freshWarnings]() {
+        ++freshWarnings;
+    });
+    fresh.onConnected();
+    fresh.slot_parseGmcpInput(GmcpMessage::fromRawBytes(R"(Char.Name {"name":"Frodo"})"));
+    fresh.setEnabled(true);
+    QCOMPARE(freshWarnings, 1);
+    QCOMPARE(freshSent.size(), 2);
+    QVERIFY(fresh.getSnapshot().rooms.empty());
 }
 
 void TestProxy::knownRoomsCacheRestartTest()

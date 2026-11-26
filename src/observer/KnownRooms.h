@@ -56,6 +56,8 @@ private:
     std::function<void()> m_cacheChanged;
     std::function<void()> m_cacheMissing;
     bool m_cacheWarningIssued = false;
+    // The saved history for the current character was found and restored.
+    bool m_cacheHit = false;
     void loadCache();
     void saveCache(bool immediate = false);
     void restoreCache(const QString &character,

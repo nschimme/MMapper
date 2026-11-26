@@ -43,12 +43,17 @@ void KnownRooms::configureCache(const QString &directory,
     if (m_cache && m_cache->matches(directory, server)) {
         return;
     }
+    // Installing a store mid-session (the feature can be enabled while playing) must not make
+    // us forget who is logged in: MUME only sends Char.Name once per login.
+    const auto character = m_character;
     reset();
     // Destroying the old store flushes its pending writes before the new server is used.
     m_cache.reset();
     m_cacheChanged = std::move(changed);
     m_cacheMissing = std::move(missing);
     m_cache = std::make_unique<KnownRoomsStore>(directory, server);
+    m_character = character;
+    loadCache();
 }
 
 void KnownRooms::loadCache()
@@ -58,6 +63,7 @@ void KnownRooms::loadCache()
     }
     // Reads are small and synchronous, so a result can never arrive for a stale character.
     if (const auto rooms = m_cache->load(m_character)) {
+        m_cacheHit = true;
         restoreCache(m_character, m_snapshot.generation, *rooms);
     } else if (!m_snapshot.listComplete && m_enabled && !m_cacheWarningIssued) {
         m_cacheWarningIssued = true;
@@ -98,6 +104,7 @@ void KnownRooms::invalidate()
     m_snapshot.listComplete = false;
     m_authoritative = false;
     m_liveKnown = ImmUnorderedSet<ServerRoomId>{};
+    m_cacheHit = false;
     ++m_snapshot.revision;
     m_snapshot.generation = m_snapshot.revision;
 }
@@ -141,6 +148,14 @@ bool KnownRooms::setEnabled(const bool enabled)
         // Disabling the overlay does not discard an in-flight refresh or live discoveries.
         if (!enabled || (m_receiving && !m_discard)) {
             return false;
+        }
+        // Enabled mid-session: loadCache() ran while disabled, so warn now if it found nothing.
+        if (!m_character.isEmpty() && !m_cacheHit && !m_snapshot.listComplete
+            && !m_cacheWarningIssued) {
+            m_cacheWarningIssued = true;
+            if (m_cacheMissing) {
+                m_cacheMissing();
+            }
         }
         return requestList();
     }

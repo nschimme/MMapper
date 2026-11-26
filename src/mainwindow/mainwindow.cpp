@@ -1297,7 +1297,8 @@ void MainWindow::slot_onExploreMode()
         }
         return;
     }
-    slot_log("MainWindow", "Explore mode selected - the map is read-only, like play mode.");
+    slot_log("MainWindow",
+             "Explore mode selected (experimental) - it currently behaves like play mode.");
     setConfigMapMode(MapModeEnum::EXPLORE);
     syncExplorerTracker();
     modeMenu->setIcon(mapperMode.exploreModeAct->icon());

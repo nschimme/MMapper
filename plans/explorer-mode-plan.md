@@ -221,3 +221,12 @@ the fog exists.
 - **Shutdown order.** `~MainWindow` deletes the connection listener (and so the `Proxy`, which
   fires the disconnect hooks) in its body, while its child objects, including the tracker, are
   still alive. New MainWindow-owned components hooked to `GameObserver` rely on this.
+- **Explore is not read-only yet.** `PathMachine::scheduleAction()` applies its change list in
+  every mode except Offline, so Play, and therefore Explore, already lets the path machine
+  backfill server IDs, add `HIDDEN` door flags and `NO_MATCH`, and update room fields. Manual
+  edit tools are also not mode-gated. Read-only enforcement moves to Phase 2, with the other
+  edit and spoiler surfaces. Tension to resolve then: blocking all edits also blocks server-ID
+  backfill, which is what lets rooms without a server ID become persistable.
+- **Non-blocking, before the flag comes off:** Explore reuses `map.png` as its icon, so its
+  button looks like Map mode's; and `exploreModeFlagTest` should snapshot and restore the whole
+  configuration through `writeTo`/`readFrom` instead of two fields.

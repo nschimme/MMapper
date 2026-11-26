@@ -12,6 +12,8 @@
 #include "RoomHandle.h"
 #include "World.h"
 
+#include <algorithm>
+
 namespace {
 NODISCARD bool isFound(const RoomHandle &room, const ExitDirEnum dir, const DiscoveredExits &found)
 {
@@ -180,6 +182,18 @@ Map hideUndiscoveredExits(const Map &map, const DiscoveredExits &discovered)
     }
     ProgressCounter pc;
     return map.apply(pc, changes).map;
+}
+
+bool exploreExitsOnlyReveal(const std::shared_ptr<const DiscoveredExits> &before,
+                            const std::shared_ptr<const DiscoveredExits> &after)
+{
+    if (!after) {
+        return true; // not exploring (anymore): nothing is hidden
+    }
+    if (!before) {
+        return false; // starting to explore hides secrets
+    }
+    return std::includes(after->begin(), after->end(), before->begin(), before->end());
 }
 
 Map mapForExplorer(const Map &map, const std::shared_ptr<const DiscoveredExits> &discovered)

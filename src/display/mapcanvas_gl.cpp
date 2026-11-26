@@ -516,9 +516,12 @@ void MapCanvas::updateMapBatches()
         return;
     }
 
-    if (m_batches.mapBatches.has_value() && !m_data.getNeedsMapUpdate()) {
+    if (m_batches.mapBatches.has_value() && !m_data.getNeedsMapUpdate()
+        && !m_explorerRemeshRequested) {
         return;
     }
+    // Cleared only when the remesh starts, so a request made while one is pending is not lost.
+    m_explorerRemeshRequested = false;
 
     if (m_data.getNeedsMapUpdate()) {
         m_data.clearNeedsMapUpdate();

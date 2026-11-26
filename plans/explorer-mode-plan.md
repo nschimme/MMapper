@@ -201,8 +201,11 @@ facing a fully fogged map for a minute or more.
   remeshing on discovery.
 - **Look.** Noise-threshold dissolve (hand-inked edges), parchment tint, optional time-of-day
   colour coupling; reuse the weather noise texture.
-- **Hidden exits.** The effective exit view runs in `visitRoom()` and `Connections.cpp`. A
-  reveal goes through a coalesced async remesh (rare).
+- **Hidden exits.** The effective exit view runs in `visitRoom()` and `Connections.cpp`.
+  Until Phase 4, finding a secret exit starts a remesh in the background while the current
+  meshes keep drawing (`exploreExitsOnlyReveal()`; a change that could hide something still
+  drops the meshes at once). That is correct but slow: the door shows only after the whole map
+  is meshed again. Phase 4 removes the remesh for the door itself (see the Phase 4 row).
 - **Doors (all modes).** A stable door index per door quad; a small state texture or UBO holds
   `(target state, start time)`; the vertex shader swings the leaf about its hinge with ease-out,
   a slam bounce, and a splinter shake for broken doors. Mostly procedural.
@@ -222,10 +225,29 @@ group markers, exports, and **Offline mode's room descriptions and walking** (se
 | 1 | **Landed on this branch** (read-only enforcement moved to Phase 2): the tracker (runs while Explore is the mode), `EXPLORE` mode, the visibility policy and effective exit view (`src/map/ExplorerVisibility`), and discovered-exit recording and persistence. The policy has no consumer yet, and its `placedRooms` input is defined but nothing feeds it. | Explore |
 | 2 | **Started.** Landed: the visibility service and the first consumer, undiscovered secret exits meshed as plain walls (`hideUndiscoveredExits`, applied to the map on the mesh worker thread). Find Rooms now reports only shown rooms, and no route through a hidden room. Still to do, most-leaking first: names and infomarks (these are meshed, so they need the Phase 3 mask rather than a remesh per step), room panel and tooltips, `_dirs`/speedwalk path finding, and read-only enforcement (decision pending). | Explore |
 | 3 | **Started.** Landed: the pure mask builder (`src/map/ExplorerFogMask`, tested), and the fog in the room-cell vertex shader (`room/tex/acolor`), which covers terrain, trails, overlays, walls and doors in one place. The service builds the base mask on its worker; `ExplorerFogTexture` uploads it (R8 2D array, nearest, alignment 1, limits checked, fail closed) and patches the player's cell each step. Hinted (frontier) cells are hidden until Phase 5. Not yet visually verified: the shader compiles and links under Mesa and passes glslang for GL 330 and ES 300, but nobody has looked at it on a real map. Next, in order: connection lines (per-fragment test, stub to the cell edge); door and room names (font shader); infomarks; preset dropdown. Ship Severe (discard) first. Fog MVP: mask builder, shaders, preset dropdown. (The experimental flag was removed early, at the user's request.) | Explore |
-| 4 | `DoorTracker` and its GMCP wiring; door animation: door index, state texture, swing | **all modes** |
+| 4 | `DoorTracker` and its GMCP wiring; door animation: door state texture, swing. **A secret exit is a door state**, so finding one needs no remesh (see below). | **all modes** |
 | 5 | Frontier, reveal animation, reduce motion, docs | Explore (reduce motion: all) |
 
 Phase 4 (including `DoorTracker`) does not depend on Explore and can ship first.
+
+**Phase 4 design for secret doors.**
+- Doors and walls are `RoomQuadTexVert` quads on the same instanced room shader that reads the
+  fog mask (`room/tex/acolor`): `w = colorId << 8 | tex_z`, bits 16 to 31 are free, and the wall
+  orientation is part of `tex_z`. A door is therefore identified by its cell and orientation;
+  no per-quad index is required.
+- In Explore, mesh every secret exit twice, as a wall quad and as a door quad. The vertex
+  shader drops the one that does not match the door's state, as the fog shader drops a quad.
+- Door states are closed, open, broken and undiscovered secret, in a small state texture keyed
+  by cell and direction (a plain 2D texture or a texture buffer; if an array texture is
+  unavoidable, use only the layer-aware upload calls). Finding a secret is one texel patch plus
+  the swing. Fail closed: an unbound or missing texture draws a secret as a wall.
+- Connection lines and door names are separate meshes. Until their shaders read the state they
+  stay on the background remesh, which is safe because nothing leaks before the find.
+- `hideUndiscoveredExits` stays for everything that is not a mesh (Find Rooms, path finding,
+  the room panel).
+- The rooms behind a found secret appear after the visibility recompute (about 0.85 s on the
+  shipped map). An incremental flood from the found exit that patches the fog mask directly is a
+  possible later step.
 
 **Gating:** until phase 3 lands, Explore would show the whole map with hidden labels and
 secret exits, and leaving it would warn "This will show the full map." That is incoherent for
@@ -308,6 +330,11 @@ secret door is not in `Room.Info`; after finding it, it is listed with `"hidden"
 draws as a plain wall until found), and the read-only decision.
 
 Working notes that cost time before:
+- **Revealing a secret no longer blanks the map.** The canvas keeps the old meshes and remeshes
+  in the background when a change can only show more; any change that could hide a secret still
+  drops the meshes immediately. Measured on the shipped map: rewriting the 2,822 hidden exits
+  takes about 160 ms and the visibility recompute about 850 ms, both off the GUI thread. The
+  mesh generation and the GL upload were not measured; Phase 4 removes them from the path.
 - Build per `AGENTS.md`: Debug, ccache, `-DWITH_MAP=OFF -DWITH_IMAGES=OFF -DWITH_AUDIO=OFF
   -DWITH_UPDATER=OFF -DWITH_WEBSOCKET=OFF -DWITH_OPENSSL=OFF`. Qt 6.4 and `libimmer-dev` come from
   apt (the immer download is blocked by the proxy); the environment setup script installs them.

@@ -69,6 +69,14 @@ NODISCARD extern ExplorerVisibility computeExplorerVisibility(const ExplorerVisi
 // nothing to hide.
 NODISCARD extern Map hideUndiscoveredExits(const Map &map, const DiscoveredExits &discovered);
 
+// Whether replacing the finds `before` with `after` can only show more secret exits, never hide
+// one. Null means not exploring. Showing more is safe to apply in the background while the
+// current meshes keep drawing, since a stale mesh only hides more. Anything that could hide
+// something (starting to explore, another character, a set that lost entries) is not: the
+// meshes must be dropped at once, or the stale ones would still show the secrets.
+NODISCARD extern bool exploreExitsOnlyReveal(const std::shared_ptr<const DiscoveredExits> &before,
+                                             const std::shared_ptr<const DiscoveredExits> &after);
+
 // The map to mesh: inactive (no snapshot of finds) is the map unchanged.
 NODISCARD extern Map mapForExplorer(const Map &map,
                                     const std::shared_ptr<const DiscoveredExits> &discovered);

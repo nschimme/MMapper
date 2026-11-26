@@ -588,6 +588,32 @@ void testUndiscoveredBase()
     TEST_ASSERT(!ExplorerView::makeActive(base, f.map, seed, none).isUndiscoveredBase(seed));
     TEST_ASSERT(!ExplorerView{}.isUndiscoveredBase(seed));
 }
+
+void testExitsChangeOnlyReveals()
+{
+    const auto set = [](std::initializer_list<DiscoveredExit> l) {
+        return std::make_shared<const DiscoveredExits>(l);
+    };
+    const DiscoveredExit a{ServerRoomId{10}, ExitDirEnum::EAST};
+    const DiscoveredExit b{ServerRoomId{11}, ExitDirEnum::WEST};
+    const DiscoveredExit c{ServerRoomId{12}, ExitDirEnum::NORTH};
+    const std::shared_ptr<const DiscoveredExits> none;
+
+    // A found exit shows more: the old meshes only hide more, so they may keep drawing.
+    TEST_ASSERT(exploreExitsOnlyReveal(set({a}), set({a, b})));
+    TEST_ASSERT(exploreExitsOnlyReveal(set({}), set({a})));
+    TEST_ASSERT(exploreExitsOnlyReveal(set({a, b}), set({a, b}))); // nothing changed
+    // Leaving Explore shows everything.
+    TEST_ASSERT(exploreExitsOnlyReveal(set({a}), none));
+    TEST_ASSERT(exploreExitsOnlyReveal(none, none));
+
+    // Anything that can hide a secret must drop the meshes at once, or they would show it.
+    TEST_ASSERT(!exploreExitsOnlyReveal(none, set({}))); // starting to explore
+    TEST_ASSERT(!exploreExitsOnlyReveal(none, set({a})));
+    TEST_ASSERT(!exploreExitsOnlyReveal(set({a, b}), set({a})));    // lost an entry
+    TEST_ASSERT(!exploreExitsOnlyReveal(set({a}), set({b, c})));    // another character
+    TEST_ASSERT(!exploreExitsOnlyReveal(set({a, b}), set({b, c}))); // gained one, lost one
+}
 } // namespace
 
 namespace test {
@@ -609,5 +635,6 @@ void testExplorerVisibility()
     testBaseMapIsVisibleByDefault();
     testNoSeedRoomsFallBackToKnownRooms();
     testUndiscoveredBase();
+    testExitsChangeOnlyReveals();
 }
 } // namespace test

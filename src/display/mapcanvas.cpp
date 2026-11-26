@@ -11,6 +11,7 @@
 #include "../global/progresscounter.h"
 #include "../global/utils.h"
 #include "../map/ExitDirection.h"
+#include "../map/ExplorerVisibility.h"
 #include "../map/coordinate.h"
 #include "../map/exit.h"
 #include "../map/infomark.h"
@@ -1383,8 +1384,15 @@ void MapCanvas::slot_setExplorerExits(const std::shared_ptr<const DiscoveredExit
     if (same) {
         return;
     }
+    const bool onlyReveals = exploreExitsOnlyReveal(m_explorerExits, exits);
     m_explorerExits = exits;
-    requestForceUpdateMeshes();
+    if (onlyReveals) {
+        // Keep drawing the current meshes (they only hide more) until the new ones are ready.
+        m_explorerRemeshRequested = true;
+        m_frameManager.requestUpdate();
+    } else {
+        requestForceUpdateMeshes();
+    }
 }
 
 void MapCanvas::slot_setExplorerFog(const bool active,

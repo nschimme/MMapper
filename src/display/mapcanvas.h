@@ -187,6 +187,9 @@ private:
     GameObserver &m_observer;
     // Explore mode: the secret exits found so far, or null when not exploring.
     std::shared_ptr<const DiscoveredExits> m_explorerExits;
+    // A found secret exit asks for a remesh in the background; the current meshes keep drawing
+    // until it is ready.
+    bool m_explorerRemeshRequested = false;
     // Explore mode: the fog the room meshes are drawn through.
     ExplorerFogTexture m_fogTexture;
     mutable OpenGL m_opengl;

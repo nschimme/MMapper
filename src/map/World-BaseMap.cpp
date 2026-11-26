@@ -8,26 +8,26 @@
 #include <deque>
 #include <unordered_set>
 
-void World::apply(ProgressCounter &pc, const world_change_types::GenerateBaseMap & /* unused */)
+RoomIdSet World::findBaseMapRooms(const BaseMapExitFn &usable, ProgressCounter *const pc) const
 {
     RoomIdSet baseRooms;
     std::deque<RoomId> roomsTodo;
 
-    auto receiveRoom = [&baseRooms, &roomsTodo](const RawRoom &room) {
-        // const auto id = room.getId();
-        for (const auto &exit : room.getExits()) {
-            if (exit.doorIsHidden() || exit.exitIsNoMatch()) {
-                // m_impl->secretLinks.emplace(RoomLink{id, to_ext});
-            } else {
-                for (const RoomId to_id : exit.getOutgoingSet()) {
-                    baseRooms.insert(to_id);
-                    roomsTodo.emplace_back(to_id);
-                }
+    auto receiveRoom = [&baseRooms, &roomsTodo, &usable](const RawRoom &room) {
+        for (const ExitDirEnum dir : ALL_EXITS7) {
+            if (!usable(room, dir)) {
+                continue;
+            }
+            for (const RoomId to_id : room.getExit(dir).getOutgoingSet()) {
+                baseRooms.insert(to_id);
+                roomsTodo.emplace_back(to_id);
             }
         }
     };
 
-    pc.setNewTask(ProgressMsg{"seeding rooms"}, getRoomSet().size());
+    if (pc != nullptr) {
+        pc->setNewTask(ProgressMsg{"seeding rooms"}, getRoomSet().size());
+    }
 
     // Seed rooms
     static const std::unordered_set<ServerRoomId> seeds = {
@@ -41,7 +41,7 @@ void World::apply(ProgressCounter &pc, const world_change_types::GenerateBaseMap
         ServerRoomId{7854852},  // Frozen North
         ServerRoomId{14623711}, // Hidden Island
     };
-    getRoomSet().for_each([this, &baseRooms, &roomsTodo, &pc](const RoomId id) {
+    getRoomSet().for_each([this, &baseRooms, &roomsTodo, pc](const RoomId id) {
         const RawRoom &room = deref(getRoom(id));
         if (room.isPermanent()) {
             const auto serverId = room.getServerId();
@@ -50,17 +50,20 @@ void World::apply(ProgressCounter &pc, const world_change_types::GenerateBaseMap
                 roomsTodo.push_back(id);
             }
         }
-        pc.step();
+        if (pc != nullptr) {
+            pc->step();
+        }
     });
 
     if (baseRooms.empty()) {
-        qWarning() << "Unable to filter the map.";
-        return;
+        return baseRooms;
     }
 
-    pc.setNewTask(ProgressMsg{"find all accessible rooms"}, getRoomSet().size());
+    if (pc != nullptr) {
+        pc->setNewTask(ProgressMsg{"find all accessible rooms"}, getRoomSet().size());
+    }
 
-    // Walk the whole map through non-hidden exits without recursing
+    // Walk the whole map through the usable exits without recursing
     RoomIdSet considered;
     while (!roomsTodo.empty()) {
         const RoomId todo = utils::pop_front(roomsTodo);
@@ -73,7 +76,25 @@ void World::apply(ProgressCounter &pc, const world_change_types::GenerateBaseMap
         if (const RawRoom *pRoom = getRoom(todo)) {
             receiveRoom(*pRoom);
         }
-        pc.step();
+        if (pc != nullptr) {
+            pc->step();
+        }
+    }
+    return baseRooms;
+}
+
+void World::apply(ProgressCounter &pc, const world_change_types::GenerateBaseMap & /* unused */)
+{
+    const RoomIdSet baseRooms = findBaseMapRooms(
+        [](const RawRoom &room, const ExitDirEnum dir) {
+            const auto &exit = room.getExit(dir);
+            return !(exit.doorIsHidden() || exit.exitIsNoMatch());
+        },
+        &pc);
+
+    if (baseRooms.empty()) {
+        qWarning() << "Unable to filter the map.";
+        return;
     }
 
     // REVISIT: This is done in two passes because doing it in a single pass

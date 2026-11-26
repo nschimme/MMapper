@@ -15,6 +15,7 @@
 #include "WorldAreaMap.h"
 #include "infomark.h"
 
+#include <functional>
 #include <memory>
 #include <optional>
 #include <ostream>
@@ -93,6 +94,15 @@ public:
 public:
     NODISCARD const ImmRoomIdSet &getRoomSet() const;
     NODISCARD const ImmUnorderedRoomIdSet *findAreaRoomSet(const RoomArea &area) const;
+
+public:
+    // Whether the walk below may leave `room` through exit `dir`.
+    using BaseMapExitFn = std::function<bool(const RawRoom &room, ExitDirEnum dir)>;
+    // The rooms reachable from the base map's seed rooms through the exits `usable` accepts.
+    // Empty when the map holds none of the seeds. "Export Base Map" and Explore mode both use
+    // this walk, with different rules for hidden exits.
+    NODISCARD RoomIdSet findBaseMapRooms(const BaseMapExitFn &usable,
+                                         ProgressCounter *pc = nullptr) const;
 
 public:
     NODISCARD bool hasRoom(RoomId id) const;

@@ -411,6 +411,125 @@ void testMapForExplorer()
         DiscoveredExits{DiscoveredExit{ServerRoomId{10}, ExitDirEnum::EAST}});
     TEST_ASSERT(mapForExplorer(f.map, found).isSamePointer(f.map));
 }
+
+// "Export Base Map" keeps what is reachable from the seed rooms without hidden exits, and
+// removes the rest. Explore mode reuses that walk, so its result is pinned here.
+constexpr uint32_t COSY_ROOM = 4831075; // a seed of the base map
+
+void testBaseMapExport()
+{
+    {
+        Fixture f;
+        const RoomId seed = f.add(0, COSY_ROOM);
+        const RoomId open = f.add(1, 21);
+        const RoomId open2 = f.add(2, 22);
+        const RoomId secret = f.add(3, 23);
+        const RoomId behind = f.add(4, 24);
+        const RoomId island = f.add(6, 25);
+        f.connect(seed, ExitDirEnum::EAST, open);
+        f.connect(open, ExitDirEnum::EAST, open2);
+        f.connect(open2, ExitDirEnum::EAST, secret);
+        f.hide(open2, ExitDirEnum::EAST);
+        f.connect(secret, ExitDirEnum::EAST, behind);
+        (void) island;
+
+        ProgressCounter pc;
+        const Map base = f.map.filterBaseMap(pc);
+        for (const int x : {0, 1, 2}) {
+            TEST_ASSERT(base.findRoomHandle(Coordinate{x, 0, 0}).exists());
+        }
+        // Behind the secret door, and not connected at all.
+        for (const int x : {3, 4, 6}) {
+            TEST_ASSERT(!base.findRoomHandle(Coordinate{x, 0, 0}).exists());
+        }
+        // The hidden exit itself is gone from the room that stays.
+        const RoomHandle last = base.findRoomHandle(Coordinate{2, 0, 0});
+        TEST_ASSERT(last.getExit(ExitDirEnum::EAST).getOutgoingSet().empty());
+        TEST_ASSERT(!last.getExit(ExitDirEnum::EAST).doorIsHidden());
+    }
+
+    {
+        // Without any seed room the export leaves the map as it is.
+        Fixture f;
+        const RoomId a = f.add(0, 21);
+        const RoomId b = f.add(1, 22);
+        f.connect(a, ExitDirEnum::EAST, b);
+        ProgressCounter pc;
+        const Map base = f.map.filterBaseMap(pc);
+        TEST_ASSERT(base.findRoomHandle(Coordinate{0, 0, 0}).exists());
+        TEST_ASSERT(base.findRoomHandle(Coordinate{1, 0, 0}).exists());
+    }
+}
+
+void testBaseMapIsVisibleByDefault()
+{
+    Fixture f;
+    const RoomId seed = f.add(0, COSY_ROOM);
+    const RoomId open = f.add(1, 21);
+    const RoomId secret = f.add(2, 22);
+    const RoomId behind = f.add(3, 23);
+    const RoomId noId = f.add(5);
+    const RoomId island = f.add(7, 25);
+    f.connect(seed, ExitDirEnum::EAST, open);
+    f.connect(open, ExitDirEnum::EAST, secret);
+    f.hide(open, ExitDirEnum::EAST);
+    f.connect(secret, ExitDirEnum::EAST, behind);
+    f.apply(Change{room_change_types::AddPermanentRoom{Coordinate{0, 0, 1}}});
+    const RoomId up = f.map.findRoomHandle(Coordinate{0, 0, 1}).getId();
+    f.connect(seed, ExitDirEnum::UP, up);
+    f.connect(seed, ExitDirEnum::DOWN, noId);
+    f.apply(
+        Change{room_change_types::AddRoom2{Coordinate{9, 0, 0}, *ParseEvent::createDummyEvent()}});
+    const RoomId temp = f.map.findRoomHandle(Coordinate{9, 0, 0}).getId();
+    f.connect(seed, ExitDirEnum::NORTH, temp);
+
+    // Nothing is known, yet everything not behind a secret is shown, with or without a server
+    // ID. A secret hides what is behind it, and a room nothing leads to is not "not hidden".
+    auto v = f.compute({});
+    TEST_ASSERT(v.baseMapFound);
+    for (const RoomId id : {seed, open, up, noId}) {
+        TEST_ASSERT(v.visible.contains(id));
+    }
+    for (const RoomId id : {secret, behind, island}) {
+        TEST_ASSERT(!v.visible.contains(id));
+    }
+    // Temporary rooms are guesses, whatever leads to them.
+    TEST_ASSERT(!v.visible.contains(temp));
+    TEST_ASSERT(!v.frontier.contains(secret));
+
+    // A secret found from its own side opens everything behind it...
+    DiscoveredExits found{DiscoveredExit{ServerRoomId{21}, ExitDirEnum::EAST}};
+    v = f.compute({}, found);
+    TEST_ASSERT(v.visible.contains(secret));
+    TEST_ASSERT(v.visible.contains(behind));
+    TEST_ASSERT(!v.visible.contains(island));
+
+    // ...and so does finding the other side of the same door.
+    DiscoveredExits foundBack{DiscoveredExit{ServerRoomId{22}, ExitDirEnum::WEST}};
+    v = f.compute({}, foundBack);
+    TEST_ASSERT(v.visible.contains(secret));
+    TEST_ASSERT(v.visible.contains(behind));
+
+    // Knowing a room is still enough, behind a secret or on an island.
+    v = f.compute({23, 25});
+    TEST_ASSERT(v.visible.contains(behind));
+    TEST_ASSERT(v.visible.contains(island));
+    TEST_ASSERT(!v.visible.contains(secret));
+}
+
+void testNoSeedRoomsFallBackToKnownRooms()
+{
+    Fixture f;
+    const RoomId a = f.add(0, 10);
+    const RoomId b = f.add(1, 11);
+    f.connect(a, ExitDirEnum::EAST, b);
+
+    // A map without any seed room (a partial user map) never shows more than before.
+    const auto v = f.compute({10});
+    TEST_ASSERT(!v.baseMapFound);
+    TEST_ASSERT(v.visible.contains(a));
+    TEST_ASSERT(!v.visible.contains(b));
+}
 } // namespace
 
 namespace test {
@@ -428,5 +547,8 @@ void testExplorerVisibility()
     testViewInactiveAndUncomputed();
     testHideUndiscoveredExits();
     testMapForExplorer();
+    testBaseMapExport();
+    testBaseMapIsVisibleByDefault();
+    testNoSeedRoomsFallBackToKnownRooms();
 }
 } // namespace test

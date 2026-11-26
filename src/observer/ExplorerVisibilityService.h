@@ -50,6 +50,8 @@ private:
     uint64_t m_inputRevision = 0;
     uint64_t m_publishedRevision = 0;
     uint64_t m_computeCount = 0;
+    // The map holds no base map seed room: logged once, not on every recompute.
+    bool m_loggedNoBaseMap = false;
 
     struct NODISCARD Computed final
     {

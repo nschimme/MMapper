@@ -8,7 +8,9 @@
 #include "ChangeList.h"
 #include "ChangeTypes.h"
 #include "RawExit.h"
+#include "RawRoom.h"
 #include "RoomHandle.h"
+#include "World.h"
 
 namespace {
 NODISCARD bool isFound(const RoomHandle &room, const ExitDirEnum dir, const DiscoveredExits &found)
@@ -54,6 +56,15 @@ ExplorerVisibility computeExplorerVisibility(const ExplorerVisibilityInput &in)
     const Map &map = in.map;
     ExplorerVisibility result;
 
+    // Not hidden: reachable without an undiscovered secret exit. Same walk as the base map
+    // export, which drops every hidden exit; here a found one counts as open.
+    const RoomIdSet baseRooms = map.getWorld().findBaseMapRooms(
+        [&map, &in](const RawRoom &raw, const ExitDirEnum dir) {
+            return !raw.getExit(dir).exitIsNoMatch()
+                   && isEffectiveExit(map, map.getRoomHandle(raw.getId()), dir, in.discoveredExits);
+        });
+    result.baseMapFound = !baseRooms.empty();
+
     map.getRooms().for_each([&](const RoomId id) {
         const RoomHandle room = map.getRoomHandle(id);
         if (in.currentRoom == id) {
@@ -65,9 +76,9 @@ ExplorerVisibility computeExplorerVisibility(const ExplorerVisibilityInput &in)
             return;
         }
         const ServerRoomId serverId = room.getServerId();
-        const bool visible = (serverId == INVALID_SERVER_ROOMID) ? in.placedRooms.contains(id)
-                                                                 : in.known.contains(serverId);
-        if (visible) {
+        const bool known = (serverId == INVALID_SERVER_ROOMID) ? in.placedRooms.contains(id)
+                                                               : in.known.contains(serverId);
+        if (known || baseRooms.contains(id)) {
             result.visible.insert(id);
         }
     });

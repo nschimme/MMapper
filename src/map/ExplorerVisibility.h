@@ -20,6 +20,10 @@
 // Everything not listed as visible or frontier is hidden, so a room nobody thought of fails
 // closed by being absent.
 
+// A room is visible when its character knows it, or when it is not hidden: reachable from the
+// base map's seed rooms (the rooms "Export Base Map" keeps) through exits that are not secret,
+// or whose secret the character has found. Only what is behind an undiscovered secret stays
+// hidden.
 struct NODISCARD ExplorerVisibilityInput final
 {
     Map map;
@@ -35,6 +39,9 @@ struct NODISCARD ExplorerVisibilityInput final
 
 struct NODISCARD ExplorerVisibility final
 {
+    // False when the map holds none of the base map's seed rooms (a user's partial map). Then
+    // only known rooms, the current room and placed rooms are visible, as before.
+    bool baseMapFound = false;
     RoomIdSet visible;
     // Not visible, but one step beyond a visible room through an effective exit.
     RoomIdSet frontier;

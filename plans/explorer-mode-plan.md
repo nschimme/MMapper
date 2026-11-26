@@ -1,10 +1,11 @@
-# Explorer Mode: Plan (v2.2, advisor-reviewed twice, decisions settled)
+# Explorer Mode: Plan (v2.3, advisor-reviewed twice, decisions settled)
 
 ## 1. Goal
 
-Ship a full MUME map, but let the player see only what their character has discovered. Unknown
-rooms are hidden behind a tasteful fog of war whose strength the player controls. Secret exits
-stay walls until found. Doors animate when they open and close (in every mode).
+Ship a full MUME map, but let the player see only what their character has discovered. Secret
+exits stay walls until found, and what is only reachable through one stays hidden until then.
+Rooms that are not hidden (see "Visibility default" below) are shown without being discovered.
+Doors animate when they open and close (in every mode).
 
 Non-goals:
 - Not anti-cheat. The full map still ships in the file; this is spoiler avoidance.
@@ -22,12 +23,19 @@ Settled:
 | Hidden exits | Closed (a plain wall) until discovered. |
 | Server data wins | A live server observation always overrides cached or transient data. |
 | Fail direction | Fail closed: anything whose status is unknown stays fogged. |
+| Visibility default | **Changed (v2.3).** A room that is not hidden is visible without being discovered: reachable from the base map's seed rooms (the rooms "Export Base Map" keeps) through exits that are not secret, or whose secret the character has found. Only what is behind an undiscovered secret stays fogged, plus anything the map cannot reach from a seed. Known rooms (`Room.Known`) and the current room stay visible as before. The walk is the same code as the export (`World::findBaseMapRooms`), with the discovered exits as the one difference. If the map holds none of the seed rooms, Explore falls back to the old rule (known rooms only) and logs it once. |
 | Door reset | Every 60 minutes of **real time**; transient door state expires on that interval (monotonic clock, injectable for tests). |
 | Name | "Explore" in menus and status, matching "Play" and "Map". |
 | Offline mode | Stays a "show everything" mode. Switching to it from Explore warns "This reveals the full map." "Disconnected Explore" means using Explore while not connected, from the cached profile. |
-| Rooms with no server ID | Fogged, unless the path machine has placed the player there this session. They have no stable key, so they cannot be persisted and fog again next session. |
+| Rooms with no server ID | Visible when not hidden (reachable from a seed through non-secret exits, see above). Otherwise fogged, unless the path machine has placed the player there this session. They have no stable key, so they cannot be persisted and fog again next session. |
 | Group beacons on fogged rooms | The beacon is shown with the room drawn as a bare marker. Your own position is always shown. |
 | #566 | Coordinate with its author, rebase onto master, and land the data layer first (the extension path, not a fork). |
+
+**Why the default changed (v2.3), settled.** The fog of war hides true secrets only. The base
+map is not a secret (it is what "Export Base Map" publishes), so it is always visible, with or
+without the `Room.Known` stream. Fog covers what is behind an undiscovered secret and anything
+the base map cannot reach from a seed. Fog levels dim them (section 3.4); they never hide them.
+Without this rule a character whose `Room.Known` list never arrives saw an empty map.
 
 **Frontier, decided:** glimpsed and visited are the same thing. `Room.Known` already includes
 rooms seen through an exit, so it is the "visited" set, and frontier is computed from all known
@@ -38,7 +46,7 @@ rooms, which is what the policy does. No separate "entered" tracking is needed.
 ### 3.1 Vocabulary (menus, status bar, settings, docs)
 
 - **Explore mode**: the mode. Menu "Explore", status "Explore mode".
-- **Fog**: the effect hiding undiscovered rooms. UI label "Fog".
+- **Fog**: the effect hiding true secrets (see "Visibility default"). UI label "Fog".
 - **Discovered**: a room your character knows (entered or seen through an exit) or a secret
   exit you found. Never "visited".
 - **Frontier**: an undiscovered room one step beyond a discovered one, reached only through

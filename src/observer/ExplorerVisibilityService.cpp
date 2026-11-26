@@ -3,6 +3,7 @@
 
 #include "ExplorerVisibilityService.h"
 
+#include "../global/logging.h"
 #include "../map/RoomHandle.h"
 
 namespace {
@@ -101,6 +102,11 @@ void ExplorerVisibilityService::poll()
             m_publishedRevision = result->revision;
             m_base = std::move(result->base);
             m_mask = std::move(result->mask);
+            if (!m_base->baseMapFound && !m_loggedNoBaseMap) {
+                m_loggedNoBaseMap = true;
+                MMLOG_INFO() << "[explore] The map has none of the base map's seed rooms; only "
+                                "known rooms are shown.";
+            }
             rebuildView();
         }
     }

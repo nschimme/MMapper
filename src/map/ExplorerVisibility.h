@@ -10,6 +10,7 @@
 #include "RoomIdSet.h"
 #include "roomid.h"
 
+#include <memory>
 #include <optional>
 
 // What an Explore-mode player is allowed to see of the map. Pure functions of plain values:
@@ -49,6 +50,37 @@ NODISCARD extern bool isEffectiveExit(const Map &map,
                                       const DiscoveredExits &discovered);
 
 NODISCARD extern ExplorerVisibility computeExplorerVisibility(const ExplorerVisibilityInput &in);
+
+// What consumers query. The expensive part (`base`, computed without a current room) depends
+// only on slowly changing inputs, so it is computed off the GUI thread and shared immutably.
+// The player's current room changes on every step, so it is a tiny overlay on top: stepping
+// never needs a recompute. A default-constructed view is inactive and shows everything.
+class NODISCARD ExplorerView final
+{
+private:
+    bool m_active = false;
+    std::shared_ptr<const ExplorerVisibility> m_base;
+    std::optional<RoomId> m_current;
+    RoomIdSet m_currentFrontier;
+
+public:
+    ExplorerView() = default;
+
+    // `base` may be null before the first computation: everything but the current room is
+    // then hidden (fail closed).
+    NODISCARD static ExplorerView makeActive(std::shared_ptr<const ExplorerVisibility> base,
+                                             const Map &map,
+                                             std::optional<RoomId> current,
+                                             const DiscoveredExits &discovered);
+
+    NODISCARD bool isActive() const { return m_active; }
+    // Fully shown. True for everything when inactive.
+    NODISCARD bool shows(RoomId id) const;
+    // Hinted only: one step beyond a shown room. Never true when inactive.
+    NODISCARD bool isFrontier(RoomId id) const;
+    // Not shown at all. Never true when inactive.
+    NODISCARD bool isHidden(RoomId id) const { return m_active && !shows(id) && !isFrontier(id); }
+};
 
 namespace test {
 extern void testExplorerVisibility();

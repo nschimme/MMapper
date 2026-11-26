@@ -50,7 +50,7 @@ struct NODISCARD Fixture final
                                                      DoorFlags{DoorFlagEnum::HIDDEN}}});
     }
 
-    NODISCARD ExplorerVisibility compute(const std::initializer_list<uint32_t> known,
+    NODISCARD ExplorerVisibility compute(const std::vector<uint32_t> &known,
                                          const DiscoveredExits &found = {},
                                          const std::optional<RoomId> current = std::nullopt,
                                          const RoomIdSet &placed = {}) const
@@ -237,6 +237,78 @@ void testHiddenExitOnRoomWithoutServerId()
     v = f.compute({}, foundBack, std::nullopt, placed);
     TEST_ASSERT(v.frontier.contains(b));
 }
+
+void testViewMatchesFullComputation()
+{
+    // Rooms along x with a hidden door between 2 and 3, a one-way exit, and a vertical exit.
+    Fixture f;
+    const RoomId r0 = f.add(0, 10);
+    const RoomId r1 = f.add(1, 11);
+    const RoomId r2 = f.add(2, 12);
+    const RoomId r3 = f.add(3, 13);
+    const RoomId r4 = f.add(4, 14);
+    const RoomId r5 = f.add(5); // no server ID
+    f.connect(r0, ExitDirEnum::EAST, r1);
+    f.connect(r1, ExitDirEnum::EAST, r2);
+    f.connect(r2, ExitDirEnum::EAST, r3);
+    f.connect(r3, ExitDirEnum::EAST, r4);
+    f.connect(r4, ExitDirEnum::EAST, r5, WaysEnum::OneWay);
+    f.hide(r2, ExitDirEnum::EAST);
+    f.hide(r3, ExitDirEnum::WEST);
+    const std::vector<RoomId> all{r0, r1, r2, r3, r4, r5};
+
+    const std::vector<DiscoveredExits> finds{{},
+                                             {DiscoveredExit{ServerRoomId{12}, ExitDirEnum::EAST}}};
+    const std::vector<std::vector<uint32_t>> knowns{{}, {10}, {10, 11}, {11, 14}};
+    std::vector<std::optional<RoomId>> currents{std::nullopt};
+    for (const RoomId id : all) {
+        currents.emplace_back(id);
+    }
+
+    for (const auto &found : finds) {
+        for (const auto &known : knowns) {
+            // The shared base is computed without a current room, as the service does.
+            const auto base = std::make_shared<const ExplorerVisibility>(
+                f.compute(known, found, std::nullopt));
+            for (const auto &current : currents) {
+                const auto expect = f.compute(known, found, current);
+                const auto view = ExplorerView::makeActive(base, f.map, current, found);
+                for (const RoomId id : all) {
+                    TEST_ASSERT(view.shows(id) == expect.visible.contains(id));
+                    TEST_ASSERT(view.isFrontier(id) == expect.frontier.contains(id));
+                    TEST_ASSERT(view.isHidden(id)
+                                == (!expect.visible.contains(id) && !expect.frontier.contains(id)));
+                }
+            }
+        }
+    }
+}
+
+void testViewInactiveAndUncomputed()
+{
+    Fixture f;
+    const RoomId a = f.add(0, 10);
+    const RoomId b = f.add(1, 11);
+    f.connect(a, ExitDirEnum::EAST, b);
+
+    // Inactive (the default): everything is shown and nothing is hidden or hinted.
+    const ExplorerView inactive;
+    TEST_ASSERT(!inactive.isActive());
+    for (const RoomId id : {a, b}) {
+        TEST_ASSERT(inactive.shows(id));
+        TEST_ASSERT(!inactive.isFrontier(id));
+        TEST_ASSERT(!inactive.isHidden(id));
+    }
+
+    // Active before the first computation: fail closed, except the room the player is in.
+    const auto view = ExplorerView::makeActive(nullptr, f.map, a, {});
+    TEST_ASSERT(view.isActive());
+    TEST_ASSERT(view.shows(a));
+    TEST_ASSERT(view.isFrontier(b)); // one step beyond the room the player stands in
+    const auto none = ExplorerView::makeActive(nullptr, f.map, std::nullopt, {});
+    TEST_ASSERT(none.isHidden(a));
+    TEST_ASSERT(none.isHidden(b));
+}
 } // namespace
 
 namespace test {
@@ -250,5 +322,7 @@ void testExplorerVisibility()
     testVerticalExits();
     testHiddenExitsStayClosed();
     testHiddenExitOnRoomWithoutServerId();
+    testViewMatchesFullComputation();
+    testViewInactiveAndUncomputed();
 }
 } // namespace test

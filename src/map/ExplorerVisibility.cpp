@@ -89,3 +89,50 @@ ExplorerVisibility computeExplorerVisibility(const ExplorerVisibilityInput &in)
     }
     return result;
 }
+
+ExplorerView ExplorerView::makeActive(std::shared_ptr<const ExplorerVisibility> base,
+                                      const Map &map,
+                                      const std::optional<RoomId> current,
+                                      const DiscoveredExits &discovered)
+{
+    ExplorerView view;
+    view.m_active = true;
+    view.m_base = std::move(base);
+    view.m_current = current;
+    if (!current) {
+        return view;
+    }
+    const RoomHandle room = map.findRoomHandle(*current);
+    if (!room.exists()) {
+        return view;
+    }
+    // The current room is visible, so the rooms one step beyond it are frontier.
+    for (const ExitDirEnum dir : ALL_EXITS_NESWUD) {
+        if (!isEffectiveExit(map, room, dir, discovered)) {
+            continue;
+        }
+        for (const RoomId targetId : room.getExit(dir).getOutgoingSet()) {
+            const RoomHandle target = map.findRoomHandle(targetId);
+            if (target.exists() && !target.isTemporary()) {
+                view.m_currentFrontier.insert(targetId);
+            }
+        }
+    }
+    return view;
+}
+
+bool ExplorerView::shows(const RoomId id) const
+{
+    if (!m_active) {
+        return true;
+    }
+    return m_current == id || (m_base && m_base->visible.contains(id));
+}
+
+bool ExplorerView::isFrontier(const RoomId id) const
+{
+    if (!m_active || shows(id)) {
+        return false;
+    }
+    return m_currentFrontier.contains(id) || (m_base && m_base->frontier.contains(id));
+}

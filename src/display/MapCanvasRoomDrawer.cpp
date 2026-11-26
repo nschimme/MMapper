@@ -16,6 +16,7 @@
 #include "../map/DoorFlags.h"
 #include "../map/ExitFieldVariant.h"
 #include "../map/ExitFlags.h"
+#include "../map/ExplorerSecrets.h"
 #include "../map/ExplorerVisibility.h"
 #include "../map/Map.h"
 #include "../map/coordinate.h"
@@ -56,6 +57,10 @@ struct NODISCARD VisitRoomOptions final
     SharedCanvasNamedColorOptions canvasColors;
     SharedNamedColorOptions colorSettings;
     bool drawNotMappedExits = false;
+    // Explore mode: the map with every secret exit still in it. The mesher then draws each
+    // secret exit twice, tagged, and the shader keeps the form that matches whether the
+    // character found it. Null means not exploring: nothing is tagged.
+    const Map *secretSource = nullptr;
 };
 
 enum class NODISCARD StreamTypeEnum { OutFlow, InFlow };
@@ -191,6 +196,9 @@ private:
     // Streams
     virtual void virt_visitStream(const RoomHandle &, ExitDirEnum, StreamTypeEnum) = 0;
 
+    // The walls and doors that follow belong to one form of a secret exit (or to none).
+    virtual void virt_setSecretTag(room_quad_tag::FormEnum, ExitDirEnum) = 0;
+
 public:
     NODISCARD bool acceptRoom(const RoomHandle &room) const { return virt_acceptRoom(room); }
 
@@ -227,9 +235,230 @@ public:
     {
         virt_visitStream(room, dir, streamType);
     }
+
+    void setSecretTag(const room_quad_tag::FormEnum form, const ExitDirEnum dir)
+    {
+        virt_setSecretTag(form, dir);
+    }
 };
 
 IRoomVisitorCallbacks::~IRoomVisitorCallbacks() = default;
+
+static void visitInFlow(const RoomHandle &room,
+                        const RawExit &exit,
+                        const ExitDirEnum dir,
+                        IRoomVisitorCallbacks &callbacks)
+{
+    const Map &map = room.getMap();
+    // For each incoming connections
+    for (const RoomId targetRoomId : exit.getIncomingSet()) {
+        const auto &targetRoom = map.getRoomHandle(targetRoomId);
+        for (const ExitDirEnum targetDir : ALL_EXITS_NESWUD) {
+            const auto &targetExit = targetRoom.getExit(targetDir);
+            const ExitFlags flags = targetExit.getExitFlags();
+            if (flags.isFlow() && targetExit.containsOut(room.getId())) {
+                callbacks.visitStream(room, dir, StreamTypeEnum::InFlow);
+                return;
+            }
+        }
+    }
+}
+
+// The walls and the door of a horizontal exit, drawn from `room`'s own exit data.
+static void visitNeswExitWalls(const RoomHandle &room,
+                               const ExitDirEnum dir,
+                               IRoomVisitorCallbacks &callbacks,
+                               const VisitRoomOptions &visitRoomOptions)
+{
+    const auto &exit = room.getExit(dir);
+    const ExitFlags flags = exit.getExitFlags();
+    const auto isExit = flags.isExit();
+    const auto isDoor = flags.isDoor();
+
+    const bool isClimb = flags.isClimb();
+
+    // FIXME: This requires a map update.
+    // TODO: make "not mapped" exits a separate mesh;
+    // except what should we do for the "else" case?
+    if (visitRoomOptions.drawNotMappedExits && exit.exitIsUnmapped()) {
+        callbacks.visitWall(room,
+                            dir,
+                            LOOKUP_COLOR(WALL_COLOR_NOT_MAPPED),
+                            WallTypeEnum::DOTTED,
+                            isClimb);
+    } else {
+        const auto namedColor = getWallNamedColor(flags);
+        if (!isTransparent(namedColor)) {
+            callbacks.visitWall(room, dir, namedColor, WallTypeEnum::DOTTED, isClimb);
+        }
+    }
+
+    // wall
+    if (!isExit || isDoor) {
+        if (!isDoor && !exit.outIsEmpty()) {
+            callbacks.visitWall(room,
+                                dir,
+                                LOOKUP_COLOR(WALL_COLOR_BUG_WALL_DOOR),
+                                WallTypeEnum::DOTTED,
+                                isClimb);
+        } else {
+            callbacks.visitWall(room,
+                                dir,
+                                LOOKUP_COLOR(WALL_COLOR_REGULAR_EXIT),
+                                WallTypeEnum::SOLID,
+                                isClimb);
+        }
+    }
+    // door
+    if (isDoor) {
+        callbacks.visitWall(room,
+                            dir,
+                            LOOKUP_COLOR(WALL_COLOR_REGULAR_EXIT),
+                            WallTypeEnum::DOOR,
+                            isClimb);
+    }
+}
+
+// The streams of a horizontal exit, which are separate meshes from its walls.
+static void visitNeswExitStreams(const RoomHandle &room,
+                                 const ExitDirEnum dir,
+                                 IRoomVisitorCallbacks &callbacks,
+                                 const VisitRoomOptions &visitRoomOptions)
+{
+    const auto &exit = room.getExit(dir);
+    const ExitFlags flags = exit.getExitFlags();
+    if (!(visitRoomOptions.drawNotMappedExits && exit.exitIsUnmapped()) && flags.isFlow()) {
+        callbacks.visitStream(room, dir, StreamTypeEnum::OutFlow);
+    }
+    if (!exit.inIsEmpty()) {
+        visitInFlow(room, exit, dir, callbacks);
+    }
+}
+
+// The wall, door and up/down marker of a vertical exit, drawn from `room`'s own exit data.
+static void visitVerticalExitWalls(const RoomHandle &room,
+                                   const ExitDirEnum dir,
+                                   IRoomVisitorCallbacks &callbacks,
+                                   const VisitRoomOptions &visitRoomOptions)
+{
+    const auto &exit = room.getExit(dir);
+    const auto &flags = exit.getExitFlags();
+    const bool isClimb = flags.isClimb();
+
+    if (visitRoomOptions.drawNotMappedExits && flags.isUnmapped()) {
+        callbacks.visitWall(room,
+                            dir,
+                            LOOKUP_COLOR(WALL_COLOR_NOT_MAPPED),
+                            WallTypeEnum::DOTTED,
+                            isClimb);
+        return;
+    } else if (!flags.isExit()) {
+        return;
+    }
+
+    // NOTE: in the "old" version, this falls-thru and the custom color is overwritten
+    // by the regular exit; so using if-else here is a bug fix.
+    const auto namedColor = getVerticalNamedColor(flags);
+    if (!isTransparent(namedColor)) {
+        callbacks.visitWall(room, dir, namedColor, WallTypeEnum::DOTTED, isClimb);
+    } else {
+        callbacks.visitWall(room,
+                            dir,
+                            LOOKUP_COLOR(VERTICAL_COLOR_REGULAR_EXIT),
+                            WallTypeEnum::SOLID,
+                            isClimb);
+    }
+
+    if (flags.isDoor()) {
+        callbacks.visitWall(room,
+                            dir,
+                            LOOKUP_COLOR(WALL_COLOR_REGULAR_EXIT),
+                            WallTypeEnum::DOOR,
+                            isClimb);
+    }
+}
+
+static void visitVerticalExitStreams(const RoomHandle &room,
+                                     const ExitDirEnum dir,
+                                     IRoomVisitorCallbacks &callbacks,
+                                     const VisitRoomOptions &visitRoomOptions)
+{
+    const auto &exit = room.getExit(dir);
+    const auto &flags = exit.getExitFlags();
+    if ((visitRoomOptions.drawNotMappedExits && flags.isUnmapped()) || !flags.isExit()) {
+        return;
+    }
+
+    if (flags.isFlow()) {
+        callbacks.visitStream(room, dir, StreamTypeEnum::OutFlow);
+    }
+
+    if (!exit.inIsEmpty()) {
+        visitInFlow(room, exit, dir, callbacks);
+    }
+}
+
+// A secret exit is drawn twice, and the shader keeps the form that matches whether the character
+// has found it: the door form is what the exit looks like once found (from its real data), the
+// wall form what it looks like until then (a plain wall; nothing for up and down). The streams
+// and connections are not tagged: they follow the map the mesher sees, which only has the exit
+// once it is found.
+static void visitSecretExit(const RoomHandle &room,
+                            const RoomHandle &real,
+                            const ExitDirEnum dir,
+                            IRoomVisitorCallbacks &callbacks,
+                            const VisitRoomOptions &visitRoomOptions)
+{
+    callbacks.setSecretTag(room_quad_tag::FormEnum::DOOR, dir);
+    if (isNESW(dir)) {
+        visitNeswExitWalls(real, dir, callbacks, visitRoomOptions);
+    } else {
+        visitVerticalExitWalls(real, dir, callbacks, visitRoomOptions);
+    }
+
+    callbacks.setSecretTag(room_quad_tag::FormEnum::WALL, dir);
+    if (isNESW(dir)) {
+        callbacks.visitWall(room,
+                            dir,
+                            LOOKUP_COLOR(WALL_COLOR_REGULAR_EXIT),
+                            WallTypeEnum::SOLID,
+                            false);
+    }
+
+    callbacks.setSecretTag(room_quad_tag::FormEnum::NONE, dir);
+}
+
+// Every exit of a room: its walls, doors and streams. In Explore mode a secret exit is drawn
+// twice, tagged, from the real map (see visitSecretExit()).
+static void visitRoomExits(const RoomHandle &room,
+                           IRoomVisitorCallbacks &callbacks,
+                           const VisitRoomOptions &visitRoomOptions)
+{
+    std::optional<RoomHandle> real;
+    if (visitRoomOptions.secretSource != nullptr) {
+        real = visitRoomOptions.secretSource->getRoomHandle(room.getId());
+    }
+
+    // FIXME: This requires a map update.
+    // REVISIT: The logic of drawNotMappedExits seems a bit wonky.
+    for (const ExitDirEnum dir : ALL_EXITS_NESW) {
+        if (real && isSecretExit(*real, dir)) {
+            visitSecretExit(room, *real, dir, callbacks, visitRoomOptions);
+        } else {
+            visitNeswExitWalls(room, dir, callbacks, visitRoomOptions);
+        }
+        visitNeswExitStreams(room, dir, callbacks, visitRoomOptions);
+    }
+
+    for (const ExitDirEnum dir : {ExitDirEnum::UP, ExitDirEnum::DOWN}) {
+        if (real && isSecretExit(*real, dir)) {
+            visitSecretExit(room, *real, dir, callbacks, visitRoomOptions);
+        } else {
+            visitVerticalExitWalls(room, dir, callbacks, visitRoomOptions);
+        }
+        visitVerticalExitStreams(room, dir, callbacks, visitRoomOptions);
+    }
+}
 
 static void visitRoom(const RoomHandle &room,
                       const mctp::MapCanvasTexturesProxy &textures,
@@ -272,131 +501,7 @@ static void visitRoom(const RoomHandle &room,
         callbacks.visitOverlayTexture(room, textures.no_ride);
     }
 
-    const Map &map = room.getMap();
-    const auto drawInFlow = [&map, &room, &callbacks](const RawExit &exit,
-                                                      const ExitDirEnum &dir) -> void {
-        // For each incoming connections
-        for (const RoomId targetRoomId : exit.getIncomingSet()) {
-            const auto &targetRoom = map.getRoomHandle(targetRoomId);
-            for (const ExitDirEnum targetDir : ALL_EXITS_NESWUD) {
-                const auto &targetExit = targetRoom.getExit(targetDir);
-                const ExitFlags flags = targetExit.getExitFlags();
-                if (flags.isFlow() && targetExit.containsOut(room.getId())) {
-                    callbacks.visitStream(room, dir, StreamTypeEnum::InFlow);
-                    return;
-                }
-            }
-        }
-    };
-
-    // drawExit()
-
-    // FIXME: This requires a map update.
-    // REVISIT: The logic of drawNotMappedExits seems a bit wonky.
-    for (const ExitDirEnum dir : ALL_EXITS_NESW) {
-        const auto &exit = room.getExit(dir);
-        const ExitFlags flags = exit.getExitFlags();
-        const auto isExit = flags.isExit();
-        const auto isDoor = flags.isDoor();
-
-        const bool isClimb = flags.isClimb();
-
-        // FIXME: This requires a map update.
-        // TODO: make "not mapped" exits a separate mesh;
-        // except what should we do for the "else" case?
-        if (visitRoomOptions.drawNotMappedExits && exit.exitIsUnmapped()) {
-            callbacks.visitWall(room,
-                                dir,
-                                LOOKUP_COLOR(WALL_COLOR_NOT_MAPPED),
-                                WallTypeEnum::DOTTED,
-                                isClimb);
-        } else {
-            const auto namedColor = getWallNamedColor(flags);
-            if (!isTransparent(namedColor)) {
-                callbacks.visitWall(room, dir, namedColor, WallTypeEnum::DOTTED, isClimb);
-            }
-
-            if (flags.isFlow()) {
-                callbacks.visitStream(room, dir, StreamTypeEnum::OutFlow);
-            }
-        }
-
-        // wall
-        if (!isExit || isDoor) {
-            if (!isDoor && !exit.outIsEmpty()) {
-                callbacks.visitWall(room,
-                                    dir,
-                                    LOOKUP_COLOR(WALL_COLOR_BUG_WALL_DOOR),
-                                    WallTypeEnum::DOTTED,
-                                    isClimb);
-            } else {
-                callbacks.visitWall(room,
-                                    dir,
-                                    LOOKUP_COLOR(WALL_COLOR_REGULAR_EXIT),
-                                    WallTypeEnum::SOLID,
-                                    isClimb);
-            }
-        }
-        // door
-        if (isDoor) {
-            callbacks.visitWall(room,
-                                dir,
-                                LOOKUP_COLOR(WALL_COLOR_REGULAR_EXIT),
-                                WallTypeEnum::DOOR,
-                                isClimb);
-        }
-
-        if (!exit.inIsEmpty()) {
-            drawInFlow(exit, dir);
-        }
-    }
-
-    // drawVertical
-    for (const ExitDirEnum dir : {ExitDirEnum::UP, ExitDirEnum::DOWN}) {
-        const auto &exit = room.getExit(dir);
-        const auto &flags = exit.getExitFlags();
-        const bool isClimb = flags.isClimb();
-
-        if (visitRoomOptions.drawNotMappedExits && flags.isUnmapped()) {
-            callbacks.visitWall(room,
-                                dir,
-                                LOOKUP_COLOR(WALL_COLOR_NOT_MAPPED),
-                                WallTypeEnum::DOTTED,
-                                isClimb);
-            continue;
-        } else if (!flags.isExit()) {
-            continue;
-        }
-
-        // NOTE: in the "old" version, this falls-thru and the custom color is overwritten
-        // by the regular exit; so using if-else here is a bug fix.
-        const auto namedColor = getVerticalNamedColor(flags);
-        if (!isTransparent(namedColor)) {
-            callbacks.visitWall(room, dir, namedColor, WallTypeEnum::DOTTED, isClimb);
-        } else {
-            callbacks.visitWall(room,
-                                dir,
-                                LOOKUP_COLOR(VERTICAL_COLOR_REGULAR_EXIT),
-                                WallTypeEnum::SOLID,
-                                isClimb);
-        }
-
-        if (flags.isDoor()) {
-            callbacks.visitWall(room,
-                                dir,
-                                LOOKUP_COLOR(WALL_COLOR_REGULAR_EXIT),
-                                WallTypeEnum::DOOR,
-                                isClimb);
-        }
-
-        if (flags.isFlow()) {
-            callbacks.visitStream(room, dir, StreamTypeEnum::OutFlow);
-        }
-
-        if (!exit.inIsEmpty()) {
-            drawInFlow(exit, dir);
-        }
-    }
+    visitRoomExits(room, callbacks, visitRoomOptions);
 }
 
 static void visitRooms(const RoomVector &rooms,
@@ -446,13 +551,20 @@ struct NODISCARD ColoredRoomTex final
     Coordinate coord;
     MMTexArrayPosition pos;
     NamedColorEnum colorId = NamedColorEnum::DEFAULT;
+    // The form of a secret exit this quad belongs to, and its direction; see RoomQuadTag.h.
+    room_quad_tag::FormEnum form = room_quad_tag::FormEnum::NONE;
+    unsigned dir = 0;
 
     explicit ColoredRoomTex(const Coordinate input_coord,
                             const MMTexArrayPosition input_pos,
-                            const NamedColorEnum input_color)
+                            const NamedColorEnum input_color,
+                            const room_quad_tag::FormEnum input_form = room_quad_tag::FormEnum::NONE,
+                            const unsigned input_dir = 0)
         : coord{input_coord}
         , pos{input_pos}
         , colorId{input_color}
+        , form{input_form}
+        , dir{input_dir}
     {}
 };
 
@@ -680,7 +792,7 @@ NODISCARD static LayerMeshesIntermediate::FnVec createSortedColoredTexturedMeshe
             const auto v0 = pos.to_ivec3();
             const auto color = thisVert.colorId;
             const auto z = thisVert.pos.position;
-            verts.emplace_back(v0, z, color);
+            verts.emplace_back(v0, z, color, thisVert.form, thisVert.dir);
         }
 
         tmp_meshes.emplace_back([v = std::move(verts), t = rtex.pos.array](OpenGL &g) {
@@ -757,6 +869,8 @@ private:
     LayerBatchData &m_data;
     const mctp::MapCanvasTexturesProxy &m_textures;
     const OptBounds &m_bounds;
+    room_quad_tag::FormEnum m_secretForm = room_quad_tag::FormEnum::NONE;
+    unsigned m_secretDir = 0;
 
 public:
     explicit LayerBatchBuilder(LayerBatchData &data,
@@ -822,16 +936,24 @@ private:
             // Note: We could use two door textures (NESW and UD), and then just rotate the
             // texture coordinates, but doing that would require a different code path.
             const MMTexArrayPosition &tex = m_textures.door[dir];
-            m_data.doors.emplace_back(room.getPosition(), tex, color);
+            m_data.doors.emplace_back(room.getPosition(), tex, color, m_secretForm, m_secretDir);
 
         } else {
             if (isNESW(dir)) {
                 if (wallType == WallTypeEnum::SOLID) {
                     const MMTexArrayPosition &tex = m_textures.wall[dir];
-                    m_data.solidWallLines.emplace_back(room.getPosition(), tex, color);
+                    m_data.solidWallLines.emplace_back(room.getPosition(),
+                                                       tex,
+                                                       color,
+                                                       m_secretForm,
+                                                       m_secretDir);
                 } else {
                     const MMTexArrayPosition &tex = m_textures.dotted_wall[dir];
-                    m_data.dottedWallLines.emplace_back(room.getPosition(), tex, color);
+                    m_data.dottedWallLines.emplace_back(room.getPosition(),
+                                                        tex,
+                                                        color,
+                                                        m_secretForm,
+                                                        m_secretDir);
                 }
             } else {
                 const bool isUp = dir == ExitDirEnum::UP;
@@ -842,7 +964,11 @@ private:
                                                         : (isUp ? m_textures.exit_up
                                                                 : m_textures.exit_down);
 
-                m_data.roomUpDownExits.emplace_back(room.getPosition(), tex, color);
+                m_data.roomUpDownExits.emplace_back(room.getPosition(),
+                                                    tex,
+                                                    color,
+                                                    m_secretForm,
+                                                    m_secretDir);
             }
         }
     }
@@ -863,6 +989,12 @@ private:
         }
 
         assert(false);
+    }
+
+    void virt_setSecretTag(const room_quad_tag::FormEnum form, const ExitDirEnum dir) final
+    {
+        m_secretForm = form;
+        m_secretDir = static_cast<unsigned>(dir);
     }
 };
 
@@ -1125,8 +1257,14 @@ FutureSharedMapBatchFinisher generateMapDataFinisher(
     return std::async(std::launch::async,
                       [textures, font, inputMap, explorerExits, visitRoomOptions]()
                           -> SharedMapBatchFinisher {
-                          ThreadLocalNamedColorRaii tlRaii{visitRoomOptions.canvasColors,
-                                                           visitRoomOptions.colorSettings};
+                          // Explore mode meshes the secret exits of the real map, tagged; see
+                          // VisitRoomOptions::secretSource. Everything else reads `map` below.
+                          VisitRoomOptions options = visitRoomOptions;
+                          if (explorerExits) {
+                              options.secretSource = &inputMap;
+                          }
+                          ThreadLocalNamedColorRaii tlRaii{options.canvasColors,
+                                                           options.colorSettings};
                           DECL_TIMER(t, "[ASYNC] generateAllLayerMeshes");
 
                           ProgressCounter dummyPc;
@@ -1150,11 +1288,7 @@ FutureSharedMapBatchFinisher generateMapDataFinisher(
 
                           auto result = std::make_shared<InternalData>();
                           auto &data = deref(result);
-                          generateAllLayerMeshes(data,
-                                                 deref(font),
-                                                 layerToRooms,
-                                                 textures,
-                                                 visitRoomOptions);
+                          generateAllLayerMeshes(data, deref(font), layerToRooms, textures, options);
                           return SharedMapBatchFinisher{result};
                       });
 }

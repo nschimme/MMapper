@@ -254,9 +254,23 @@ Phase 4 (including `DoorTracker`) does not depend on Explore and can ship first.
   layer overloads of `QOpenGLTexture`, and the room shader that keeps the door form where the
   bit is set and the wall form where it is not (an unbound texture means not found). A find is
   patched into the texture at once (`MainWindow::patchFoundSecrets`), without waiting for the
-  worker; patches only set bits and are re-applied on top of every newer base. (4) The mesher
-  emits both forms for each secret exit. Until (4) lands no quad is tagged, so (3) changes
-  nothing on screen.
+  worker; patches only set bits and are re-applied on top of every newer base. The sampler is
+  declared `highp`: GLSL ES has no default precision for integer array samplers (the ES prefix
+  only declares one for `sampler2DArray`). (4) The mesher (`visitRoomExits()` in
+  `MapCanvasRoomDrawer.cpp`) emits both forms for each secret exit when Explore passes it the real
+  map (`VisitRoomOptions::secretSource`): the door form is what the real exit draws once found
+  (wall, door, up/down marker, from its real data), the wall form is the plain wall it draws
+  until then (nothing for up and down). Streams, connection lines and door names are not tagged
+  and still come from the map with undiscovered secrets removed, so they appear with the
+  background remesh. Outside Explore nothing is tagged and the output is identical to before.
+  Checked on the shipped map (29,939 rooms): the 2,822 hidden exits are exactly the tagged ones
+  (2,055 horizontal with one wall-form quad each, 767 vertical with none; 2 to 3 door-form quads
+  each), the door form equals the old drawing of the real exit, the wall form equals the old
+  drawing of the exit with the secret removed, and every other call is unchanged.
+- There is no QML canvas in this tree (`libmm_qml_canvas.a` in an old build directory has no
+  target), and the room shader has no ES or wasm variant: all of them use
+  `legacy/room/tex/acolor`, so one shader covers desktop GL, ES 3.0 and WebGL2. Not yet run on ES
+  or WebGL2.
 - The rooms behind a found secret appear after the visibility recompute (about 0.85 s on the
   shipped map). An incremental flood from the found exit that patches the fog mask directly is a
   possible later step.

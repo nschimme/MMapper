@@ -614,10 +614,11 @@ void MainWindow::wireConnections()
                 }
                 return false;
             };
-            moveUpRoomSelectionAct->setEnabled(!anyRoomAtOffset(Coordinate(0, 0, 1)));
-            moveDownRoomSelectionAct->setEnabled(!anyRoomAtOffset(Coordinate(0, 0, -1)));
-            mergeUpRoomSelectionAct->setEnabled(anyRoomAtOffset(Coordinate(0, 0, 1)));
-            mergeDownRoomSelectionAct->setEnabled(anyRoomAtOffset(Coordinate(0, 0, -1)));
+            const bool editable = isMapEditable();
+            moveUpRoomSelectionAct->setEnabled(editable && !anyRoomAtOffset(Coordinate(0, 0, 1)));
+            moveDownRoomSelectionAct->setEnabled(editable && !anyRoomAtOffset(Coordinate(0, 0, -1)));
+            mergeUpRoomSelectionAct->setEnabled(editable && anyRoomAtOffset(Coordinate(0, 0, 1)));
+            mergeDownRoomSelectionAct->setEnabled(editable && anyRoomAtOffset(Coordinate(0, 0, -1)));
         }
     });
     connect(canvas,
@@ -1275,7 +1276,55 @@ void MainWindow::syncExplorerTracker()
     if (active) {
         pushExplorerData();
     }
+    syncEditAccess();
     syncCanvasExits();
+}
+
+bool MainWindow::isMapEditable() const
+{
+    return getConfig().general.mapMode != MapModeEnum::EXPLORE;
+}
+
+void MainWindow::syncEditAccess()
+{
+    const bool editable = isMapEditable();
+    // The map itself refuses edits while read-only, whatever the actions say.
+    m_mapData->setReadOnly(!editable);
+
+    const QString hint = tr("Switch to Map mode to edit");
+    const auto gate = [editable, &hint](QAction *const action) {
+        if (action != nullptr) {
+            action->setEnabled(editable);
+            action->setToolTip(editable ? QString{} : hint);
+        }
+    };
+    // Tools that create things. A tool that is not usable is not offered.
+    gate(mouseMode.modeCreateInfomarkAct);
+    gate(mouseMode.modeCreateRoomAct);
+    gate(mouseMode.modeCreateConnectionAct);
+    gate(mouseMode.modeCreateOnewayConnectionAct);
+    gate(createRoomAct);
+    if (!editable) {
+        // A creation tool that was in use must not stay armed.
+        QAction *const checked = mouseMode.mouseModeActGroup->checkedAction();
+        if (checked == mouseMode.modeCreateInfomarkAct || checked == mouseMode.modeCreateRoomAct
+            || checked == mouseMode.modeCreateConnectionAct
+            || checked == mouseMode.modeCreateOnewayConnectionAct) {
+            mouseMode.modeMoveSelectAct->trigger();
+        }
+        // Selection-based edits wait for a selection, which re-enables them only when editable.
+        selectedRoomActGroup->setEnabled(false);
+        selectedConnectionActGroup->setEnabled(false);
+        infomarkActions.infomarkGroup->setEnabled(false);
+        forceRoomAct->setEnabled(false);
+    }
+    for (QActionGroup *const group :
+         {selectedRoomActGroup, selectedConnectionActGroup, infomarkActions.infomarkGroup}) {
+        for (QAction *const action : group->actions()) {
+            action->setToolTip(editable ? QString{} : hint);
+        }
+    }
+    forceRoomAct->setToolTip(editable ? QString{} : hint);
 }
 
 void MainWindow::syncCanvasExits()
@@ -1403,7 +1452,9 @@ void MainWindow::slot_onOfflineMode()
 
 void MainWindow::slot_onExploreMode()
 {
-    slot_log("MainWindow", "Explore mode selected - undiscovered secret exits are hidden.");
+    slot_log("MainWindow",
+             "Explore mode selected - undiscovered secret exits are hidden, and the map is "
+             "read-only.");
     setConfigMapMode(MapModeEnum::EXPLORE);
     syncExplorerTracker();
     modeMenu->setIcon(mapperMode.exploreModeAct->icon());
@@ -1922,9 +1973,9 @@ void MainWindow::slot_newRoomSelection(const SigRoomSelection &rs)
     const size_t selSize = !isValidSelection ? 0 : rs.deref().size();
 
     m_roomSelection = !isValidSelection ? nullptr : rs.getShared();
-    selectedRoomActGroup->setEnabled(isValidSelection);
+    selectedRoomActGroup->setEnabled(isValidSelection && isMapEditable());
     gotoRoomAct->setEnabled(selSize == 1);
-    forceRoomAct->setEnabled(selSize == 1 && m_pathMachine->hasLastEvent());
+    forceRoomAct->setEnabled(isMapEditable() && selSize == 1 && m_pathMachine->hasLastEvent());
 
     if (isValidSelection) {
         const auto msg = QString("Selection: %1 room%2").arg(selSize).arg(basic_plural(selSize));
@@ -1935,14 +1986,14 @@ void MainWindow::slot_newRoomSelection(const SigRoomSelection &rs)
 void MainWindow::slot_newConnectionSelection(ConnectionSelection *const cs)
 {
     m_connectionSelection = (cs != nullptr) ? cs->shared_from_this() : nullptr;
-    selectedConnectionActGroup->setEnabled(m_connectionSelection != nullptr);
+    selectedConnectionActGroup->setEnabled(m_connectionSelection != nullptr && isMapEditable());
 }
 
 void MainWindow::slot_newInfomarkSelection(InfomarkSelection *const is)
 {
     const bool isNonNull = (is != nullptr);
     m_infoMarkSelection = isNonNull ? is->shared_from_this() : nullptr;
-    deref(infomarkActions.infomarkGroup).setEnabled(isNonNull);
+    deref(infomarkActions.infomarkGroup).setEnabled(isNonNull && isMapEditable());
 
     if (isNonNull) {
         auto &ref = *is;

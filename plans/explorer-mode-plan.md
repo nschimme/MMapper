@@ -60,12 +60,18 @@ rooms, which is what the policy does. No separate "entered" tracking is needed.
   mode persists in config (`isValidMapMode` must accept it).
 - Leaving Explore for Play, Map, or Offline asks for confirmation: "This will show the full
   map." (one click would otherwise be a silent spoiler). A "Don't ask again" box is allowed.
-- Explore is read-only: map edit tools are disabled with a tooltip ("Switch to Map mode to
-  edit"). Tension, listed under risks: fixing a stale map needs Map mode, which reveals
-  everything.
-- No unsaved-changes prompt is added. Explore refuses to start edits, and entering it behaves
-  like entering Play today. Before implementing, check what Play already does (the path
-  machine can add `HIDDEN` flags in some paths) and make Explore at least as strict.
+- **Explore is read-only (decided and implemented).** The map refuses every edit while Explore
+  is the mode (`MapFrontend::setReadOnly()`: `applyChanges`, undo and redo), whatever the UI
+  does. The edit tools are disabled with the tooltip "Switch to Map mode to edit". Tension,
+  listed under risks: fixing a stale map needs Map mode, which reveals everything.
+- The one exception is the path machine's backfill of server IDs
+  (`room_change_types::SetServerId`; `onlyServerIdBackfill()` drops everything else, including
+  `HIDDEN` door flags, `NO_MATCH` and room updates). It is applied with
+  `MapFrontend::applyBackfill()`: not undoable, and when the map was unmodified the saved map is
+  re-baselined to the result before anyone is told, so there is no modified title, Save stays
+  disabled and nothing prompts "save changes?". The cost is that backfilled IDs reach the disk
+  only through a later explicit save; otherwise the next session fills them in again. A map
+  that was already modified stays modified, and its saved map is not touched.
 
 ### 3.3 States
 
@@ -238,7 +244,7 @@ group markers, exports, and **Offline mode's room descriptions and walking** (se
 |---|---|---|
 | 0 | **Landed on this branch.** Unchanged #566 port, then: no default negotiation, `KnownRoomsStore`, fail-closed semantics, `KnownRoomsTracker` (disabled by default). Coordinating with the #566 author is a separate, human step. | none (one parser change, see below) |
 | 1 | **Landed on this branch** (read-only enforcement moved to Phase 2): the tracker (runs while Explore is the mode), `EXPLORE` mode, the visibility policy and effective exit view (`src/map/ExplorerVisibility`), and discovered-exit recording and persistence. The policy has no consumer yet, and its `placedRooms` input is defined but nothing feeds it. | Explore |
-| 2 | **Started.** Landed: the visibility service and the first consumer, undiscovered secret exits meshed as plain walls (`hideUndiscoveredExits`, applied to the map on the mesh worker thread). Find Rooms now reports only shown rooms, and no route through a hidden room. Still to do, most-leaking first: names and infomarks (these are meshed, so they need the Phase 3 mask rather than a remesh per step), room panel and tooltips, `_dirs`/speedwalk path finding, and read-only enforcement (decision pending). | Explore |
+| 2 | **Started.** Landed: the visibility service and the first consumer, undiscovered secret exits meshed as plain walls (`hideUndiscoveredExits`, applied to the map on the mesh worker thread). Find Rooms now reports only shown rooms, and no route through a hidden room. Still to do, most-leaking first: names and infomarks (these are meshed, so they need the Phase 3 mask rather than a remesh per step), room panel and tooltips, `_dirs`/speedwalk path finding, and (done, not yet seen in the app) read-only enforcement. | Explore |
 | 3 | **Started.** Landed: the pure mask builder (`src/map/ExplorerFogMask`, tested), and the fog in the room-cell vertex shader (`room/tex/acolor`), which covers terrain, trails, overlays, walls and doors in one place. The service builds the base mask on its worker; `ExplorerFogTexture` uploads it (R8 2D array, nearest, alignment 1, limits checked, fail closed) and patches the player's cell each step. Hinted (frontier) cells are hidden until Phase 5. Not yet visually verified: the shader compiles and links under Mesa and passes glslang for GL 330 and ES 300, but nobody has looked at it on a real map. Landed: connection lines and door names are culled at mesh time (see 'Connection lines' under section 5). Next, in order: infomarks and labels over hidden cells (a separate batch path, still drawn); preset dropdown. Ship Severe (discard) first. Fog MVP: mask builder, shaders, preset dropdown. (The experimental flag was removed early, at the user's request.) | Explore |
 | 4 | `DoorTracker` and its GMCP wiring; door animation: door state texture, swing. **A secret exit is a door state**, so finding one needs no remesh (see below). | **all modes** |
 | 5 | Frontier, reveal animation, reduce motion, docs | Explore (reduce motion: all) |
@@ -326,12 +332,13 @@ that Explore is incoherent until the fog exists.
 - **Shutdown order.** `~MainWindow` deletes the connection listener (and so the `Proxy`, which
   fires the disconnect hooks) in its body, while its child objects, including the tracker, are
   still alive. New MainWindow-owned components hooked to `GameObserver` rely on this.
-- **Explore is not read-only yet.** `PathMachine::scheduleAction()` applies its change list in
-  every mode except Offline, so Play, and therefore Explore, already lets the path machine
-  backfill server IDs, add `HIDDEN` door flags and `NO_MATCH`, and update room fields. Manual
-  edit tools are also not mode-gated. Read-only enforcement moves to Phase 2, with the other
-  edit and spoiler surfaces. Tension to resolve then: blocking all edits also blocks server-ID
-  backfill, which is what lets rooms without a server ID become persistable.
+- **Explore is read-only.** `PathMachine::scheduleAction()` used to apply its change list in
+  every mode except Offline. In Explore it now applies only `SetServerId` changes (see section
+  3.2); Play, Map and Offline are unchanged. The map itself refuses all other edits while
+  Explore is the mode, and `MainWindow::syncEditAccess()` disables the creation tools, the
+  selection-based edit actions, the force-room action and undo/redo, switching an armed
+  creation tool back to "Move map". Edits made by parser commands (`_set ...`) go through the same
+  gate and are refused; the command reports "execute failed".
 - **Non-blocking:** Explore reuses `map.png` as its icon, so its
   button looks like Map mode's; and `exploreModePersistenceTest` should snapshot and restore the whole
   configuration through `writeTo`/`readFrom` instead of two fields.
@@ -342,14 +349,13 @@ that Explore is incoherent until the fog exists.
   know: an open hidden door is visible to everyone and carries the flag (so seeing it open
   counts as finding it), and a wizlit god sees every exit. Not yet confirmed against the live
   mume.org server, which may differ from this source.
-- **Facts for the read-only decision.** There is no map autosave (only remote-edit drafts
-  autosave). But the path machine's edits change the map, so `MapData::isModified()` becomes
-  true: the window is marked modified, Save is enabled, and `maybeSave` prompts "save changes?"
-  on close, new, and open. That already happens in Play today. On a shipped read-only map that
-  would prompt players to overwrite it. Options: block all path-machine edits in Explore;
-  allow only server-ID backfill; or leave Explore behaving like Play. Recommended: block all
-  edits except server-ID backfill, applied to a copy that is never offered for saving, but this
-  needs the user's decision because backfill is what makes rooms without a server ID persistable.
+- **How modification works, and the read-only decision (decided).** There is no map autosave
+  (only remote-edit drafts autosave). `MapFrontend::isModified()` is `m_current != m_saved`, a
+  structural comparison, so any path-machine edit made the window modified, enabled Save and
+  made `maybeSave` prompt "save changes?" on close, new and open, as it still does in Play. The
+  user decided: block all edits except server-ID backfill, never offering the map for saving.
+  Implemented by re-baselining the saved map with each allowed backfill (see section 3.2),
+  before `sig_onDataChanged` fires, because the title bar and `maybeSave` read `isModified()`.
 - **Explore-mode secret exits are removed at one choke point.** Mesh generation reads a map in
   which undiscovered hidden exits are already removed, instead of patching each exit read in
   `visitRoom` and `Connections`. This covers walls, connection lines, flows, door names and
@@ -363,15 +369,16 @@ landed; Phase 2 has started. The experimental flag has been removed: Explore is 
 
 Next slice, in order:
 1. Route consumers through `ExplorerView`. Done: Find Rooms (no unit test, it is dialog code; check by hand). Next: room panel and tooltips, `_dirs`/speedwalk path finding. Room and door names and infomarks are meshed, so they wait for the Phase 3 mask.
-2. Read-only enforcement, after the user decides between: block all path machine edits in Explore;
-   backfill server IDs only; or behave like Play (see section 10 for the save-prompt facts).
+2. Read-only enforcement: done (see sections 3.2 and 10). Not seen in the app yet: check that
+   no modified star or save prompt appears while exploring, and that the creation tools are
+   greyed out with the tooltip.
 3. Re-request `Room.Known` after a client `Core.Supports.Set` (after the live check).
 4. Non-blocking: Explore shares Map mode's toolbar icon; `exploreModePersistenceTest` restores only one
    config fields instead of snapshotting the whole config.
 
 Still needed from the user: the live check against real MUME (list chunks arrive; an unfound
 secret door is not in `Room.Info`; after finding it, it is listed with `"hidden"`; in Explore it
-draws as a plain wall until found), and the read-only decision.
+draws as a plain wall until found).
 
 Working notes that cost time before:
 - **Revealing a secret no longer blanks the map.** The canvas keeps the old meshes and remeshes

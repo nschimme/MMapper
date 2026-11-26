@@ -382,6 +382,9 @@ private:
     void disableActions(bool value);
     // The known-room tracker runs exactly while the experimental Explore mode is active.
     void syncExplorerTracker();
+    // Explore mode is read-only: the map refuses edits and the edit tools are disabled.
+    NODISCARD bool isMapEditable() const;
+    void syncEditAccess();
     // Hands the tracker's current data to the visibility service.
     void pushExplorerData();
     // Explore mode meshes undiscovered secret doors as plain walls; this hands the canvas the

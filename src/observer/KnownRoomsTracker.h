@@ -45,6 +45,7 @@ private:
     // these, so they are only ever added to: a completed room list or a server omitting a
     // hidden exit never removes one.
     DiscoveredExits m_exits;
+    uint64_t m_exitsRevision = 0;
     std::unique_ptr<DiscoveredExitsStore> m_exitStore;
     QString m_exitCharacter;
 
@@ -62,6 +63,8 @@ public:
     NODISCARD const KnownRooms::Snapshot &getSnapshot() const { return m_known.getSnapshot(); }
     NODISCARD bool isEnabled() const { return m_enabled; }
     NODISCARD const DiscoveredExits &getDiscoveredExits() const { return m_exits; }
+    // Bumped whenever the set of discovered exits changes (including a character switch).
+    NODISCARD uint64_t getExitsRevision() const { return m_exitsRevision; }
     void setEnabled(bool enabled);
 
     void onConnected();
@@ -75,8 +78,10 @@ signals:
     void sig_sendGmcp(const GmcpMessage &msg);
     // The snapshot's revision changed.
     void sig_changed();
-    // A secret exit was found.
+    // A secret exit was found, or the set was swapped for another character's.
     void sig_exitsChanged();
+    // The identified character changed, including being cleared on disconnect.
+    void sig_characterChanged();
     // Enabled, but the character has no usable saved history (the first list will be slow).
     void sig_cacheMissing();
 };

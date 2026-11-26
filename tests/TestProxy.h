@@ -34,6 +34,12 @@ private Q_SLOTS:
     static void discoveredExitsDamagedTest();
     static void discoveredExitsRepeatedDamageTest();
     static void discoveredExitsTrackerTest();
+    static void explorerServiceInactiveTest();
+    static void explorerServiceViewTest();
+    static void explorerServiceCacheKeyTest();
+    static void explorerServiceCoalescingTest();
+    static void explorerServicePlacedRoomsTest();
+    static void explorerServiceStaleResultTest();
     static void knownRoomsCacheRestartTest();
     static void knownRoomsCacheLiveTest();
     static void knownRoomsCacheInterruptedTest();

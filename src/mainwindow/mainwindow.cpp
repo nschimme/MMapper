@@ -30,6 +30,7 @@
 #include "../media/MediaLibrary.h"
 #include "../mpi/RemoteEditPanel.h"
 #include "../mpi/remoteedit.h"
+#include "../observer/ExplorerVisibilityService.h"
 #include "../observer/KnownRoomsTracker.h"
 #include "../pathmachine/mmapper2pathmachine.h"
 #include "../preferences/configdialog.h"
@@ -146,6 +147,7 @@ MainWindow::MainWindow()
 
     m_remoteEdit = new RemoteEdit(this);
     m_knownRooms = new KnownRoomsTracker(this);
+    m_explorerVisibility = new ExplorerVisibilityService(this);
 
     m_groupManager = new Mmapper2Group(this);
     m_groupManager->setObjectName("GroupManager");
@@ -681,6 +683,23 @@ void MainWindow::wireConnections()
     deref(m_gameObserver).sig2_disconnected.connect(m_lifetime, [this]() {
         m_remoteEdit->onDisconnected();
         m_knownRooms->onDisconnected();
+        m_explorerVisibility->onDisconnected();
+    });
+
+    // The visibility service is fed plain values; it knows nothing about MapData or GMCP.
+    connect(m_knownRooms, &KnownRoomsTracker::sig_changed, this, [this]() { pushExplorerData(); });
+    connect(m_knownRooms, &KnownRoomsTracker::sig_exitsChanged, this, [this]() {
+        pushExplorerData();
+    });
+    connect(m_knownRooms, &KnownRoomsTracker::sig_characterChanged, this, [this]() {
+        m_explorerVisibility->onCharacterChanged();
+    });
+    // The player's room is whatever the canvas marker shows.
+    connect(m_pathMachine, &Mmapper2PathMachine::sig_playerMoved, this, [this](const RoomId &id) {
+        m_explorerVisibility->setCurrentRoom(id);
+    });
+    connect(m_mapData, &MapData::sig_onDataChanged, this, [this]() {
+        m_explorerVisibility->setMap(m_mapData->getCurrentMap());
     });
 
     deref(m_gameObserver).sig2_connected.connect(m_lifetime, [this]() {
@@ -1243,7 +1262,21 @@ static void setConfigMapMode(const MapModeEnum mode)
 void MainWindow::syncExplorerTracker()
 {
     const auto &general = getConfig().general;
-    m_knownRooms->setEnabled(isExploreActive(general.mapMode, general.explorerModeEnabled));
+    const bool active = isExploreActive(general.mapMode, general.explorerModeEnabled);
+    m_knownRooms->setEnabled(active);
+    m_explorerVisibility->setActive(active);
+    if (active) {
+        pushExplorerData();
+    }
+}
+
+void MainWindow::pushExplorerData()
+{
+    const auto &known = m_knownRooms->getSnapshot();
+    m_explorerVisibility->setKnown(known.rooms, known.revision, known.generation);
+    m_explorerVisibility->setDiscoveredExits(m_knownRooms->getDiscoveredExits(),
+                                             m_knownRooms->getExitsRevision());
+    m_explorerVisibility->setMap(m_mapData->getCurrentMap());
 }
 
 void MainWindow::slot_onPlayMode()
@@ -2529,6 +2562,9 @@ void MainWindow::onSuccessfulLoad(const MapLoadData &mapLoadData)
     mapCanvas.slot_dataLoaded();
     groupWidget.slot_mapLoaded();
     pathMachine.onMapLoaded();
+    // RoomIds of the previous map mean nothing in this one.
+    m_explorerVisibility->onMapLoaded();
+    m_explorerVisibility->setMap(mapData.getCurrentMap());
     if (const auto room = mapData.getCurrentRoom()) {
         updateDescriptionRoom(room);
         deref(m_audioManager).onAreaChanged(room.getArea());

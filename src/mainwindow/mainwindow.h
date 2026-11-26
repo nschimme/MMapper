@@ -69,6 +69,7 @@ class DescriptionWidget;
 class MediaLibrary;
 class TimerWidget;
 class MapDestination;
+class ExplorerVisibilityService;
 class KnownRoomsTracker;
 class RemoteEdit;
 
@@ -127,6 +128,7 @@ private:
     std::unique_ptr<HotkeyManager> m_hotkeyManager;
     RemoteEdit *m_remoteEdit = nullptr;
     KnownRoomsTracker *m_knownRooms = nullptr;
+    ExplorerVisibilityService *m_explorerVisibility = nullptr;
 
     QPointer<QMenu> m_contextMenu;
 
@@ -378,6 +380,8 @@ private:
     void disableActions(bool value);
     // The known-room tracker runs exactly while the experimental Explore mode is active.
     void syncExplorerTracker();
+    // Hands the tracker's current data to the visibility service.
+    void pushExplorerData();
 
     struct NODISCARD CanvasHider final
     {

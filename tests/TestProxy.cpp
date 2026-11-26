@@ -3,8 +3,14 @@
 
 #include "TestProxy.h"
 
+#include "../src/global/HideQDebug.h"
 #include "../src/global/TextUtils.h"
+#include "../src/global/progresscounter.h"
+#include "../src/map/Change.h"
+#include "../src/map/ChangeTypes.h"
+#include "../src/map/parseevent.h"
 #include "../src/observer/DiscoveredExitsStore.h"
+#include "../src/observer/ExplorerVisibilityService.h"
 #include "../src/observer/KnownRooms.h"
 #include "../src/observer/KnownRoomsStore.h"
 #include "../src/observer/KnownRoomsTracker.h"
@@ -958,6 +964,270 @@ void TestProxy::discoveredExitsTrackerTest()
     quiet.slot_parseGmcpInput(roomInfo(42, R"({"n":{"id":43,"flags":["hidden"]}})"));
     QVERIFY(quiet.getDiscoveredExits().empty());
     QVERIFY(QDir(quietPath).isEmpty());
+}
+
+namespace {
+// A tiny map along x, built the way the map tests build theirs.
+struct NODISCARD ServiceMap final
+{
+    ProgressCounter pc;
+    Map map;
+
+    void apply(Change change) { map = map.applySingleChange(pc, change).map; }
+
+    NODISCARD RoomId add(const int x, const std::optional<uint32_t> serverId = std::nullopt)
+    {
+        const Coordinate pos{x, 0, 0};
+        apply(Change{room_change_types::AddPermanentRoom{pos}});
+        const RoomId id = map.findRoomHandle(pos).getId();
+        if (serverId) {
+            apply(Change{room_change_types::SetServerId{id, ServerRoomId{*serverId}}});
+        }
+        return id;
+    }
+    NODISCARD RoomId addTemporary(const int x)
+    {
+        const Coordinate pos{x, 0, 0};
+        apply(Change{room_change_types::AddRoom2{pos, *ParseEvent::createDummyEvent()}});
+        return map.findRoomHandle(pos).getId();
+    }
+    void connect(const RoomId from, const ExitDirEnum dir, const RoomId to)
+    {
+        apply(Change{exit_change_types::ModifyExitConnection{ChangeTypeEnum::Add,
+                                                             from,
+                                                             dir,
+                                                             to,
+                                                             WaysEnum::TwoWay}});
+    }
+};
+
+ImmUnorderedSet<ServerRoomId> serverIds(const std::vector<uint32_t> &ids)
+{
+    ImmUnorderedSet<ServerRoomId> rooms;
+    for (const auto id : ids) {
+        rooms.insert(ServerRoomId{id});
+    }
+    return rooms;
+}
+} // namespace
+
+void TestProxy::explorerServiceInactiveTest()
+{
+    mmqt::HideQDebug forThisTest;
+    ServiceMap m;
+    const RoomId a = m.add(0, 10);
+    const RoomId b = m.add(1, 11);
+    m.connect(a, ExitDirEnum::EAST, b);
+
+    ExplorerVisibilityService service{nullptr};
+    service.setMap(m.map);
+    service.setKnown(serverIds({10}), 1, 1);
+    service.setCurrentRoom(a);
+    QTest::qWait(150);
+    // Inactive: nothing is computed and everything is shown.
+    QCOMPARE(service.getComputeCount(), uint64_t{0});
+    QVERIFY(!service.getView().isActive());
+    QVERIFY(service.getView().shows(a));
+    QVERIFY(service.getView().shows(b));
+    QVERIFY(service.getPlacedRooms().empty());
+
+    // Switching it off again goes back to showing everything and stops further work.
+    service.setActive(true);
+    QTRY_VERIFY(service.getComputeCount() >= 1);
+    service.setActive(false);
+    QVERIFY(!service.getView().isActive());
+    QVERIFY(service.getView().shows(b));
+    const auto count = service.getComputeCount();
+    service.setKnown(serverIds({10, 11}), 2, 1);
+    QTest::qWait(150);
+    QCOMPARE(service.getComputeCount(), count);
+}
+
+void TestProxy::explorerServiceViewTest()
+{
+    mmqt::HideQDebug forThisTest;
+    ServiceMap m;
+    const RoomId a = m.add(0, 10);
+    const RoomId b = m.add(1, 11);
+    const RoomId c = m.add(2, 12);
+    m.connect(a, ExitDirEnum::EAST, b);
+    m.connect(b, ExitDirEnum::EAST, c);
+
+    ExplorerVisibilityService service{nullptr};
+    service.setMap(m.map);
+    service.setKnown(serverIds({10}), 1, 1);
+    service.setActive(true);
+    // Before the first computation finishes the view is active and fails closed.
+    QVERIFY(service.getView().isActive());
+    QVERIFY(service.getView().isHidden(a));
+
+    QTRY_VERIFY(service.getView().shows(a));
+    QVERIFY(service.getView().isFrontier(b));
+    QVERIFY(service.getView().isHidden(c));
+
+    // The player's room is an immediate overlay and needs no recomputation.
+    const auto count = service.getComputeCount();
+    service.setCurrentRoom(c);
+    QVERIFY(service.getView().shows(c));
+    QVERIFY(service.getView().isFrontier(b));
+    QTest::qWait(150);
+    QCOMPARE(service.getComputeCount(), count);
+
+    // A discovery shows up once the coalesced computation finishes.
+    service.setKnown(serverIds({10, 11}), 2, 1);
+    QTRY_VERIFY(service.getView().shows(b));
+    QCOMPARE(service.getComputeCount(), count + 1);
+}
+
+void TestProxy::explorerServiceCacheKeyTest()
+{
+    mmqt::HideQDebug forThisTest;
+    ServiceMap m;
+    const RoomId a = m.add(0, 10);
+    const RoomId b = m.add(1, 11);
+    m.connect(a, ExitDirEnum::EAST, b);
+
+    ExplorerVisibilityService service{nullptr};
+    service.setMap(m.map);
+    service.setKnown(serverIds({10}), 1, 1);
+    service.setDiscoveredExits({}, 1);
+    service.setActive(true);
+    QTRY_VERIFY(service.getView().shows(a));
+    QTest::qWait(100);
+    const auto count = service.getComputeCount();
+    QCOMPARE(count, uint64_t{1});
+
+    // The same key never recomputes: same map pointer, same revisions, same generation.
+    service.setMap(m.map);
+    service.setKnown(serverIds({10, 11}), 1, 1); // revision unchanged, so contents are ignored
+    service.setDiscoveredExits({}, 1);
+    service.setActive(true);
+    QTest::qWait(150);
+    QCOMPARE(service.getComputeCount(), count);
+    QVERIFY(!service.getView().shows(b));
+
+    // A different map pointer, revision, generation, or exits revision each recompute.
+    m.apply(Change{room_change_types::AddPermanentRoom{Coordinate{5, 0, 0}}});
+    service.setMap(m.map);
+    QTRY_COMPARE(service.getComputeCount(), count + 1);
+    service.setKnown(serverIds({10, 11}), 2, 1);
+    QTRY_COMPARE(service.getComputeCount(), count + 2);
+    service.setKnown(serverIds({10, 11}), 2, 2);
+    QTRY_COMPARE(service.getComputeCount(), count + 3);
+    service.setDiscoveredExits(exitSet({{10, ExitDirEnum::EAST}}), 2);
+    QTRY_COMPARE(service.getComputeCount(), count + 4);
+}
+
+void TestProxy::explorerServiceCoalescingTest()
+{
+    mmqt::HideQDebug forThisTest;
+    ServiceMap m;
+    const RoomId a = m.add(0, 10);
+    const RoomId b = m.add(1, 11);
+    m.connect(a, ExitDirEnum::EAST, b);
+
+    ExplorerVisibilityService service{nullptr};
+    service.setMap(m.map);
+    service.setActive(true);
+    for (uint64_t revision = 1; revision <= 25; ++revision) {
+        service.setKnown(serverIds({10, 11}), revision, 1);
+    }
+    QTRY_VERIFY(service.getView().shows(b));
+    QTest::qWait(150);
+    // A burst of changes is coalesced into very few computations, and the last one wins.
+    QVERIFY(service.getComputeCount() <= 3);
+    QVERIFY(service.getView().shows(a));
+}
+
+void TestProxy::explorerServicePlacedRoomsTest()
+{
+    mmqt::HideQDebug forThisTest;
+    ServiceMap m;
+    const RoomId known = m.add(0, 10);
+    const RoomId noId = m.add(1);
+    const RoomId temp = m.addTemporary(2);
+    const RoomId otherNoId = m.add(3);
+    m.connect(known, ExitDirEnum::EAST, noId);
+
+    const auto make = [&m](ExplorerVisibilityService &service) {
+        service.setMap(m.map);
+        service.setKnown(serverIds({10}), 1, 1);
+        service.setActive(true);
+    };
+
+    {
+        ExplorerVisibilityService service{nullptr};
+        make(service);
+        // Only a permanent room without a server ID is placed.
+        service.setCurrentRoom(known);
+        service.setCurrentRoom(temp);
+        QVERIFY(service.getPlacedRooms().empty());
+        service.setCurrentRoom(noId);
+        QVERIFY(service.getPlacedRooms().contains(noId));
+        QCOMPARE(service.getPlacedRooms().size(), size_t{1});
+        // Once the player moves on, the room stays shown for the session.
+        service.setCurrentRoom(known);
+        QTRY_VERIFY(service.getView().shows(noId));
+        QVERIFY(!service.getView().shows(otherNoId));
+        QVERIFY(!service.getView().shows(temp));
+        // Re-entering does not count again.
+        const auto count = service.getComputeCount();
+        service.setCurrentRoom(noId);
+        service.setCurrentRoom(known);
+        QTest::qWait(150);
+        QCOMPARE(service.getComputeCount(), count);
+    }
+
+    // Each of the three triggers forgets placed rooms and fails closed at once.
+    using Trigger = std::function<void(ExplorerVisibilityService &)>;
+    const std::vector<std::pair<const char *, Trigger>> triggers{
+        {"disconnect", [](ExplorerVisibilityService &s) { s.onDisconnected(); }},
+        {"character change", [](ExplorerVisibilityService &s) { s.onCharacterChanged(); }},
+        {"map load", [](ExplorerVisibilityService &s) { s.onMapLoaded(); }},
+    };
+    for (const auto &[name, trigger] : triggers) {
+        ExplorerVisibilityService service{nullptr};
+        make(service);
+        service.setCurrentRoom(noId);
+        service.setCurrentRoom(known);
+        QTRY_VERIFY2(service.getView().shows(noId), name);
+        trigger(service);
+        QVERIFY2(service.getPlacedRooms().empty(), name);
+        // Fails closed immediately: even the known room is hidden until recomputed.
+        QVERIFY2(service.getView().isHidden(known) || service.getView().shows(known), name);
+        QVERIFY2(!service.getView().shows(noId), name);
+        QTRY_VERIFY2(service.getView().shows(known), name);
+        QVERIFY2(!service.getView().shows(noId), name);
+    }
+}
+
+void TestProxy::explorerServiceStaleResultTest()
+{
+    mmqt::HideQDebug forThisTest;
+    ServiceMap m;
+    const RoomId a = m.add(0, 10);
+    const RoomId b = m.add(1, 11);
+    m.connect(a, ExitDirEnum::EAST, b);
+
+    ExplorerVisibilityService service{nullptr};
+    service.setMap(m.map);
+    service.setKnown(serverIds({10}), 1, 1);
+    service.setActive(true);
+    // Stop as soon as the first computation has started, before its result is applied.
+    QTRY_VERIFY(service.getComputeCount() >= 1);
+    service.setKnown({}, 2, 2);
+    service.onCharacterChanged(); // the previous character's result must never be shown
+    QVERIFY(!service.getView().shows(a));
+    // Watch every published view, not just the final one: a stale result that is shown briefly
+    // and then corrected by a later computation would still be a leak.
+    bool leaked = false;
+    QObject::connect(&service, &ExplorerVisibilityService::sig_changed, &service, [&]() {
+        leaked = leaked || service.getView().shows(a);
+    });
+    QTest::qWait(300);
+    QVERIFY(!leaked);
+    QVERIFY(!service.getView().shows(a));
+    QVERIFY(service.getView().isHidden(a));
 }
 
 QTEST_MAIN(TestProxy)

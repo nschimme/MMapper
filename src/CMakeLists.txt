@@ -458,6 +458,8 @@ set(mmapper_SRCS
     mpi/findreplacewidget.h
     observer/DiscoveredExitsStore.cpp
     observer/DiscoveredExitsStore.h
+    observer/ExplorerVisibilityService.cpp
+    observer/ExplorerVisibilityService.h
     observer/KnownRoomsStore.cpp
     observer/KnownRoomsStore.h
     observer/KnownRooms.cpp

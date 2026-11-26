@@ -84,6 +84,8 @@ void KnownRoomsTracker::followCharacter()
             m_exits = *saved;
         }
     }
+    ++m_exitsRevision;
+    emit sig_characterChanged();
     emit sig_exitsChanged();
 }
 
@@ -120,6 +122,7 @@ void KnownRoomsTracker::recordHiddenExits(const GmcpMessage &msg)
         }
     }
     if (added) {
+        ++m_exitsRevision;
         m_exitStore->save(m_exitCharacter, m_exits);
         emit sig_exitsChanged();
     }

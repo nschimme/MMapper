@@ -55,6 +55,8 @@ add_library(mm_test STATIC
     ../src/configuration/GroupConfig.h
     ../src/observer/DiscoveredExitsStore.cpp
     ../src/observer/DiscoveredExitsStore.h
+    ../src/observer/ExplorerVisibilityService.cpp
+    ../src/observer/ExplorerVisibilityService.h
     ../src/observer/KnownRoomsStore.cpp
     ../src/observer/KnownRoomsStore.h
     ../src/observer/KnownRooms.cpp

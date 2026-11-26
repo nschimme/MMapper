@@ -85,8 +85,6 @@ public:
         bool showScrollBars = true;
         bool showMenuBar = true;
         MapModeEnum mapMode = MapModeEnum::PLAY;
-        // Experimental, hidden (no UI): makes the Explore mode available.
-        bool explorerModeEnabled = false;
         GameClientEnum gameClient = GameClientEnum::ASK;
         bool checkForUpdate = true;
         // Global multiplier applied to the application's default font point

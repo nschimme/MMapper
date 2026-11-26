@@ -268,7 +268,6 @@ ConstString KEY_LINES_OF_PEEK_PREVIEW = "Lines of peek preview";
 ConstString KEY_LINES_OF_SCROLLBACK = "Lines of scrollback";
 ConstString KEY_PROXY_LOCAL_PORT = "Local port number";
 ConstString KEY_MAP_MODE = "Map Mode";
-ConstString KEY_EXPLORER_MODE_ENABLED = "Explorer mode enabled (experimental)";
 ConstString KEY_GAME_CLIENT = "Game Client";
 ConstString KEY_MUSIC_VOLUME = "Music volume";
 ConstString KEY_SOUND_VOLUME = "Sound volume";
@@ -419,14 +418,9 @@ NODISCARD static QString sanitizeAnsi(const QString &input, const QString &defau
     return defaultValue;
 }
 
-NODISCARD static MapModeEnum sanitizeMapMode(const uint32_t input, const bool explorerEnabled)
+NODISCARD static MapModeEnum sanitizeMapMode(const uint32_t input)
 {
     const auto mode = static_cast<MapModeEnum>(input);
-    if (mode == MapModeEnum::EXPLORE && !explorerEnabled) {
-        // The experimental mode is off, so a saved Explore setting must not leave the user in
-        // a mode they cannot see or leave.
-        return MapModeEnum::PLAY;
-    }
     if (isValidMapMode(mode)) {
         return mode;
     }
@@ -636,10 +630,8 @@ void Configuration::GeneralSettings::read(const QSettings &conf)
     showStatusBar = conf.value(KEY_SHOW_STATUS_BAR, true).toBool();
     showScrollBars = conf.value(KEY_SHOW_SCROLL_BARS, true).toBool();
     showMenuBar = conf.value(KEY_SHOW_MENU_BAR, true).toBool();
-    explorerModeEnabled = conf.value(KEY_EXPLORER_MODE_ENABLED, false).toBool();
-    mapMode = sanitizeMapMode(conf.value(KEY_MAP_MODE, static_cast<uint32_t>(MapModeEnum::PLAY))
-                                  .toUInt(),
-                              explorerModeEnabled);
+    mapMode = sanitizeMapMode(
+        conf.value(KEY_MAP_MODE, static_cast<uint32_t>(MapModeEnum::PLAY)).toUInt());
     gameClient = (CURRENT_PLATFORM == PlatformEnum::Wasm)
                      ? GameClientEnum::BUILT_IN
                      : sanitizeGameClient(
@@ -886,7 +878,6 @@ void Configuration::GeneralSettings::write(QSettings &conf) const
     conf.setValue(KEY_SHOW_SCROLL_BARS, showScrollBars);
     conf.setValue(KEY_SHOW_MENU_BAR, showMenuBar);
     conf.setValue(KEY_MAP_MODE, static_cast<uint32_t>(mapMode));
-    conf.setValue(KEY_EXPLORER_MODE_ENABLED, explorerModeEnabled);
     conf.setValue(KEY_GAME_CLIENT, static_cast<uint32_t>(gameClient));
     conf.setValue(KEY_CHECK_FOR_UPDATE, checkForUpdate);
     conf.setValue(KEY_UI_FONT_SCALE, uiFontScale);

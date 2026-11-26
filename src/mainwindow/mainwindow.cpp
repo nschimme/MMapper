@@ -1234,8 +1234,8 @@ void MainWindow::createActions()
     mapperMode.exploreModeAct = new QAction(QIcon(":/icons/map.png"),
                                             tr("Switch to explore mode"),
                                             this);
-    mapperMode.exploreModeAct->setStatusTip(tr(
-        "Switch to explore mode (experimental) - like play mode, for exploring undiscovered areas"));
+    mapperMode.exploreModeAct->setStatusTip(
+        tr("Switch to explore mode - like play mode, for exploring undiscovered areas"));
     mapperMode.exploreModeAct->setCheckable(true);
     connect(mapperMode.exploreModeAct, &QAction::triggered, this, &MainWindow::slot_onExploreMode);
 
@@ -1265,7 +1265,7 @@ static void setConfigMapMode(const MapModeEnum mode)
 void MainWindow::syncExplorerTracker()
 {
     const auto &general = getConfig().general;
-    const bool active = isExploreActive(general.mapMode, general.explorerModeEnabled);
+    const bool active = general.mapMode == MapModeEnum::EXPLORE;
     m_knownRooms->setEnabled(active);
     m_explorerVisibility->setActive(active);
     if (active) {
@@ -1278,7 +1278,7 @@ void MainWindow::syncCanvasExits()
 {
     const auto &general = getConfig().general;
     std::shared_ptr<const DiscoveredExits> exits;
-    if (isExploreActive(general.mapMode, general.explorerModeEnabled)) {
+    if (general.mapMode == MapModeEnum::EXPLORE) {
         exits = std::make_shared<const DiscoveredExits>(m_knownRooms->getDiscoveredExits());
     }
     if (MapCanvasWindow *const canvas = getCanvas()) {
@@ -1328,26 +1328,7 @@ void MainWindow::slot_onOfflineMode()
 
 void MainWindow::slot_onExploreMode()
 {
-    if (!getConfig().general.explorerModeEnabled) {
-        // Unreachable from the menu (the action is not offered); this guards commands and
-        // stale callers. Fall back to the mode the user was in rather than silently switching.
-        slot_log("MainWindow", "Explore mode is experimental and not enabled.");
-        switch (getConfig().general.mapMode) {
-        case MapModeEnum::MAP:
-            mapperMode.mapModeAct->setChecked(true);
-            break;
-        case MapModeEnum::OFFLINE:
-            mapperMode.offlineModeAct->setChecked(true);
-            break;
-        case MapModeEnum::PLAY:
-        case MapModeEnum::EXPLORE:
-            mapperMode.playModeAct->setChecked(true);
-            break;
-        }
-        return;
-    }
-    slot_log("MainWindow",
-             "Explore mode selected (experimental) - it currently behaves like play mode.");
+    slot_log("MainWindow", "Explore mode selected - undiscovered secret exits are hidden.");
     setConfigMapMode(MapModeEnum::EXPLORE);
     syncExplorerTracker();
     modeMenu->setIcon(mapperMode.exploreModeAct->icon());
@@ -1532,9 +1513,7 @@ void MainWindow::setupMenuBar()
     modeMenu->addAction(mapperMode.playModeAct);
     modeMenu->addAction(mapperMode.mapModeAct);
     modeMenu->addAction(mapperMode.offlineModeAct);
-    if (getConfig().general.explorerModeEnabled) {
-        modeMenu->addAction(mapperMode.exploreModeAct);
-    }
+    modeMenu->addAction(mapperMode.exploreModeAct);
     settingsMenu->addSeparator();
     settingsMenu->addAction(clientAct);
     settingsMenu->addAction(saveLogAct);
@@ -1732,9 +1711,7 @@ void MainWindow::setupToolBars()
     mapperModeToolBar->addAction(mapperMode.playModeAct);
     mapperModeToolBar->addAction(mapperMode.mapModeAct);
     mapperModeToolBar->addAction(mapperMode.offlineModeAct);
-    if (getConfig().general.explorerModeEnabled) {
-        mapperModeToolBar->addAction(mapperMode.exploreModeAct);
-    }
+    mapperModeToolBar->addAction(mapperMode.exploreModeAct);
     mapperModeToolBar->hide();
 
     mouseModeToolBar = addToolBar(tr("Mouse Mode"));

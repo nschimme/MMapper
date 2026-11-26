@@ -213,53 +213,31 @@ void TestMainWindow::findRoomsTest()
     QCOMPARE(formatDirRuns("nenenn"), std::string{"nene2n"});
 }
 
-void TestMainWindow::exploreModeFlagTest()
+void TestMainWindow::exploreModePersistenceTest()
 {
-    // The mode only counts as active with the experimental flag on.
-    QVERIFY(isExploreActive(MapModeEnum::EXPLORE, true));
-    QVERIFY(!isExploreActive(MapModeEnum::EXPLORE, false));
-    for (const auto mode : {MapModeEnum::PLAY, MapModeEnum::MAP, MapModeEnum::OFFLINE}) {
-        QVERIFY(!isExploreActive(mode, true));
-        QVERIFY(!isExploreActive(mode, false));
-    }
-
     // Restore the process-wide configuration afterwards.
     const auto savedMode = getConfig().general.mapMode;
-    const auto savedFlag = getConfig().general.explorerModeEnabled;
-    auto cleanup = qScopeGuard([=]() {
-        setConfig().general.mapMode = savedMode;
-        setConfig().general.explorerModeEnabled = savedFlag;
-    });
+    auto cleanup = qScopeGuard([=]() { setConfig().general.mapMode = savedMode; });
 
     QTemporaryDir dir;
     QVERIFY(dir.isValid());
-    const auto load = [&dir](const uint32_t mode, const std::optional<bool> flag) {
+    const auto load = [&dir](const uint32_t mode) {
         QSettings conf(dir.filePath("test.ini"), QSettings::IniFormat);
         conf.clear();
         // The general settings live in their own group of the settings file.
         conf.beginGroup("General");
         conf.setValue("Map Mode", mode);
-        if (flag) {
-            conf.setValue("Explorer mode enabled (experimental)", *flag);
-        }
         conf.endGroup();
         conf.sync();
         setConfig().readFrom(conf);
         return getConfig().general.mapMode;
     };
-    const auto explore = static_cast<uint32_t>(MapModeEnum::EXPLORE);
 
-    // Flag off (or never set): a saved Explore setting loads as Play.
-    QCOMPARE(load(explore, std::nullopt), MapModeEnum::PLAY);
-    QVERIFY(!getConfig().general.explorerModeEnabled);
-    QCOMPARE(load(explore, false), MapModeEnum::PLAY);
-    // Flag on: it is kept, and the other modes are unaffected either way.
-    QCOMPARE(load(explore, true), MapModeEnum::EXPLORE);
-    QVERIFY(getConfig().general.explorerModeEnabled);
-    QCOMPARE(load(static_cast<uint32_t>(MapModeEnum::MAP), false), MapModeEnum::MAP);
-    QCOMPARE(load(static_cast<uint32_t>(MapModeEnum::OFFLINE), true), MapModeEnum::OFFLINE);
+    QCOMPARE(load(static_cast<uint32_t>(MapModeEnum::EXPLORE)), MapModeEnum::EXPLORE);
+    QCOMPARE(load(static_cast<uint32_t>(MapModeEnum::MAP)), MapModeEnum::MAP);
+    QCOMPARE(load(static_cast<uint32_t>(MapModeEnum::OFFLINE)), MapModeEnum::OFFLINE);
     // Garbage still falls back to Play.
-    QCOMPARE(load(99, true), MapModeEnum::PLAY);
+    QCOMPARE(load(99), MapModeEnum::PLAY);
 }
 
 QTEST_MAIN(TestMainWindow)

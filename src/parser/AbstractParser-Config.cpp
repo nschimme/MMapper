@@ -310,14 +310,10 @@ void AbstractParser::doConfig(const StringView cmd)
                 Accept(
                     [this](User &user, auto) {
                         auto &os = user.getOstream();
-                        if (!getConfig().general.explorerModeEnabled) {
-                            os << "Explore mode is experimental and not enabled.\n";
-                            return;
-                        }
                         setMode(MapModeEnum::EXPLORE);
                         send_ok(os);
                     },
-                    "explore mode (experimental)"))),
+                    "explore mode"))),
         syn("file",
             // TODO: add a command to show what's different from the factory default values,
             // and another command to show what's different from the current save file,

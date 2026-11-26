@@ -253,7 +253,7 @@ private:
         QAction *playModeAct = nullptr;
         QAction *mapModeAct = nullptr;
         QAction *offlineModeAct = nullptr;
-        QAction *exploreModeAct = nullptr; // only offered when general.explorerModeEnabled
+        QAction *exploreModeAct = nullptr;
     } mapperMode{};
 
     QActionGroup *selectedRoomActGroup = nullptr;

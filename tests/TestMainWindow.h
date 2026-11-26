@@ -21,5 +21,5 @@ private Q_SLOTS:
     void mapScrollerScrollMath();
     void compactLayoutPolicy();
     void findRoomsTest();
-    void exploreModeFlagTest();
+    void exploreModePersistenceTest();
 };

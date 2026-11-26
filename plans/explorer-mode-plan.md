@@ -183,9 +183,9 @@ group markers, exports, and **Offline mode's room descriptions and walking** (se
 | Phase | Work | Modes affected |
 |---|---|---|
 | 0 | **Landed on this branch.** Unchanged #566 port, then: no default negotiation, `KnownRoomsStore`, fail-closed semantics, `KnownRoomsTracker` (disabled by default). Coordinating with the #566 author is a separate, human step. | none (one parser change, see below) |
-| 1 | **Landed on this branch** (read-only enforcement moved to Phase 2): the tracker behind the flag (toggleable mid-session), `EXPLORE` mode, the visibility policy and effective exit view (`src/map/ExplorerVisibility`), and discovered-exit recording and persistence. The policy has no consumer yet, and its `placedRooms` input is defined but nothing feeds it. | Explore, behind an experimental flag |
-| 2 | **Started.** Landed: the visibility service and the first consumer, undiscovered secret exits meshed as plain walls (`hideUndiscoveredExits`, applied to the map on the mesh worker thread). Find Rooms now reports only shown rooms, and no route through a hidden room. Still to do, most-leaking first: names and infomarks (these are meshed, so they need the Phase 3 mask rather than a remesh per step), room panel and tooltips, `_dirs`/speedwalk path finding, and read-only enforcement (decision pending). | Explore, behind the flag |
-| 3 | Fog MVP: mask builder, shaders, preset dropdown. **Remove the flag here.** | Explore |
+| 1 | **Landed on this branch** (read-only enforcement moved to Phase 2): the tracker (runs while Explore is the mode), `EXPLORE` mode, the visibility policy and effective exit view (`src/map/ExplorerVisibility`), and discovered-exit recording and persistence. The policy has no consumer yet, and its `placedRooms` input is defined but nothing feeds it. | Explore |
+| 2 | **Started.** Landed: the visibility service and the first consumer, undiscovered secret exits meshed as plain walls (`hideUndiscoveredExits`, applied to the map on the mesh worker thread). Find Rooms now reports only shown rooms, and no route through a hidden room. Still to do, most-leaking first: names and infomarks (these are meshed, so they need the Phase 3 mask rather than a remesh per step), room panel and tooltips, `_dirs`/speedwalk path finding, and read-only enforcement (decision pending). | Explore |
+| 3 | Fog MVP: mask builder, shaders, preset dropdown. (The experimental flag was removed early, at the user's request.) | Explore |
 | 4 | `DoorTracker` and its GMCP wiring; door animation: door index, state texture, swing | **all modes** |
 | 5 | Frontier, reveal animation, reduce motion, docs | Explore (reduce motion: all) |
 
@@ -193,8 +193,8 @@ Phase 4 (including `DoorTracker`) does not depend on Explore and can ship first.
 
 **Gating:** until phase 3 lands, Explore would show the whole map with hidden labels and
 secret exits, and leaving it would warn "This will show the full map." That is incoherent for
-users, so the Explore menu entry and `_mode explore` stay behind a dev/experimental flag until
-the fog exists.
+users, so the flag that hid the menu entry and `_mode explore` was removed at the user's request, accepting
+that Explore is incoherent until the fog exists.
 
 ## 8. Tests
 
@@ -233,13 +233,13 @@ the fog exists.
   edit tools are also not mode-gated. Read-only enforcement moves to Phase 2, with the other
   edit and spoiler surfaces. Tension to resolve then: blocking all edits also blocks server-ID
   backfill, which is what lets rooms without a server ID become persistable.
-- **Non-blocking, before the flag comes off:** Explore reuses `map.png` as its icon, so its
-  button looks like Map mode's; and `exploreModeFlagTest` should snapshot and restore the whole
+- **Non-blocking:** Explore reuses `map.png` as its icon, so its
+  button looks like Map mode's; and `exploreModePersistenceTest` should snapshot and restore the whole
   configuration through `writeTo`/`readFrom` instead of two fields.
 - **Unverified server assumption.** `recordHiddenExits` assumes MUME lists a secret exit with the
   `"hidden"` flag in `Room.Info` only after the player has found it. If it lists unfound ones
   too, every secret door would be recorded as found. This needs a live check (see the report
-  for this round) before the flag comes off.
+  for this round) before release.
 - **Facts for the read-only decision.** There is no map autosave (only remote-edit drafts
   autosave). But the path machine's edits change the map, so `MapData::isModified()` becomes
   true: the window is marked modified, Save is enabled, and `maybeSave` prompts "save changes?"
@@ -257,15 +257,14 @@ the fog exists.
 ## 11. Handoff to the next session
 
 State: branch `claude/affectionate-thompson-b2n9aj`, everything pushed. Phase 0 and Phase 1 are
-landed; Phase 2 has started. Explore mode is behind a hidden flag (`Explorer mode enabled
-(experimental)` under `[General]`, default false), so nothing changes for normal users.
+landed; Phase 2 has started. The experimental flag has been removed: Explore is always available in the menu, toolbar and `_mode explore`. Until the fog (Phase 3) exists it shows the whole map except undiscovered secret exits.
 
 Next slice, in order:
 1. Route consumers through `ExplorerView`. Done: Find Rooms (no unit test, it is dialog code; check by hand). Next: room panel and tooltips, `_dirs`/speedwalk path finding. Room and door names and infomarks are meshed, so they wait for the Phase 3 mask.
 2. Read-only enforcement, after the user decides between: block all path machine edits in Explore;
    backfill server IDs only; or behave like Play (see section 10 for the save-prompt facts).
 3. Re-request `Room.Known` after a client `Core.Supports.Set` (after the live check).
-4. Non-blocking: Explore shares Map mode's toolbar icon; `exploreModeFlagTest` restores only two
+4. Non-blocking: Explore shares Map mode's toolbar icon; `exploreModePersistenceTest` restores only one
    config fields instead of snapshotting the whole config.
 
 Still needed from the user: the live check against real MUME (list chunks arrive; an unfound

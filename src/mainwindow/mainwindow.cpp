@@ -419,6 +419,10 @@ MainWindow::MainWindow()
         mapperMode.offlineModeAct->setChecked(true);
         slot_onOfflineMode();
         break;
+    case MapModeEnum::EXPLORE:
+        mapperMode.exploreModeAct->setChecked(true);
+        slot_onExploreMode();
+        break;
     }
 
     if (getConfig().general.alwaysOnTop) {
@@ -1205,11 +1209,20 @@ void MainWindow::createActions()
     mapperMode.offlineModeAct->setCheckable(true);
     connect(mapperMode.offlineModeAct, &QAction::triggered, this, &MainWindow::slot_onOfflineMode);
 
+    mapperMode.exploreModeAct = new QAction(QIcon(":/icons/map.png"),
+                                            tr("Switch to explore mode"),
+                                            this);
+    mapperMode.exploreModeAct->setStatusTip(tr(
+        "Switch to explore mode (experimental) - like play mode, for exploring undiscovered areas"));
+    mapperMode.exploreModeAct->setCheckable(true);
+    connect(mapperMode.exploreModeAct, &QAction::triggered, this, &MainWindow::slot_onExploreMode);
+
     mapperMode.mapModeActGroup = new QActionGroup(this);
     mapperMode.mapModeActGroup->setExclusive(true);
     mapperMode.mapModeActGroup->addAction(mapperMode.playModeAct);
     mapperMode.mapModeActGroup->addAction(mapperMode.mapModeAct);
     mapperMode.mapModeActGroup->addAction(mapperMode.offlineModeAct);
+    mapperMode.mapModeActGroup->addAction(mapperMode.exploreModeAct);
     mapperMode.mapModeActGroup->setEnabled(true);
 
     rebuildMeshesAct = new QAction(QIcon(":/icons/graphicscfg.png"), tr("&Rebuild World"), this);
@@ -1227,10 +1240,17 @@ static void setConfigMapMode(const MapModeEnum mode)
     getConfig().write();
 }
 
+void MainWindow::syncExplorerTracker()
+{
+    const auto &general = getConfig().general;
+    m_knownRooms->setEnabled(isExploreActive(general.mapMode, general.explorerModeEnabled));
+}
+
 void MainWindow::slot_onPlayMode()
 {
     // map mode can only create rooms, but play mode can make changes
     setConfigMapMode(MapModeEnum::PLAY);
+    syncExplorerTracker();
     modeMenu->setIcon(mapperMode.playModeAct->icon());
     // needed so that the menu updates to reflect state set by commands
     mapperMode.playModeAct->setChecked(true);
@@ -1241,6 +1261,7 @@ void MainWindow::slot_onMapMode()
     slot_log("MainWindow",
              "Map mode selected - new rooms are created when entering unmapped areas.");
     setConfigMapMode(MapModeEnum::MAP);
+    syncExplorerTracker();
     modeMenu->setIcon(mapperMode.mapModeAct->icon());
     // needed so that the menu updates to reflect state set by commands
     mapperMode.mapModeAct->setChecked(true);
@@ -1250,9 +1271,38 @@ void MainWindow::slot_onOfflineMode()
 {
     slot_log("MainWindow", "Offline emulation mode selected - learn new areas safely.");
     setConfigMapMode(MapModeEnum::OFFLINE);
+    syncExplorerTracker();
     modeMenu->setIcon(mapperMode.offlineModeAct->icon());
     // needed so that the menu updates to reflect state set by commands
     mapperMode.offlineModeAct->setChecked(true);
+}
+
+void MainWindow::slot_onExploreMode()
+{
+    if (!getConfig().general.explorerModeEnabled) {
+        // Unreachable from the menu (the action is not offered); this guards commands and
+        // stale callers. Fall back to the mode the user was in rather than silently switching.
+        slot_log("MainWindow", "Explore mode is experimental and not enabled.");
+        switch (getConfig().general.mapMode) {
+        case MapModeEnum::MAP:
+            mapperMode.mapModeAct->setChecked(true);
+            break;
+        case MapModeEnum::OFFLINE:
+            mapperMode.offlineModeAct->setChecked(true);
+            break;
+        case MapModeEnum::PLAY:
+        case MapModeEnum::EXPLORE:
+            mapperMode.playModeAct->setChecked(true);
+            break;
+        }
+        return;
+    }
+    slot_log("MainWindow", "Explore mode selected - the map is read-only, like play mode.");
+    setConfigMapMode(MapModeEnum::EXPLORE);
+    syncExplorerTracker();
+    modeMenu->setIcon(mapperMode.exploreModeAct->icon());
+    // needed so that the menu updates to reflect state set by commands
+    mapperMode.exploreModeAct->setChecked(true);
 }
 
 void MainWindow::slot_setMode(MapModeEnum mode)
@@ -1266,6 +1316,9 @@ void MainWindow::slot_setMode(MapModeEnum mode)
         break;
     case MapModeEnum::OFFLINE:
         slot_onOfflineMode();
+        break;
+    case MapModeEnum::EXPLORE:
+        slot_onExploreMode();
         break;
     }
 }
@@ -1429,6 +1482,9 @@ void MainWindow::setupMenuBar()
     modeMenu->addAction(mapperMode.playModeAct);
     modeMenu->addAction(mapperMode.mapModeAct);
     modeMenu->addAction(mapperMode.offlineModeAct);
+    if (getConfig().general.explorerModeEnabled) {
+        modeMenu->addAction(mapperMode.exploreModeAct);
+    }
     settingsMenu->addSeparator();
     settingsMenu->addAction(clientAct);
     settingsMenu->addAction(saveLogAct);
@@ -1626,6 +1682,9 @@ void MainWindow::setupToolBars()
     mapperModeToolBar->addAction(mapperMode.playModeAct);
     mapperModeToolBar->addAction(mapperMode.mapModeAct);
     mapperModeToolBar->addAction(mapperMode.offlineModeAct);
+    if (getConfig().general.explorerModeEnabled) {
+        mapperModeToolBar->addAction(mapperMode.exploreModeAct);
+    }
     mapperModeToolBar->hide();
 
     mouseModeToolBar = addToolBar(tr("Mouse Mode"));

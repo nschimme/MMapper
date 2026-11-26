@@ -251,6 +251,7 @@ private:
         QAction *playModeAct = nullptr;
         QAction *mapModeAct = nullptr;
         QAction *offlineModeAct = nullptr;
+        QAction *exploreModeAct = nullptr; // only offered when general.explorerModeEnabled
     } mapperMode{};
 
     QActionGroup *selectedRoomActGroup = nullptr;
@@ -375,6 +376,8 @@ private:
 
     struct ActionDisabler;
     void disableActions(bool value);
+    // The known-room tracker runs exactly while the experimental Explore mode is active.
+    void syncExplorerTracker();
 
     struct NODISCARD CanvasHider final
     {
@@ -458,6 +461,7 @@ public slots:
     void slot_onPlayMode();
     void slot_onMapMode();
     void slot_onOfflineMode();
+    void slot_onExploreMode();
     void slot_setMode(MapModeEnum mode);
     void slot_alwaysOnTop();
     void slot_setShowStatusBar();

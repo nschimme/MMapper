@@ -305,7 +305,19 @@ void AbstractParser::doConfig(const StringView cmd)
                         setMode(MapModeEnum::OFFLINE);
                         send_ok(user.getOstream());
                     },
-                    "offline emulation mode"))),
+                    "offline emulation mode")),
+            syn("explore",
+                Accept(
+                    [this](User &user, auto) {
+                        auto &os = user.getOstream();
+                        if (!getConfig().general.explorerModeEnabled) {
+                            os << "Explore mode is experimental and not enabled.\n";
+                            return;
+                        }
+                        setMode(MapModeEnum::EXPLORE);
+                        send_ok(os);
+                    },
+                    "explore mode (experimental)"))),
         syn("file",
             // TODO: add a command to show what's different from the factory default values,
             // and another command to show what's different from the current save file,

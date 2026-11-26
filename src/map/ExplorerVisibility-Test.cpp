@@ -700,6 +700,39 @@ void testVisibleOnlyGrows()
     TEST_ASSERT(!exploreVisibleOnlyGrows(set({a, b}), set({b, c}))); // gained one, lost one
     TEST_ASSERT(!exploreVisibleOnlyGrows(set({a}), set({})));        // not computed yet
 }
+
+void testOnlyServerIdBackfill()
+{
+    const RoomId room{1};
+    const RoomId other{2};
+    ChangeList mixed;
+    mixed.add(room_change_types::AddPermanentRoom{Coordinate{0, 0, 0}});
+    mixed.add(room_change_types::SetServerId{room, ServerRoomId{10}});
+    mixed.add(room_change_types::MakePermanent{room});
+    mixed.add(exit_change_types::SetExitFlags{FlagChangeEnum::Set,
+                                              room,
+                                              ExitDirEnum::EAST,
+                                              ExitFlags{ExitFlagEnum::DOOR}});
+    mixed.add(exit_change_types::SetDoorFlags{FlagChangeEnum::Set,
+                                              room,
+                                              ExitDirEnum::EAST,
+                                              DoorFlags{DoorFlagEnum::HIDDEN}});
+    mixed.add(room_change_types::SetServerId{other, ServerRoomId{11}});
+    mixed.add(room_change_types::RemoveRoom{other});
+
+    // Only the backfill of server IDs gets through, in order; everything else is dropped.
+    const ChangeList kept = onlyServerIdBackfill(mixed);
+    TEST_ASSERT(kept.getChanges().size() == 2);
+    for (const Change &change : kept.getChanges()) {
+        TEST_ASSERT(change.isSetServerId());
+    }
+
+    // Nothing to backfill means nothing to apply.
+    ChangeList none;
+    none.add(room_change_types::MakePermanent{room});
+    TEST_ASSERT(onlyServerIdBackfill(none).empty());
+    TEST_ASSERT(onlyServerIdBackfill(ChangeList{}).empty());
+}
 } // namespace
 
 namespace test {
@@ -722,6 +755,7 @@ void testExplorerVisibility()
     testNoSeedRoomsFallBackToKnownRooms();
     testUndiscoveredBase();
     testExitsChangeOnlyReveals();
+    testOnlyServerIdBackfill();
     testConnectionCulling();
     testVisibleOnlyGrows();
 }

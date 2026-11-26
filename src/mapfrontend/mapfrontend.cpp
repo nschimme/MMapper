@@ -215,10 +215,14 @@ void MapFrontend::restoreSnapshot()
     setCurrentMap(m_snapshot.map);
 }
 
-void MapFrontend::setCurrentMap(const MapApplyResult &result)
+void MapFrontend::setCurrentMap(const MapApplyResult &result, const bool keepSaved)
 {
     // NOTE: This is very important: it's where the map is actually changed!
+    const bool wasModified = isModified();
     m_current.map = result.map;
+    if (keepSaved && !wasModified) {
+        m_saved.map = result.map;
+    }
     const auto roomUpdateFlags = result.roomUpdateFlags;
 
     this->RoomModificationTracker::notifyModified(roomUpdateFlags);
@@ -240,6 +244,11 @@ bool MapFrontend::applyChangesInternal(
     ProgressCounter &pc,
     const std::function<MapApplyResult(Map &, ProgressCounter &)> &applyFunction)
 {
+    if (m_readOnly) {
+        MMLOG_WARNING() << "[mapfrontend] The map is read-only in Explore mode; change refused.";
+        return false;
+    }
+
     Map previous = m_current.map;
 
     MapApplyResult result;
@@ -299,12 +308,43 @@ bool MapFrontend::applyChanges(const ChangeList &changes)
 
 void MapFrontend::emitUndoRedoAvailability()
 {
-    emit sig_undoAvailable(m_history.isUndoAvailable());
-    emit sig_redoAvailable(m_history.isRedoAvailable());
+    emit sig_undoAvailable(!m_readOnly && m_history.isUndoAvailable());
+    emit sig_redoAvailable(!m_readOnly && m_history.isRedoAvailable());
+}
+
+void MapFrontend::setReadOnly(const bool readOnly)
+{
+    if (m_readOnly == readOnly) {
+        return;
+    }
+    m_readOnly = readOnly;
+    emitUndoRedoAvailability();
+}
+
+bool MapFrontend::applyBackfill(const ChangeList &changes)
+{
+    if (changes.empty()) {
+        return true;
+    }
+    ProgressCounter pc;
+    MapApplyResult result;
+    try {
+        result = m_current.map.apply(pc, changes);
+    } catch (const std::exception &e) {
+        MMLOG_ERROR() << "Exception: " << e.what();
+        return false;
+    }
+    // Not recorded in the history: there is nothing to undo, and a later undo restores a map
+    // without the backfilled IDs, which the next session fills in again.
+    setCurrentMap(result, /*keepSaved*/ true);
+    return true;
 }
 
 void MapFrontend::slot_undo()
 {
+    if (m_readOnly) {
+        return;
+    }
     if (std::optional<Map> optMap = m_history.undo(m_current.map)) {
         setCurrentMap(MapApplyResult{std::move(*optMap)});
     }
@@ -313,6 +353,9 @@ void MapFrontend::slot_undo()
 
 void MapFrontend::slot_redo()
 {
+    if (m_readOnly) {
+        return;
+    }
     if (std::optional<Map> optMap = m_history.redo(m_current.map)) {
         setCurrentMap(MapApplyResult{std::move(*optMap)});
     }

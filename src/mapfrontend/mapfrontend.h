@@ -41,6 +41,8 @@ private:
     MapState m_saved;
     MapState m_current;
     MapState m_snapshot;
+    // Explore mode: every map edit is refused (see applyBackfill() for the one exception).
+    bool m_readOnly = false;
 
 private:
     void emitUndoRedoAvailability();
@@ -104,7 +106,9 @@ public:
     NODISCARD bool isModified() const { return m_current != m_saved; }
 
 private:
-    void setCurrentMap(const MapApplyResult &);
+    // `keepSaved` re-baselines the saved map to the result when the map was not modified before,
+    // so that the change does not count as an unsaved edit. It is done before anyone is told.
+    void setCurrentMap(const MapApplyResult &, bool keepSaved = false);
 
 public:
     void setCurrentMap(Map map);
@@ -125,6 +129,16 @@ public:
     ALLOW_DISCARD bool applyChanges(ProgressCounter &pc, const ChangeList &changes);
     ALLOW_DISCARD bool applySingleChange(const Change &);
     ALLOW_DISCARD bool applySingleChange(ProgressCounter &pc, const Change &);
+
+public:
+    // While read-only, applyChanges() and undo/redo refuse to change the map.
+    void setReadOnly(bool readOnly);
+    NODISCARD bool isReadOnly() const { return m_readOnly; }
+
+    // The one change allowed while read-only: the path machine's backfill of server IDs. It is
+    // not undoable, and it does not make an unmodified map count as modified (no save prompt),
+    // at the price that the backfilled IDs are only written to disk by a later explicit save.
+    ALLOW_DISCARD bool applyBackfill(const ChangeList &changes);
 
 private:
     virtual void virt_clear() = 0;

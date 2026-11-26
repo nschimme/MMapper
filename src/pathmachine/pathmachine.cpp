@@ -13,6 +13,7 @@
 #include "../map/CommandId.h"
 #include "../map/ConnectedRoomFlags.h"
 #include "../map/ExitDirection.h"
+#include "../map/ExplorerVisibility.h"
 #include "../map/coordinate.h"
 #include "../map/mmapper2room.h"
 #include "../map/room.h"
@@ -643,8 +644,21 @@ void PathMachine::evaluatePaths(ChangeList &changes)
 
 void PathMachine::scheduleAction(const ChangeList &action)
 {
-    if (getMapMode() != MapModeEnum::OFFLINE) {
+    switch (getMapMode()) {
+    case MapModeEnum::OFFLINE:
+        break;
+    case MapModeEnum::EXPLORE: {
+        // Explore is read-only: only the backfill of server IDs gets through.
+        const ChangeList backfill = onlyServerIdBackfill(action);
+        if (!backfill.empty()) {
+            m_map.applyBackfill(backfill);
+        }
+        break;
+    }
+    case MapModeEnum::PLAY:
+    case MapModeEnum::MAP:
         m_map.applyChanges(action);
+        break;
     }
 }
 

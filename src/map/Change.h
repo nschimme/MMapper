@@ -37,6 +37,12 @@ public:
         std::visit(std::forward<Visitor>(visitor), m_variant);
     }
 
+    // The only kind of change the path machine may make in Explore mode.
+    NODISCARD bool isSetServerId() const
+    {
+        return std::holds_alternative<room_change_types::SetServerId>(m_variant);
+    }
+
     NODISCARD std::optional<RoomId> isRemoveRoom() const
     {
         if (std::holds_alternative<room_change_types::RemoveRoom>(m_variant)) {

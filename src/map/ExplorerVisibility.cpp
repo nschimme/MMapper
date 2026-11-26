@@ -223,6 +223,17 @@ bool exploreVisibleOnlyGrows(const std::shared_ptr<const RoomIdSet> &before,
     return true;
 }
 
+ChangeList onlyServerIdBackfill(const ChangeList &changes)
+{
+    ChangeList result;
+    for (const Change &change : changes.getChanges()) {
+        if (change.isSetServerId()) {
+            result.add(change);
+        }
+    }
+    return result;
+}
+
 Map mapForExplorer(const Map &map, const std::shared_ptr<const DiscoveredExits> &discovered)
 {
     return discovered ? hideUndiscoveredExits(map, *discovered) : map;

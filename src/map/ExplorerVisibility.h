@@ -4,6 +4,7 @@
 
 #include "../global/ImmUnorderedSet.h"
 #include "../global/macros.h"
+#include "ChangeList.h"
 #include "DiscoveredExit.h"
 #include "ExitDirection.h"
 #include "Map.h"
@@ -92,6 +93,11 @@ NODISCARD extern bool exploreConnectionShown(const RoomIdSet *visible, RoomId fr
 // drawing while a new one is built; anything else must drop the meshes at once.
 NODISCARD extern bool exploreVisibleOnlyGrows(const std::shared_ptr<const RoomIdSet> &before,
                                               const std::shared_ptr<const RoomIdSet> &after);
+
+// Explore mode is read-only: of what the path machine wants to change, only the backfill of a
+// room's server ID is applied (room_change_types::SetServerId); every other change is dropped.
+// An empty result means there is nothing to apply.
+NODISCARD extern ChangeList onlyServerIdBackfill(const ChangeList &changes);
 
 // The map to mesh: inactive (no snapshot of finds) is the map unchanged.
 NODISCARD extern Map mapForExplorer(const Map &map,

@@ -139,9 +139,10 @@ std::optional<RoomId> MapData::getLast(const RoomId start, const CommandQueue &d
 FutureSharedMapBatchFinisher MapData::generateBatches(
     const mctp::MapCanvasTexturesProxy &textures,
     const std::shared_ptr<const FontMetrics> &font,
-    const std::shared_ptr<const DiscoveredExits> &explorerExits)
+    const std::shared_ptr<const DiscoveredExits> &explorerExits,
+    const std::shared_ptr<const RoomIdSet> &explorerVisible)
 {
-    return generateMapDataFinisher(textures, font, getCurrentMap(), explorerExits);
+    return generateMapDataFinisher(textures, font, getCurrentMap(), explorerExits, explorerVisible);
 }
 
 void MapData::applyChangesToList(const RoomSelection &sel,

@@ -1031,7 +1031,8 @@ static void generateAllLayerMeshes(InternalData &internalData,
                                    const FontMetrics &font,
                                    const LayerToRooms &layerToRooms,
                                    const mctp::MapCanvasTexturesProxy &textures,
-                                   const VisitRoomOptions &visitRoomOptions)
+                                   const VisitRoomOptions &visitRoomOptions,
+                                   const RoomIdSet *const explorerVisible)
 
 {
     // This feature has been removed, but it's passed to a lot of functions,
@@ -1064,7 +1065,7 @@ static void generateAllLayerMeshes(InternalData &internalData,
             cdb.clear();
             rnb.clear();
 
-            ConnectionDrawer cd{cdb, rnb, thisLayer, bounds};
+            ConnectionDrawer cd{cdb, rnb, thisLayer, bounds, explorerVisible};
             {
                 DECL_TIMER(t7, "generateAllLayerMeshes.loop.part3b");
                 // pass 2: add to buffers
@@ -1250,12 +1251,13 @@ FutureSharedMapBatchFinisher generateMapDataFinisher(
     const mctp::MapCanvasTexturesProxy &textures,
     const std::shared_ptr<const FontMetrics> &font,
     const Map &inputMap,
-    const std::shared_ptr<const DiscoveredExits> &explorerExits)
+    const std::shared_ptr<const DiscoveredExits> &explorerExits,
+    const std::shared_ptr<const RoomIdSet> &explorerVisible)
 {
     const auto visitRoomOptions = getVisitRoomOptions();
 
     return std::async(std::launch::async,
-                      [textures, font, inputMap, explorerExits, visitRoomOptions]()
+                      [textures, font, inputMap, explorerExits, explorerVisible, visitRoomOptions]()
                           -> SharedMapBatchFinisher {
                           // Explore mode meshes the secret exits of the real map, tagged; see
                           // VisitRoomOptions::secretSource. Everything else reads `map` below.
@@ -1288,7 +1290,12 @@ FutureSharedMapBatchFinisher generateMapDataFinisher(
 
                           auto result = std::make_shared<InternalData>();
                           auto &data = deref(result);
-                          generateAllLayerMeshes(data, deref(font), layerToRooms, textures, options);
+                          generateAllLayerMeshes(data,
+                                                 deref(font),
+                                                 layerToRooms,
+                                                 textures,
+                                                 options,
+                                                 explorerVisible.get());
                           return SharedMapBatchFinisher{result};
                       });
 }

@@ -240,11 +240,22 @@ void ConnectionDrawer::drawRoomConnectionsAndDoors(const RoomHandle &room)
 
     const auto sourceId = room.getId();
 
+    // Explore mode: every connection and door name below touches this room, so none of them is
+    // meshed while it is hidden. The per-connection checks below already say so; this only skips
+    // the work.
+    if (!exploreRoomShown(m_visibleRooms, sourceId)) {
+        return;
+    }
+
     for (const ExitDirEnum sourceDir : ALL_EXITS7) {
         const auto &sourceExit = room.getExit(sourceDir);
         // outgoing connections
         if (sourceWithinBounds) {
             for (const RoomId outTargetId : sourceExit.getOutgoingSet()) {
+                // Nor to a hidden room: the line (and its door name) would show where it is.
+                if (!exploreConnectionShown(m_visibleRooms, sourceId, outTargetId)) {
+                    continue;
+                }
                 const auto &targetRoom = map.getRoomHandle(outTargetId);
                 const auto &target_coord = targetRoom.getPosition();
                 const bool targetOutsideBounds = !m_bounds.contains(target_coord);
@@ -286,6 +297,9 @@ void ConnectionDrawer::drawRoomConnectionsAndDoors(const RoomHandle &room)
 
         // incoming connections
         for (const RoomId inTargetId : sourceExit.getIncomingSet()) {
+            if (!exploreConnectionShown(m_visibleRooms, inTargetId, sourceId)) {
+                continue;
+            }
             const auto &targetRoom = map.getRoomHandle(inTargetId);
 
             // Only draw the connection if the target room is within the bounds

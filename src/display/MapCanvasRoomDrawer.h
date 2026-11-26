@@ -182,7 +182,10 @@ generateMapDataFinisher(const mctp::MapCanvasTexturesProxy &textures,
                         const Map &map,
                         // Explore mode: the secret exits the player has found. Hidden exits
                         // not in it are meshed as plain walls. Null means not exploring.
-                        const std::shared_ptr<const DiscoveredExits> &explorerExits);
+                        const std::shared_ptr<const DiscoveredExits> &explorerExits,
+                        // Explore mode: the rooms that may be meshed in a connection. Null
+                        // means not exploring; empty means nothing is computed yet.
+                        const std::shared_ptr<const RoomIdSet> &explorerVisible);
 
 extern void finish(const IMapBatchesFinisher &finisher,
                    std::optional<MapBatches> &batches,

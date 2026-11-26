@@ -157,17 +157,21 @@ private:
     RoomNameBatch &m_roomNameBatch;
     const OptBounds &m_bounds;
     const int m_currentLayer;
+    // Explore mode: the rooms that may be meshed. Null means not exploring.
+    const RoomIdSet *const m_visibleRooms;
 
 public:
     explicit ConnectionDrawer(ConnectionDrawerBuffers &buffers,
                               RoomNameBatch &roomNameBatch,
                               const int currentLayer,
-                              const OptBounds &bounds)
+                              const OptBounds &bounds,
+                              const RoomIdSet *const visibleRooms = nullptr)
         : m_fake{buffers}
         , m_buffers{buffers}
         , m_roomNameBatch{roomNameBatch}
         , m_bounds{bounds}
         , m_currentLayer{currentLayer}
+        , m_visibleRooms{visibleRooms}
     {
         assert(m_buffers.empty());
         assert(m_roomNameBatch.empty());

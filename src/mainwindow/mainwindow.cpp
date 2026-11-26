@@ -1290,12 +1290,38 @@ void MainWindow::syncCanvasExits()
     }
 }
 
+void MainWindow::syncCanvasVisible()
+{
+    MapCanvasWindow *const canvas = getCanvas();
+    if (canvas == nullptr) {
+        return;
+    }
+    const bool active = m_explorerVisibility->isActive();
+    const auto &base = m_explorerVisibility->getBase();
+    if (m_syncedVisibleValid && m_syncedVisibleActive == active && m_syncedVisibleBase == base) {
+        return; // nothing new: the base only changes when the service has recomputed
+    }
+    m_syncedVisibleValid = true;
+    m_syncedVisibleActive = active;
+    m_syncedVisibleBase = base;
+
+    // Null means not exploring. Exploring before the first computation is an empty set, so
+    // no connection is meshed until the rooms are known (fail closed).
+    std::shared_ptr<const RoomIdSet> visible;
+    if (active) {
+        visible = base ? std::shared_ptr<const RoomIdSet>{base, &base->visible}
+                       : std::make_shared<const RoomIdSet>();
+    }
+    canvas->slot_setExplorerVisible(visible);
+}
+
 void MainWindow::syncCanvasFog()
 {
     MapCanvasWindow *const canvas = getCanvas();
     if (canvas == nullptr) {
         return;
     }
+    syncCanvasVisible();
     const bool active = m_explorerVisibility->isActive();
     std::optional<Coordinate> shown;
     if (active) {

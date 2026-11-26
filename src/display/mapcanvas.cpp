@@ -1398,6 +1398,28 @@ void MapCanvas::slot_setExplorerExits(const std::shared_ptr<const DiscoveredExit
     }
 }
 
+void MapCanvas::slot_setExplorerVisible(const std::shared_ptr<const RoomIdSet> &visible)
+{
+    if (visible == m_explorerVisible) {
+        return;
+    }
+    // A set that only grows, and did not just start Explore, can be meshed in the background
+    // while the current meshes keep drawing: they only hide more. Equal sets change nothing.
+    const bool onlyGrows = exploreVisibleOnlyGrows(m_explorerVisible, visible);
+    const bool unchanged = onlyGrows && m_explorerVisible && visible
+                           && m_explorerVisible->size() == visible->size();
+    m_explorerVisible = visible;
+    if (unchanged) {
+        return;
+    }
+    if (onlyGrows) {
+        m_explorerRemeshRequested = true;
+        m_frameManager.requestUpdate();
+    } else {
+        requestForceUpdateMeshes();
+    }
+}
+
 void MapCanvas::slot_setExplorerFog(const bool active,
                                     const std::shared_ptr<const ExplorerFogMask> &mask,
                                     const std::shared_ptr<const ExplorerFoundMask> &found,

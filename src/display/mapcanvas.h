@@ -191,6 +191,8 @@ private:
     // A found secret exit asks for a remesh in the background; the current meshes keep drawing
     // until it is ready.
     bool m_explorerRemeshRequested = false;
+    // Explore mode: the rooms connections may be meshed for. Null means not exploring.
+    std::shared_ptr<const RoomIdSet> m_explorerVisible;
     // Explore mode: the fog the room meshes are drawn through.
     ExplorerFogTexture m_fogTexture;
     ExplorerFoundTexture m_foundTexture;
@@ -382,6 +384,7 @@ public:
     // Null leaves the map as is. Otherwise hidden exits not in the snapshot are drawn as walls.
     // Remeshes the whole map, which is fine because finds are rare.
     void slot_setExplorerExits(const std::shared_ptr<const DiscoveredExits> &exits);
+    void slot_setExplorerVisible(const std::shared_ptr<const RoomIdSet> &visible);
     // `active` without a mask hides every room (nothing is known yet); `shown` is the player's
     // room, which is always visible.
     // `found` says which secret exits to draw as doors; without it every secret is a wall.

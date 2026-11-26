@@ -196,11 +196,26 @@ facing a fully fogged map for a minute or more.
 ## 5. Rendering
 
 - **Fog as material.** A small R8 visibility mask (one texel per room cell, per z-layer, with a
-  second channel for a reveal timestamp) is sampled by the room, connection, wall, and font
-  shaders. Layer fading and depth keep working, no extra pass. Patch with `glTexSubImage`: no
-  remeshing on discovery.
+  second channel for a reveal timestamp) is sampled by the room-cell shader (terrain, trails,
+  overlays, walls and doors) and, later, the font shader. Connection lines do not sample it (see
+  'Connection lines'). Layer fading and depth keep working, no extra pass. Patch with
+  `glTexSubImage`: no remeshing on discovery.
 - **Look.** Noise-threshold dissolve (hand-inked edges), parchment tint, optional time-of-day
   colour coupling; reuse the weather noise texture.
+- **Connection lines (decided).** A connection, and the door name on it, is meshed only when
+  every room it touches is in the base `visible` set (`exploreConnectionShown()`, checked where
+  `ConnectionDrawer` emits geometry). The set is the service's base visibility, which does not
+  depend on where the player stands, so stepping never remeshes. Undiscovered base-map rooms are
+  in it, so a line from a discovered to an undiscovered room still draws in full. This is done on
+  the CPU and not with a fragment test of the fog mask, because the mask keeps empty cells
+  shown on purpose (so long lines between shown rooms are not cut): a line between two hidden
+  rooms crosses mostly empty cells and its middle would show where they are. A shader fix would
+  need both end cells on every vertex. A visibility set that only grows is meshed in the
+  background while the old meshes keep drawing; one that loses rooms, or starts Explore, drops
+  the meshes at once (`exploreVisibleOnlyGrows()`). On the shipped map, with nothing known or
+  found, this culls about 36% of the connection triangle vertices and 38% of the quad vertices.
+  Follow-up: infomarks and labels over hidden cells use a different batch path and are not
+  culled yet.
 - **Hidden exits.** The effective exit view runs in `visitRoom()` and `Connections.cpp`.
   Until Phase 4, finding a secret exit starts a remesh in the background while the current
   meshes keep drawing (`exploreExitsOnlyReveal()`; a change that could hide something still
@@ -224,7 +239,7 @@ group markers, exports, and **Offline mode's room descriptions and walking** (se
 | 0 | **Landed on this branch.** Unchanged #566 port, then: no default negotiation, `KnownRoomsStore`, fail-closed semantics, `KnownRoomsTracker` (disabled by default). Coordinating with the #566 author is a separate, human step. | none (one parser change, see below) |
 | 1 | **Landed on this branch** (read-only enforcement moved to Phase 2): the tracker (runs while Explore is the mode), `EXPLORE` mode, the visibility policy and effective exit view (`src/map/ExplorerVisibility`), and discovered-exit recording and persistence. The policy has no consumer yet, and its `placedRooms` input is defined but nothing feeds it. | Explore |
 | 2 | **Started.** Landed: the visibility service and the first consumer, undiscovered secret exits meshed as plain walls (`hideUndiscoveredExits`, applied to the map on the mesh worker thread). Find Rooms now reports only shown rooms, and no route through a hidden room. Still to do, most-leaking first: names and infomarks (these are meshed, so they need the Phase 3 mask rather than a remesh per step), room panel and tooltips, `_dirs`/speedwalk path finding, and read-only enforcement (decision pending). | Explore |
-| 3 | **Started.** Landed: the pure mask builder (`src/map/ExplorerFogMask`, tested), and the fog in the room-cell vertex shader (`room/tex/acolor`), which covers terrain, trails, overlays, walls and doors in one place. The service builds the base mask on its worker; `ExplorerFogTexture` uploads it (R8 2D array, nearest, alignment 1, limits checked, fail closed) and patches the player's cell each step. Hinted (frontier) cells are hidden until Phase 5. Not yet visually verified: the shader compiles and links under Mesa and passes glslang for GL 330 and ES 300, but nobody has looked at it on a real map. Next, in order: connection lines (per-fragment test, stub to the cell edge); door and room names (font shader); infomarks; preset dropdown. Ship Severe (discard) first. Fog MVP: mask builder, shaders, preset dropdown. (The experimental flag was removed early, at the user's request.) | Explore |
+| 3 | **Started.** Landed: the pure mask builder (`src/map/ExplorerFogMask`, tested), and the fog in the room-cell vertex shader (`room/tex/acolor`), which covers terrain, trails, overlays, walls and doors in one place. The service builds the base mask on its worker; `ExplorerFogTexture` uploads it (R8 2D array, nearest, alignment 1, limits checked, fail closed) and patches the player's cell each step. Hinted (frontier) cells are hidden until Phase 5. Not yet visually verified: the shader compiles and links under Mesa and passes glslang for GL 330 and ES 300, but nobody has looked at it on a real map. Landed: connection lines and door names are culled at mesh time (see 'Connection lines' under section 5). Next, in order: infomarks and labels over hidden cells (a separate batch path, still drawn); preset dropdown. Ship Severe (discard) first. Fog MVP: mask builder, shaders, preset dropdown. (The experimental flag was removed early, at the user's request.) | Explore |
 | 4 | `DoorTracker` and its GMCP wiring; door animation: door state texture, swing. **A secret exit is a door state**, so finding one needs no remesh (see below). | **all modes** |
 | 5 | Frontier, reveal animation, reduce motion, docs | Explore (reduce motion: all) |
 

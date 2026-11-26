@@ -71,6 +71,7 @@ class MediaLibrary;
 class TimerWidget;
 class MapDestination;
 class ExplorerVisibilityService;
+struct ExplorerVisibility;
 class KnownRoomsTracker;
 class RemoteEdit;
 
@@ -387,11 +388,17 @@ private:
     // finds (or null when not exploring) and it remeshes only when they changed.
     void syncCanvasExits();
     void syncCanvasFog();
+    void syncCanvasVisible();
     // A secret exit found just now is drawn as a door at once, without waiting for the visibility
     // service to compute the whole mask again.
     void patchFoundSecrets();
     // The finds already patched into the canvas, so only new ones are.
     DiscoveredExits m_patchedFinds;
+    // What syncCanvasVisible() last handed to the canvas, so that it does nothing until the
+    // service has computed something new.
+    bool m_syncedVisibleValid = false;
+    bool m_syncedVisibleActive = false;
+    std::shared_ptr<const ExplorerVisibility> m_syncedVisibleBase;
 
     struct NODISCARD CanvasHider final
     {

@@ -191,6 +191,10 @@ public slots:
     void slot_moveMarker(RoomId id) { m_core.slot_moveMarker(id); }
 
     void slot_rebuildMeshes() { m_core.slot_rebuildMeshes(); }
+    void slot_setExplorerVisible(const std::shared_ptr<const RoomIdSet> &visible)
+    {
+        m_core.slot_setExplorerVisible(visible);
+    }
     void slot_setExplorerExits(const std::shared_ptr<const DiscoveredExits> &exits)
     {
         m_core.slot_setExplorerExits(exits);

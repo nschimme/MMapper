@@ -104,6 +104,8 @@ public:
     NODISCARD bool isActive() const { return m_active; }
     // Null until the first computation of this activation: the renderer then hides everything.
     NODISCARD const std::shared_ptr<const ExplorerFogMask> &getFogMask() const { return m_mask; }
+    // The base visibility (without the current room), or null before the first computation.
+    NODISCARD const std::shared_ptr<const ExplorerVisibility> &getBase() const { return m_base; }
     // Null until the first computation of this activation: nothing is found then.
     NODISCARD const std::shared_ptr<const ExplorerFoundMask> &getFoundMask() const
     {

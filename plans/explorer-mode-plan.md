@@ -29,14 +29,9 @@ Settled:
 | Group beacons on fogged rooms | The beacon is shown with the room drawn as a bare marker. Your own position is always shown. |
 | #566 | Coordinate with its author, rebase onto master, and land the data layer first (the extension path, not a fork). |
 
-**Open decision (needed before Phase 3 draws any frontier glimmer): what "frontier" means.**
-The vocabulary below defines it as reached "only through exits the player can actually see".
-The policy as built cannot honour that: it computes frontier from every visible room, and
-`Room.Known` includes rooms merely glimpsed through an exit, so frontier currently reveals one
-step past rooms the player has only seen. `Room.Known` does not separate entered from glimpsed
-rooms; the only "entered" signal is the session's `placedRooms`, which does not persist. Options:
-frontier from all known rooms (what the code does now), frontier only from rooms entered this
-session, or no frontier at all. The policy code is unchanged until this is decided.
+**Frontier, decided:** glimpsed and visited are the same thing. `Room.Known` already includes
+rooms seen through an exit, so it is the "visited" set, and frontier is computed from all known
+rooms, which is what the policy does. No separate "entered" tracking is needed.
 
 ## 3. UX specification
 
@@ -47,9 +42,8 @@ session, or no frontier at all. The policy code is unchanged until this is decid
 - **Discovered**: a room your character knows (entered or seen through an exit) or a secret
   exit you found. Never "visited".
 - **Frontier**: an undiscovered room one step beyond a discovered one, reached only through
-  exits the player can actually see (never through an undiscovered secret exit). See the open
-  decision in section 2: the built policy approximates this and over-reveals by one step past
-  rooms only glimpsed through an exit.
+  exits the player can actually see (never through an undiscovered secret exit). A room
+  glimpsed through an exit counts as discovered, the same as one entered.
 
 ### 3.2 Entering and leaving
 

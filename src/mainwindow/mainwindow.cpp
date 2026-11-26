@@ -239,7 +239,9 @@ MainWindow::MainWindow()
 
     // Find Room Dialog
     std::invoke([this] {
-        auto *const findRoomsDlg = new FindRoomsDlg(deref(m_mapData), this);
+        auto *const findRoomsDlg = new FindRoomsDlg(deref(m_mapData), this, [this]() {
+            return m_explorerVisibility->getView();
+        });
         findRoomsDlg->setObjectName("FindRoomsDlg");
 
         m_findRoomsDlg = findRoomsDlg;

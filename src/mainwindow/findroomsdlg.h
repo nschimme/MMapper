@@ -5,11 +5,13 @@
 // Author: Nils Schimmelmann <nschimme@gmail.com> (Jahara)
 
 #include "../global/AsyncTasks.h"
+#include "../map/ExplorerVisibility.h"
 #include "../map/roomid.h"
 #include "../mapdata/roomselection.h"
 #include "../parser/abstractparser.h"
 
 #include <cstdint>
+#include <functional>
 #include <memory>
 #include <optional>
 #include <vector>
@@ -45,6 +47,8 @@ class NODISCARD_QOBJECT FindRoomsDlg final : public QDialog, private Ui::FindRoo
 
 private:
     MapData &m_mapData;
+    // What the player may see; searches only report rooms it shows. Null means everything.
+    std::function<ExplorerView()> m_viewProvider;
     std::unique_ptr<QShortcut> m_showSelectedRoom;
     std::unique_ptr<QShortcut> m_copyPaths;
     std::optional<async_tasks::AsyncTaskHandle> m_currentTask;
@@ -54,7 +58,9 @@ private:
     void closeEvent(QCloseEvent *event) final;
 
 public:
-    explicit FindRoomsDlg(MapData &, QWidget *parent);
+    explicit FindRoomsDlg(MapData &,
+                          QWidget *parent,
+                          std::function<ExplorerView()> viewProvider = {});
     ~FindRoomsDlg() final;
 
     void showEvent(QShowEvent *event) override;
@@ -101,6 +107,7 @@ private:
     static void findRooms(SearchResult &,
                           const RoomHandle &origin,
                           const RoomFilter &,
+                          const ExplorerView &,
                           ProgressCounter &);
     void showResults(const std::shared_ptr<const SearchResult> &);
 

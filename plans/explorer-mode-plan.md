@@ -184,7 +184,7 @@ group markers, exports, and **Offline mode's room descriptions and walking** (se
 |---|---|---|
 | 0 | **Landed on this branch.** Unchanged #566 port, then: no default negotiation, `KnownRoomsStore`, fail-closed semantics, `KnownRoomsTracker` (disabled by default). Coordinating with the #566 author is a separate, human step. | none (one parser change, see below) |
 | 1 | **Landed on this branch** (read-only enforcement moved to Phase 2): the tracker behind the flag (toggleable mid-session), `EXPLORE` mode, the visibility policy and effective exit view (`src/map/ExplorerVisibility`), and discovered-exit recording and persistence. The policy has no consumer yet, and its `placedRooms` input is defined but nothing feeds it. | Explore, behind an experimental flag |
-| 2 | **Started.** Landed: the visibility service and the first consumer, undiscovered secret exits meshed as plain walls (`hideUndiscoveredExits`, applied to the map on the mesh worker thread). Still to do, most-leaking first: names and infomarks, Find Rooms, path finding, and read-only enforcement (decision pending). | Explore, behind the flag |
+| 2 | **Started.** Landed: the visibility service and the first consumer, undiscovered secret exits meshed as plain walls (`hideUndiscoveredExits`, applied to the map on the mesh worker thread). Find Rooms now reports only shown rooms, and no route through a hidden room. Still to do, most-leaking first: names and infomarks (these are meshed, so they need the Phase 3 mask rather than a remesh per step), room panel and tooltips, `_dirs`/speedwalk path finding, and read-only enforcement (decision pending). | Explore, behind the flag |
 | 3 | Fog MVP: mask builder, shaders, preset dropdown. **Remove the flag here.** | Explore |
 | 4 | `DoorTracker` and its GMCP wiring; door animation: door index, state texture, swing | **all modes** |
 | 5 | Frontier, reveal animation, reduce motion, docs | Explore (reduce motion: all) |
@@ -261,8 +261,7 @@ landed; Phase 2 has started. Explore mode is behind a hidden flag (`Explorer mod
 (experimental)` under `[General]`, default false), so nothing changes for normal users.
 
 Next slice, in order:
-1. Route consumers through `ExplorerView` (the service's first real reader), most-leaking first:
-   room names and door names, infomarks, Find Rooms, then path finding and speedwalk.
+1. Route consumers through `ExplorerView`. Done: Find Rooms (no unit test, it is dialog code; check by hand). Next: room panel and tooltips, `_dirs`/speedwalk path finding. Room and door names and infomarks are meshed, so they wait for the Phase 3 mask.
 2. Read-only enforcement, after the user decides between: block all path machine edits in Explore;
    backfill server IDs only; or behave like Play (see section 10 for the save-prompt facts).
 3. Re-request `Room.Known` after a client `Core.Supports.Set` (after the live check).
@@ -277,7 +276,7 @@ Working notes that cost time before:
 - Build per `AGENTS.md`: Debug, ccache, `-DWITH_MAP=OFF -DWITH_IMAGES=OFF -DWITH_AUDIO=OFF
   -DWITH_UPDATER=OFF -DWITH_WEBSOCKET=OFF -DWITH_OPENSSL=OFF`. Qt 6.4 and `libimmer-dev` come from
   apt (the immer download is blocked by the proxy); the environment setup script installs them.
-- Run the full build and the full suite before every push. When filtering build output, match
+- Run the full build and the full suite before every push (`QT_QPA_PLATFORM=offscreen ctest`, otherwise every test aborts). When filtering build output, match
   `error:` (a filter on " error " hides real failures and leaves a stale test binary).
 - Check tests by deliberately breaking the code and confirming a failure; several first-try
   passes were vacuous. Settings keys live under a `General` group in the settings file.

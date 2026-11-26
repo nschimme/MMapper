@@ -32,9 +32,12 @@
 #include <QtGui>
 #include <QtWidgets>
 
-FindRoomsDlg::FindRoomsDlg(MapData &md, QWidget *const parent)
+FindRoomsDlg::FindRoomsDlg(MapData &md,
+                           QWidget *const parent,
+                           std::function<ExplorerView()> viewProvider)
     : QDialog(parent)
     , m_mapData{md}
+    , m_viewProvider{std::move(viewProvider)}
 {
     setupUi(this);
 
@@ -195,11 +198,13 @@ void FindRoomsDlg::slot_findClicked()
                                                    : RoomHandle{};
 
         auto result = std::make_shared<SearchResult>(map);
+        // Copied now, on the main thread: the worker never touches the live service.
+        const ExplorerView view = m_viewProvider ? m_viewProvider() : ExplorerView{};
 
         auto backgroundWorker =
-            [filter, origin, result](const std::shared_ptr<ProgressCounter> &pc) {
+            [filter, origin, result, view](const std::shared_ptr<ProgressCounter> &pc) {
                 try {
-                    findRooms(*result, origin, filter, *pc);
+                    findRooms(*result, origin, filter, view, *pc);
                 } catch (const ProgressCanceledException &) {
                     throw; // the task framework handles cancellation
                 } catch (const std::exception &ex) {
@@ -236,11 +241,22 @@ void FindRoomsDlg::slot_findClicked()
 void FindRoomsDlg::findRooms(SearchResult &result,
                              const RoomHandle &origin,
                              const RoomFilter &filter,
+                             const ExplorerView &view,
                              ProgressCounter &pc)
 {
     const Map &map = result.map;
     pc.setNewTask(ProgressMsg("Searching rooms"), map.getRoomsCount());
-    const auto foundSet = ::genericFind(map, filter, pc); // throws if canceled
+    auto foundSet = ::genericFind(map, filter, pc); // throws if canceled
+    if (view.isActive()) {
+        // Explore mode: an undiscovered room must not show up, not even by name.
+        RoomIdSet shown;
+        for (const RoomId id : foundSet) {
+            if (view.shows(id)) {
+                shown.insert(id);
+            }
+        }
+        foundSet = std::move(shown);
+    }
 
     // The search below re-applies the filter to reachable rooms. That's intentional: it lets
     // us stop early, while genericFind() still lists rooms that cannot be reached.
@@ -258,15 +274,23 @@ void FindRoomsDlg::findRooms(SearchResult &result,
         {
         private:
             std::unordered_map<RoomId, Reach> &m_reach;
+            const ExplorerView &m_view;
 
         public:
-            explicit Recipient(std::unordered_map<RoomId, Reach> &reach)
+            explicit Recipient(std::unordered_map<RoomId, Reach> &reach, const ExplorerView &view)
                 : m_reach{reach}
+                , m_view{view}
             {}
 
         private:
             void virt_receiveShortestPath(QVector<SPNode> spnodes, const int endpoint) final
             {
+                // A route through an undiscovered room would reveal it: report no route.
+                for (int i = endpoint; i >= 0; i = spnodes[i].parent) {
+                    if (!m_view.shows(spnodes[i].r.getId())) {
+                        return;
+                    }
+                }
                 const std::string dirs = getPathDirections(spnodes, endpoint);
                 bool deathtrap = false;
                 for (int i = endpoint; i >= 0; i = spnodes[i].parent) {
@@ -281,7 +305,7 @@ void FindRoomsDlg::findRooms(SearchResult &result,
             }
         };
 
-        Recipient recipient{reach};
+        Recipient recipient{reach, view};
         // Stop as soon as every match has been reached.
         MapData::shortestPathSearch(pc,
                                     origin,

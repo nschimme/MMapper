@@ -34,8 +34,9 @@ public:
     ~DiscoveredExitsStore();
     DELETE_CTORS_AND_ASSIGN_OPS(DiscoveredExitsStore);
 
-    // Nothing for a missing file. A damaged or foreign file is renamed to "<name>.corrupt" so a
-    // later save cannot destroy whatever could still be recovered from it.
+    // Nothing for a missing file. A damaged or foreign file is renamed to "<name>.corrupt" (or
+    // the next free ".corrupt.N") so neither a later save nor a later corruption can destroy
+    // whatever could still be recovered from it.
     NODISCARD std::optional<DiscoveredExits> load(const QString &character);
     void save(const QString &character, const DiscoveredExits &exits, bool immediate = false);
     void flush();

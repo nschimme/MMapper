@@ -815,6 +815,50 @@ void TestProxy::discoveredExitsDamagedTest()
     }
 }
 
+void TestProxy::discoveredExitsRepeatedDamageTest()
+{
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    const QByteArray server = "mume.org:4242";
+    const auto corrupt = [&dir, &server](const QByteArray &contents) {
+        {
+            DiscoveredExitsStore store(dir.path(), server);
+            store.save("Bilbo", exitSet({{1, ExitDirEnum::EAST}}), true);
+        }
+        const auto files = QDir(dir.path()).entryList({"*.exits"}, QDir::Files);
+        QCOMPARE(files.size(), qsizetype{1});
+        QFile file(QDir(dir.path()).filePath(files.front()));
+        QVERIFY(file.open(QIODevice::WriteOnly | QIODevice::Truncate));
+        QCOMPARE(file.write(contents), qint64{contents.size()});
+        file.close();
+        DiscoveredExitsStore store(dir.path(), server);
+        QVERIFY(!store.load("Bilbo").has_value());
+    };
+    // Returns the file's contents, or a marker if there is not exactly one such file.
+    const auto read = [&dir](const QString &suffix) -> QByteArray {
+        const auto files = QDir(dir.path()).entryList({"*.exits" + suffix}, QDir::Files);
+        if (files.size() != 1) {
+            return "<expected exactly one file>";
+        }
+        QFile file(QDir(dir.path()).filePath(files.front()));
+        if (!file.open(QIODevice::ReadOnly)) {
+            return "<cannot open>";
+        }
+        return file.readAll();
+    };
+
+    corrupt("first damage");
+    QCOMPARE(read(".corrupt"), QByteArray("first damage"));
+    // A second corruption keeps the first copy and sets its own aside.
+    corrupt("second damage");
+    QCOMPARE(read(".corrupt"), QByteArray("first damage"));
+    QCOMPARE(read(".corrupt.1"), QByteArray("second damage"));
+    corrupt("third damage");
+    QCOMPARE(read(".corrupt"), QByteArray("first damage"));
+    QCOMPARE(read(".corrupt.1"), QByteArray("second damage"));
+    QCOMPARE(read(".corrupt.2"), QByteArray("third damage"));
+}
+
 void TestProxy::discoveredExitsTrackerTest()
 {
     QTemporaryDir dir;

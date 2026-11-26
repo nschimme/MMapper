@@ -67,9 +67,12 @@ std::optional<DiscoveredExits> DiscoveredExitsStore::load(const QString &charact
 
     const auto damaged = [&file, &path]() -> std::optional<DiscoveredExits> {
         file.close();
-        // Keep the evidence; never let a later save replace it silently.
-        const auto aside = path + ".corrupt";
-        QFile::remove(aside);
+        // Keep the evidence; never let a later save replace it silently, and never overwrite an
+        // earlier copy: a second corruption must not destroy what the first one left.
+        QString aside = path + ".corrupt";
+        for (int n = 1; QFile::exists(aside); ++n) {
+            aside = path + ".corrupt." + QString::number(n);
+        }
         if (!QFile::rename(path, aside)) {
             qWarning().noquote() << "[DiscoveredExits store] cannot set aside" << path;
         } else {

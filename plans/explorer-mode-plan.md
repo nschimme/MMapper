@@ -29,7 +29,14 @@ Settled:
 | Group beacons on fogged rooms | The beacon is shown with the room drawn as a bare marker. Your own position is always shown. |
 | #566 | Coordinate with its author, rebase onto master, and land the data layer first (the extension path, not a fork). |
 
-No decisions are currently open.
+**Open decision (needed before Phase 3 draws any frontier glimmer): what "frontier" means.**
+The vocabulary below defines it as reached "only through exits the player can actually see".
+The policy as built cannot honour that: it computes frontier from every visible room, and
+`Room.Known` includes rooms merely glimpsed through an exit, so frontier currently reveals one
+step past rooms the player has only seen. `Room.Known` does not separate entered from glimpsed
+rooms; the only "entered" signal is the session's `placedRooms`, which does not persist. Options:
+frontier from all known rooms (what the code does now), frontier only from rooms entered this
+session, or no frontier at all. The policy code is unchanged until this is decided.
 
 ## 3. UX specification
 
@@ -40,7 +47,9 @@ No decisions are currently open.
 - **Discovered**: a room your character knows (entered or seen through an exit) or a secret
   exit you found. Never "visited".
 - **Frontier**: an undiscovered room one step beyond a discovered one, reached only through
-  exits the player can actually see (never through an undiscovered secret exit).
+  exits the player can actually see (never through an undiscovered secret exit). See the open
+  decision in section 2: the built policy approximates this and over-reveals by one step past
+  rooms only glimpsed through an exit.
 
 ### 3.2 Entering and leaving
 
@@ -118,18 +127,21 @@ Subtle only softens the look of terrain; it never leaks overlays, marks, or name
 | Data | Lifetime | Home | Persisted |
 |---|---|---|---|
 | Door open/closed/broken | 60 min TTL | `DoorTracker` (session; phase 4) | no |
-| Discovered secret exits | permanent, per character | explorer profile | yes |
-| Known rooms | permanent, per character | `KnownRoomsTracker` plus profile store | yes |
+| Discovered secret exits | permanent, per character | `KnownRoomsTracker` plus `DiscoveredExitsStore` (`.exits` file) | yes |
+| Known rooms | permanent, per character | `KnownRoomsTracker` plus `KnownRoomsStore` (`.bin` file) | yes |
 | Fog mask, door-state texture | derived | renderer | no |
 
 - Trackers follow the repo pattern (`AdventureTracker`, `MumeClock`): created in `MainWindow`
   with a `GameObserver&`, subscribed to GMCP signals, exposing state and a change signal.
   `GameObserver` stays a thin signal hub (unlike #566, which put `KnownRooms` in it).
 - Keys use `ServerRoomId` (stable across map edits), plus direction for exits.
-- Profile: one binary file per server and character holding a sorted `uint32` array of known
-  room IDs (a range-independent format, so no assumption about the ID range), later extended
-  with the discovered-exit list. `QSaveFile` on the GUI thread behind a 2 s single-shot timer.
-  This removes #566's worker threads. Implemented as `KnownRoomsStore`.
+- Persistence: two small binary files per server and character, not one profile. The known-room
+  history (`KnownRoomsStore`, `.bin`, a sorted `uint32` array, so no assumption about the ID
+  range) is re-fetchable from the server. The discovered-exit list (`DiscoveredExitsStore`,
+  `.exits`) is client-only and irreplaceable, so it is kept apart: a completed room list can
+  never touch it, and a damaged file is renamed to `.corrupt` (or the next free `.corrupt.N`)
+  rather than overwritten. Both use `QSaveFile` on the GUI thread behind a 2 s single-shot
+  timer, flushed on destruction. This removes #566's worker threads.
 - Precedence: live server data overwrites cache and transient state. A completed
   `Room.Known.List` replaces the cache. The server omitting a hidden exit updates the door
   state but never deletes a discovered exit.
@@ -177,7 +189,7 @@ group markers, exports, and **Offline mode's room descriptions and walking** (se
 | Phase | Work | Modes affected |
 |---|---|---|
 | 0 | **Landed on this branch.** Unchanged #566 port, then: no default negotiation, `KnownRoomsStore`, fail-closed semantics, `KnownRoomsTracker` (disabled by default). Coordinating with the #566 author is a separate, human step. | none (one parser change, see below) |
-| 1 | Enable the tracker behind the flag (it can be toggled mid-session), visibility policy, effective exit view, `EXPLORE` mode, read-only, profile store (pure C++ tests) | Explore, behind an experimental flag |
+| 1 | **Landed on this branch** (read-only enforcement moved to Phase 2): the tracker behind the flag (toggleable mid-session), `EXPLORE` mode, the visibility policy and effective exit view (`src/map/ExplorerVisibility`), and discovered-exit recording and persistence. The policy has no consumer yet, and its `placedRooms` input is defined but nothing feeds it. | Explore, behind an experimental flag |
 | 2 | Secret exits as walls; surfaces routed through the policy | Explore, behind the flag |
 | 3 | Fog MVP: mask builder, shaders, preset dropdown. **Remove the flag here.** | Explore |
 | 4 | `DoorTracker` and its GMCP wiring; door animation: door index, state texture, swing | **all modes** |
@@ -230,3 +242,7 @@ the fog exists.
 - **Non-blocking, before the flag comes off:** Explore reuses `map.png` as its icon, so its
   button looks like Map mode's; and `exploreModeFlagTest` should snapshot and restore the whole
   configuration through `writeTo`/`readFrom` instead of two fields.
+- **Unverified server assumption.** `recordHiddenExits` assumes MUME lists a secret exit with the
+  `"hidden"` flag in `Room.Info` only after the player has found it. If it lists unfound ones
+  too, every secret door would be recorded as found. This needs a live check (see the report
+  for this round) before the flag comes off.

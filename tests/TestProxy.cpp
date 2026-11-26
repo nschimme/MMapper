@@ -4,6 +4,7 @@
 #include "TestProxy.h"
 
 #include "../src/global/TextUtils.h"
+#include "../src/observer/DiscoveredExitsStore.h"
 #include "../src/observer/KnownRooms.h"
 #include "../src/observer/KnownRoomsStore.h"
 #include "../src/observer/KnownRoomsTracker.h"
@@ -690,6 +691,229 @@ void TestProxy::knownRoomsCacheTruthWinsTest()
     QVERIFY(!next.getSnapshot().rooms.empty());
     QCOMPARE(next.getSnapshot().rooms.size(), size_t{2});
     QVERIFY(next.getSnapshot().isKnown(ServerRoomId{4}));
+}
+
+namespace {
+QByteArray exitsBytes(const QByteArray &server,
+                      const QByteArray &character,
+                      const std::vector<std::pair<uint32_t, uint8_t>> &entries,
+                      const uint32_t version = 1,
+                      const uint32_t declaredCount = UINT32_MAX,
+                      const QByteArray &trailing = {})
+{
+    QByteArray bytes;
+    QDataStream out(&bytes, QIODevice::WriteOnly);
+    out.setByteOrder(QDataStream::LittleEndian);
+    out.setVersion(QDataStream::Qt_6_0);
+    out << uint32_t{0x58444D4D} << version << server << character
+        << (declaredCount == UINT32_MAX ? static_cast<uint32_t>(entries.size()) : declaredCount);
+    for (const auto &[room, dir] : entries) {
+        out << room << dir;
+    }
+    return bytes + trailing;
+}
+
+DiscoveredExits exitSet(const std::vector<std::pair<uint32_t, ExitDirEnum>> &entries)
+{
+    DiscoveredExits exits;
+    for (const auto &[room, dir] : entries) {
+        exits.insert(DiscoveredExit{ServerRoomId{room}, dir});
+    }
+    return exits;
+}
+} // namespace
+
+void TestProxy::discoveredExitsStoreTest()
+{
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    const auto saved = exitSet(
+        {{7, ExitDirEnum::EAST}, {3, ExitDirEnum::UP}, {3, ExitDirEnum::NORTH}});
+    {
+        DiscoveredExitsStore store(dir.path(), "mume.org:4242");
+        QVERIFY(!store.load("Bilbo").has_value()); // nothing yet
+        store.save("Bilbo", saved);
+        // A pending write is never older than what a read returns.
+        const auto loaded = store.load("BILBO");
+        QVERIFY(loaded.has_value());
+        QVERIFY(*loaded == saved);
+        store.save("Bilbo", saved); // flushed on destruction
+    }
+    DiscoveredExitsStore again(dir.path(), "mume.org:4242");
+    const auto loaded = again.load("bilbo");
+    QVERIFY(loaded.has_value());
+    QVERIFY(*loaded == saved);
+    // Another character or another server never sees them.
+    QVERIFY(!again.load("Frodo").has_value());
+    DiscoveredExitsStore other(dir.path(), "other.example:4242");
+    QVERIFY(!other.load("Bilbo").has_value());
+    // An empty set is a valid, distinct record.
+    again.save("Frodo", {}, true);
+    const auto empty = again.load("Frodo");
+    QVERIFY(empty.has_value() && empty->empty());
+}
+
+void TestProxy::discoveredExitsDamagedTest()
+{
+    const QByteArray server = "mume.org:4242";
+    const auto east = static_cast<uint8_t>(ExitDirEnum::EAST);
+    const auto good = exitsBytes(server, "bilbo", {{1, east}, {5, east}});
+    const auto bad = {QByteArray("garbage"),
+                      QByteArray(),
+                      exitsBytes(server, "bilbo", {{1, east}}, 2),
+                      exitsBytes(server, "frodo", {{1, east}}),
+                      exitsBytes("other:1", "bilbo", {{1, east}}),
+                      exitsBytes(server, "bilbo", {{0, east}}), // zero room
+                      exitsBytes(server, "bilbo", {{1, 9}}),    // bad direction
+                      exitsBytes(server, "bilbo", {{1, static_cast<uint8_t>(ExitDirEnum::UNKNOWN)}}),
+                      exitsBytes(server, "bilbo", {{5, east}, {1, east}}),       // unsorted
+                      exitsBytes(server, "bilbo", {{1, east}, {1, east}}),       // duplicate
+                      exitsBytes(server, "bilbo", {{1, east}, {2, east}}, 1, 3), // truncated
+                      exitsBytes(server, "bilbo", {{1, east}, {2, east}}, 1, 1), // padded count
+                      exitsBytes(server, "bilbo", {{1, east}}, 1, 1, "x"),
+                      exitsBytes(server, "bilbo", {}, 1, 4'000'000)};
+    for (const auto &contents : bad) {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        {
+            DiscoveredExitsStore seed(dir.path(), server);
+            seed.save("Bilbo", exitSet({{1, ExitDirEnum::EAST}}), true);
+        }
+        const auto files = QDir(dir.path()).entryList({"*.exits"}, QDir::Files);
+        QCOMPARE(files.size(), qsizetype{1});
+        const auto path = QDir(dir.path()).filePath(files.front());
+
+        // The harness itself works: a valid record loads.
+        {
+            QFile file(path);
+            QVERIFY(file.open(QIODevice::WriteOnly | QIODevice::Truncate));
+            QCOMPARE(file.write(good), qint64{good.size()});
+            file.close();
+            DiscoveredExitsStore ok(dir.path(), server);
+            const auto loaded = ok.load("Bilbo");
+            QVERIFY(loaded.has_value());
+            QCOMPARE(loaded->size(), size_t{2});
+        }
+
+        QFile file(path);
+        QVERIFY(file.open(QIODevice::WriteOnly | QIODevice::Truncate));
+        QCOMPARE(file.write(contents), qint64{contents.size()});
+        file.close();
+
+        DiscoveredExitsStore store(dir.path(), server);
+        QVERIFY(!store.load("Bilbo").has_value());
+        // The damaged file is kept for recovery instead of being replaced by a later save.
+        QVERIFY(QFile::exists(path + ".corrupt"));
+        QFile kept(path + ".corrupt");
+        QVERIFY(kept.open(QIODevice::ReadOnly));
+        QCOMPARE(kept.readAll(), contents);
+        store.save("Bilbo", exitSet({{9, ExitDirEnum::WEST}}), true);
+        const auto fresh = store.load("Bilbo");
+        QVERIFY(fresh.has_value());
+        QCOMPARE(fresh->size(), size_t{1});
+        QVERIFY(QFile::exists(path + ".corrupt"));
+    }
+}
+
+void TestProxy::discoveredExitsTrackerTest()
+{
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    const auto path = dir.path();
+    const auto locator = [path]() {
+        return std::optional<KnownRoomsTracker::StoreLocation>{{path, "mume.org:4242"}};
+    };
+    const auto gmcp = [](const QByteArray &text) { return GmcpMessage::fromRawBytes(text); };
+    const auto roomInfo = [](const int id, const QByteArray &exits) {
+        return GmcpMessage::fromRawBytes("Room.Info {\"id\":" + QByteArray::number(id)
+                                         + ",\"exits\":" + exits + "}");
+    };
+
+    {
+        KnownRoomsTracker tracker{nullptr, locator};
+        int changes = 0;
+        QObject::connect(&tracker, &KnownRoomsTracker::sig_exitsChanged, &tracker, [&changes]() {
+            ++changes;
+        });
+        tracker.setEnabled(true);
+        tracker.onConnected();
+        tracker.slot_parseGmcpInput(gmcp(R"(Char.Name {"name":"Bilbo"})"));
+        QVERIFY(tracker.getDiscoveredExits().empty());
+
+        // Only exits the server flags "hidden" count; closed, plain, and unflagged ones do not.
+        const auto before = changes;
+        tracker.slot_parseGmcpInput(roomInfo(42,
+                                             R"({"n":{"id":43,"flags":["hidden"]},)"
+                                             R"("e":{"id":44,"flags":["closed"]},)"
+                                             R"("s":{"id":45},"w":{"id":46,"flags":[]}})"));
+        QVERIFY(tracker.getDiscoveredExits() == exitSet({{42, ExitDirEnum::NORTH}}));
+        QCOMPARE(changes, before + 1);
+
+        // Reseeing the same exit is not a change.
+        tracker.slot_parseGmcpInput(roomInfo(42, R"({"n":{"id":43,"flags":["hidden","closed"]}})"));
+        QCOMPARE(changes, before + 1);
+
+        // Malformed or unidentified Room.Info records nothing.
+        tracker.slot_parseGmcpInput(roomInfo(0, R"({"u":{"flags":["hidden"]}})"));
+        tracker.slot_parseGmcpInput(roomInfo(-5, R"({"u":{"flags":["hidden"]}})"));
+        tracker.slot_parseGmcpInput(gmcp(R"(Room.Info {"exits":{"u":{"flags":["hidden"]}}})"));
+        tracker.slot_parseGmcpInput(gmcp(R"(Room.Info {"id":50,"exits":[]})"));
+        tracker.slot_parseGmcpInput(gmcp("Room.Info [broken"));
+        QVERIFY(tracker.getDiscoveredExits() == exitSet({{42, ExitDirEnum::NORTH}}));
+
+        // The server later omits the hidden exit (the door re-hid): never deletes the find.
+        tracker.slot_parseGmcpInput(roomInfo(42, R"({"e":{"id":44}})"));
+        QVERIFY(tracker.getDiscoveredExits() == exitSet({{42, ExitDirEnum::NORTH}}));
+
+        // A completed room list replaces rooms only, never exits.
+        tracker.slot_parseGmcpInput(gmcp("Room.Known.List [1,2,3]"));
+        tracker.slot_parseGmcpInput(gmcp("Room.Known.List null"));
+        QVERIFY(tracker.getSnapshot().listComplete);
+        tracker.slot_parseGmcpInput(gmcp("Room.Known.Updated"));
+        QVERIFY(tracker.getDiscoveredExits() == exitSet({{42, ExitDirEnum::NORTH}}));
+
+        // Another character starts clean, and gets their own finds.
+        tracker.slot_parseGmcpInput(gmcp(R"(Char.Name {"name":"Frodo"})"));
+        QVERIFY(tracker.getDiscoveredExits().empty());
+        tracker.slot_parseGmcpInput(roomInfo(60, R"({"s":{"id":61,"flags":["hidden"]}})"));
+        QVERIFY(tracker.getDiscoveredExits() == exitSet({{60, ExitDirEnum::SOUTH}}));
+
+        // Switching back restores the first character's finds, without Frodo's.
+        tracker.slot_parseGmcpInput(gmcp(R"(Char.Name {"name":"Bilbo"})"));
+        QVERIFY(tracker.getDiscoveredExits() == exitSet({{42, ExitDirEnum::NORTH}}));
+
+        // Logging out forgets the in-memory set but not the saved one.
+        tracker.onDisconnected();
+        QVERIFY(tracker.getDiscoveredExits().empty());
+    }
+
+    // The finds survive a restart.
+    KnownRoomsTracker next{nullptr, locator};
+    next.setEnabled(true);
+    next.onConnected();
+    next.slot_parseGmcpInput(gmcp(R"(Char.Name {"name":"Bilbo"})"));
+    QVERIFY(next.getDiscoveredExits() == exitSet({{42, ExitDirEnum::NORTH}}));
+    next.slot_parseGmcpInput(gmcp(R"(Char.Name {"name":"Frodo"})"));
+    QVERIFY(next.getDiscoveredExits() == exitSet({{60, ExitDirEnum::SOUTH}}));
+
+    // Disabling it after use stops recording too, and keeps what was already found.
+    next.setEnabled(false);
+    next.slot_parseGmcpInput(roomInfo(70, R"({"n":{"id":71,"flags":["hidden"]}})"));
+    QVERIFY(next.getDiscoveredExits() == exitSet({{60, ExitDirEnum::SOUTH}}));
+
+    // While the tracker has never been enabled it records and writes nothing.
+    QTemporaryDir quietDir;
+    QVERIFY(quietDir.isValid());
+    const auto quietPath = quietDir.path();
+    KnownRoomsTracker quiet{nullptr, [quietPath]() {
+                                return std::optional<KnownRoomsTracker::StoreLocation>{
+                                    {quietPath, "mume.org:4242"}};
+                            }};
+    quiet.onConnected();
+    quiet.slot_parseGmcpInput(gmcp(R"(Char.Name {"name":"Bilbo"})"));
+    quiet.slot_parseGmcpInput(roomInfo(42, R"({"n":{"id":43,"flags":["hidden"]}})"));
+    QVERIFY(quiet.getDiscoveredExits().empty());
+    QVERIFY(QDir(quietPath).isEmpty());
 }
 
 QTEST_MAIN(TestProxy)

@@ -30,6 +30,9 @@ private Q_SLOTS:
     static void knownRoomsTrackerTest();
     static void knownRoomsCacheMissingWarningTest();
     static void knownRoomsEnableMidSessionTest();
+    static void discoveredExitsStoreTest();
+    static void discoveredExitsDamagedTest();
+    static void discoveredExitsTrackerTest();
     static void knownRoomsCacheRestartTest();
     static void knownRoomsCacheLiveTest();
     static void knownRoomsCacheInterruptedTest();

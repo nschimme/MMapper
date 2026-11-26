@@ -3,16 +3,14 @@
 // Copyright (C) 2026 The MMapper Authors
 
 #include "../global/ImmUnorderedSet.h"
-#include "../global/enums.h"
 #include "../global/macros.h"
+#include "DiscoveredExit.h"
 #include "ExitDirection.h"
 #include "Map.h"
 #include "RoomIdSet.h"
 #include "roomid.h"
 
 #include <optional>
-#include <set>
-#include <tuple>
 
 // What an Explore-mode player is allowed to see of the map. Pure functions of plain values:
 // nothing here knows about GMCP, the observer, or rendering, so every consumer (canvas mask,
@@ -20,24 +18,6 @@
 //
 // Everything not listed as visible or frontier is hidden, so a room nobody thought of fails
 // closed by being absent.
-
-// A secret exit the character has found, keyed by the server's stable room ID.
-struct NODISCARD DiscoveredExit final
-{
-    ServerRoomId room;
-    ExitDirEnum dir = ExitDirEnum::NONE;
-
-    NODISCARD friend bool operator<(const DiscoveredExit &lhs, const DiscoveredExit &rhs)
-    {
-        return std::make_tuple(lhs.room.asUint32(), enums::to_underlying(lhs.dir))
-               < std::make_tuple(rhs.room.asUint32(), enums::to_underlying(rhs.dir));
-    }
-    NODISCARD friend bool operator==(const DiscoveredExit &lhs, const DiscoveredExit &rhs)
-    {
-        return lhs.room == rhs.room && lhs.dir == rhs.dir;
-    }
-};
-using DiscoveredExits = std::set<DiscoveredExit>;
 
 struct NODISCARD ExplorerVisibilityInput final
 {

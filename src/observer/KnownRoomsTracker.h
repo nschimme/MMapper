@@ -3,10 +3,12 @@
 // Copyright (C) 2026 The MMapper Authors
 
 #include "../global/macros.h"
+#include "../map/DiscoveredExit.h"
 #include "../proxy/GmcpMessage.h"
 #include "KnownRooms.h"
 
 #include <functional>
+#include <memory>
 #include <optional>
 
 #include <QObject>
@@ -18,6 +20,8 @@
 //
 // The tracker starts disabled: while disabled it requests nothing from the server (the full
 // list takes a minute or more) and writes no files.
+class DiscoveredExitsStore;
+
 class NODISCARD_QOBJECT KnownRoomsTracker final : public QObject
 {
     Q_OBJECT
@@ -37,9 +41,17 @@ private:
     KnownRooms m_known;
     Locator m_locator;
     bool m_enabled = false;
+    // Secret exits found by the current character. Unlike known rooms the server cannot re-send
+    // these, so they are only ever added to: a completed room list or a server omitting a
+    // hidden exit never removes one.
+    DiscoveredExits m_exits;
+    std::unique_ptr<DiscoveredExitsStore> m_exitStore;
+    QString m_exitCharacter;
 
     void configureFromConnection();
     void afterChange(uint64_t previousRevision, bool request);
+    void followCharacter();
+    void recordHiddenExits(const GmcpMessage &msg);
     void sendRequest();
 
 public:
@@ -49,6 +61,7 @@ public:
 public:
     NODISCARD const KnownRooms::Snapshot &getSnapshot() const { return m_known.getSnapshot(); }
     NODISCARD bool isEnabled() const { return m_enabled; }
+    NODISCARD const DiscoveredExits &getDiscoveredExits() const { return m_exits; }
     void setEnabled(bool enabled);
 
     void onConnected();
@@ -62,6 +75,8 @@ signals:
     void sig_sendGmcp(const GmcpMessage &msg);
     // The snapshot's revision changed.
     void sig_changed();
+    // A secret exit was found.
+    void sig_exitsChanged();
     // Enabled, but the character has no usable saved history (the first list will be slow).
     void sig_cacheMissing();
 };

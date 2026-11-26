@@ -74,6 +74,8 @@ public:
                         std::function<void()> changed,
                         std::function<void()> missing = {});
     NODISCARD const Snapshot &getSnapshot() const { return m_snapshot; }
+    // The identified character; empty until GMCP names one.
+    NODISCARD const QString &getCharacter() const { return m_character; }
     void reset();
     // True means the caller must send one Room.Known.List request.
     NODISCARD bool setEnabled(bool enabled);

@@ -320,6 +320,7 @@ set(mmapper_SRCS
     map/Diff-Test.cpp
     map/Diff.cpp
     map/Diff.h
+    map/DiscoveredExit.h
     map/DoorFlags.cpp
     map/DoorFlags.h
     map/ExitDirection.cpp
@@ -455,6 +456,8 @@ set(mmapper_SRCS
     mpi/gotowidget.h
     mpi/findreplacewidget.cpp
     mpi/findreplacewidget.h
+    observer/DiscoveredExitsStore.cpp
+    observer/DiscoveredExitsStore.h
     observer/KnownRoomsStore.cpp
     observer/KnownRoomsStore.h
     observer/KnownRooms.cpp

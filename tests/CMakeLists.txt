@@ -53,6 +53,8 @@ add_library(mm_test STATIC
     ../src/configuration/configuration.h
     ../src/configuration/GroupConfig.cpp
     ../src/configuration/GroupConfig.h
+    ../src/observer/DiscoveredExitsStore.cpp
+    ../src/observer/DiscoveredExitsStore.h
     ../src/observer/KnownRoomsStore.cpp
     ../src/observer/KnownRoomsStore.h
     ../src/observer/KnownRooms.cpp
@@ -164,8 +166,9 @@ set(proxy_SRCS
      )
 set(TestProxy_SRCS TestProxy.cpp)
 add_executable(TestProxy ${TestProxy_SRCS} ${proxy_SRCS})
-add_dependencies(TestProxy mm_test mm_global)
-target_link_libraries(TestProxy mm_test mm_global Qt6::Test coverage_config)
+add_dependencies(TestProxy mm_test mm_global mm_map)
+# KnownRoomsTracker (in mm_test) uses exit directions from mm_map.
+target_link_libraries(TestProxy mm_test mm_map mm_global Qt6::Test coverage_config)
 set_target_properties(
   TestProxy PROPERTIES
   CXX_STANDARD 20

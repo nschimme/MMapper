@@ -10,6 +10,7 @@
 #include <cmath>
 #include <limits>
 #include <optional>
+#include <vector>
 
 #include <QJsonArray>
 #include <QJsonDocument>
@@ -58,7 +59,7 @@ void KnownRooms::loadCache()
     // Reads are small and synchronous, so a result can never arrive for a stale character.
     if (const auto rooms = m_cache->load(m_character)) {
         restoreCache(m_character, m_snapshot.generation, *rooms);
-    } else if (!m_snapshot.complete && m_enabled && !m_cacheWarningIssued) {
+    } else if (!m_snapshot.listComplete && m_enabled && !m_cacheWarningIssued) {
         m_cacheWarningIssued = true;
         if (m_cacheMissing) {
             m_cacheMissing();
@@ -68,7 +69,10 @@ void KnownRooms::loadCache()
 
 void KnownRooms::saveCache(const bool immediate)
 {
-    if (m_cache && m_snapshot.complete && !m_character.isEmpty()) {
+    // Additions are always safe to persist; removals only ever arrive with a completed list,
+    // which replaces the whole set first. A good cache is never replaced by a smaller one.
+    if (m_cache && !m_character.isEmpty()
+        && (m_snapshot.listComplete || !m_snapshot.rooms.empty())) {
         m_cache->save(m_character, m_snapshot.rooms, immediate);
     }
 }
@@ -77,17 +81,12 @@ void KnownRooms::restoreCache(const QString &character,
                               const uint64_t generation,
                               const ImmUnorderedSet<ServerRoomId> &rooms)
 {
-    if (character != m_character || generation != m_snapshot.generation || m_authoritative
-        || m_snapshot.complete) {
-        return; // A late read must never replace a newer character or server truth.
+    if (character != m_character || generation != m_snapshot.generation || m_authoritative) {
+        return; // Cached history never overrides a newer character or server truth.
     }
-    m_snapshot.rooms = rooms;
-    m_liveKnown.for_each([this](const ServerRoomId id) { m_snapshot.rooms.insert(id); });
-    m_snapshot.complete = true;
+    // Additions only: anything already received stays, and the cache supplies the rest.
+    rooms.for_each([this](const ServerRoomId id) { m_snapshot.rooms.insert(id); });
     ++m_snapshot.revision;
-    if (!m_liveKnown.empty()) {
-        saveCache();
-    }
     if (m_cacheChanged) {
         m_cacheChanged();
     }
@@ -96,7 +95,7 @@ void KnownRooms::restoreCache(const QString &character,
 void KnownRooms::invalidate()
 {
     m_snapshot.rooms = ImmUnorderedSet<ServerRoomId>{};
-    m_snapshot.complete = false;
+    m_snapshot.listComplete = false;
     m_authoritative = false;
     m_liveKnown = ImmUnorderedSet<ServerRoomId>{};
     ++m_snapshot.revision;
@@ -181,19 +180,17 @@ bool KnownRooms::receive(const GmcpMessage &message)
             loadCache();
             return requestList();
         }
-        if (!m_snapshot.complete && !m_receiving) {
+        if (!m_snapshot.listComplete && !m_receiving) {
             return requestList();
         }
         return false;
     }
     if (message.isRoomKnownUpdated()) {
-        // Keep a usable provisional view, but never save an incomplete replacement.
-        if (m_cache && m_snapshot.complete) {
-            m_authoritative = false;
-        } else {
-            invalidate();
-            loadCache();
-        }
+        // The server's history changed in a way we cannot patch. Keep the rooms we hold (they
+        // remain valid additions) but they are provisional until the refreshed list ends.
+        m_authoritative = false;
+        m_snapshot.listComplete = false;
+        ++m_snapshot.revision;
         return requestList();
     }
     if (!message.isRoomKnownList() && !message.isRoomKnownAdd()) {
@@ -228,7 +225,7 @@ bool KnownRooms::receive(const GmcpMessage &message)
                 if (m_receiving && !m_discard) {
                     m_pending.insert(*id);
                 }
-                if (m_snapshot.complete && !m_snapshot.rooms.contains(*id)) {
+                if (!m_snapshot.rooms.contains(*id)) {
                     m_snapshot.rooms.insert(*id);
                     ++m_snapshot.revision;
                     saveCache();
@@ -244,7 +241,7 @@ bool KnownRooms::receive(const GmcpMessage &message)
         m_receiving = false;
         if (value.isNull() && !m_discard && (m_enabled || m_cache)) {
             m_snapshot.rooms = std::move(m_pending);
-            m_snapshot.complete = true;
+            m_snapshot.listComplete = true;
             m_authoritative = true;
             ++m_snapshot.revision;
             saveCache(true);
@@ -260,13 +257,29 @@ bool KnownRooms::receive(const GmcpMessage &message)
         return false;
     }
     if (!m_discard) {
+        // Validate the whole chunk first: a damaged chunk is ignored entirely and cancels the
+        // final replacement, but rooms from earlier valid chunks stay known.
+        std::vector<ServerRoomId> ids;
         for (const auto entry : value.toArray()) {
-            if (const auto id = roomId(entry)) {
-                m_pending.insert(*id);
-            } else {
-                // A damaged list cannot establish that a room is unknown.
+            const auto id = roomId(entry);
+            if (!id) {
                 m_discard = true;
                 break;
+            }
+            ids.push_back(*id);
+        }
+        if (!m_discard) {
+            bool added = false;
+            for (const auto id : ids) {
+                m_pending.insert(id);
+                if (!m_snapshot.rooms.contains(id)) {
+                    m_snapshot.rooms.insert(id);
+                    added = true;
+                }
+            }
+            if (added) {
+                ++m_snapshot.revision;
+                saveCache();
             }
         }
     }

@@ -21,6 +21,8 @@ private Q_SLOTS:
     static void gmcpModuleTest();
     static void telnetFilterTest();
     static void knownRoomsHistoryTest();
+    static void knownRoomsPartialListTest();
+    static void knownRoomsDamagedChunkTest();
     static void knownRoomsSwitchTest();
     static void knownRoomsUnavailableTest();
     static void knownRoomsMalformedTest();

@@ -83,29 +83,35 @@ void TestProxy::knownRoomsHistoryTest()
     KnownRooms known;
     QVERIFY(!known.setEnabled(true));
     QVERIFY(known.receive(GmcpMessage::fromRawBytes(R"(Char.Name {"name":"Bilbo"})")));
-    QVERIFY(!known.getSnapshot().isUndiscovered(ServerRoomId{99}));
+    // Fail closed from the start: nothing is known until the character's history says so.
+    QVERIFY(!known.getSnapshot().isKnown(ServerRoomId{99}));
+    QVERIFY(!known.getSnapshot().listComplete);
     QVERIFY(!known.receive(GmcpMessage::fromRawBytes("Room.Known.List [1,3,4711]")));
+    // Chunks are trusted for additions as they arrive, before the list terminates.
+    QVERIFY(known.getSnapshot().isKnown(ServerRoomId{4711}));
+    QVERIFY(!known.getSnapshot().listComplete);
     QVERIFY(!known.receive(GmcpMessage::fromRawBytes("Room.Known.Add 42")));
-    QVERIFY(!known.getSnapshot().complete);
+    QVERIFY(known.getSnapshot().isKnown(ServerRoomId{42}));
     QVERIFY(!known.receive(GmcpMessage::fromRawBytes("Room.Known.List [19,3]")));
+    QVERIFY(!known.getSnapshot().listComplete);
     QVERIFY(!known.receive(GmcpMessage::fromRawBytes("Room.Known.List null")));
     const auto snapshot = known.getSnapshot();
-    QVERIFY(snapshot.complete);
+    QVERIFY(snapshot.listComplete);
     QCOMPARE(snapshot.rooms.size(), size_t{5});
-    QVERIFY(!snapshot.isUndiscovered(ServerRoomId{4711}));
-    QVERIFY(!snapshot.isUndiscovered(ServerRoomId{42}));
-    QVERIFY(!snapshot.isUndiscovered(INVALID_SERVER_ROOMID));
-    QVERIFY(snapshot.isUndiscovered(ServerRoomId{99}));
+    QVERIFY(snapshot.isKnown(ServerRoomId{4711}));
+    QVERIFY(snapshot.isKnown(ServerRoomId{42}));
+    QVERIFY(!snapshot.isKnown(INVALID_SERVER_ROOMID));
+    QVERIFY(!snapshot.isKnown(ServerRoomId{99}));
     QVERIFY(!known.receive(GmcpMessage::fromRawBytes("Room.Known.Add 99")));
-    QVERIFY(!known.getSnapshot().isUndiscovered(ServerRoomId{99}));
+    QVERIFY(known.getSnapshot().isKnown(ServerRoomId{99}));
     QCOMPARE(known.getSnapshot().generation, snapshot.generation);
-    QVERIFY(snapshot.isUndiscovered(ServerRoomId{99})); // immutable worker snapshot
+    QVERIFY(!snapshot.isKnown(ServerRoomId{99})); // immutable worker snapshot
     const auto revision = known.getSnapshot().revision;
     QVERIFY(!known.receive(GmcpMessage::fromRawBytes("Room.Known.Add 99")));
     QCOMPARE(known.getSnapshot().revision, revision);
     known.reset();
     QVERIFY(known.getSnapshot().generation != snapshot.generation);
-    QVERIFY(!known.getSnapshot().complete);
+    QVERIFY(!known.getSnapshot().listComplete);
     QVERIFY(known.getSnapshot().rooms.empty());
 }
 
@@ -118,20 +124,20 @@ void TestProxy::knownRoomsSwitchTest()
     QVERIFY(!known.receive(GmcpMessage::fromRawBytes(R"(Char.Name {"name":"Frodo"})")));
     QVERIFY(!known.receive(GmcpMessage::fromRawBytes("Room.Known.List [3,4]")));
     QVERIFY(known.receive(GmcpMessage::fromRawBytes("Room.Known.List null")));
-    QVERIFY(!known.getSnapshot().complete);
+    QVERIFY(!known.getSnapshot().listComplete);
     QVERIFY(!known.receive(GmcpMessage::fromRawBytes("Room.Known.List [7]")));
     QVERIFY(!known.receive(GmcpMessage::fromRawBytes("Room.Known.List null")));
     QCOMPARE(known.getSnapshot().rooms.size(), size_t{1});
-    QVERIFY(known.getSnapshot().isUndiscovered(ServerRoomId{1}));
-    QVERIFY(!known.getSnapshot().isUndiscovered(ServerRoomId{7}));
+    QVERIFY(!known.getSnapshot().isKnown(ServerRoomId{1}));
+    QVERIFY(known.getSnapshot().isKnown(ServerRoomId{7}));
     QVERIFY(!known.receive(GmcpMessage::fromRawBytes("Core.Goodbye")));
-    QVERIFY(!known.getSnapshot().complete);
+    QVERIFY(!known.getSnapshot().listComplete);
     for (const auto *identity : {"Char.Name null", "Char.Name {}", "Char.Name"}) {
         QVERIFY(known.receive(GmcpMessage::fromRawBytes(R"(Char.Name {"name":"Bilbo"})")));
         QVERIFY(!known.receive(GmcpMessage::fromRawBytes("Room.Known.List [1]")));
         QVERIFY(!known.receive(GmcpMessage::fromRawBytes(identity)));
         QVERIFY(!known.receive(GmcpMessage::fromRawBytes("Room.Known.List null")));
-        QVERIFY(!known.getSnapshot().complete);
+        QVERIFY(!known.getSnapshot().listComplete);
     }
 }
 
@@ -141,18 +147,18 @@ void TestProxy::knownRoomsUnavailableTest()
     QVERIFY(!known.receive(GmcpMessage::fromRawBytes(R"(Char.Name {"name":"Bilbo"})")));
     QVERIFY(known.setEnabled(true)); // can be enabled during play
     QVERIFY(!known.receive(GmcpMessage::fromRawBytes("Room.Known.List false")));
-    QVERIFY(!known.getSnapshot().complete);
+    QVERIFY(!known.getSnapshot().listComplete);
     QVERIFY(known.receive(GmcpMessage::fromRawBytes("Room.Known.Updated")));
     QVERIFY(!known.receive(GmcpMessage::fromRawBytes("Room.Known.List null")));
-    QVERIFY(known.getSnapshot().complete); // a completed empty list is authoritative
-    QVERIFY(known.getSnapshot().isUndiscovered(ServerRoomId{1}));
+    QVERIFY(known.getSnapshot().listComplete); // a completed empty list is authoritative
+    QVERIFY(!known.getSnapshot().isKnown(ServerRoomId{1}));
     QVERIFY(!known.setEnabled(false));
-    QVERIFY(!known.getSnapshot().complete);
+    QVERIFY(!known.getSnapshot().listComplete);
     QVERIFY(known.setEnabled(true));
     QVERIFY(!known.setEnabled(false));
     QVERIFY(!known.receive(GmcpMessage::fromRawBytes("Room.Known.List [1]")));
     QVERIFY(!known.receive(GmcpMessage::fromRawBytes("Room.Known.List null")));
-    QVERIFY(!known.getSnapshot().complete);
+    QVERIFY(!known.getSnapshot().listComplete);
     QVERIFY(known.setEnabled(true));
 }
 
@@ -173,7 +179,7 @@ void TestProxy::knownRoomsMalformedTest()
         QVERIFY(known.receive(GmcpMessage::fromRawBytes(R"(Char.Name {"name":"Bilbo"})")));
         QVERIFY(!known.receive(GmcpMessage::fromRawBytes(QByteArray("Room.Known.List ") + body)));
         QVERIFY(!known.receive(GmcpMessage::fromRawBytes("Room.Known.List null")));
-        QVERIFY(!known.getSnapshot().complete);
+        QVERIFY(!known.getSnapshot().listComplete);
     }
     KnownRooms known;
     QVERIFY(!known.setEnabled(true));
@@ -185,8 +191,8 @@ void TestProxy::knownRoomsMalformedTest()
         QVERIFY(!known.receive(GmcpMessage::fromRawBytes(QByteArray("Room.Known.Add ") + body)));
         QCOMPARE(known.getSnapshot().revision, revision);
     }
-    QVERIFY(!known.getSnapshot().isUndiscovered(ServerRoomId{UINT32_MAX}));
-    QVERIFY(known.getSnapshot().isUndiscovered(ServerRoomId{42}));
+    QVERIFY(known.getSnapshot().isKnown(ServerRoomId{UINT32_MAX}));
+    QVERIFY(!known.getSnapshot().isKnown(ServerRoomId{42}));
 }
 
 void TestProxy::knownRoomsRefreshTest()
@@ -198,17 +204,17 @@ void TestProxy::knownRoomsRefreshTest()
     QVERIFY(!known.receive(GmcpMessage::fromRawBytes("Room.Known.Updated")));
     QVERIFY(!known.receive(GmcpMessage::fromRawBytes("Room.Known.Updated")));
     QVERIFY(known.receive(GmcpMessage::fromRawBytes("Room.Known.List null")));
-    QVERIFY(!known.getSnapshot().complete);
+    QVERIFY(!known.getSnapshot().listComplete);
     QVERIFY(!known.receive(GmcpMessage::fromRawBytes("Room.Known.List [2]")));
     QVERIFY(!known.receive(GmcpMessage::fromRawBytes("Room.Known.List null")));
-    QVERIFY(known.getSnapshot().isUndiscovered(ServerRoomId{1}));
-    QVERIFY(!known.getSnapshot().isUndiscovered(ServerRoomId{2}));
+    QVERIFY(!known.getSnapshot().isKnown(ServerRoomId{1}));
+    QVERIFY(known.getSnapshot().isKnown(ServerRoomId{2}));
     QVERIFY(known.receive(GmcpMessage::fromRawBytes("Room.Known.Updated")));
-    QVERIFY(!known.getSnapshot().complete);
+    QVERIFY(!known.getSnapshot().listComplete);
     QVERIFY(!known.receive(GmcpMessage::fromRawBytes("Room.Known.List [3]")));
     QVERIFY(!known.receive(GmcpMessage::fromRawBytes(R"(Char.Name {"name":""})")));
     QVERIFY(!known.receive(GmcpMessage::fromRawBytes("Room.Known.List null")));
-    QVERIFY(!known.getSnapshot().complete);
+    QVERIFY(!known.getSnapshot().listComplete);
 }
 
 void TestProxy::knownRoomsObserverTest()
@@ -225,12 +231,12 @@ void TestProxy::knownRoomsObserverTest()
     QCOMPARE(requests, 1);
     const auto beforeList = changes;
     observer.observeSentToUserGmcp(GmcpMessage::fromRawBytes("Room.Known.List [1,2]"));
-    QCOMPARE(changes, beforeList);
+    QCOMPARE(changes, beforeList + 1); // chunks add rooms immediately
     observer.observeSentToUserGmcp(GmcpMessage::fromRawBytes("Room.Known.List null"));
-    QCOMPARE(changes, beforeList + 1);
-    QVERIFY(observer.getKnownRooms().complete);
+    QCOMPARE(changes, beforeList + 2);
+    QVERIFY(observer.getKnownRooms().listComplete);
     observer.resetKnownRooms();
-    QVERIFY(!observer.getKnownRooms().complete);
+    QVERIFY(!observer.getKnownRooms().listComplete);
 }
 
 namespace {
@@ -245,6 +251,56 @@ void seedKnownRooms(const QString &directory, const QByteArray &name, const QByt
 }
 } // namespace
 
+void TestProxy::knownRoomsPartialListTest()
+{
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    seedKnownRooms(dir.path(), "Bilbo", "[1,2]");
+
+    KnownRooms known;
+    known.configureCache(dir.path(), "mume.org:4242", []() {});
+    QVERIFY(!known.setEnabled(true));
+    QVERIFY(known.receive(GmcpMessage::fromRawBytes(R"(Char.Name {"name":"Bilbo"})")));
+    // The cached history is usable at once, but it is not an authoritative list.
+    QVERIFY(known.getSnapshot().isKnown(ServerRoomId{1}));
+    QVERIFY(!known.getSnapshot().listComplete);
+    // A partial list adds rooms but must not remove anything.
+    QVERIFY(!known.receive(GmcpMessage::fromRawBytes("Room.Known.List [2,3]")));
+    QVERIFY(known.getSnapshot().isKnown(ServerRoomId{3}));
+    QVERIFY(known.getSnapshot().isKnown(ServerRoomId{1}));
+    // A live add during the transfer survives the final replacement.
+    QVERIFY(!known.receive(GmcpMessage::fromRawBytes("Room.Known.Add 8")));
+    QVERIFY(!known.receive(GmcpMessage::fromRawBytes("Room.Known.List null")));
+    QVERIFY(known.getSnapshot().listComplete);
+    QVERIFY(!known.getSnapshot().isKnown(ServerRoomId{1})); // only a clean end removes IDs
+    QVERIFY(known.getSnapshot().isKnown(ServerRoomId{2}));
+    QVERIFY(known.getSnapshot().isKnown(ServerRoomId{3}));
+    QVERIFY(known.getSnapshot().isKnown(ServerRoomId{8}));
+}
+
+void TestProxy::knownRoomsDamagedChunkTest()
+{
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    seedKnownRooms(dir.path(), "Bilbo", "[1,2]");
+
+    KnownRooms known;
+    known.configureCache(dir.path(), "mume.org:4242", []() {});
+    QVERIFY(!known.setEnabled(true));
+    QVERIFY(known.receive(GmcpMessage::fromRawBytes(R"(Char.Name {"name":"Bilbo"})")));
+    QVERIFY(!known.receive(GmcpMessage::fromRawBytes("Room.Known.List [3,4]")));
+    // A damaged chunk is ignored entirely, even the valid IDs before the bad one...
+    QVERIFY(!known.receive(GmcpMessage::fromRawBytes("Room.Known.List [5,-1]")));
+    QVERIFY(!known.getSnapshot().isKnown(ServerRoomId{5}));
+    // ...earlier valid chunks stay known...
+    QVERIFY(known.getSnapshot().isKnown(ServerRoomId{3}));
+    QVERIFY(!known.receive(GmcpMessage::fromRawBytes("Room.Known.List null")));
+    // ...and the list can no longer prove that cached rooms are stale.
+    QVERIFY(!known.getSnapshot().listComplete);
+    QVERIFY(known.getSnapshot().isKnown(ServerRoomId{1}));
+    QVERIFY(known.getSnapshot().isKnown(ServerRoomId{3}));
+}
+
 void TestProxy::knownRoomsCacheMissingWarningTest()
 {
     QTemporaryDir dir;
@@ -257,7 +313,7 @@ void TestProxy::knownRoomsCacheMissingWarningTest()
     observer.configureKnownRoomsCache(dir.path(), "mume.org:4242");
     observer.enableKnownRooms(true);
     observer.observeSentToUserGmcp(GmcpMessage::fromRawBytes(R"(Char.Name {"name":"Bilbo"})"));
-    QVERIFY(observer.getKnownRooms().complete);
+    QVERIFY(observer.getKnownRooms().isKnown(ServerRoomId{1})); // restored from the cache
     QCOMPARE(warnings, 0);
     observer.observeSentToUserGmcp(GmcpMessage::fromRawBytes(R"(Char.Name {"name":"Frodo"})"));
     QCOMPARE(warnings, 1);
@@ -279,7 +335,7 @@ void TestProxy::knownRoomsCacheMissingWarningTest()
     observer.observeSentToUserGmcp(GmcpMessage::fromRawBytes(R"(Char.Name {"name":"Pippin"})"));
     QCOMPARE(warnings, 3);
     observer.observeSentToUserGmcp(GmcpMessage::fromRawBytes(R"(Char.Name {"name":"Bilbo"})"));
-    QVERIFY(observer.getKnownRooms().complete);
+    QVERIFY(observer.getKnownRooms().isKnown(ServerRoomId{1})); // cache hit
     QCOMPARE(warnings, 3);
 }
 
@@ -294,23 +350,23 @@ void TestProxy::knownRoomsCacheRestartTest()
         known.configureCache(dir.path(), "mume.org:4242", [&changed]() { ++changed; });
         QVERIFY(!known.setEnabled(true));
         QVERIFY(known.receive(GmcpMessage::fromRawBytes(R"(Char.Name {"name":"Bilbo"})")));
-        QTRY_VERIFY(known.getSnapshot().complete);
+        QVERIFY(!known.getSnapshot().rooms.empty());
         QVERIFY(changed > 0);
-        QVERIFY(!known.getSnapshot().isUndiscovered(ServerRoomId{1}));
+        QVERIFY(known.getSnapshot().isKnown(ServerRoomId{1}));
         // Keep the cached view during the slow refresh, then allow truth to remove stale IDs.
         QVERIFY(!known.receive(GmcpMessage::fromRawBytes("Room.Known.List [2,3]")));
-        QVERIFY(!known.getSnapshot().isUndiscovered(ServerRoomId{1}));
+        QVERIFY(known.getSnapshot().isKnown(ServerRoomId{1}));
         QVERIFY(!known.receive(GmcpMessage::fromRawBytes("Room.Known.List null")));
-        QVERIFY(known.getSnapshot().isUndiscovered(ServerRoomId{1}));
-        QVERIFY(!known.getSnapshot().isUndiscovered(ServerRoomId{3}));
+        QVERIFY(!known.getSnapshot().isKnown(ServerRoomId{1}));
+        QVERIFY(known.getSnapshot().isKnown(ServerRoomId{3}));
     }
     KnownRooms next;
     next.configureCache(dir.path(), "mume.org:4242", []() {});
     QVERIFY(!next.setEnabled(true));
     QVERIFY(next.receive(GmcpMessage::fromRawBytes(R"(Char.Name {"name":"Bilbo"})")));
-    QTRY_VERIFY(next.getSnapshot().complete);
-    QVERIFY(next.getSnapshot().isUndiscovered(ServerRoomId{1}));
-    QVERIFY(!next.getSnapshot().isUndiscovered(ServerRoomId{3}));
+    QVERIFY(!next.getSnapshot().rooms.empty());
+    QVERIFY(!next.getSnapshot().isKnown(ServerRoomId{1}));
+    QVERIFY(next.getSnapshot().isKnown(ServerRoomId{3}));
 }
 
 void TestProxy::knownRoomsCacheLiveTest()
@@ -325,14 +381,14 @@ void TestProxy::knownRoomsCacheLiveTest()
         QVERIFY(known.receive(GmcpMessage::fromRawBytes(R"(Char.Name {"name":"Bilbo"})")));
         // A discovery arriving before the disk read completes must not be lost.
         QVERIFY(!known.receive(GmcpMessage::fromRawBytes("Room.Known.Add 9")));
-        QTRY_VERIFY(known.getSnapshot().complete);
-        QVERIFY(!known.getSnapshot().isUndiscovered(ServerRoomId{9}));
+        QVERIFY(!known.getSnapshot().rooms.empty());
+        QVERIFY(known.getSnapshot().isKnown(ServerRoomId{9}));
         QVERIFY(!known.receive(GmcpMessage::fromRawBytes("Room.Known.List [1]")));
         QVERIFY(!known.receive(GmcpMessage::fromRawBytes("Room.Known.Add 10")));
         QVERIFY(!known.receive(GmcpMessage::fromRawBytes("Room.Known.List null")));
-        QVERIFY(!known.getSnapshot().isUndiscovered(ServerRoomId{9}));
-        QVERIFY(!known.getSnapshot().isUndiscovered(ServerRoomId{10}));
-        QVERIFY(known.getSnapshot().isUndiscovered(ServerRoomId{2}));
+        QVERIFY(known.getSnapshot().isKnown(ServerRoomId{9}));
+        QVERIFY(known.getSnapshot().isKnown(ServerRoomId{10}));
+        QVERIFY(!known.getSnapshot().isKnown(ServerRoomId{2}));
         QVERIFY(!known.setEnabled(false));
         QVERIFY(!known.receive(GmcpMessage::fromRawBytes("Room.Known.Add 11")));
         // Continuous updates are coalesced; ordinary shutdown still saves the last one.
@@ -345,10 +401,10 @@ void TestProxy::knownRoomsCacheLiveTest()
     next.configureCache(dir.path(), "mume.org:4242", []() {});
     QVERIFY(!next.setEnabled(true));
     QVERIFY(next.receive(GmcpMessage::fromRawBytes(R"(Char.Name {"name":"Bilbo"})")));
-    QTRY_VERIFY(next.getSnapshot().complete);
+    QVERIFY(!next.getSnapshot().rooms.empty());
     QCOMPARE(next.getSnapshot().rooms.size(), size_t{104});
-    QVERIFY(!next.getSnapshot().isUndiscovered(ServerRoomId{11}));
-    QVERIFY(!next.getSnapshot().isUndiscovered(ServerRoomId{119}));
+    QVERIFY(next.getSnapshot().isKnown(ServerRoomId{11}));
+    QVERIFY(next.getSnapshot().isKnown(ServerRoomId{119}));
 }
 
 void TestProxy::knownRoomsCacheInterruptedTest()
@@ -361,18 +417,21 @@ void TestProxy::knownRoomsCacheInterruptedTest()
         known.configureCache(dir.path(), "mume.org:4242", []() {});
         QVERIFY(!known.setEnabled(true));
         QVERIFY(known.receive(GmcpMessage::fromRawBytes(R"(Char.Name {"name":"Bilbo"})")));
-        QTRY_VERIFY(known.getSnapshot().complete);
+        QVERIFY(!known.getSnapshot().rooms.empty());
         QVERIFY(!known.receive(GmcpMessage::fromRawBytes("Room.Known.List [3]")));
         QVERIFY(!known.receive(GmcpMessage::fromRawBytes("Room.Known.List false")));
-        QVERIFY(!known.getSnapshot().isUndiscovered(ServerRoomId{1}));
-        QVERIFY(known.getSnapshot().isUndiscovered(ServerRoomId{3}));
+        QVERIFY(known.getSnapshot().isKnown(ServerRoomId{1}));
+        // Rooms from the interrupted list were still real discoveries.
+        QVERIFY(known.getSnapshot().isKnown(ServerRoomId{3}));
+        QVERIFY(!known.getSnapshot().listComplete);
     }
     KnownRooms next;
     next.configureCache(dir.path(), "mume.org:4242", []() {});
     QVERIFY(!next.setEnabled(true));
     QVERIFY(next.receive(GmcpMessage::fromRawBytes(R"(Char.Name {"name":"Bilbo"})")));
-    QTRY_VERIFY(next.getSnapshot().complete);
-    QCOMPARE(next.getSnapshot().rooms.size(), size_t{2});
+    // The good cache was extended, never replaced by the interrupted list.
+    QCOMPARE(next.getSnapshot().rooms.size(), size_t{3});
+    QVERIFY(next.getSnapshot().isKnown(ServerRoomId{1}));
 }
 
 void TestProxy::knownRoomsCacheIdentityTest()
@@ -386,14 +445,14 @@ void TestProxy::knownRoomsCacheIdentityTest()
     QVERIFY(!known.setEnabled(true));
     QVERIFY(known.receive(GmcpMessage::fromRawBytes(R"(Char.Name {"name":"Bilbo"})")));
     QVERIFY(!known.receive(GmcpMessage::fromRawBytes(R"(Char.Name {"name":"Frodo"})")));
-    QTRY_VERIFY(known.getSnapshot().complete);
-    QVERIFY(known.getSnapshot().isUndiscovered(ServerRoomId{1}));
-    QVERIFY(!known.getSnapshot().isUndiscovered(ServerRoomId{2}));
+    QVERIFY(!known.getSnapshot().rooms.empty());
+    QVERIFY(!known.getSnapshot().isKnown(ServerRoomId{1}));
+    QVERIFY(known.getSnapshot().isKnown(ServerRoomId{2}));
     QVERIFY(known.receive(GmcpMessage::fromRawBytes("Room.Known.List null")));
     QVERIFY(!known.receive(GmcpMessage::fromRawBytes("Room.Known.List [2]")));
     QVERIFY(!known.receive(GmcpMessage::fromRawBytes("Room.Known.List null")));
     known.reset();
-    QVERIFY(!known.getSnapshot().complete);
+    QVERIFY(!known.getSnapshot().listComplete);
     KnownRoomsStore other(dir.path(), "another-server:4242");
     QVERIFY(!other.load("Bilbo"));
 }
@@ -408,29 +467,29 @@ void TestProxy::knownRoomsCacheServerSwitchTest()
         known.configureCache(dir.path(), "mume.org:4242", []() {});
         QVERIFY(!known.setEnabled(true));
         QVERIFY(known.receive(GmcpMessage::fromRawBytes(R"(Char.Name {"name":"Bilbo"})")));
-        QTRY_VERIFY(known.getSnapshot().complete);
+        QVERIFY(!known.getSnapshot().rooms.empty());
         QVERIFY(!known.receive(GmcpMessage::fromRawBytes("Room.Known.Add 3")));
         // Replacing a server retains its pending I/O and final updates until teardown.
         known.configureCache(dir.path(), "other.example:4242", []() {});
-        QVERIFY(!known.getSnapshot().complete);
+        QVERIFY(!known.getSnapshot().listComplete);
         QVERIFY(known.receive(GmcpMessage::fromRawBytes(R"(Char.Name {"name":"Bilbo"})")));
         QVERIFY(!known.receive(GmcpMessage::fromRawBytes("Room.Known.List [99]")));
         QVERIFY(!known.receive(GmcpMessage::fromRawBytes("Room.Known.List null")));
         // Immediately returning must read the original server's queued newer snapshot.
         known.configureCache(dir.path(), "mume.org:4242", []() {});
         QVERIFY(known.receive(GmcpMessage::fromRawBytes(R"(Char.Name {"name":"Bilbo"})")));
-        QTRY_VERIFY(known.getSnapshot().complete);
-        QVERIFY(!known.getSnapshot().isUndiscovered(ServerRoomId{3}));
-        QVERIFY(known.getSnapshot().isUndiscovered(ServerRoomId{99}));
+        QVERIFY(!known.getSnapshot().rooms.empty());
+        QVERIFY(known.getSnapshot().isKnown(ServerRoomId{3}));
+        QVERIFY(!known.getSnapshot().isKnown(ServerRoomId{99}));
     }
     KnownRooms original;
     original.configureCache(dir.path(), "mume.org:4242", []() {});
     QVERIFY(!original.setEnabled(true));
     QVERIFY(original.receive(GmcpMessage::fromRawBytes(R"(Char.Name {"name":"Bilbo"})")));
-    QTRY_VERIFY(original.getSnapshot().complete);
+    QVERIFY(!original.getSnapshot().rooms.empty());
     QCOMPARE(original.getSnapshot().rooms.size(), size_t{3});
-    QVERIFY(!original.getSnapshot().isUndiscovered(ServerRoomId{3}));
-    QVERIFY(original.getSnapshot().isUndiscovered(ServerRoomId{99}));
+    QVERIFY(original.getSnapshot().isKnown(ServerRoomId{3}));
+    QVERIFY(!original.getSnapshot().isKnown(ServerRoomId{99}));
 }
 
 void TestProxy::knownRoomsCacheCaseFoldTest()
@@ -521,8 +580,8 @@ void TestProxy::knownRoomsCacheTruthWinsTest()
         QVERIFY(!known.receive(GmcpMessage::fromRawBytes("Room.Known.List [3]")));
         QVERIFY(!known.receive(GmcpMessage::fromRawBytes("Room.Known.List null")));
         QTest::qWait(100);
-        QVERIFY(known.getSnapshot().isUndiscovered(ServerRoomId{1}));
-        QVERIFY(!known.getSnapshot().isUndiscovered(ServerRoomId{3}));
+        QVERIFY(!known.getSnapshot().isKnown(ServerRoomId{1}));
+        QVERIFY(known.getSnapshot().isKnown(ServerRoomId{3}));
         // Check a normal debounced save before shutdown, not only destructor flushing.
         const auto containsId = [&dir](const uint32_t id) {
             KnownRoomsStore reader(dir.path(), "mume.org:4242");
@@ -537,9 +596,9 @@ void TestProxy::knownRoomsCacheTruthWinsTest()
     next.configureCache(dir.path(), "mume.org:4242", []() {});
     QVERIFY(!next.setEnabled(true));
     QVERIFY(next.receive(GmcpMessage::fromRawBytes(R"(Char.Name {"name":"Bilbo"})")));
-    QTRY_VERIFY(next.getSnapshot().complete);
+    QVERIFY(!next.getSnapshot().rooms.empty());
     QCOMPARE(next.getSnapshot().rooms.size(), size_t{2});
-    QVERIFY(!next.getSnapshot().isUndiscovered(ServerRoomId{4}));
+    QVERIFY(next.getSnapshot().isKnown(ServerRoomId{4}));
 }
 
 QTEST_MAIN(TestProxy)

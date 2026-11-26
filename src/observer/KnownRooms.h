@@ -14,8 +14,14 @@
 class GmcpMessage;
 class KnownRoomsStore;
 
-// Per-connection, per-character state. A cache is usable but provisional; only a
-// terminated Room.Known.List is authoritative.
+// Per-connection, per-character state.
+//
+// The snapshot holds every room the character is known to have discovered so far: the cached
+// history, the chunks of the server's list as they arrive, and live Room.Known.Add messages.
+// It is trusted for additions at all times. Only a terminated Room.Known.List is
+// authoritative, so only it can remove stale IDs. Consumers must treat anything not in the
+// snapshot as unknown (fail closed); there is deliberately no "undiscovered" predicate that
+// stays false until a list completes.
 // Persistent sets give the renderer cheap immutable snapshots without copying all room IDs.
 class NODISCARD KnownRooms final
 {
@@ -25,12 +31,13 @@ public:
         ImmUnorderedSet<ServerRoomId> rooms;
         uint64_t revision = 0;
         uint64_t generation = 0;
-        // A complete previous cache is also usable while the server list refreshes.
-        bool complete = false;
+        // True once a terminated server list has replaced any provisional (cached) history.
+        // Not a visibility gate: use it for status ("updating discoveries") only.
+        bool listComplete = false;
 
-        NODISCARD bool isUndiscovered(const ServerRoomId id) const
+        NODISCARD bool isKnown(const ServerRoomId id) const
         {
-            return complete && id != INVALID_SERVER_ROOMID && !rooms.contains(id);
+            return id != INVALID_SERVER_ROOMID && rooms.contains(id);
         }
     };
 

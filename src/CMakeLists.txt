@@ -452,6 +452,10 @@ set(mmapper_SRCS
     mpi/gotowidget.h
     mpi/findreplacewidget.cpp
     mpi/findreplacewidget.h
+    observer/KnownRoomsCache.cpp
+    observer/KnownRoomsCache.h
+    observer/KnownRooms.cpp
+    observer/KnownRooms.h
     observer/gameobserver.cpp
     observer/gameobserver.h
     opengl/Font.cpp

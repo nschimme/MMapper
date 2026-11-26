@@ -43,6 +43,10 @@ struct NODISCARD ExplorerVisibility final
     // only known rooms, the current room and placed rooms are visible, as before.
     bool baseMapFound = false;
     RoomIdSet visible;
+    // The part of `visible` that is shown only because it is not hidden: on the base map, but
+    // not discovered (not known and not placed). Never holds the current room or a temporary
+    // room. Fog may dim these rooms, but never hides them.
+    RoomIdSet undiscoveredBase;
     // Not visible, but one step beyond a visible room through an effective exit.
     RoomIdSet frontier;
 };
@@ -94,6 +98,9 @@ public:
     NODISCARD bool isActive() const { return m_active; }
     // Fully shown. True for everything when inactive.
     NODISCARD bool shows(RoomId id) const;
+    // Shown only because it is on the base map, not because it is discovered. Never true for
+    // the current room or when inactive.
+    NODISCARD bool isUndiscoveredBase(RoomId id) const;
     // Hinted only: one step beyond a shown room. Never true when inactive.
     NODISCARD bool isFrontier(RoomId id) const;
     // Not shown at all. Never true when inactive.

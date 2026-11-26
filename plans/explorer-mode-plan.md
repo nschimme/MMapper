@@ -81,23 +81,50 @@ rooms, which is what the policy does. No separate "entered" tracking is needed.
 
 ### 3.4 Fog strength (one control)
 
-Preferences > Graphics, beside the weather sliders: a preset dropdown **Subtle / Medium /
-Severe**. There is no "off" (that is Play). One separate switch, "Show frontier hints",
-applies at every level: at Severe it is the only trace of unknown rooms.
+The fog levels apply to the **undiscovered base map**: rooms that are not hidden (see
+"Visibility default") but that the character has not discovered. They are dimmed, never hidden:
+no level removes a base-map room. True secrets are hidden at every level, and the current room
+is always clear.
 
-Layer matrix (what an **undiscovered** room shows):
+Preferences > Graphics, beside the weather sliders: a preset dropdown **Off / Subtle / Medium /
+Severe**. **Off is the default** until the shader draws the levels and someone has looked at
+them on a real map: the undiscovered base map is then fully clear and only secrets are hidden.
+The mask stores the level as the texel of an undiscovered base room (`ExplorerFogMask::
+UNDISCOVERED`; Off writes `SHOWN`), and the room-cell shader fogs every texel below `SHOWN`
+today, so the shader must learn that value before a level other than Off is selectable.
+Frontier hints are obsolete (see "Decided" below), so there is no switch for them.
 
-| Layer | Subtle | Medium | Severe |
-|---|---|---|---|
-| Terrain | dimmed, desaturated | flat parchment tint, noise-dissolved edge | dissolved |
-| Mob and load overlays (herbs, treasure...) | hidden | hidden | hidden |
-| Infomarks and labels | hidden | hidden | hidden |
-| Exits, walls, doors | faint | hidden | hidden |
-| Connections from a discovered room toward an undiscovered one | full line | stub to the cell edge | stub to the cell edge |
-| Room and door names | hidden | hidden | hidden |
-| Frontier glimmer | optional | optional | optional |
+Layer matrix (what an **undiscovered base-map** room shows). The base map is not a secret, so
+no layer of such a room is ever hidden: every layer dims with the level.
 
-Subtle only softens the look of terrain; it never leaks overlays, marks, or names.
+| Layer | Off | Subtle | Medium | Severe |
+|---|---|---|---|---|
+| Terrain | clear | dimmed, desaturated | parchment tint, softened edge | strongly dimmed, never dissolved |
+| Mob and load overlays (herbs, treasure...) | clear | dimmed | dimmed | strongly dimmed |
+| Infomarks and labels | clear | dimmed | dimmed | strongly dimmed |
+| Exits, walls, doors | clear | dimmed | dimmed | strongly dimmed |
+| Connections from a discovered room toward an undiscovered one | full line | full line | full line | full line |
+| Room and door names | clear | dimmed | dimmed | strongly dimmed |
+
+Hidden at every level, whatever the preset: rooms behind an undiscovered secret, undiscovered
+secret exits and their door names (`hideUndiscoveredExits` already does this), and infomarks
+and labels that sit over a hidden cell (infomarks are positional, so they need the mask in
+the infomark and font shaders, not a remesh).
+
+**Decided (v2.3):** every layer dims, none is hidden, so the map never contradicts Find Rooms,
+which reports the whole base map. Default level: **Off** until someone has looked at the shader
+on a real map, **Subtle** afterwards (a public map only needs a light "you have not been here"
+cue). **Frontier hints are obsolete**: with the base map visible and found secrets part of the
+walk, the frontier is nearly always empty. The code stays until Phase 5 is dropped.
+
+**Requirement for the shader slice.** When the player leaves a cell whose base value is
+`UNDISCOVERED`, patch it to `SHOWN`, not back to the base value: the player has stood there, so
+it is discovered, and the mask only catches up when the `Room.Known` update arrives. Every
+other value is restored from the base as now.
+
+**Existing issue, outside this work.** "Export Base Map" removes rooms and exits but keeps every
+infomark, and infomarks are positional. A mark over a room the export removes would still be
+published. Whether any such mark exists on the shipped map has not been checked.
 
 ### 3.5 Motion
 

@@ -7,7 +7,9 @@
 
 #include <algorithm>
 
-ExplorerFogMask buildExplorerFogMask(const Map &map, const ExplorerView &view)
+ExplorerFogMask buildExplorerFogMask(const Map &map,
+                                     const ExplorerView &view,
+                                     const uint8_t undiscoveredTexel)
 {
     ExplorerFogMask mask;
     if (!view.isActive()) {
@@ -31,9 +33,10 @@ ExplorerFogMask buildExplorerFogMask(const Map &map, const ExplorerView &view)
             return;
         }
         // Anything not explicitly shown or hinted at stays hidden.
-        mask.texels[mask.indexOf(pos)] = view.shows(id)        ? ExplorerFogMask::SHOWN
-                                         : view.isFrontier(id) ? ExplorerFogMask::FRONTIER
-                                                               : ExplorerFogMask::HIDDEN;
+        mask.texels[mask.indexOf(pos)] = view.isUndiscoveredBase(id) ? undiscoveredTexel
+                                         : view.shows(id)            ? ExplorerFogMask::SHOWN
+                                         : view.isFrontier(id)       ? ExplorerFogMask::FRONTIER
+                                                                     : ExplorerFogMask::HIDDEN;
     });
     return mask;
 }

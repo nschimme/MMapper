@@ -63,11 +63,51 @@ void testMask()
     TEST_ASSERT(mask2.at(Coordinate{0, 0, 0}) == ExplorerFogMask::HIDDEN);
 }
 
+void testUndiscoveredLevel()
+{
+    ProgressCounter pc;
+    Map map;
+    const auto add = [&](const Coordinate pos) {
+        map = map.applySingleChange(pc, Change{room_change_types::AddPermanentRoom{pos}}).map;
+        return map.findRoomHandle(pos).getId();
+    };
+    const RoomId discovered = add(Coordinate{0, 0, 0});
+    const RoomId undiscovered = add(Coordinate{1, 0, 0});
+    const RoomId secret = add(Coordinate{2, 0, 0});
+
+    auto base = std::make_shared<ExplorerVisibility>();
+    base->visible.insert(discovered);
+    base->visible.insert(undiscovered);
+    base->undiscoveredBase.insert(undiscovered);
+    const auto view = ExplorerView::makeActive(base, map, std::nullopt, {});
+
+    // The default is today's mask: the base map is shown, whatever the fog level will be.
+    auto mask = buildExplorerFogMask(map, view);
+    TEST_ASSERT(mask.at(Coordinate{0, 0, 0}) == ExplorerFogMask::SHOWN);
+    TEST_ASSERT(mask.at(Coordinate{1, 0, 0}) == ExplorerFogMask::SHOWN);
+    TEST_ASSERT(mask.at(Coordinate{2, 0, 0}) == ExplorerFogMask::HIDDEN);
+
+    // With a level, only the undiscovered base map changes. A secret stays hidden, a
+    // discovered room stays clear, and the base map is never hidden.
+    mask = buildExplorerFogMask(map, view, ExplorerFogMask::UNDISCOVERED);
+    TEST_ASSERT(mask.at(Coordinate{0, 0, 0}) == ExplorerFogMask::SHOWN);
+    TEST_ASSERT(mask.at(Coordinate{1, 0, 0}) == ExplorerFogMask::UNDISCOVERED);
+    TEST_ASSERT(mask.at(Coordinate{2, 0, 0}) == ExplorerFogMask::HIDDEN);
+    TEST_ASSERT(ExplorerFogMask::UNDISCOVERED != ExplorerFogMask::HIDDEN);
+
+    // The player's own room is clear at every level.
+    const auto standing = ExplorerView::makeActive(base, map, undiscovered, {});
+    mask = buildExplorerFogMask(map, standing, ExplorerFogMask::UNDISCOVERED);
+    TEST_ASSERT(mask.at(Coordinate{1, 0, 0}) == ExplorerFogMask::SHOWN);
+    (void) secret;
+}
+
 } // namespace
 
 namespace test {
 void testExplorerFogMask()
 {
     testMask();
+    testUndiscoveredLevel();
 }
 } // namespace test

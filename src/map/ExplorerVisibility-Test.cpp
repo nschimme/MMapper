@@ -530,6 +530,64 @@ void testNoSeedRoomsFallBackToKnownRooms()
     TEST_ASSERT(v.visible.contains(a));
     TEST_ASSERT(!v.visible.contains(b));
 }
+
+void testUndiscoveredBase()
+{
+    Fixture f;
+    const RoomId seed = f.add(0, COSY_ROOM);
+    const RoomId open = f.add(1, 21);
+    const RoomId secret = f.add(2, 22);
+    const RoomId noId = f.add(5);
+    f.connect(seed, ExitDirEnum::EAST, open);
+    f.connect(open, ExitDirEnum::EAST, secret);
+    f.hide(open, ExitDirEnum::EAST);
+    f.connect(seed, ExitDirEnum::DOWN, noId);
+    f.apply(
+        Change{room_change_types::AddRoom2{Coordinate{9, 0, 0}, *ParseEvent::createDummyEvent()}});
+    const RoomId temp = f.map.findRoomHandle(Coordinate{9, 0, 0}).getId();
+    f.connect(seed, ExitDirEnum::NORTH, temp);
+
+    // Shown only because they are not hidden: inside `visible`, and never secret or temporary.
+    auto v = f.compute({});
+    for (const RoomId id : {seed, open, noId}) {
+        TEST_ASSERT(v.undiscoveredBase.contains(id));
+        TEST_ASSERT(v.visible.contains(id));
+    }
+    for (const RoomId id : {secret, temp}) {
+        TEST_ASSERT(!v.undiscoveredBase.contains(id));
+    }
+    for (const RoomId id : v.undiscoveredBase) {
+        TEST_ASSERT(v.visible.contains(id));
+    }
+
+    // A discovered room drops out of the set, and stays visible.
+    v = f.compute({21});
+    TEST_ASSERT(!v.undiscoveredBase.contains(open));
+    TEST_ASSERT(v.visible.contains(open));
+    TEST_ASSERT(v.undiscoveredBase.contains(seed));
+
+    // A room without a server ID is discovered once the player was placed in it.
+    RoomIdSet placed;
+    placed.insert(noId);
+    v = f.compute({}, {}, std::nullopt, placed);
+    TEST_ASSERT(!v.undiscoveredBase.contains(noId));
+    TEST_ASSERT(v.visible.contains(noId));
+
+    // The current room is the player's: never undiscovered.
+    v = f.compute({}, {}, seed);
+    TEST_ASSERT(v.visible.contains(seed));
+    TEST_ASSERT(!v.undiscoveredBase.contains(seed));
+
+    // The view answers the same way, and the player's room is an overlay on top of the base.
+    const auto base = std::make_shared<const ExplorerVisibility>(f.compute({}));
+    const DiscoveredExits none;
+    const auto view = ExplorerView::makeActive(base, f.map, std::nullopt, none);
+    TEST_ASSERT(view.isUndiscoveredBase(seed));
+    TEST_ASSERT(view.shows(seed));
+    TEST_ASSERT(!view.isUndiscoveredBase(secret));
+    TEST_ASSERT(!ExplorerView::makeActive(base, f.map, seed, none).isUndiscoveredBase(seed));
+    TEST_ASSERT(!ExplorerView{}.isUndiscoveredBase(seed));
+}
 } // namespace
 
 namespace test {
@@ -550,5 +608,6 @@ void testExplorerVisibility()
     testBaseMapExport();
     testBaseMapIsVisibleByDefault();
     testNoSeedRoomsFallBackToKnownRooms();
+    testUndiscoveredBase();
 }
 } // namespace test

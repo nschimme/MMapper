@@ -23,6 +23,10 @@ struct NODISCARD ExplorerFogMask final
     static constexpr uint8_t HIDDEN = 0;
     static constexpr uint8_t FRONTIER = 128;
     static constexpr uint8_t SHOWN = 255;
+    // A base-map room that is not discovered, once fog dims it instead of showing it. The
+    // room-cell shader fogs every value below SHOWN, so nothing may write this value until it
+    // draws the level; see the `undiscoveredTexel` parameter below.
+    static constexpr uint8_t UNDISCOVERED = 192;
 
     Coordinate min;
     int width = 0;
@@ -51,7 +55,12 @@ struct NODISCARD ExplorerFogMask final
 };
 
 // An inactive view yields an empty mask: the renderer then does not fog at all.
-NODISCARD extern ExplorerFogMask buildExplorerFogMask(const Map &map, const ExplorerView &view);
+//
+// `undiscoveredTexel` is what a base-map room that is not discovered gets, which is how the fog
+// level reaches the shader. SHOWN (the default) means no fog on the base map. Secrets stay
+// HIDDEN, and the current room is always SHOWN, at every level.
+NODISCARD extern ExplorerFogMask buildExplorerFogMask(
+    const Map &map, const ExplorerView &view, uint8_t undiscoveredTexel = ExplorerFogMask::SHOWN);
 
 namespace test {
 extern void testExplorerFogMask();

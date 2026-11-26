@@ -80,6 +80,9 @@ ExplorerVisibility computeExplorerVisibility(const ExplorerVisibilityInput &in)
                                                                : in.known.contains(serverId);
         if (known || baseRooms.contains(id)) {
             result.visible.insert(id);
+            if (!known) {
+                result.undiscoveredBase.insert(id);
+            }
         }
     });
 
@@ -142,6 +145,11 @@ bool ExplorerView::shows(const RoomId id) const
         return true;
     }
     return m_current == id || (m_base && m_base->visible.contains(id));
+}
+
+bool ExplorerView::isUndiscoveredBase(const RoomId id) const
+{
+    return m_active && m_current != id && m_base && m_base->undiscoveredBase.contains(id);
 }
 
 bool ExplorerView::isFrontier(const RoomId id) const

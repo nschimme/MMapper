@@ -7,6 +7,12 @@ layout(std140) uniform NamedColorsBlock
     vec4 uNamedColors[MAX_NAMED_COLORS];
 };
 
+// Explore-mode fog. When uFogEnabled is 0 nothing below is evaluated.
+uniform int uFogEnabled;
+uniform ivec4 uFogMin;
+uniform ivec4 uFogSize;
+uniform sampler2DArray uFogMask;
+
 layout(location = 0) in ivec4 aVertTexCol;
 
 out vec4 vColor;
@@ -30,6 +36,24 @@ void main()
     const ivec3 ioffsets[4] = ivec3[4](ivec3(0, 0, 0), ivec3(1, 0, 0), ivec3(0, 1, 0), ivec3(1, 1, 0)); // strip
 #endif
     ivec3 ioffset = ioffsets[gl_VertexID];
+
+    if (uFogEnabled != 0) {
+        // One instance is one room cell, so the whole quad is kept or dropped together.
+        // A cell outside the mask is hidden, and so is any cell that is not fully shown
+        // (hinted cells are hidden until frontier hints exist).
+        ivec3 cell = aVertTexCol.xyz - uFogMin.xyz;
+        bool shown = all(greaterThanEqual(cell, ivec3(0))) && all(lessThan(cell, uFogSize.xyz));
+        if (shown) {
+            shown = texelFetch(uFogMask, cell, 0).r > 0.99;
+        }
+        if (!shown) {
+            vColor = vec4(0.0);
+            vTexCoord = vec3(0.0);
+            // Outside the clip volume and degenerate: no fragments are generated.
+            gl_Position = vec4(2.0, 2.0, 2.0, 1.0);
+            return;
+        }
+    }
 
     int texZ = aVertTexCol.w & 0xFF;
     int colorId = (aVertTexCol.w >> 8) % MAX_NAMED_COLORS;

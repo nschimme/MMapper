@@ -65,6 +65,8 @@ set(mmapper_SRCS
     configuration/configuration.h
     display/CanvasMouseModeEnum.h
     display/Characters.cpp
+    display/ExplorerFogTexture.cpp
+    display/ExplorerFogTexture.h
     display/Characters.h
     display/ConnectionLineBuilder.cpp
     display/ConnectionLineBuilder.h

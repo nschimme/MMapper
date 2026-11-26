@@ -688,6 +688,9 @@ void MainWindow::wireConnections()
         m_explorerVisibility->onDisconnected();
     });
 
+    connect(m_explorerVisibility, &ExplorerVisibilityService::sig_changed, this, [this]() {
+        syncCanvasFog();
+    });
     // The visibility service is fed plain values; it knows nothing about MapData or GMCP.
     connect(m_knownRooms, &KnownRoomsTracker::sig_changed, this, [this]() { pushExplorerData(); });
     connect(m_knownRooms, &KnownRoomsTracker::sig_exitsChanged, this, [this]() {
@@ -1284,6 +1287,25 @@ void MainWindow::syncCanvasExits()
     if (MapCanvasWindow *const canvas = getCanvas()) {
         canvas->slot_setExplorerExits(exits);
     }
+}
+
+void MainWindow::syncCanvasFog()
+{
+    MapCanvasWindow *const canvas = getCanvas();
+    if (canvas == nullptr) {
+        return;
+    }
+    const bool active = m_explorerVisibility->isActive();
+    std::optional<Coordinate> shown;
+    if (active) {
+        if (const auto current = m_explorerVisibility->getCurrentRoom()) {
+            const RoomHandle room = m_mapData->getCurrentMap().findRoomHandle(*current);
+            if (room.exists()) {
+                shown = room.getPosition();
+            }
+        }
+    }
+    canvas->slot_setExplorerFog(active, m_explorerVisibility->getFogMask(), shown);
 }
 
 void MainWindow::pushExplorerData()

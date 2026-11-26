@@ -1387,6 +1387,14 @@ void MapCanvas::slot_setExplorerExits(const std::shared_ptr<const DiscoveredExit
     requestForceUpdateMeshes();
 }
 
+void MapCanvas::slot_setExplorerFog(const bool active,
+                                    const std::shared_ptr<const ExplorerFogMask> &mask,
+                                    const std::optional<Coordinate> shown)
+{
+    m_fogTexture.set(active, mask, shown);
+    m_frameManager.requestUpdate();
+}
+
 void MapCanvas::requestForceUpdateMeshes()
 {
     // Deferred: dropping the cached meshes destroys GL objects (VBOs/VAOs),

@@ -9,12 +9,14 @@
 #include "../global/ChangeMonitor.h"
 #include "../global/Signal2.h"
 #include "../map/DiscoveredExit.h"
+#include "../map/ExplorerFogMask.h"
 #include "../map/PromptFlags.h"
 #include "../mapdata/roomselection.h"
 #include "../opengl/Font.h"
 #include "../opengl/FontFormatFlags.h"
 #include "../opengl/OpenGL.h"
 #include "../opengl/Weather.h"
+#include "ExplorerFogTexture.h"
 #include "FrameManager.h"
 #include "Infomarks.h"
 #include "MapCanvasConfig.h"
@@ -185,6 +187,8 @@ private:
     GameObserver &m_observer;
     // Explore mode: the secret exits found so far, or null when not exploring.
     std::shared_ptr<const DiscoveredExits> m_explorerExits;
+    // Explore mode: the fog the room meshes are drawn through.
+    ExplorerFogTexture m_fogTexture;
     mutable OpenGL m_opengl;
     GLFont m_glFont;
     Batches m_batches;
@@ -373,6 +377,11 @@ public:
     // Null leaves the map as is. Otherwise hidden exits not in the snapshot are drawn as walls.
     // Remeshes the whole map, which is fine because finds are rare.
     void slot_setExplorerExits(const std::shared_ptr<const DiscoveredExits> &exits);
+    // `active` without a mask hides every room (nothing is known yet); `shown` is the player's
+    // room, which is always visible.
+    void slot_setExplorerFog(bool active,
+                             const std::shared_ptr<const ExplorerFogMask> &mask,
+                             std::optional<Coordinate> shown);
     void infomarksChanged();
     void layerChanged();
     void slot_mapChanged();

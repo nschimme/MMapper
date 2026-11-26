@@ -243,12 +243,23 @@ struct NODISCARD GLRenderState final
 
     static inline constexpr size_t NUM_TEXTURES = 2;
     using Textures = MMapper::Array<MMTextureId, NUM_TEXTURES>;
+    // Explore-mode fog for map content: textures[FOG_TEXTURE_UNIT] is an R8 2D array texture
+    // with one texel per map cell (one layer per z), see ExplorerFogMask. A cell is drawn only
+    // when its texel is fully on; a cell outside [min, min + size) is never drawn, so a zero
+    // size hides everything (the fail-closed state).
+    static inline constexpr size_t FOG_TEXTURE_UNIT = 1;
+    struct NODISCARD FogUniforms final
+    {
+        glm::ivec3 min{0};
+        glm::ivec3 size{0};
+    };
     struct NODISCARD Uniforms final
     {
         Color color;
         // glEnable(TEXTURE_2D), or glEnable(TEXTURE_3D)
         Textures textures;
         std::optional<float> pointSize;
+        std::optional<FogUniforms> fog;
     };
 
     Uniforms uniforms;
@@ -306,7 +317,16 @@ struct NODISCARD GLRenderState final
     NODISCARD GLRenderState withTexture0(const MMTextureId new_texture) const
     {
         GLRenderState copy = *this;
-        copy.uniforms.textures = Textures{new_texture, INVALID_MM_TEXTURE_ID};
+        // Only unit 0 changes: the fog texture (if any) stays bound.
+        copy.uniforms.textures[0] = new_texture;
+        return copy;
+    }
+
+    NODISCARD GLRenderState withFog(const MMTextureId fogTexture, const FogUniforms &fog) const
+    {
+        GLRenderState copy = *this;
+        copy.uniforms.textures[FOG_TEXTURE_UNIT] = fogTexture;
+        copy.uniforms.fog = fog;
         return copy;
     }
 

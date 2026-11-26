@@ -186,6 +186,18 @@ void AbstractShaderProgram::setViewport(const char *const name, const Viewport &
     setUniform4iv(location, 1, glm::value_ptr(viewport));
 }
 
+void AbstractShaderProgram::setIVec4(const char *const name, const glm::ivec4 &value)
+{
+    const GLint location = getUniformLocation(name);
+    setUniform4iv(location, 1, glm::value_ptr(value));
+}
+
+void AbstractShaderProgram::setInt(const char *const name, const int value)
+{
+    const GLint location = getUniformLocation(name);
+    setUniform1iv(location, 1, &value);
+}
+
 void AbstractShaderProgram::setFloat(const char *const name, const float value)
 {
     const GLint location = getUniformLocation(name);

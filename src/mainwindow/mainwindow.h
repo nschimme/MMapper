@@ -385,6 +385,7 @@ private:
     // Explore mode meshes undiscovered secret doors as plain walls; this hands the canvas the
     // finds (or null when not exploring) and it remeshes only when they changed.
     void syncCanvasExits();
+    void syncCanvasFog();
 
     struct NODISCARD CanvasHider final
     {

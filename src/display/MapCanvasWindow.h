@@ -16,6 +16,7 @@
 
 #include "../global/Signal2.h"
 #include "../map/DiscoveredExit.h"
+#include "../map/ExplorerFogMask.h"
 #include "../map/PromptFlags.h"
 #include "../mapdata/roomselection.h"
 #include "CanvasMouseModeEnum.h"
@@ -192,6 +193,12 @@ public slots:
     void slot_setExplorerExits(const std::shared_ptr<const DiscoveredExits> &exits)
     {
         m_core.slot_setExplorerExits(exits);
+    }
+    void slot_setExplorerFog(bool active,
+                             const std::shared_ptr<const ExplorerFogMask> &mask,
+                             std::optional<Coordinate> shown)
+    {
+        m_core.slot_setExplorerFog(active, mask, shown);
     }
     void slot_mapChanged() { m_core.slot_mapChanged(); }
     void slot_requestUpdate() { m_core.slot_requestUpdate(); }

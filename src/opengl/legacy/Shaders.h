@@ -101,6 +101,18 @@ private:
         setColor("uColor", uniforms.color);
         setMatrix("uMVP", mvp);
         setTexture("uTexture", 0);
+
+        // The fog sampler always points at its own unit, never at unit 0, even when fog is off.
+        setTexture("uFogMask", static_cast<int>(GLRenderState::FOG_TEXTURE_UNIT));
+        const auto &fog = uniforms.fog;
+        const bool bound = uniforms.textures[GLRenderState::FOG_TEXTURE_UNIT]
+                           != INVALID_MM_TEXTURE_ID;
+        // Fog without a bound texture would sample nothing: hide everything instead.
+        setInt("uFogEnabled", fog.has_value() ? 1 : 0);
+        const glm::ivec3 fogMin = fog ? fog->min : glm::ivec3{0};
+        const glm::ivec3 fogSize = (fog && bound) ? fog->size : glm::ivec3{0};
+        setIVec4("uFogMin", glm::ivec4{fogMin, 0});
+        setIVec4("uFogSize", glm::ivec4{fogSize, 0});
     }
 };
 

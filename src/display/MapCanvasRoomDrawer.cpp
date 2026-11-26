@@ -1005,7 +1005,7 @@ LayerMeshes LayerMeshesIntermediate::getLayerMeshes(OpenGL &gl) const
     return lm;
 }
 
-void LayerMeshes::render(const int thisLayer, const int focusedLayer)
+void LayerMeshes::render(const int thisLayer, const int focusedLayer, const GLRenderState &baseState)
 {
     // Disable texturing for this layer. We want to draw
     // all of the squares in white (using layer boost quads),
@@ -1013,7 +1013,7 @@ void LayerMeshes::render(const int thisLayer, const int focusedLayer)
     const bool disableTextures = (thisLayer > focusedLayer)
                                  && !getConfig().canvas.drawUpperLayersTextured;
 
-    const GLRenderState defaultState;
+    const GLRenderState &defaultState = baseState;
     const GLRenderState less = defaultState.withDepthFunction(DepthFunctionEnum::LESS);
     const GLRenderState equal = defaultState.withDepthFunction(DepthFunctionEnum::EQUAL);
     const GLRenderState lequal = defaultState.withDepthFunction(DepthFunctionEnum::LEQUAL);

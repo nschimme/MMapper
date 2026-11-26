@@ -92,6 +92,8 @@ public:
     void setMatrix(const char *name, const glm::mat4 &m);
     void setTexture(const char *name, int textureUnit);
     void setViewport(const char *name, const Viewport &input_viewport);
+    void setIVec4(const char *name, const glm::ivec4 &value);
+    void setInt(const char *name, int value);
     void setFloat(const char *name, float value);
 };
 

@@ -42,6 +42,7 @@ void ExplorerVisibilityService::rebuildView()
 void ExplorerVisibilityService::resetBase()
 {
     m_base.reset();
+    m_mask.reset();
     m_publishedRevision = 0;
     ++m_epoch;
 }
@@ -65,13 +66,16 @@ void ExplorerVisibilityService::launch()
     in.placedRooms = m_placed;
     const uint64_t revision = m_inputRevision;
     const uint64_t epoch = m_epoch;
-    m_future = std::async(std::launch::async,
-                          [input = std::move(in), revision, epoch]() -> Computed {
-                              return Computed{epoch,
-                                              revision,
-                                              std::make_shared<const ExplorerVisibility>(
-                                                  computeExplorerVisibility(input))};
-                          });
+    m_future = std::async(std::launch::async, [input = std::move(in), revision, epoch]() -> Computed {
+        auto base = std::make_shared<const ExplorerVisibility>(computeExplorerVisibility(input));
+        auto mask = std::make_shared<const ExplorerFogMask>(
+            buildExplorerFogMask(input.map,
+                                 ExplorerView::makeActive(base,
+                                                          input.map,
+                                                          std::nullopt,
+                                                          input.discoveredExits)));
+        return Computed{epoch, revision, std::move(base), std::move(mask)};
+    });
 }
 
 void ExplorerVisibilityService::poll()
@@ -96,6 +100,7 @@ void ExplorerVisibilityService::poll()
             && result->revision >= m_publishedRevision) {
             m_publishedRevision = result->revision;
             m_base = std::move(result->base);
+            m_mask = std::move(result->mask);
             rebuildView();
         }
     }

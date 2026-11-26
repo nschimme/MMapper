@@ -5,6 +5,7 @@
 #include "../global/ImmUnorderedSet.h"
 #include "../global/macros.h"
 #include "../map/DiscoveredExit.h"
+#include "../map/ExplorerFogMask.h"
 #include "../map/ExplorerVisibility.h"
 #include "../map/Map.h"
 #include "../map/RoomIdSet.h"
@@ -55,6 +56,8 @@ private:
         uint64_t epoch = 0;
         uint64_t revision = 0;
         std::shared_ptr<const ExplorerVisibility> base;
+        // The fog for `base` without a current room (the player's room is an overlay).
+        std::shared_ptr<const ExplorerFogMask> mask;
     };
     // Bumped whenever the base stops being valid for whoever is playing (activation, map load,
     // character change, disconnect). A result computed in an older epoch must never be shown:
@@ -62,6 +65,7 @@ private:
     uint64_t m_epoch = 0;
     std::optional<std::future<Computed>> m_future;
     std::shared_ptr<const ExplorerVisibility> m_base;
+    std::shared_ptr<const ExplorerFogMask> m_mask;
     ExplorerView m_view;
     QTimer m_timer;
 
@@ -91,6 +95,10 @@ public:
     void onDisconnected();
 
     NODISCARD const ExplorerView &getView() const { return m_view; }
+    NODISCARD bool isActive() const { return m_active; }
+    // Null until the first computation of this activation: the renderer then hides everything.
+    NODISCARD const std::shared_ptr<const ExplorerFogMask> &getFogMask() const { return m_mask; }
+    NODISCARD std::optional<RoomId> getCurrentRoom() const { return m_current; }
     NODISCARD const RoomIdSet &getPlacedRooms() const { return m_placed; }
     // How many full computations were started; lets tests check the cache key.
     NODISCARD uint64_t getComputeCount() const { return m_computeCount; }

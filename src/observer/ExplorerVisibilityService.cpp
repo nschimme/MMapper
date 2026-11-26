@@ -65,11 +65,13 @@ void ExplorerVisibilityService::launch()
     in.placedRooms = m_placed;
     const uint64_t revision = m_inputRevision;
     const uint64_t epoch = m_epoch;
-    m_future = std::async(std::launch::async, [in = std::move(in), revision, epoch]() -> Computed {
-        return Computed{epoch,
-                        revision,
-                        std::make_shared<const ExplorerVisibility>(computeExplorerVisibility(in))};
-    });
+    m_future = std::async(std::launch::async,
+                          [input = std::move(in), revision, epoch]() -> Computed {
+                              return Computed{epoch,
+                                              revision,
+                                              std::make_shared<const ExplorerVisibility>(
+                                                  computeExplorerVisibility(input))};
+                          });
 }
 
 void ExplorerVisibilityService::poll()

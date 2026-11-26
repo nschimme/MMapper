@@ -20,7 +20,8 @@ uniform sampler2DArray uFogMask;
 uniform int uFoundEnabled;
 uniform ivec4 uFoundMin;
 uniform ivec4 uFoundSize;
-uniform usampler2DArray uFoundMask;
+// An explicit precision: GLSL ES has no default for integer array samplers.
+uniform highp usampler2DArray uFoundMask;
 
 layout(location = 0) in ivec4 aVertTexCol;
 

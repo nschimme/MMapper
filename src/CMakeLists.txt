@@ -332,6 +332,9 @@ set(mmapper_SRCS
     map/ExitFlags.cpp
     map/ExitFlags.h
     map/ExitsFlags.h
+    map/ExplorerFogMask-Test.cpp
+    map/ExplorerFogMask.cpp
+    map/ExplorerFogMask.h
     map/ExplorerVisibility-Test.cpp
     map/ExplorerVisibility.cpp
     map/ExplorerVisibility.h

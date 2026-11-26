@@ -1,4 +1,4 @@
-# Explorer Mode: Plan (v2.1, advisor-reviewed twice)
+# Explorer Mode: Plan (v2.2, advisor-reviewed twice, decisions settled)
 
 ## 1. Goal
 
@@ -18,30 +18,18 @@ Settled:
 | Topic | Decision |
 |---|---|
 | Base | Use MUME/MMapper PR #566 for the GMCP `Room.Known` data layer. Do not use its red-dot overlay as the product. |
-| Mode | New `MapModeEnum::EXPLORE` beside `PLAY`, `MAP`, `OFFLINE`. The user wrote "Explorer"; the menu and status use "Explore" to match "Play" and "Map". **Confirm the name.** |
+| Mode | New `MapModeEnum::EXPLORE` beside `PLAY`, `MAP`, `OFFLINE`. |
 | Hidden exits | Closed (a plain wall) until discovered. |
 | Server data wins | A live server observation always overrides cached or transient data. |
 | Fail direction | Fail closed: anything whose status is unknown stays fogged. |
-| Door reset | About every 60 minutes; transient door state expires on that interval. |
+| Door reset | Every 60 minutes of **real time**; transient door state expires on that interval (monotonic clock, injectable for tests). |
+| Name | "Explore" in menus and status, matching "Play" and "Map". |
+| Offline mode | Stays a "show everything" mode. Switching to it from Explore warns "This reveals the full map." "Disconnected Explore" means using Explore while not connected, from the cached profile. |
+| Rooms with no server ID | Fogged, unless the path machine has placed the player there this session. They have no stable key, so they cannot be persisted and fog again next session. |
+| Group beacons on fogged rooms | The beacon is shown with the room drawn as a bare marker. Your own position is always shown. |
+| #566 | Coordinate with its author, rebase onto master, and land the data layer first (the extension path, not a fork). |
 
-**Open decisions (need the user):**
-
-1. **Offline mode versus Explore.** `EXPLORE` and `OFFLINE` are different values of one enum, so
-   they cannot both be active. Offline is the MUD emulator: it lets you walk the map and read room
-   descriptions, a major spoiler surface. Two options:
-   - **A (recommended):** Offline stays a "show everything" mode. Switching to it from Explore
-     warns "This reveals the full map." In this plan, "disconnected Explore" means using Explore
-     while not connected, from the cached profile.
-   - **B:** Make fog a flag separate from the mode, so it also applies in Offline and Offline
-     refuses to walk into unknown rooms. More coherent, more work.
-2. **Rooms with no server ID.** On a shipped full map every un-ID'd room would be a free reveal.
-   Recommended: fog them, unless the path machine has placed the player there this session.
-   Such rooms have no stable key, so they cannot be persisted across sessions; that is why they
-   fog again next session.
-5. **Group beacons on fogged rooms.** Show the beacon with the room drawn as a bare marker
-   (recommended), or hide the beacon. Your own position is always shown.
-3. **Door reset clock:** real time or MUME game time? (Changes which clock the TTL uses.)
-4. **#566:** rebase and extend it, or fork its commit into this repository?
+No decisions are currently open.
 
 ## 3. UX specification
 
@@ -77,7 +65,7 @@ Settled:
 | Server does not offer `Room.Known` | **Stay in Explore**: current room plus any cache, with a persistent notice. Never fall back to a mode that reveals the map. |
 | Disconnected | Cached profile if any; otherwise an empty-map hint "Connect to begin exploring". |
 | Character not yet identified | Current room only until GMCP identifies the character. |
-| Room with no server ID | Fogged (see decision 2). |
+| Room with no server ID | Fogged (see section 2). |
 | Current room | Always visible. |
 
 ### 3.4 Fog strength (one control)
@@ -120,8 +108,8 @@ Subtle only softens the look of terrain; it never leaks overlays, marks, or name
   same visibility policy, so the map never contradicts itself.
 - **Path finding and the path overlay only use discovered rooms and exits.** The overlay is not
   a spoiler only because of this restriction.
-- **Group beacons:** a member standing on a fogged room would reveal that it exists. See open
-  decision 5.
+- **Group beacons:** a member standing on a fogged room would reveal that it exists. See the
+  settled decision in section 2.
 
 ## 4. Architecture
 
@@ -181,7 +169,7 @@ facing a fully fogged map for a minute or more.
 
 Canvas meshes, connections, room and door names, infomarks, labels, tooltips, room panel, Find
 Rooms, selection, path finding and speedwalk, `_dirs` output, zoom-to-fit and scroll extents,
-group markers, exports, and **Offline mode's room descriptions and walking** (see decision 1).
+group markers, exports, and **Offline mode's room descriptions and walking** (see section 2).
 
 ## 7. Phases (and which modes see changes)
 

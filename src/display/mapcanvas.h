@@ -191,6 +191,8 @@ private:
     // A found secret exit asks for a remesh in the background; the current meshes keep drawing
     // until it is ready.
     bool m_explorerRemeshRequested = false;
+    // The visible set changed: the infomark meshes are rebuilt before the next frame is drawn.
+    bool m_explorerInfomarksStale = false;
     // Explore mode: the rooms connections may be meshed for. Null means not exploring.
     std::shared_ptr<const RoomIdSet> m_explorerVisible;
     // Explore mode: the fog the room meshes are drawn through.

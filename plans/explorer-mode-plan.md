@@ -244,7 +244,7 @@ group markers, exports, and **Offline mode's room descriptions and walking** (se
 |---|---|---|
 | 0 | **Landed on this branch.** Unchanged #566 port, then: no default negotiation, `KnownRoomsStore`, fail-closed semantics, `KnownRoomsTracker` (disabled by default). Coordinating with the #566 author is a separate, human step. | none (one parser change, see below) |
 | 1 | **Landed on this branch** (read-only enforcement moved to Phase 2): the tracker (runs while Explore is the mode), `EXPLORE` mode, the visibility policy and effective exit view (`src/map/ExplorerVisibility`), and discovered-exit recording and persistence. The policy has no consumer yet, and its `placedRooms` input is defined but nothing feeds it. | Explore |
-| 2 | **Started.** Landed: the visibility service and the first consumer, undiscovered secret exits meshed as plain walls (`hideUndiscoveredExits`, applied to the map on the mesh worker thread). Find Rooms now reports only shown rooms, and no route through a hidden room. Still to do, most-leaking first: names and infomarks (these are meshed, so they need the Phase 3 mask rather than a remesh per step), room panel and tooltips, `_dirs`/speedwalk path finding, and (done, not yet seen in the app) read-only enforcement. | Explore |
+| 2 | **Started.** Landed: the visibility service and the first consumer, undiscovered secret exits meshed as plain walls (`hideUndiscoveredExits`, applied to the map on the mesh worker thread). Find Rooms now reports only shown rooms, and no route through a hidden room. Infomarks over hidden rooms are no longer drawn (done, not yet seen in the app; see "Infomarks in Explore" below). Still to do, most-leaking first: room panel and tooltips, `_dirs`/speedwalk path finding, the `_mark` parser commands and the infomark edit dialog (they can still list or show a mark over a hidden room), and (done, not yet seen in the app) read-only enforcement. | Explore |
 | 3 | **Started.** Landed: the pure mask builder (`src/map/ExplorerFogMask`, tested), and the fog in the room-cell vertex shader (`room/tex/acolor`), which covers terrain, trails, overlays, walls and doors in one place. The service builds the base mask on its worker; `ExplorerFogTexture` uploads it (R8 2D array, nearest, alignment 1, limits checked, fail closed) and patches the player's cell each step. Hinted (frontier) cells are hidden until Phase 5. Not yet visually verified: the shader compiles and links under Mesa and passes glslang for GL 330 and ES 300, but nobody has looked at it on a real map. Landed: connection lines and door names are culled at mesh time (see 'Connection lines' under section 5). Next, in order: infomarks and labels over hidden cells (a separate batch path, still drawn); preset dropdown. Ship Severe (discard) first. Fog MVP: mask builder, shaders, preset dropdown. (The experimental flag was removed early, at the user's request.) | Explore |
 | 4 | `DoorTracker` and its GMCP wiring; door animation: door state texture, swing. **A secret exit is a door state**, so finding one needs no remesh (see below). | **all modes** |
 | 5 | Frontier, reveal animation, reduce motion, docs | Explore (reduce motion: all) |
@@ -295,6 +295,22 @@ Phase 4 (including `DoorTracker`) does not depend on Explore and can ship first.
 - The rooms behind a found secret appear after the visibility recompute (about 0.85 s on the
   shipped map). An incremental flood from the found exit that patches the fog mask directly is a
   possible later step.
+
+**Infomarks in Explore.** Infomarks are meshed on the GUI thread (`getInfomarksMeshes()`), not
+with the room meshes, and are positional, so the fog mask cannot hide them. `drawInfomark()`
+(the one place that emits a mark, also used for the selection) skips a mark when
+`exploreInfomarkShown()` says so: not when any cell the mark covers holds a room that is not in
+the base visible set. A label covers the cell of its anchor, a line or arrow every cell along it
+(`infomarkCells()`, sampled half a cell apart; a mark too long to check is hidden). A mark
+wholly over empty cells stays, like the fog mask's empty cells; a null set (not exploring)
+hides nothing; an empty set (nothing computed yet) hides every mark. A change of the visible
+set sets a flag that rebuilds the infomark meshes at the start of the next frame
+(`hostPaintGL()`: `updateBatches()` runs before anything is drawn), so no stale mesh is ever
+drawn; the room meshes keep their own stricter rule (`exploreVisibleOnlyGrows()`). On the
+shipped map (599 marks, nothing known or found) 144 are culled: 127 of 544 labels, 4 of 6
+lines and 13 of 49 arrows. Limits: a label's text can extend past its anchor cell, so a label
+anchored in an empty cell beside a hidden room is still drawn; marks over the current room are
+drawn only if the room is in the base set. "Export Base Map" still keeps every infomark.
 
 **Gating:** until phase 3 lands, Explore would show the whole map with hidden labels and
 secret exits, and leaving it would warn "This will show the full map." That is incoherent for

@@ -1412,6 +1412,9 @@ void MapCanvas::slot_setExplorerVisible(const std::shared_ptr<const RoomIdSet> &
     if (unchanged) {
         return;
     }
+    // Infomarks are meshed on the GUI thread at the start of a frame, so a flag is enough: the
+    // old ones are never drawn again (see hostPaintGL()).
+    m_explorerInfomarksStale = true;
     if (onlyGrows) {
         m_explorerRemeshRequested = true;
         m_frameManager.requestUpdate();

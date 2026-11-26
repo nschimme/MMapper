@@ -5,6 +5,7 @@
 
 #include "../configuration/configuration.h"
 #include "../global/Charset.h"
+#include "../map/ExplorerVisibility.h"
 #include "../map/coordinate.h"
 #include "../map/infomark.h"
 #include "../mapdata/mapdata.h"
@@ -240,6 +241,14 @@ void MapCanvas::drawInfomark(InfomarksBatch &batch,
     }
 
     const Coordinate pos2 = marker.getPosition2();
+    // Explore mode: nothing over a hidden room (also for the selection, which draws marks too).
+    if (!exploreInfomarkShown(m_explorerVisible.get(),
+                              m_data.getCurrentMap(),
+                              pos1,
+                              pos2,
+                              marker.getType() == InfomarkTypeEnum::TEXT)) {
+        return;
+    }
     const float x1 = static_cast<float>(pos1.x) / INFOMARK_SCALE + offset.x;
     const float y1 = static_cast<float>(pos1.y) / INFOMARK_SCALE + offset.y;
     const float x2 = static_cast<float>(pos2.x) / INFOMARK_SCALE + offset.x;
@@ -371,9 +380,16 @@ void MapCanvas::paintSelectedInfomarks()
 
             const auto &map = m_data.getCurrentMap();
             const InfomarkDb &db = map.getInfomarkDb();
-            db.getIdSet().for_each([&db, &drawSelectionPoints](const InfomarkId id) {
+            db.getIdSet().for_each([this, &map, &db, &drawSelectionPoints](const InfomarkId id) {
                 InfomarkHandle marker{db, id};
-                drawSelectionPoints(marker);
+                // Explore mode: no handle over a hidden room, as for the marks themselves.
+                if (exploreInfomarkShown(m_explorerVisible.get(),
+                                         map,
+                                         marker.getPosition1(),
+                                         marker.getPosition2(),
+                                         marker.getType() == InfomarkTypeEnum::TEXT)) {
+                    drawSelectionPoints(marker);
+                }
             });
         }
     }
@@ -400,9 +416,10 @@ void MapCanvas::paintBatchedInfomarks()
 void MapCanvas::updateInfomarkBatches()
 {
     std::optional<BatchedInfomarksMeshes> &opt_infomarks = m_batches.infomarksMeshes;
-    if (opt_infomarks.has_value() && !m_data.getNeedsMarkUpdate()) {
+    if (opt_infomarks.has_value() && !m_data.getNeedsMarkUpdate() && !m_explorerInfomarksStale) {
         return;
     }
+    m_explorerInfomarksStale = false;
 
     if (m_data.getNeedsMarkUpdate()) {
         m_data.clearNeedsMarkUpdate();

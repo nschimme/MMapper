@@ -11,6 +11,7 @@
 #include "../global/hash.h"
 #include "../global/utils.h"
 #include "FontFormatFlags.h"
+#include "RoomQuadTag.h"
 
 #include <cstdint>
 #include <memory>
@@ -59,7 +60,8 @@ struct NODISCARD ColoredTexVert final
 
 struct NODISCARD RoomQuadTexVert final
 {
-    // xyz = room coord, w = (colorId << 8 | tex_z)
+    // xyz = room coord, w = (colorId << 8 | tex_z), plus an optional secret exit tag in
+    // bits 16-20 (see RoomQuadTag.h)
     // - colorId: packed into bits 8-15 (must be < MAX_NAMED_COLORS)
     // - tex_z:   packed into bits 0-7  (must be < 256)
     glm::ivec4 vertTexCol{};
@@ -69,13 +71,23 @@ struct NODISCARD RoomQuadTexVert final
     {}
 
     explicit RoomQuadTexVert(const glm::ivec3 vert, const int tex_z, const NamedColorEnum color)
-        : vertTexCol{vert, (static_cast<uint8_t>(color) << 8) | tex_z}
+        : RoomQuadTexVert{vert, tex_z, color, room_quad_tag::FormEnum::NONE, 0}
+    {}
+
+    explicit RoomQuadTexVert(const glm::ivec3 vert,
+                             const int tex_z,
+                             const NamedColorEnum color,
+                             const room_quad_tag::FormEnum form,
+                             const unsigned dir)
+        : vertTexCol{vert,
+                     (static_cast<uint8_t>(color) << 8) | tex_z | room_quad_tag::pack(form, dir)}
     {
         if (IS_DEBUG_BUILD) {
             constexpr auto max_texture_layers = 256;
             const auto c = static_cast<uint8_t>(color);
             assert(c == std::clamp<uint8_t>(c, 0, NUM_NAMED_COLORS - 1));
             assert(tex_z == std::clamp(tex_z, 0, max_texture_layers - 1));
+            assert(dir <= 5u);
         }
     }
 };

@@ -492,6 +492,7 @@ set(mmapper_SRCS
     opengl/OpenGLConfig.h
     opengl/OpenGLTypes.cpp
     opengl/OpenGLTypes.h
+    opengl/RoomQuadTag.h
     opengl/legacy/AbstractShaderProgram.cpp
     opengl/legacy/AbstractShaderProgram.h
     opengl/legacy/AttributeLessMeshes.cpp

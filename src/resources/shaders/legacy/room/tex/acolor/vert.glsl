@@ -56,7 +56,8 @@ void main()
     }
 
     int texZ = aVertTexCol.w & 0xFF;
-    int colorId = (aVertTexCol.w >> 8) % MAX_NAMED_COLORS;
+    // Bits 16 and up are a secret exit tag (see RoomQuadTag.h); they must not reach the color.
+    int colorId = ((aVertTexCol.w >> 8) & 0xFF) % MAX_NAMED_COLORS;
 
     vColor = uNamedColors[colorId];
     vTexCoord = vec3(ioffset.xy, float(texZ));

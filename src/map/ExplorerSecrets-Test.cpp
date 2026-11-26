@@ -3,6 +3,7 @@
 
 #include "../global/progresscounter.h"
 #include "../global/tests.h"
+#include "../opengl/RoomQuadTag.h"
 #include "Change.h"
 #include "ChangeTypes.h"
 #include "ExplorerSecrets.h"
@@ -179,6 +180,38 @@ void testSingleFindPatches()
     TEST_ASSERT(buildExplorerFoundMask(Map{}, {}).empty());
 }
 
+void testQuadTag()
+{
+    using room_quad_tag::FormEnum;
+    // Untagged is exactly the old word: no tag bits at all.
+    TEST_ASSERT(room_quad_tag::pack(FormEnum::NONE, 0) == 0);
+    TEST_ASSERT(room_quad_tag::pack(FormEnum::NONE, 5) == 0);
+
+    for (const FormEnum form : {FormEnum::NONE, FormEnum::DOOR, FormEnum::WALL}) {
+        for (unsigned dir = 0; dir <= 5; ++dir) {
+            const int tag = room_quad_tag::pack(form, dir);
+            TEST_ASSERT((tag & ~room_quad_tag::TAG_BITS) == 0);
+            TEST_ASSERT(tag >= 0);
+            for (const int texZ : {0, 1, 17, 255}) {
+                for (const int color : {0, 1, 31, 255}) {
+                    const int word = (color << 8) | texZ | tag;
+                    // the tag does not disturb the fields that were already there...
+                    TEST_ASSERT(room_quad_tag::texZOf(word) == texZ);
+                    TEST_ASSERT(room_quad_tag::colorIdOf(word) == color);
+                    // ...and both come back out of the tag
+                    TEST_ASSERT(room_quad_tag::formOf(word) == form);
+                    if (form != FormEnum::NONE) {
+                        TEST_ASSERT(room_quad_tag::dirOf(word) == dir);
+                    }
+                }
+            }
+        }
+    }
+    // The two forms are different, and so are the six directions.
+    TEST_ASSERT(room_quad_tag::pack(FormEnum::DOOR, 2) != room_quad_tag::pack(FormEnum::WALL, 2));
+    TEST_ASSERT(room_quad_tag::pack(FormEnum::DOOR, 2) != room_quad_tag::pack(FormEnum::DOOR, 3));
+}
+
 } // namespace
 
 namespace test {
@@ -188,5 +221,6 @@ void testExplorerSecrets()
     testBits();
     testFoundMask();
     testSingleFindPatches();
+    testQuadTag();
 }
 } // namespace test
